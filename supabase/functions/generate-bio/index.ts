@@ -47,8 +47,9 @@ serve(async (req) => {
       }]
     }
 
+    // Usando a versão v1 estável em vez de v1beta
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,6 +68,7 @@ serve(async (req) => {
     }
 
     if (!data.candidates || data.candidates.length === 0) {
+      console.error("[generate-bio] IA não retornou candidatos:", data)
       return new Response(
         JSON.stringify({ error: 'A IA não retornou um resultado válido.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

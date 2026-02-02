@@ -378,6 +378,17 @@ const Dashboard = () => {
                   </div>
 
                   <div className="grid gap-2">
+                    <Label>Experiência Profissional</Label>
+                    <Textarea 
+                      value={profile.experience} 
+                      onChange={e => setProfile({...profile, experience: e.target.value})} 
+                      disabled={!isEditing} 
+                      rows={3}
+                      placeholder="Ex: 5 anos de atuação em Home Care, experiência com pacientes pediátricos..."
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
                     <div className="flex items-center justify-between">
                       <Label>Mini-bio</Label>
                       {isEditing && <Button variant="ghost" size="sm" className="h-8 gap-2 text-primary" onClick={generateBioWithAI} disabled={isGeneratingBio}><Sparkles className="h-3 w-3" /> Gerar com IA</Button>}

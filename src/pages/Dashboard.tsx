@@ -15,6 +15,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import Layout from "@/components/layout/Layout";
 import {
   Camera,
@@ -30,20 +41,24 @@ import {
   Loader2,
   Mail,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const { user, session, loading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [profile, setProfile] = useState({
@@ -114,7 +129,7 @@ const Dashboard = () => {
       toast.success("Mini-bio gerada com sucesso!");
     } catch (error: any) {
       console.error(error);
-      toast.error("Erro ao gerar bio com IA. Verifique sua chave do Gemini no Supabase.");
+      toast.error("Erro ao gerar bio com IA.");
     } finally {
       setIsGeneratingBio(false);
     }
@@ -211,6 +226,29 @@ const Dashboard = () => {
       setIsEditing(false);
     }
     setIsSaving(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== "EXCLUIR") {
+      toast.error("Digite EXCLUIR para confirmar.");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user');
+      
+      if (error) throw error;
+      
+      await signOut();
+      toast.success("Sua conta foi excluída definitivamente.");
+      navigate("/");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao excluir conta. Tente novamente mais tarde.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const specialties = [
@@ -339,6 +377,59 @@ const Dashboard = () => {
                     <span>{profile.phone || "WhatsApp não cadastrado"}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Zona de Perigo */}
+              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 shadow-card">
+                <h3 className="mb-4 font-semibold text-destructive flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Zona de Perigo
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  A exclusão da conta é permanente e removerá todos os seus dados e visibilidade profissional.
+                </p>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="w-full gap-2" size="sm">
+                      <Trash2 className="h-4 w-4" />
+                      Excluir Minha Conta
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                      <AlertDialogDescription className="space-y-4">
+                        <p>
+                          Esta ação não pode ser desfeita. Isso excluirá permanentemente sua conta de nossos servidores.
+                        </p>
+                        <div className="space-y-2 rounded-lg bg-muted p-4">
+                          <Label htmlFor="confirm" className="text-foreground">Para confirmar, digite <strong>EXCLUIR</strong> abaixo:</Label>
+                          <Input 
+                            id="confirm"
+                            value={deleteConfirmation}
+                            onChange={(e) => setDeleteConfirmation(e.target.value)}
+                            placeholder="Digite EXCLUIR"
+                            className="bg-background"
+                          />
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setDeleteConfirmation("")}>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleDeleteAccount();
+                        }}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        disabled={deleteConfirmation !== "EXCLUIR" || isDeleting}
+                      >
+                        {isDeleting ? "Excluindo..." : "Sim, excluir minha conta"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
 

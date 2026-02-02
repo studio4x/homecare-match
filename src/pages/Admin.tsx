@@ -11,12 +11,12 @@ import {
   ExternalLink, 
   ShieldCheck, 
   Loader2,
-  MessageSquare,
+  User,
   AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Navigate } from "react-router-dom";
+import { Navigate, Link } from "react-router-dom";
 import { 
   Table, 
   TableBody, 
@@ -42,7 +42,6 @@ const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   
-  // Estado para Reprovação
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -93,7 +92,6 @@ const Admin = () => {
   const handleApprove = async (profile: any) => {
     setProcessingId(profile.id);
     try {
-      // 1. Atualiza no banco
       const { error } = await supabase
         .from("profiles")
         .update({ is_verified: true, verification_sent: false })
@@ -101,7 +99,6 @@ const Admin = () => {
 
       if (error) throw error;
 
-      // 2. Chama a Edge Function para notificar (simulação de e-mail)
       await supabase.functions.invoke('verification-result', {
         body: { 
           profileId: profile.id, 
@@ -110,10 +107,10 @@ const Admin = () => {
         }
       });
 
-      toast.success("Profissional aprovado e notificado!");
+      toast.success("Profissional aprovado!");
       setProfiles(profiles.filter(p => p.id !== profile.id));
     } catch (error) {
-      toast.error("Erro ao aprovar profissional.");
+      toast.error("Erro ao aprovar.");
     } finally {
       setProcessingId(null);
     }
@@ -127,13 +124,12 @@ const Admin = () => {
 
   const confirmRejection = async () => {
     if (!rejectionReason.trim()) {
-      toast.error("Por favor, insira o motivo da reprovação.");
+      toast.error("Insira o motivo.");
       return;
     }
 
     setProcessingId(selectedProfile.id);
     try {
-      // 1. Atualiza no banco (reseta o envio de verificação)
       const { error } = await supabase
         .from("profiles")
         .update({ verification_sent: false })
@@ -141,7 +137,6 @@ const Admin = () => {
 
       if (error) throw error;
 
-      // 2. Chama a Edge Function para notificar com o motivo
       await supabase.functions.invoke('verification-result', {
         body: { 
           profileId: selectedProfile.id, 
@@ -151,11 +146,11 @@ const Admin = () => {
         }
       });
 
-      toast.info("Solicitação reprovada e e-mail enviado.");
+      toast.info("Solicitação reprovada.");
       setProfiles(profiles.filter(p => p.id !== selectedProfile.id));
       setRejectionModalOpen(false);
     } catch (error) {
-      toast.error("Erro ao processar reprovação.");
+      toast.error("Erro ao reprovar.");
     } finally {
       setProcessingId(null);
     }
@@ -189,8 +184,8 @@ const Admin = () => {
               <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead className="w-[300px]">Profissional</TableHead>
-                  <TableHead>Documentos Enviados</TableHead>
-                  <TableHead className="text-right">Ações de Validação</TableHead>
+                  <TableHead>Dados & Documentos</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -204,14 +199,24 @@ const Admin = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="gap-2 h-8 text-primary border-primary/20 hover:bg-primary/5"
+                            asChild
+                          >
+                            <Link to={`/profissional/${p.id}`} target="_blank">
+                              <User className="h-3.5 w-3.5" /> Ver Perfil
+                            </Link>
+                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm" 
                             className="gap-2 h-8"
                             onClick={() => window.open(p.id_document_url, '_blank')}
                           >
-                            <ExternalLink className="h-3 w-3" /> RG/CNH
+                            <ExternalLink className="h-3.5 w-3.5" /> RG/CNH
                           </Button>
                           <Button 
                             variant="outline" 
@@ -219,7 +224,7 @@ const Admin = () => {
                             className="gap-2 h-8"
                             onClick={() => window.open(p.prof_registration_url, '_blank')}
                           >
-                            <ExternalLink className="h-3 w-3" /> Registro
+                            <ExternalLink className="h-3.5 w-3.5" /> Registro
                           </Button>
                         </div>
                       </TableCell>
@@ -252,7 +257,7 @@ const Admin = () => {
                     <TableCell colSpan={3} className="text-center py-20">
                       <div className="flex flex-col items-center gap-2 text-muted-foreground">
                         <CheckCircle className="h-10 w-10 text-success/20" />
-                        <p>Nenhuma solicitação de verificação pendente no momento.</p>
+                        <p>Nenhuma solicitação pendente.</p>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -263,7 +268,6 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* Modal de Reprovação */}
       <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -271,21 +275,19 @@ const Admin = () => {
               <AlertTriangle className="h-5 w-5" /> Reprovar Verificação
             </DialogTitle>
             <DialogDescription>
-              Explique ao profissional <strong>{selectedProfile?.full_name}</strong> por que os documentos foram rejeitados. Este texto será enviado por e-mail.
+              Explique a <strong>{selectedProfile?.full_name}</strong> o motivo da rejeição.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Textarea
-              placeholder="Ex: A foto do RG está ilegível ou o registro profissional está vencido..."
+              placeholder="Ex: Documento ilegível..."
               className="min-h-[120px] resize-none"
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
             />
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>
-              Cancelar
-            </Button>
+            <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>Cancelar</Button>
             <Button 
               variant="destructive" 
               onClick={confirmRejection}
@@ -293,7 +295,7 @@ const Admin = () => {
               className="gap-2"
             >
               {processingId === selectedProfile?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-              Confirmar e Enviar E-mail
+              Confirmar Reprovação
             </Button>
           </DialogFooter>
         </DialogContent>

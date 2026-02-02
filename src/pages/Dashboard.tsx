@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +26,7 @@ import {
   Calendar,
   LogOut,
   Phone,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -35,7 +36,10 @@ import { Navigate } from "react-router-dom";
 const Dashboard = () => {
   const { user, session, loading, signOut } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [profile, setProfile] = useState({
     full_name: "",
     registration: "",
@@ -77,6 +81,61 @@ const Dashboard = () => {
         avatar_url: data.avatar_url || "",
         phone: data.phone || "",
       });
+    }
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error("Por favor, selecione uma imagem.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("A imagem deve ter no máximo 2MB.");
+      return;
+    }
+
+    setIsUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+
+    try {
+      // 1. Upload da imagem
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // 2. Obter URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // 3. Atualizar estado local
+      setProfile({ ...profile, avatar_url: publicUrl });
+      
+      // 4. Salvar imediatamente no banco o novo avatar_url
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", user.id);
+
+      if (updateError) throw updateError;
+
+      toast.success("Foto atualizada!");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao subir imagem. Verifique se o bucket 'avatars' foi criado no Supabase.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -145,7 +204,6 @@ const Dashboard = () => {
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Sidebar - Status */}
             <div className="space-y-6 lg:col-span-1">
-              {/* Subscription Status Card */}
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
                 <h3 className="mb-4 font-semibold text-foreground">
                   Status da Assinatura
@@ -164,13 +222,12 @@ const Dashboard = () => {
                 </Button>
               </div>
 
-              {/* Profile Preview Card */}
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
                 <h3 className="mb-4 font-semibold text-foreground">
                   Prévia do Perfil
                 </h3>
                 <div className="text-center">
-                  <Avatar className="mx-auto h-20 w-20 ring-4 ring-border">
+                  <Avatar className="mx-auto h-20 w-20 ring-4 ring-border shadow-md">
                     <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
                     <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
                       {initials}
@@ -199,15 +256,11 @@ const Dashboard = () => {
                     <Phone className="h-4 w-4 text-primary" />
                     <span>{profile.phone || "WhatsApp não cadastrado"}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4 text-primary" />
-                    <span>Membro desde {new Date(user?.created_at || "").toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}</span>
-                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Main Content - Edit Form */}
+            {/* Main Content */}
             <div className="lg:col-span-2">
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card lg:p-8">
                 <div className="mb-6 flex items-center justify-between">
@@ -236,62 +289,84 @@ const Dashboard = () => {
                 </div>
 
                 <div className="space-y-6">
-                  {/* Photo Upload Placeholder */}
+                  {/* Photo Upload */}
                   <div className="flex items-center gap-6">
-                    <Avatar className="h-24 w-24 ring-4 ring-border">
-                      <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
-                      <AvatarFallback className="bg-primary/10 text-2xl font-semibold text-primary">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative group">
+                      <Avatar className="h-24 w-24 ring-4 ring-border">
+                        <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
+                        <AvatarFallback className="bg-primary/10 text-2xl font-semibold text-primary">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isEditing && (
+                        <button 
+                          onClick={handleUploadClick}
+                          className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <Camera className="h-6 w-6" />
+                        </button>
+                      )}
+                    </div>
                     {isEditing && (
-                      <div>
-                        <Button variant="outline" className="gap-2" onClick={() => toast.info("Upload de fotos em breve!")}>
-                          <Camera className="h-4 w-4" />
+                      <div className="flex-1">
+                        <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          onChange={handleFileChange}
+                          className="hidden" 
+                          accept="image/*"
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-2" 
+                          onClick={handleUploadClick}
+                          disabled={isUploading}
+                        >
+                          {isUploading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Camera className="h-4 w-4" />
+                          )}
                           Alterar Foto
                         </Button>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          JPG ou PNG. Máx. 2MB
+                          JPG ou PNG. Máx. 2MB. Clique na foto para alterar.
                         </p>
                       </div>
                     )}
                   </div>
 
-                  {/* Name */}
-                  <div className="grid gap-2">
-                    <Label htmlFor="full_name">Nome Completo</Label>
-                    <Input
-                      id="full_name"
-                      value={profile.full_name}
-                      onChange={(e) =>
-                        setProfile({ ...profile, full_name: e.target.value })
-                      }
-                      disabled={!isEditing}
-                      placeholder="Seu nome completo"
-                    />
-                  </div>
-
-                  {/* WhatsApp and Specialty */}
+                  {/* Nome e WhatsApp */}
                   <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="full_name">Nome Completo</Label>
+                      <Input
+                        id="full_name"
+                        value={profile.full_name}
+                        onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
+                        disabled={!isEditing}
+                      />
+                    </div>
                     <div className="grid gap-2">
                       <Label htmlFor="phone">WhatsApp (com DDD)</Label>
                       <Input
                         id="phone"
                         value={profile.phone}
-                        onChange={(e) =>
-                          setProfile({ ...profile, phone: e.target.value })
-                        }
+                        onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                         disabled={!isEditing}
                         placeholder="Ex: 11999999999"
                       />
                     </div>
+                  </div>
+
+                  {/* Especialidade e Registro */}
+                  <div className="grid gap-4 md:grid-cols-2">
                     <div className="grid gap-2">
                       <Label htmlFor="specialty">Especialidade</Label>
                       <Select
                         value={profile.specialty}
-                        onValueChange={(value) =>
-                          setProfile({ ...profile, specialty: value })
-                        }
+                        onValueChange={(value) => setProfile({ ...profile, specialty: value })}
                         disabled={!isEditing}
                       >
                         <SelectTrigger>
@@ -306,36 +381,26 @@ const Dashboard = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="registration">Registro Profissional</Label>
+                      <Input
+                        id="registration"
+                        value={profile.registration}
+                        onChange={(e) => setProfile({ ...profile, registration: e.target.value })}
+                        disabled={!isEditing}
+                      />
+                    </div>
                   </div>
 
-                  {/* Registration */}
-                  <div className="grid gap-2">
-                    <Label htmlFor="registration">
-                      Registro Profissional (COREN/CREFITO/etc)
-                    </Label>
-                    <Input
-                      id="registration"
-                      value={profile.registration}
-                      onChange={(e) =>
-                        setProfile({ ...profile, registration: e.target.value })
-                      }
-                      disabled={!isEditing}
-                      placeholder="Ex: COREN-SP 123456"
-                    />
-                  </div>
-
-                  {/* Location */}
+                  {/* Localização */}
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="grid gap-2">
                       <Label htmlFor="neighborhood">Bairro</Label>
                       <Input
                         id="neighborhood"
                         value={profile.neighborhood}
-                        onChange={(e) =>
-                          setProfile({ ...profile, neighborhood: e.target.value })
-                        }
+                        onChange={(e) => setProfile({ ...profile, neighborhood: e.target.value })}
                         disabled={!isEditing}
-                        placeholder="Seu bairro"
                       />
                     </div>
                     <div className="grid gap-2">
@@ -343,20 +408,15 @@ const Dashboard = () => {
                       <Input
                         id="city"
                         value={profile.city}
-                        onChange={(e) =>
-                          setProfile({ ...profile, city: e.target.value })
-                        }
+                        onChange={(e) => setProfile({ ...profile, city: e.target.value })}
                         disabled={!isEditing}
-                        placeholder="Sua cidade"
                       />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="state">Estado</Label>
                       <Select
                         value={profile.state}
-                        onValueChange={(value) =>
-                          setProfile({ ...profile, state: value })
-                        }
+                        onValueChange={(value) => setProfile({ ...profile, state: value })}
                         disabled={!isEditing}
                       >
                         <SelectTrigger>
@@ -373,37 +433,26 @@ const Dashboard = () => {
                     </div>
                   </div>
 
-                  {/* Experience */}
                   <div className="grid gap-2">
                     <Label htmlFor="experience">Experiência Profissional</Label>
                     <Textarea
                       id="experience"
                       value={profile.experience}
-                      onChange={(e) =>
-                        setProfile({ ...profile, experience: e.target.value })
-                      }
+                      onChange={(e) => setProfile({ ...profile, experience: e.target.value })}
                       disabled={!isEditing}
-                      placeholder="Descreva sua experiência profissional..."
                       rows={3}
                     />
                   </div>
 
-                  {/* Bio */}
                   <div className="grid gap-2">
                     <Label htmlFor="bio">Mini-bio</Label>
                     <Textarea
                       id="bio"
                       value={profile.bio}
-                      onChange={(e) =>
-                        setProfile({ ...profile, bio: e.target.value })
-                      }
+                      onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                       disabled={!isEditing}
-                      placeholder="Uma breve descrição sobre você..."
                       rows={4}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Esta descrição será exibida no seu perfil público.
-                    </p>
                   </div>
                 </div>
               </div>

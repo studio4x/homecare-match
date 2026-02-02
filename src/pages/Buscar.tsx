@@ -13,8 +13,9 @@ import {
 } from "@/components/ui/select";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
-import { Search, Filter, X, Users, Loader2 } from "lucide-react";
+import { Search, Filter, X, Users, Loader2, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Buscar = () => {
   const [professionals, setProfessionals] = useState<any[]>([]);
@@ -23,6 +24,7 @@ const Buscar = () => {
     specialty: "",
     city: "",
     neighborhood: "",
+    state: "",
     search: "",
   });
 
@@ -41,6 +43,9 @@ const Buscar = () => {
 
     if (filters.specialty) {
       query = query.eq("specialty", filters.specialty);
+    }
+    if (filters.state) {
+      query = query.eq("state", filters.state);
     }
     if (filters.city) {
       query = query.ilike("city", `%${filters.city}%`);
@@ -67,6 +72,7 @@ const Buscar = () => {
       specialty: "",
       city: "",
       neighborhood: "",
+      state: "",
       search: "",
     });
     fetchProfessionals();
@@ -82,7 +88,13 @@ const Buscar = () => {
     { value: "cuidador", label: "Cuidador(a) de Idosos" },
   ];
 
-  const hasActiveFilters = filters.specialty || filters.city || filters.neighborhood || filters.search;
+  const states = [
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA",
+    "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN",
+    "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+  ];
+
+  const hasActiveFilters = filters.specialty || filters.city || filters.neighborhood || filters.search || filters.state;
 
   return (
     <Layout>
@@ -154,7 +166,7 @@ const Buscar = () => {
                     </Button>
                   )}
                 </div>
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-4">
                   <div className="grid gap-2">
                     <Label htmlFor="specialty">Área de Atuação</Label>
                     <Select
@@ -170,6 +182,26 @@ const Buscar = () => {
                         {specialties.map((spec) => (
                           <SelectItem key={spec.value} value={spec.value}>
                             {spec.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="state">Estado (UF)</Label>
+                    <Select
+                      value={filters.state}
+                      onValueChange={(value) =>
+                        setFilters({ ...filters, state: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {states.map((state) => (
+                          <SelectItem key={state} value={state}>
+                            {state}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -220,10 +252,22 @@ const Buscar = () => {
           {/* Results Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {loading ? (
-              <div className="col-span-full flex h-64 flex-col items-center justify-center gap-4 text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <p>Carregando talentos...</p>
-              </div>
+              Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
+                  <div className="flex gap-4">
+                    <Skeleton className="h-16 w-16 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-5 w-1/2 rounded-full" />
+                    </div>
+                  </div>
+                  <div className="space-y-2 pt-2">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-2/3" />
+                  </div>
+                  <Skeleton className="h-10 w-full mt-4" />
+                </div>
+              ))
             ) : professionals.length > 0 ? (
               professionals.map((professional) => (
                 <ProfessionalCard
@@ -233,7 +277,7 @@ const Buscar = () => {
                   photo={professional.avatar_url}
                   specialty={specialties.find(s => s.value === professional.specialty)?.label || professional.specialty}
                   registration={professional.registration}
-                  location={`${professional.neighborhood}, ${professional.city} - ${professional.state}`}
+                  location={`${professional.neighborhood || ""}, ${professional.city || ""} - ${professional.state || ""}`}
                   experience={professional.experience}
                 />
               ))

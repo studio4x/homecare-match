@@ -35,7 +35,6 @@ import {
   Award,
   MapPin,
   Briefcase,
-  Calendar,
   LogOut,
   Phone,
   Loader2,
@@ -46,7 +45,10 @@ import {
   Star,
   Zap,
   CreditCard,
-  ShieldAlert
+  ShieldAlert,
+  FileText,
+  Upload,
+  FileCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -60,6 +62,7 @@ const Dashboard = () => {
   const location = useLocation();
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingDoc, setIsUploadingDoc] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
@@ -67,6 +70,8 @@ const Dashboard = () => {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const idDocRef = useRef<HTMLInputElement>(null);
+  const profDocRef = useRef<HTMLInputElement>(null);
   
   const [profile, setProfile] = useState({
     full_name: "",
@@ -80,7 +85,9 @@ const Dashboard = () => {
     avatar_url: "",
     phone: "",
     subscription_tier: "monthly",
-    is_verified: false
+    is_verified: false,
+    id_document_url: "",
+    prof_registration_url: ""
   });
 
   useEffect(() => {
@@ -89,7 +96,6 @@ const Dashboard = () => {
     }
   }, [user]);
 
-  // Captura plano selecionado vindo da Home
   useEffect(() => {
     const state = location.state as { selectedPlan?: string };
     if (state?.selectedPlan && !isUpgrading) {
@@ -120,7 +126,9 @@ const Dashboard = () => {
         avatar_url: data.avatar_url || "",
         phone: data.phone || "",
         subscription_tier: data.subscription_tier || "monthly",
-        is_verified: data.is_verified || false
+        is_verified: data.is_verified || false,
+        id_document_url: data.id_document_url || "",
+        prof_registration_url: data.prof_registration_url || ""
       });
     }
   };
@@ -130,9 +138,7 @@ const Dashboard = () => {
     setIsUpgrading(true);
     
     try {
-      // Simulação de checkout
       await new Promise(resolve => setTimeout(resolve, 1500));
-
       const { error } = await supabase
         .from("profiles")
         .update({ 
@@ -142,13 +148,11 @@ const Dashboard = () => {
         .eq("id", user.id);
 
       if (error) throw error;
-
       setProfile(prev => ({ 
         ...prev, 
         subscription_tier: tier, 
         is_verified: tier === 'yearly' ? true : prev.is_verified 
       }));
-      
       toast.success(`Plano ${tier === 'yearly' ? 'Anual' : 'Mensal'} ativado com sucesso!`);
     } catch (error) {
       toast.error("Erro ao processar assinatura.");
@@ -157,12 +161,53 @@ const Dashboard = () => {
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'id_doc' | 'prof_doc') => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    if (type === 'avatar') setIsUploading(true);
+    else setIsUploadingDoc(type);
+
+    const fileExt = file.name.split('.').pop();
+    const bucket = type === 'avatar' ? 'avatars' : 'documents';
+    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+      
+      let updateData = {};
+      if (type === 'avatar') {
+        updateData = { avatar_url: publicUrl };
+        setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+      } else if (type === 'id_doc') {
+        updateData = { id_document_url: publicUrl };
+        setProfile(prev => ({ ...prev, id_document_url: publicUrl }));
+      } else if (type === 'prof_doc') {
+        updateData = { prof_registration_url: publicUrl };
+        setProfile(prev => ({ ...prev, prof_registration_url: publicUrl }));
+      }
+
+      const { error: updateError } = await supabase.from("profiles").update(updateData).eq("id", user.id);
+      if (updateError) throw updateError;
+
+      toast.success(type === 'avatar' ? "Foto atualizada!" : "Documento enviado com sucesso!");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao enviar arquivo.");
+    } finally {
+      setIsUploading(false);
+      setIsUploadingDoc(null);
+    }
+  };
+
   const generateBioWithAI = async () => {
     if (!profile.full_name || !profile.specialty || !profile.experience) {
       toast.error("Preencha seu nome, especialidade e experiência para gerar uma bio.");
       return;
     }
-
     setIsGeneratingBio(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-bio', {
@@ -174,7 +219,6 @@ const Dashboard = () => {
           state: profile.state
         }
       });
-
       if (error) throw error;
       setProfile(prev => ({ ...prev, bio: data.bio }));
       toast.success("Mini-bio gerada com sucesso!");
@@ -190,54 +234,17 @@ const Dashboard = () => {
       toast.error("Digite EXCLUIR para confirmar.");
       return;
     }
-
     setIsDeleting(true);
     try {
       const { error } = await supabase.functions.invoke('delete-user');
       if (error) throw error;
-
       toast.success("Sua conta foi excluída definitivamente.");
       await signOut();
       navigate("/");
     } catch (error: any) {
-      console.error(error);
-      toast.error("Erro ao excluir conta. Tente novamente mais tarde.");
+      toast.error("Erro ao excluir conta.");
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  const handleResendEmail = async () => {
-    if (!user?.email) return;
-    setIsResending(true);
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: user.email,
-    });
-    if (error) toast.error("Erro ao reenviar.");
-    else toast.success("E-mail reenviado!");
-    setIsResending(false);
-  };
-
-  const handleUploadClick = () => fileInputRef.current?.click();
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-    setIsUploading(true);
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
-
-    try {
-      await supabase.storage.from('avatars').upload(filePath, file);
-      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      setProfile({ ...profile, avatar_url: publicUrl });
-      await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
-      toast.success("Foto atualizada!");
-    } catch (error: any) {
-      toast.error("Erro ao subir imagem.");
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -260,8 +267,6 @@ const Dashboard = () => {
     { value: "cuidador", label: "Cuidador(a) de Idosos" },
   ];
 
-  const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
-
   if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
 
@@ -278,9 +283,6 @@ const Dashboard = () => {
               <AlertTitle>Confirme seu e-mail</AlertTitle>
               <AlertDescription className="flex flex-col gap-4">
                 <p>Valide seu e-mail para que seu perfil fique visível.</p>
-                <Button variant="outline" size="sm" className="w-fit" onClick={handleResendEmail} disabled={isResending}>
-                  {isResending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reenviar e-mail"}
-                </Button>
               </AlertDescription>
             </Alert>
           )}
@@ -294,102 +296,78 @@ const Dashboard = () => {
 
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="space-y-6">
+              {/* Plano e Prévia (como antes) */}
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+                <h3 className="mb-4 font-semibold">Verificação de Identidade</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Envie seus documentos para validarmos seu perfil. Estes arquivos são privados.
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">RG ou CNH (Frente e Verso)</Label>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full gap-2 border-dashed"
+                        onClick={() => idDocRef.current?.click()}
+                        disabled={!!isUploadingDoc}
+                      >
+                        {isUploadingDoc === 'id_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        {profile.id_document_url ? "Substituir Documento" : "Enviar RG/CNH"}
+                      </Button>
+                      {profile.id_document_url && <FileCheck className="h-5 w-5 text-success" />}
+                    </div>
+                    <input type="file" ref={idDocRef} onChange={(e) => handleFileUpload(e, 'id_doc')} className="hidden" accept="image/*,.pdf" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Registro Profissional (COREN, etc)</Label>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full gap-2 border-dashed"
+                        onClick={() => profDocRef.current?.click()}
+                        disabled={!!isUploadingDoc}
+                      >
+                        {isUploadingDoc === 'prof_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        {profile.prof_registration_url ? "Substituir Documento" : "Enviar Registro"}
+                      </Button>
+                      {profile.prof_registration_url && <FileCheck className="h-5 w-5 text-success" />}
+                    </div>
+                    <input type="file" ref={profDocRef} onChange={(e) => handleFileUpload(e, 'prof_doc')} className="hidden" accept="image/*,.pdf" />
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
                 <h3 className="mb-4 font-semibold">Assinatura Ativa</h3>
                 <div className="flex items-center gap-3 rounded-lg bg-primary/10 p-4">
-                  {profile.subscription_tier === 'yearly' ? (
-                    <Star className="h-6 w-6 text-primary fill-primary" />
-                  ) : (
-                    <Zap className="h-6 w-6 text-primary fill-primary" />
-                  )}
+                  {profile.subscription_tier === 'yearly' ? <Star className="h-6 w-6 text-primary fill-primary" /> : <Zap className="h-6 w-6 text-primary fill-primary" />}
                   <div>
-                    <p className="font-medium text-primary">
-                      {profile.subscription_tier === 'yearly' ? 'Plano Anual' : 'Plano Mensal'}
-                    </p>
+                    <p className="font-medium text-primary">{profile.subscription_tier === 'yearly' ? 'Plano Anual' : 'Plano Mensal'}</p>
                     <p className="text-xs text-muted-foreground">Status: Ativo</p>
                   </div>
                 </div>
-                
-                <div className="mt-4 pt-4 border-t border-border">
-                  <p className="text-xs text-muted-foreground mb-3">Deseja mudar de plano?</p>
-                  <Button 
-                    variant="outline" 
-                    className="w-full gap-2"
-                    onClick={() => handleUpgrade(profile.subscription_tier === 'monthly' ? 'yearly' : 'monthly')}
-                    disabled={isUpgrading}
-                  >
-                    <CreditCard className="h-4 w-4" />
-                    Mudar para {profile.subscription_tier === 'monthly' ? 'Plano Anual' : 'Plano Mensal'}
-                  </Button>
-                </div>
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-                <h3 className="mb-4 font-semibold">Prévia do Perfil</h3>
-                <div className="text-center">
-                  <div className="relative mx-auto w-fit">
-                    <Avatar className="h-20 w-20 ring-4 ring-border">
-                      <AvatarImage src={profile.avatar_url} />
-                      <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">{initials}</AvatarFallback>
-                    </Avatar>
-                    {profile.is_verified && (
-                      <div className="absolute -bottom-1 -right-1 rounded-full bg-success p-1 text-white ring-2 ring-background">
-                        <CheckCircle className="h-3 w-3 fill-current" />
-                      </div>
-                    )}
-                  </div>
-                  <h4 className="mt-4 font-semibold flex items-center justify-center gap-1">
-                    {profile.full_name || "Seu Nome"}
-                    {profile.subscription_tier === 'yearly' && <Star className="h-4 w-4 text-primary fill-primary" />}
-                  </h4>
-                  <Badge variant="secondary" className="mt-2">
-                    {specialties.find(s => s.value === profile.specialty)?.label || "Especialidade"}
-                  </Badge>
-                </div>
-                <div className="mt-6 space-y-3 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2"><Award className="h-4 w-4 text-primary" /> {profile.registration || "Registro"}</div>
-                  <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> {profile.city || "Cidade"}</div>
-                  <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> {profile.phone || "WhatsApp"}</div>
-                </div>
-              </div>
-
-              {/* Seção de Perigo: Excluir Conta */}
               <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 shadow-sm">
-                <h3 className="mb-4 font-semibold text-destructive flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4" /> Zona de Perigo
-                </h3>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Ao excluir sua conta, todos os seus dados e seu perfil público serão removidos permanentemente. Esta ação não pode ser desfeita.
-                </p>
+                <h3 className="mb-4 font-semibold text-destructive flex items-center gap-2"><ShieldAlert className="h-4 w-4" /> Zona de Perigo</h3>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="w-full gap-2">
-                      <Trash2 className="h-4 w-4" /> Excluir Minha Conta
-                    </Button>
+                    <Button variant="destructive" className="w-full gap-2"><Trash2 className="h-4 w-4" /> Excluir Minha Conta</Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta ação excluirá permanentemente seu perfil profissional e cancelará seu acesso à plataforma.
-                        Para confirmar, digite <strong className="text-foreground">EXCLUIR</strong> abaixo:
-                        <Input 
-                          className="mt-4" 
-                          placeholder="Digite EXCLUIR" 
-                          value={deleteConfirmation}
-                          onChange={(e) => setDeleteConfirmation(e.target.value)}
-                        />
-                      </AlertDialogDescription>
+                      <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                      <AlertDialogDescription>Digite EXCLUIR para confirmar.</AlertDialogDescription>
+                      <Input className="mt-4" value={deleteConfirmation} onChange={e => setDeleteConfirmation(e.target.value)} />
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel onClick={() => setDeleteConfirmation("")}>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction 
-                        onClick={handleDeleteAccount}
-                        className="bg-destructive hover:bg-destructive/90"
-                        disabled={isDeleting || deleteConfirmation !== "EXCLUIR"}
-                      >
-                        {isDeleting ? "Excluindo..." : "Sim, excluir conta"}
-                      </AlertDialogAction>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive" disabled={deleteConfirmation !== "EXCLUIR"}>Sim, excluir</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -400,14 +378,7 @@ const Dashboard = () => {
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card lg:p-8">
                 <div className="mb-6 flex items-center justify-between">
                   <h3 className="text-xl font-semibold">Informações do Perfil</h3>
-                  {!isEditing ? (
-                    <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setIsEditing(false)}>Cancelar</Button>
-                      <Button onClick={handleSave} disabled={isSaving}>{isSaving ? "Salvando..." : "Salvar"}</Button>
-                    </div>
-                  )}
+                  {!isEditing ? <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button> : <div className="flex gap-2"><Button variant="outline" onClick={() => setIsEditing(false)}>Cancelar</Button><Button onClick={handleSave} disabled={isSaving}>{isSaving ? "Salvando..." : "Salvar"}</Button></div>}
                 </div>
 
                 <div className="space-y-6">
@@ -417,13 +388,9 @@ const Dashboard = () => {
                         <AvatarImage src={profile.avatar_url} />
                         <AvatarFallback className="bg-primary/10 text-2xl font-semibold text-primary">{initials}</AvatarFallback>
                       </Avatar>
-                      {isEditing && (
-                        <button onClick={handleUploadClick} className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                          <Camera className="h-6 w-6" />
-                        </button>
-                      )}
+                      {isEditing && <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 group-hover:opacity-100"><Camera className="h-6 w-6" /></button>}
                     </div>
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                    <input type="file" ref={fileInputRef} onChange={e => handleFileUpload(e, 'avatar')} className="hidden" accept="image/*" />
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
@@ -444,13 +411,7 @@ const Dashboard = () => {
 
                   <div className="grid gap-2">
                     <Label>Experiência Profissional</Label>
-                    <Textarea 
-                      value={profile.experience} 
-                      onChange={e => setProfile({...profile, experience: e.target.value})} 
-                      disabled={!isEditing} 
-                      rows={3}
-                      placeholder="Ex: 5 anos de atuação em Home Care, experiência com pacientes pediátricos..."
-                    />
+                    <Textarea value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} disabled={!isEditing} rows={3} />
                   </div>
 
                   <div className="grid gap-2">

@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/layout/Layout';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Navigate } from 'react-router-dom';
-import { Heart } from 'lucide-react';
+import { Heart, Info } from 'lucide-react';
 
 const Login = () => {
   const { session, loading } = useAuth();
@@ -26,7 +26,7 @@ const Login = () => {
               Acesse sua conta
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Crie seu perfil profissional no HomeCareMatch
+              Faça login ou crie sua conta para começar.
             </p>
           </div>
           
@@ -56,16 +56,24 @@ const Login = () => {
                 sign_up: {
                   email_label: 'Endereço de e-mail',
                   password_label: 'Senha',
-                  button_label: 'Cadastrar',
-                  loading_button_label: 'Cadastrando...',
+                  button_label: 'Criar conta gratuita',
+                  loading_button_label: 'Criando conta...',
                   social_provider_text: 'Cadastrar com {{provider}}',
                   link_text: 'Não possui uma conta? Cadastre-se',
+                  confirmation_text: 'Verifique seu e-mail para confirmar o cadastro.',
                 },
               },
             }}
             providers={[]}
             theme="light"
           />
+
+          <div className="mt-6 flex items-start gap-3 rounded-lg bg-primary/5 p-4 text-xs text-muted-foreground">
+            <Info className="h-4 w-4 shrink-0 text-primary" />
+            <p>
+              Ao se cadastrar, você receberá um e-mail de confirmação. A validação é necessária para garantir a segurança da plataforma e dos profissionais.
+            </p>
+          </div>
         </div>
       </div>
     </Layout>

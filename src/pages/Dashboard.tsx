@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -27,6 +28,7 @@ import {
   LogOut,
   Phone,
   Loader2,
+  Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -107,22 +109,18 @@ const Dashboard = () => {
     const filePath = `${user.id}/${Math.random()}.${fileExt}`;
 
     try {
-      // 1. Upload da imagem
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // 2. Obter URL pública
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
-      // 3. Atualizar estado local
       setProfile({ ...profile, avatar_url: publicUrl });
       
-      // 4. Salvar imediatamente no banco o novo avatar_url
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ avatar_url: publicUrl })
@@ -133,7 +131,7 @@ const Dashboard = () => {
       toast.success("Foto atualizada!");
     } catch (error: any) {
       console.error(error);
-      toast.error("Erro ao subir imagem. Verifique se o bucket 'avatars' foi criado no Supabase.");
+      toast.error("Erro ao subir imagem.");
     } finally {
       setIsUploading(false);
     }
@@ -180,6 +178,8 @@ const Dashboard = () => {
   if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
 
+  const isEmailConfirmed = !!user?.email_confirmed_at;
+
   const initials = profile.full_name
     ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
     : "??";
@@ -188,6 +188,18 @@ const Dashboard = () => {
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">
         <div className="container mx-auto px-4">
+          
+          {/* Alerta de confirmação de e-mail */}
+          {!isEmailConfirmed && (
+            <Alert variant="destructive" className="mb-8 border-destructive/50 bg-destructive/5">
+              <Mail className="h-4 w-4" />
+              <AlertTitle>Confirme seu e-mail</AlertTitle>
+              <AlertDescription>
+                Enviamos um link de confirmação para <strong>{user?.email}</strong>. Por favor, valide seu e-mail para que seu perfil fique visível para as empresas.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="mb-8 flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-foreground">Meu Perfil</h1>
@@ -213,7 +225,7 @@ const Dashboard = () => {
                   <div>
                     <p className="font-medium text-success">Acesso Gratuito (Beta)</p>
                     <p className="text-sm text-muted-foreground">
-                      Perfil visível para empresas
+                      {isEmailConfirmed ? "Perfil visível para empresas" : "Invisível (e-mail não confirmado)"}
                     </p>
                   </div>
                 </div>

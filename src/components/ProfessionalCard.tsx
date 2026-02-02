@@ -2,8 +2,10 @@ import { MapPin, Briefcase, Award } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 interface ProfessionalCardProps {
+  id: string;
   name: string;
   photo?: string;
   specialty: string;
@@ -13,6 +15,7 @@ interface ProfessionalCardProps {
 }
 
 const ProfessionalCard = ({
+  id,
   name,
   photo,
   specialty,
@@ -21,7 +24,7 @@ const ProfessionalCard = ({
   experience,
 }: ProfessionalCardProps) => {
   const initials = name
-    .split(" ")
+    ?.split(" ")
     .map((n) => n[0])
     .join("")
     .slice(0, 2)
@@ -37,7 +40,7 @@ const ProfessionalCard = ({
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <h3 className="font-semibold text-foreground">{name}</h3>
+          <h3 className="font-semibold text-foreground line-clamp-1">{name}</h3>
           <Badge variant="secondary" className="mt-1">
             {specialty}
           </Badge>
@@ -46,21 +49,21 @@ const ProfessionalCard = ({
 
       <div className="flex-1 space-y-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Award className="h-4 w-4 text-primary" />
-          <span>{registration}</span>
+          <Award className="h-4 w-4 text-primary shrink-0" />
+          <span className="line-clamp-1">{registration}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-4 w-4 text-primary" />
-          <span>{location}</span>
+          <MapPin className="h-4 w-4 text-primary shrink-0" />
+          <span className="line-clamp-1">{location}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Briefcase className="h-4 w-4 text-primary" />
-          <span>{experience}</span>
+          <Briefcase className="h-4 w-4 text-primary shrink-0" />
+          <span className="line-clamp-1">{experience || "Ver currículo"}</span>
         </div>
       </div>
 
-      <Button variant="outline" className="mt-6 w-full">
-        Ver Perfil Completo
+      <Button variant="outline" className="mt-6 w-full" asChild>
+        <Link to={`/profissional/${id}`}>Ver Perfil Completo</Link>
       </Button>
     </div>
   );

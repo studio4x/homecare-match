@@ -25,6 +25,7 @@ import {
   Briefcase,
   Calendar,
   LogOut,
+  Phone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -45,6 +46,7 @@ const Dashboard = () => {
     experience: "",
     bio: "",
     avatar_url: "",
+    phone: "",
   });
 
   useEffect(() => {
@@ -73,6 +75,7 @@ const Dashboard = () => {
         experience: data.experience || "",
         bio: data.bio || "",
         avatar_url: data.avatar_url || "",
+        phone: data.phone || "",
       });
     }
   };
@@ -193,6 +196,10 @@ const Dashboard = () => {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="h-4 w-4 text-primary" />
+                    <span>{profile.phone || "WhatsApp não cadastrado"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4 text-primary" />
                     <span>Membro desde {new Date(user?.created_at || "").toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}</span>
                   </div>
@@ -264,20 +271,18 @@ const Dashboard = () => {
                     />
                   </div>
 
-                  {/* Registration and Specialty */}
+                  {/* WhatsApp and Specialty */}
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label htmlFor="registration">
-                        Registro Profissional (COREN/CREFITO/etc)
-                      </Label>
+                      <Label htmlFor="phone">WhatsApp (com DDD)</Label>
                       <Input
-                        id="registration"
-                        value={profile.registration}
+                        id="phone"
+                        value={profile.phone}
                         onChange={(e) =>
-                          setProfile({ ...profile, registration: e.target.value })
+                          setProfile({ ...profile, phone: e.target.value })
                         }
                         disabled={!isEditing}
-                        placeholder="Ex: COREN-SP 123456"
+                        placeholder="Ex: 11999999999"
                       />
                     </div>
                     <div className="grid gap-2">
@@ -301,6 +306,22 @@ const Dashboard = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+
+                  {/* Registration */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="registration">
+                      Registro Profissional (COREN/CREFITO/etc)
+                    </Label>
+                    <Input
+                      id="registration"
+                      value={profile.registration}
+                      onChange={(e) =>
+                        setProfile({ ...profile, registration: e.target.value })
+                      }
+                      disabled={!isEditing}
+                      placeholder="Ex: COREN-SP 123456"
+                    />
                   </div>
 
                   {/* Location */}

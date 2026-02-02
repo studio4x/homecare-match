@@ -1,0 +1,174 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import Layout from "@/components/layout/Layout";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { 
+  MapPin, 
+  Award, 
+  Briefcase, 
+  MessageSquare, 
+  ArrowLeft,
+  Calendar,
+  Share2
+} from "lucide-react";
+import { toast } from "sonner";
+
+const Perfil = () => {
+  const { id } = useParams();
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [id]);
+
+  const fetchProfile = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      console.error(error);
+      toast.error("Perfil não encontrado.");
+    } else {
+      setProfile(data);
+    }
+    setLoading(false);
+  };
+
+  if (loading) return (
+    <Layout>
+      <div className="flex h-96 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+      </div>
+    </Layout>
+  );
+
+  if (!profile) return (
+    <Layout>
+      <div className="container mx-auto px-4 py-20 text-center">
+        <h2 className="text-2xl font-bold">Profissional não encontrado</h2>
+        <Button asChild className="mt-4">
+          <Link to="/buscar">Voltar para a busca</Link>
+        </Button>
+      </div>
+    </Layout>
+  );
+
+  const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase();
+  
+  const handleContact = () => {
+    if (profile.phone) {
+      const msg = encodeURIComponent(`Olá ${profile.full_name}, vi seu perfil no HomeCareMatch e gostaria de conversar sobre uma oportunidade.`);
+      window.open(`https://wa.me/55${profile.phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
+    } else {
+      toast.info("Este profissional ainda não cadastrou um telefone de contato.");
+    }
+  };
+
+  const shareProfile = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success("Link do perfil copiado!");
+  };
+
+  return (
+    <Layout>
+      <div className="bg-secondary/20 py-8">
+        <div className="container mx-auto px-4">
+          <Button variant="ghost" asChild className="mb-6 gap-2">
+            <Link to="/buscar">
+              <ArrowLeft className="h-4 w-4" />
+              Voltar para busca
+            </Link>
+          </Button>
+
+          <div className="grid gap-8 lg:grid-cols-3">
+            {/* Perfil Principal */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="rounded-2xl border border-border bg-card p-8 shadow-card">
+                <div className="flex flex-col md:flex-row gap-6 items-start">
+                  <Avatar className="h-32 w-32 ring-4 ring-background shadow-lg">
+                    <AvatarImage src={profile.avatar_url} />
+                    <AvatarFallback className="bg-primary/10 text-3xl font-bold text-primary">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h1 className="text-3xl font-bold text-foreground">{profile.full_name}</h1>
+                      <Badge className="bg-success text-success-foreground">Verificado</Badge>
+                    </div>
+                    <p className="mt-2 text-xl text-muted-foreground font-medium uppercase tracking-tight">
+                      {profile.specialty}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4 text-primary" />
+                        {profile.neighborhood}, {profile.city} - {profile.state}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Award className="h-4 w-4 text-primary" />
+                        {profile.registration}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-10">
+                  <h3 className="text-lg font-semibold border-b pb-2 mb-4">Sobre mim</h3>
+                  <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                    {profile.bio || "Este profissional ainda não preencheu sua biografia."}
+                  </p>
+                </div>
+
+                <div className="mt-10">
+                  <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-primary" />
+                    Experiência Profissional
+                  </h3>
+                  <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                    {profile.experience || "Informações de experiência não detalhadas."}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar de Ações */}
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-border bg-card p-6 shadow-card sticky top-24">
+                <h3 className="font-semibold text-lg mb-4 text-center">Interessado?</h3>
+                <div className="space-y-3">
+                  <Button onClick={handleContact} className="w-full h-12 gap-2 text-lg bg-success hover:bg-success/90">
+                    <MessageSquare className="h-5 w-5" />
+                    Contatar via WhatsApp
+                  </Button>
+                  <Button onClick={shareProfile} variant="outline" className="w-full gap-2">
+                    <Share2 className="h-4 w-4" />
+                    Compartilhar Perfil
+                  </Button>
+                </div>
+                
+                <div className="mt-6 pt-6 border-t border-border">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span>Membro desde {new Date(profile.updated_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default Perfil;

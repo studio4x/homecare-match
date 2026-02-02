@@ -228,6 +228,7 @@ const Buscar = () => {
               professionals.map((professional) => (
                 <ProfessionalCard
                   key={professional.id}
+                  id={professional.id}
                   name={professional.full_name}
                   photo={professional.avatar_url}
                   specialty={specialties.find(s => s.value === professional.specialty)?.label || professional.specialty}

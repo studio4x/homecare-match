@@ -48,7 +48,8 @@ import {
   ShieldAlert,
   FileText,
   Upload,
-  FileCheck
+  FileCheck,
+  Send
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -68,6 +69,7 @@ const Dashboard = () => {
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
+  const [isSubmittingDocs, setIsSubmittingDocs] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const idDocRef = useRef<HTMLInputElement>(null);
@@ -203,6 +205,32 @@ const Dashboard = () => {
     }
   };
 
+  const handleSubmitVerification = async () => {
+    if (!profile.id_document_url || !profile.prof_registration_url) {
+      toast.error("Por favor, envie ambos os documentos antes de solicitar a verificação.");
+      return;
+    }
+
+    setIsSubmittingDocs(true);
+    try {
+      // Chama a Edge Function para notificar a equipe
+      await supabase.functions.invoke('notify-verification', {
+        body: {
+          userName: profile.full_name,
+          userEmail: user?.email,
+          userId: user?.id
+        }
+      });
+
+      toast.success("Documentos enviados! Nossa equipe analisará as informações em breve.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Ocorreu um erro ao processar seu pedido.");
+    } finally {
+      setIsSubmittingDocs(false);
+    }
+  };
+
   const generateBioWithAI = async () => {
     if (!profile.full_name || !profile.specialty || !profile.experience) {
       toast.error("Preencha seu nome, especialidade e experiência para gerar uma bio.");
@@ -296,7 +324,7 @@ const Dashboard = () => {
 
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="space-y-6">
-              {/* Plano e Prévia (como antes) */}
+              {/* Plano e Verificação */}
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
                 <h3 className="mb-4 font-semibold">Verificação de Identidade</h3>
                 <p className="text-xs text-muted-foreground mb-4">
@@ -338,6 +366,17 @@ const Dashboard = () => {
                       {profile.prof_registration_url && <FileCheck className="h-5 w-5 text-success" />}
                     </div>
                     <input type="file" ref={profDocRef} onChange={(e) => handleFileUpload(e, 'prof_doc')} className="hidden" accept="image/*,.pdf" />
+                  </div>
+
+                  <div className="pt-2">
+                    <Button 
+                      onClick={handleSubmitVerification} 
+                      className="w-full gap-2 bg-primary hover:bg-primary/90"
+                      disabled={isSubmittingDocs || !profile.id_document_url || !profile.prof_registration_url}
+                    >
+                      {isSubmittingDocs ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      Enviar para Análise
+                    </Button>
                   </div>
                 </div>
               </div>

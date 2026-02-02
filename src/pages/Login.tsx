@@ -10,7 +10,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { Heart, Info, Loader2 } from 'lucide-react';
 
 const Login = () => {
-  const { session, loading } = useAuth();
+  const { session, loading, user } = useAuth();
   const location = useLocation();
   
   const [view, setView] = useState<'sign_in' | 'sign_up'>(
@@ -25,7 +25,7 @@ const Login = () => {
     }
   }, [location.hash]);
 
-  // Se estiver carregando, mostra um spinner em vez de retornar null (tela branca)
+  // Se estiver carregando, mostra um spinner
   if (loading) {
     return (
       <Layout>
@@ -39,8 +39,11 @@ const Login = () => {
     );
   }
 
-  // Se já estiver logado, vai para o dashboard
-  if (session) return <Navigate to="/dashboard" replace />;
+  // Se já estiver logado, redireciona baseado no e-mail
+  if (session) {
+    const isAdmin = user?.email === 'homecarematch@studio4x.com.br';
+    return <Navigate to={isAdmin ? "/admin" : "/dashboard"} replace />;
+  }
 
   return (
     <Layout>
@@ -56,7 +59,7 @@ const Login = () => {
             <p className="mt-2 text-sm text-muted-foreground">
               {view === 'sign_up' 
                 ? 'Comece agora sua jornada no HomeCareMatch.' 
-                : 'Faça login com seu e-mail de administrador.'}
+                : 'Faça login para gerenciar sua conta profissional.'}
             </p>
           </div>
           
@@ -101,7 +104,7 @@ const Login = () => {
           <div className="mt-6 flex items-start gap-3 rounded-lg bg-primary/5 p-4 text-xs text-muted-foreground">
             <Info className="h-4 w-4 shrink-0 text-primary" />
             <p>
-              Use o e-mail <strong>homecarematch@studio4x.com.br</strong> para acessar o painel administrativo.
+              Logins administrativos serão redirecionados automaticamente para o painel de controle.
             </p>
           </div>
         </div>

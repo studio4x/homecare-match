@@ -35,10 +35,12 @@ const Admin = () => {
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
-      checkAdminStatus();
-    } else if (!authLoading) {
-      setLoading(false);
+    if (!authLoading) {
+      if (user) {
+        checkAdminStatus();
+      } else {
+        setLoading(false);
+      }
     }
   }, [user, authLoading]);
 
@@ -48,37 +50,30 @@ const Admin = () => {
         .from("profiles")
         .select("is_admin")
         .eq("id", user?.id)
-        .maybeSingle(); // Usando maybeSingle para não quebrar se não existir
+        .maybeSingle();
       
       if (data?.is_admin) {
         setIsAdmin(true);
         await fetchPendingVerifications();
-      } else {
-        setLoading(false);
       }
     } catch (err) {
-      console.error("Erro ao verificar admin:", err);
+      console.error("Erro admin:", err);
+    } finally {
       setLoading(false);
     }
   };
 
   const fetchPendingVerifications = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("verification_sent", true)
         .eq("is_verified", false);
 
-      if (error) {
-        console.error(error);
-        toast.error("Erro ao carregar solicitações.");
-      } else {
-        setProfiles(data || []);
-      }
-    } finally {
-      setLoading(false);
+      if (!error) setProfiles(data || []);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -86,16 +81,11 @@ const Admin = () => {
     setProcessingId(profileId);
     const { error } = await supabase
       .from("profiles")
-      .update({ 
-        is_verified: true, 
-        verification_sent: false 
-      })
+      .update({ is_verified: true, verification_sent: false })
       .eq("id", profileId);
 
-    if (error) {
-      toast.error("Erro ao aprovar profissional.");
-    } else {
-      toast.success("Profissional verificado com sucesso!");
+    if (!error) {
+      toast.success("Profissional aprovado!");
       setProfiles(profiles.filter(p => p.id !== profileId));
     }
     setProcessingId(null);
@@ -105,15 +95,11 @@ const Admin = () => {
     setProcessingId(profileId);
     const { error } = await supabase
       .from("profiles")
-      .update({ 
-        verification_sent: false 
-      })
+      .update({ verification_sent: false })
       .eq("id", profileId);
 
-    if (error) {
-      toast.error("Erro ao rejeitar documentos.");
-    } else {
-      toast.info("Solicitação rejeitada. O profissional poderá enviar novamente.");
+    if (!error) {
+      toast.info("Solicitação rejeitada.");
       setProfiles(profiles.filter(p => p.id !== profileId));
     }
     setProcessingId(null);
@@ -122,134 +108,58 @@ const Admin = () => {
   if (authLoading || loading) return (
     <Layout>
       <div className="flex h-96 items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Verificando credenciais...</p>
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     </Layout>
   );
 
+  if (!user) return <Navigate to="/login" replace />;
   if (!isAdmin) return <Navigate to="/dashboard" replace />;
 
   return (
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">
         <div className="container mx-auto px-4">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-3">
-                <ShieldCheck className="h-8 w-8 text-primary" />
-                Painel Administrativo
-              </h1>
-              <p className="mt-2 text-muted-foreground">
-                Gestão de verificações e aprovação de profissionais.
-              </p>
-            </div>
-            <Badge variant="outline" className="text-primary border-primary">
-              Admin Ativo
-            </Badge>
-          </div>
+          <h1 className="text-3xl font-bold flex items-center gap-3 mb-8">
+            <ShieldCheck className="h-8 w-8 text-primary" /> Painel Admin
+          </h1>
 
-          <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">
-            <div className="p-6 border-b border-border bg-muted/30">
-              <h3 className="font-semibold flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                Solicitações Pendentes ({profiles.length})
-              </h3>
-            </div>
-
+          <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Profissional</TableHead>
-                  <TableHead>Especialidade</TableHead>
                   <TableHead>Documentos</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {profiles.length > 0 ? (
-                  profiles.map((profile) => (
-                    <TableRow key={profile.id}>
+                  profiles.map((p) => (
+                    <TableRow key={p.id}>
                       <TableCell>
-                        <div className="font-medium">{profile.full_name}</div>
-                        <div className="text-xs text-muted-foreground">{profile.registration}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="capitalize">
-                          {profile.specialty}
-                        </Badge>
+                        <div className="font-medium">{p.full_name}</div>
+                        <div className="text-xs text-muted-foreground">{p.specialty}</div>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 gap-1 text-xs" 
-                            onClick={() => window.open(profile.id_document_url, '_blank')}
-                          >
-                            <FileText className="h-3 w-3" /> Identidade
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 gap-1 text-xs"
-                            onClick={() => window.open(profile.prof_registration_url, '_blank')}
-                          >
-                            <ExternalLink className="h-3 w-3" /> Registro
-                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => window.open(p.id_document_url, '_blank')}>Doc</Button>
+                          <Button variant="ghost" size="sm" onClick={() => window.open(p.prof_registration_url, '_blank')}>Coren</Button>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-destructive hover:bg-destructive/10"
-                            onClick={() => handleReject(profile.id)}
-                            disabled={processingId === profile.id}
-                          >
-                            <XCircle className="h-4 w-4 mr-1" /> Rejeitar
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            className="bg-success hover:bg-success/90"
-                            onClick={() => handleApprove(profile.id)}
-                            disabled={processingId === profile.id}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" /> Aprovar
-                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleReject(p.id)} disabled={!!processingId}>X</Button>
+                          <Button size="sm" className="bg-success" onClick={() => handleApprove(p.id)} disabled={!!processingId}>OK</Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <CheckCircle className="h-8 w-8 text-muted/30" />
-                        Nenhuma solicitação pendente no momento.
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <TableRow><TableCell colSpan={3} className="text-center py-8">Nenhuma solicitação pendente.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
-          </div>
-          
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
-             <div className="rounded-xl border border-border bg-card p-6 flex items-start gap-4">
-                <div className="bg-primary/10 p-3 rounded-lg">
-                  <AlertCircle className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Importante</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Ao aprovar, o profissional recebe o selo de verificado e fica disponível na busca com maior destaque.
-                  </p>
-                </div>
-             </div>
           </div>
         </div>
       </div>

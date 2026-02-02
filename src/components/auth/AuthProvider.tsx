@@ -24,11 +24,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Timeout de segurança para não travar a aplicação se o Supabase demorar
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.warn("[AuthProvider] Tempo de carregamento excedido, forçando renderização.");
+        setLoading(false);
+      }
+    }, 5000);
+
     // Obter sessão inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) console.error("[AuthProvider] Erro ao obter sessão:", error);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      clearTimeout(timer);
     });
 
     // Ouvir mudanças na autenticação
@@ -38,7 +48,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const signOut = async () => {

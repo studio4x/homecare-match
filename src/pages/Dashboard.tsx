@@ -49,7 +49,9 @@ import {
   FileText,
   Upload,
   FileCheck,
-  Send
+  Send,
+  Clock,
+  CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -65,7 +67,6 @@ const Dashboard = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isResending, setIsResending] = useState(false);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
@@ -88,6 +89,7 @@ const Dashboard = () => {
     phone: "",
     subscription_tier: "monthly",
     is_verified: false,
+    verification_sent: false,
     id_document_url: "",
     prof_registration_url: ""
   });
@@ -129,6 +131,7 @@ const Dashboard = () => {
         phone: data.phone || "",
         subscription_tier: data.subscription_tier || "monthly",
         is_verified: data.is_verified || false,
+        verification_sent: data.verification_sent || false,
         id_document_url: data.id_document_url || "",
         prof_registration_url: data.prof_registration_url || ""
       });
@@ -213,7 +216,7 @@ const Dashboard = () => {
 
     setIsSubmittingDocs(true);
     try {
-      // Chama a Edge Function para notificar a equipe
+      // 1. Notifica a equipe via Edge Function
       await supabase.functions.invoke('notify-verification', {
         body: {
           userName: profile.full_name,
@@ -222,7 +225,17 @@ const Dashboard = () => {
         }
       });
 
-      toast.success("Documentos enviados! Nossa equipe analisará as informações em breve.");
+      // 2. Atualiza o status no banco de dados
+      const { error } = await supabase
+        .from("profiles")
+        .update({ verification_sent: true })
+        .eq("id", user?.id);
+
+      if (error) throw error;
+
+      // 3. Atualiza estado local para refletir a mudança imediatamente
+      setProfile(prev => ({ ...prev, verification_sent: true }));
+      toast.success("Documentos enviados com sucesso!");
     } catch (error) {
       console.error(error);
       toast.error("Ocorreu um erro ao processar seu pedido.");
@@ -324,61 +337,85 @@ const Dashboard = () => {
 
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="space-y-6">
-              {/* Plano e Verificação */}
+              {/* Verificação de Identidade */}
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
                 <h3 className="mb-4 font-semibold">Verificação de Identidade</h3>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Envie seus documentos para validarmos seu perfil. Estes arquivos são privados.
-                </p>
                 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs">RG ou CNH (Frente e Verso)</Label>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full gap-2 border-dashed"
-                        onClick={() => idDocRef.current?.click()}
-                        disabled={!!isUploadingDoc}
-                      >
-                        {isUploadingDoc === 'id_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                        {profile.id_document_url ? "Substituir Documento" : "Enviar RG/CNH"}
-                      </Button>
-                      {profile.id_document_url && <FileCheck className="h-5 w-5 text-success" />}
+                {profile.is_verified ? (
+                  <div className="flex flex-col items-center justify-center py-4 text-center">
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
+                      <CheckCircle2 className="h-6 w-6 text-success" />
                     </div>
-                    <input type="file" ref={idDocRef} onChange={(e) => handleFileUpload(e, 'id_doc')} className="hidden" accept="image/*,.pdf" />
+                    <p className="font-semibold text-foreground">Perfil Verificado</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Sua identidade foi validada com sucesso.</p>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-xs">Registro Profissional (COREN, etc)</Label>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full gap-2 border-dashed"
-                        onClick={() => profDocRef.current?.click()}
-                        disabled={!!isUploadingDoc}
-                      >
-                        {isUploadingDoc === 'prof_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                        {profile.prof_registration_url ? "Substituir Documento" : "Enviar Registro"}
-                      </Button>
-                      {profile.prof_registration_url && <FileCheck className="h-5 w-5 text-success" />}
+                ) : profile.verification_sent ? (
+                  <div className="flex flex-col items-center justify-center py-4 text-center">
+                    <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                      <Clock className="h-6 w-6 text-primary animate-pulse" />
                     </div>
-                    <input type="file" ref={profDocRef} onChange={(e) => handleFileUpload(e, 'prof_doc')} className="hidden" accept="image/*,.pdf" />
+                    <p className="font-semibold text-foreground">Análise em Andamento</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Seus documentos foram enviados e estão sendo analisados pela nossa equipe. 
+                      Aguarde o retorno em até 48 horas úteis.
+                    </p>
                   </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Envie seus documentos para validarmos seu perfil. Estes arquivos são privados.
+                    </p>
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs">RG ou CNH (Frente e Verso)</Label>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full gap-2 border-dashed"
+                            onClick={() => idDocRef.current?.click()}
+                            disabled={!!isUploadingDoc}
+                          >
+                            {isUploadingDoc === 'id_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                            {profile.id_document_url ? "Substituir Documento" : "Enviar RG/CNH"}
+                          </Button>
+                          {profile.id_document_url && <FileCheck className="h-5 w-5 text-success" />}
+                        </div>
+                        <input type="file" ref={idDocRef} onChange={(e) => handleFileUpload(e, 'id_doc')} className="hidden" accept="image/*,.pdf" />
+                      </div>
 
-                  <div className="pt-2">
-                    <Button 
-                      onClick={handleSubmitVerification} 
-                      className="w-full gap-2 bg-primary hover:bg-primary/90"
-                      disabled={isSubmittingDocs || !profile.id_document_url || !profile.prof_registration_url}
-                    >
-                      {isSubmittingDocs ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      Enviar para Análise
-                    </Button>
-                  </div>
-                </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Registro Profissional (COREN, etc)</Label>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full gap-2 border-dashed"
+                            onClick={() => profDocRef.current?.click()}
+                            disabled={!!isUploadingDoc}
+                          >
+                            {isUploadingDoc === 'prof_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                            {profile.prof_registration_url ? "Substituir Documento" : "Enviar Registro"}
+                          </Button>
+                          {profile.prof_registration_url && <FileCheck className="h-5 w-5 text-success" />}
+                        </div>
+                        <input type="file" ref={profDocRef} onChange={(e) => handleFileUpload(e, 'prof_doc')} className="hidden" accept="image/*,.pdf" />
+                      </div>
+
+                      <div className="pt-2">
+                        <Button 
+                          onClick={handleSubmitVerification} 
+                          className="w-full gap-2 bg-primary hover:bg-primary/90"
+                          disabled={isSubmittingDocs || !profile.id_document_url || !profile.prof_registration_url}
+                        >
+                          {isSubmittingDocs ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                          Enviar para Análise
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">

@@ -12,7 +12,8 @@ import {
   ShieldCheck, 
   Loader2,
   User,
-  AlertTriangle
+  AlertTriangle,
+  LogOut
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -36,7 +37,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 const Admin = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -171,12 +172,21 @@ const Admin = () => {
       <div className="min-h-screen bg-secondary/20 py-8">
         <div className="container mx-auto px-4">
           <div className="mb-8 flex items-center justify-between">
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <ShieldCheck className="h-8 w-8 text-primary" /> Painel Admin
-            </h1>
-            <Badge variant="outline" className="px-4 py-1">
-              {profiles.length} Pendentes
-            </Badge>
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                <ShieldCheck className="h-8 w-8 text-primary" /> Painel Admin
+              </h1>
+              <Badge variant="outline" className="px-4 py-1">
+                {profiles.length} Pendentes
+              </Badge>
+            </div>
+            <Button 
+              variant="ghost" 
+              onClick={signOut} 
+              className="gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="h-4 w-4" /> Sair
+            </Button>
           </div>
 
           <div className="rounded-2xl border bg-card shadow-card overflow-hidden">

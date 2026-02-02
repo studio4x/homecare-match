@@ -26,7 +26,7 @@ const ProfessionalCard = ({
   location,
   experience,
   isVerified = false,
-  subscriptionTier = 'free'
+  subscriptionTier = 'monthly'
 }: ProfessionalCardProps) => {
   const initials = name
     ?.split(" ")
@@ -40,18 +40,24 @@ const ProfessionalCard = ({
   return (
     <div className={cn(
       "group flex flex-col rounded-2xl border bg-card p-6 shadow-card transition-all duration-300 hover:shadow-card-hover",
-      isPremium ? "border-primary/30 ring-1 ring-primary/10" : "border-border"
+      isPremium ? "border-amber-400/50 ring-1 ring-amber-400/20" : "border-border"
     )}>
       <div className="mb-4 flex items-start gap-4">
         <div className="relative">
-          <Avatar className="h-16 w-16 ring-2 ring-border transition-all group-hover:ring-primary/30">
+          <Avatar className={cn(
+            "h-16 w-16 ring-2 transition-all group-hover:ring-offset-2",
+            isPremium ? "ring-gold" : "ring-border"
+          )}>
             <AvatarImage src={photo} alt={name} />
             <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
               {initials}
             </AvatarFallback>
           </Avatar>
           {isVerified && (
-            <div className="absolute -bottom-1 -right-1 rounded-full bg-success p-1 text-white ring-2 ring-card shadow-sm">
+            <div className={cn(
+              "absolute -bottom-1 -right-1 rounded-full p-1 text-white ring-2 ring-card shadow-sm",
+              isPremium ? "bg-gold" : "bg-success"
+            )}>
               <CheckCircle className="h-3 w-3 fill-current" />
             </div>
           )}
@@ -59,7 +65,7 @@ const ProfessionalCard = ({
         <div className="flex-1">
           <div className="flex items-center gap-1">
             <h3 className="font-semibold text-foreground line-clamp-1">{name}</h3>
-            {isPremium && <Star className="h-4 w-4 text-primary fill-primary" />}
+            {isPremium && <Star className="h-4 w-4 text-gold fill-gold" />}
           </div>
           <Badge variant="secondary" className="mt-1">
             {specialty}
@@ -82,7 +88,7 @@ const ProfessionalCard = ({
         </div>
       </div>
 
-      <Button variant={isPremium ? "default" : "outline"} className="mt-6 w-full" asChild>
+      <Button variant={isPremium ? "default" : "outline"} className={cn("mt-6 w-full", isPremium && "bg-gold hover:opacity-90 border-none")} asChild>
         <Link to={`/profissional/${id}`}>Ver Perfil Completo</Link>
       </Button>
     </div>

@@ -14,9 +14,11 @@ import {
   MessageSquare, 
   ArrowLeft,
   Calendar,
-  Share2
+  Share2,
+  Star
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const Perfil = () => {
   const { id } = useParams();
@@ -64,6 +66,7 @@ const Perfil = () => {
   );
 
   const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase();
+  const isPremium = profile.subscription_tier === 'yearly';
   
   const handleContact = () => {
     if (profile.phone) {
@@ -93,18 +96,38 @@ const Perfil = () => {
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Perfil Principal */}
             <div className="lg:col-span-2 space-y-6">
-              <div className="rounded-2xl border border-border bg-card p-8 shadow-card">
+              <div className={cn(
+                "rounded-2xl border bg-card p-8 shadow-card",
+                isPremium ? "border-amber-400/30" : "border-border"
+              )}>
                 <div className="flex flex-col md:flex-row gap-6 items-start">
-                  <Avatar className="h-32 w-32 ring-4 ring-background shadow-lg">
-                    <AvatarImage src={profile.avatar_url} />
-                    <AvatarFallback className="bg-primary/10 text-3xl font-bold text-primary">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="h-32 w-32 ring-4 ring-background shadow-lg">
+                      <AvatarImage src={profile.avatar_url} />
+                      <AvatarFallback className="bg-primary/10 text-3xl font-bold text-primary">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    {isPremium && (
+                      <div className="absolute -bottom-2 -right-2 bg-gold p-1.5 rounded-full ring-4 ring-background shadow-md">
+                        <Star className="h-5 w-5 text-white fill-current" />
+                      </div>
+                    )}
+                  </div>
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="text-3xl font-bold text-foreground">{profile.full_name}</h1>
-                      <Badge className="bg-success text-success-foreground">Verificado</Badge>
+                      <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+                        {profile.full_name}
+                        {isPremium && <Star className="h-6 w-6 text-gold fill-current" />}
+                      </h1>
+                      {profile.is_verified && (
+                        <Badge className={cn(
+                          "border-none text-white",
+                          isPremium ? "bg-gold" : "bg-success"
+                        )}>
+                          {isPremium ? "Verificado Premium" : "Verificado"}
+                        </Badge>
+                      )}
                     </div>
                     <p className="mt-2 text-xl text-muted-foreground font-medium uppercase tracking-tight">
                       {profile.specialty}

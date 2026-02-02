@@ -50,6 +50,7 @@
     --gradient-primary: linear-gradient(135deg, hsl(211 100% 50%) 0%, hsl(211 100% 40%) 100%);
     --gradient-hero: linear-gradient(180deg, hsl(210 17% 98%) 0%, hsl(211 100% 97%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(210 17% 98%) 100%);
+    --gradient-gold: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
 
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(215 25% 15% / 0.05);
@@ -138,6 +139,14 @@
 
   .gradient-card {
     background: var(--gradient-card);
+  }
+
+  .bg-gold {
+    background: var(--gradient-gold);
+  }
+
+  .text-gold {
+    color: #FFA500;
   }
 
   .shadow-card {

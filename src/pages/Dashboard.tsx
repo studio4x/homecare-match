@@ -45,7 +45,8 @@ import {
   Trash2,
   Star,
   Zap,
-  CreditCard
+  CreditCard,
+  ShieldAlert
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -181,6 +182,28 @@ const Dashboard = () => {
       toast.error("Erro ao gerar bio com IA.");
     } finally {
       setIsGeneratingBio(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== "EXCLUIR") {
+      toast.error("Digite EXCLUIR para confirmar.");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user');
+      if (error) throw error;
+
+      toast.success("Sua conta foi excluída definitivamente.");
+      await signOut();
+      navigate("/");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao excluir conta. Tente novamente mais tarde.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -328,6 +351,48 @@ const Dashboard = () => {
                   <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-primary" /> {profile.city || "Cidade"}</div>
                   <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-primary" /> {profile.phone || "WhatsApp"}</div>
                 </div>
+              </div>
+
+              {/* Seção de Perigo: Excluir Conta */}
+              <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-6 shadow-sm">
+                <h3 className="mb-4 font-semibold text-destructive flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4" /> Zona de Perigo
+                </h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Ao excluir sua conta, todos os seus dados e seu perfil público serão removidos permanentemente. Esta ação não pode ser desfeita.
+                </p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="w-full gap-2">
+                      <Trash2 className="h-4 w-4" /> Excluir Minha Conta
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação excluirá permanentemente seu perfil profissional e cancelará seu acesso à plataforma.
+                        Para confirmar, digite <strong className="text-foreground">EXCLUIR</strong> abaixo:
+                        <Input 
+                          className="mt-4" 
+                          placeholder="Digite EXCLUIR" 
+                          value={deleteConfirmation}
+                          onChange={(e) => setDeleteConfirmation(e.target.value)}
+                        />
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setDeleteConfirmation("")}>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleDeleteAccount}
+                        className="bg-destructive hover:bg-destructive/90"
+                        disabled={isDeleting || deleteConfirmation !== "EXCLUIR"}
+                      >
+                        {isDeleting ? "Excluindo..." : "Sim, excluir conta"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
 

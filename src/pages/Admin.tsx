@@ -37,39 +37,49 @@ const Admin = () => {
   useEffect(() => {
     if (user) {
       checkAdminStatus();
+    } else if (!authLoading) {
+      setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   const checkAdminStatus = async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", user?.id)
-      .single();
-    
-    if (data?.is_admin) {
-      setIsAdmin(true);
-      fetchPendingVerifications();
-    } else {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user?.id)
+        .maybeSingle(); // Usando maybeSingle para não quebrar se não existir
+      
+      if (data?.is_admin) {
+        setIsAdmin(true);
+        await fetchPendingVerifications();
+      } else {
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("Erro ao verificar admin:", err);
       setLoading(false);
     }
   };
 
   const fetchPendingVerifications = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("verification_sent", true)
-      .eq("is_verified", false);
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("verification_sent", true)
+        .eq("is_verified", false);
 
-    if (error) {
-      console.error(error);
-      toast.error("Erro ao carregar solicitações.");
-    } else {
-      setProfiles(data || []);
+      if (error) {
+        console.error(error);
+        toast.error("Erro ao carregar solicitações.");
+      } else {
+        setProfiles(data || []);
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleApprove = async (profileId: string) => {
@@ -112,7 +122,10 @@ const Admin = () => {
   if (authLoading || loading) return (
     <Layout>
       <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Verificando credenciais...</p>
+        </div>
       </div>
     </Layout>
   );

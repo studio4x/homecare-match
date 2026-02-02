@@ -1,15 +1,26 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/layout/Layout';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { Heart, Info } from 'lucide-react';
 
 const Login = () => {
   const { session, loading } = useAuth();
+  const location = useLocation();
+  const [view, setView] = useState<'sign_in' | 'sign_up'>('sign_in');
+
+  useEffect(() => {
+    if (location.hash === '#auth-sign-up') {
+      setView('sign_up');
+    } else {
+      setView('sign_in');
+    }
+  }, [location.hash]);
 
   if (loading) return null;
   if (session) return <Navigate to="/dashboard" replace />;
@@ -23,15 +34,18 @@ const Login = () => {
               <Heart className="h-6 w-6 text-primary-foreground" />
             </div>
             <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">
-              Acesse sua conta
+              {view === 'sign_up' ? 'Crie sua conta' : 'Acesse sua conta'}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Faça login ou crie sua conta para começar.
+              {view === 'sign_up' 
+                ? 'Comece agora sua jornada no HomeCareMatch.' 
+                : 'Faça login para gerenciar seu perfil.'}
             </p>
           </div>
           
           <Auth
             supabaseClient={supabase}
+            view={view}
             appearance={{ 
               theme: ThemeSupa,
               variables: {

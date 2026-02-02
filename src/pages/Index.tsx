@@ -24,7 +24,7 @@ const Index = () => {
   const handleSubscribe = (planId: string) => {
     if (!session) {
       toast.info("Por favor, crie uma conta para escolher seu plano.");
-      navigate("/login");
+      navigate("/login#auth-sign-up");
       return;
     }
     navigate("/dashboard", { state: { selectedPlan: planId } });
@@ -126,7 +126,7 @@ const Index = () => {
 
             <div className="animate-slide-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.2s" }}>
               <Button size="lg" asChild className="gap-2">
-                <Link to="/login">
+                <Link to="/login#auth-sign-up">
                   Escolher Plano e Começar
                   <ArrowRight className="h-4 w-4" />
                 </Link>

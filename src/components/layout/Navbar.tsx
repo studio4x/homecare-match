@@ -100,7 +100,7 @@ const Navbar = () => {
                   <Link to="/login">Entrar</Link>
                 </Button>
                 <Button asChild size="sm">
-                  <Link to="/login">Assinar Agora</Link>
+                  <Link to="/login#auth-sign-up">Assinar Agora</Link>
                 </Button>
               </>
             )}
@@ -170,7 +170,7 @@ const Navbar = () => {
                       </Link>
                     </Button>
                     <Button asChild>
-                      <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                      <Link to="/login#auth-sign-up" onClick={() => setMobileMenuOpen(false)}>
                         Assinar Agora
                       </Link>
                     </Button>

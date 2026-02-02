@@ -7,13 +7,12 @@ import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/layout/Layout';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Navigate, useLocation } from 'react-router-dom';
-import { Heart, Info } from 'lucide-react';
+import { Heart, Info, Loader2 } from 'lucide-react';
 
 const Login = () => {
   const { session, loading } = useAuth();
   const location = useLocation();
   
-  // Define o estado inicial baseado no hash para evitar que comece no login e depois mude
   const [view, setView] = useState<'sign_in' | 'sign_up'>(
     window.location.hash === '#auth-sign-up' ? 'sign_up' : 'sign_in'
   );
@@ -26,7 +25,21 @@ const Login = () => {
     }
   }, [location.hash]);
 
-  if (loading) return null;
+  // Se estiver carregando, mostra um spinner em vez de retornar null (tela branca)
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-muted-foreground animate-pulse">Carregando portal...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Se já estiver logado, vai para o dashboard
   if (session) return <Navigate to="/dashboard" replace />;
 
   return (
@@ -43,55 +56,52 @@ const Login = () => {
             <p className="mt-2 text-sm text-muted-foreground">
               {view === 'sign_up' 
                 ? 'Comece agora sua jornada no HomeCareMatch.' 
-                : 'Faça login para gerenciar seu perfil.'}
+                : 'Faça login com seu e-mail de administrador.'}
             </p>
           </div>
           
-          {/* A prop key={view} força o componente a remontar quando o view muda */}
-          <Auth
-            key={view}
-            supabaseClient={supabase}
-            view={view}
-            appearance={{ 
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: 'hsl(var(--primary))',
-                    brandAccent: 'hsl(var(--primary))',
+          <div className="mt-8">
+            <Auth
+              supabaseClient={supabase}
+              view={view}
+              appearance={{ 
+                theme: ThemeSupa,
+                variables: {
+                  default: {
+                    colors: {
+                      brand: 'hsl(var(--primary))',
+                      brandAccent: 'hsl(var(--primary))',
+                    }
                   }
                 }
-              }
-            }}
-            localization={{
-              variables: {
-                sign_in: {
-                  email_label: 'Endereço de e-mail',
-                  password_label: 'Senha',
-                  button_label: 'Entrar',
-                  loading_button_label: 'Entrando...',
-                  social_provider_text: 'Entrar com {{provider}}',
-                  link_text: 'Já possui uma conta? Entre',
+              }}
+              localization={{
+                variables: {
+                  sign_in: {
+                    email_label: 'E-mail',
+                    password_label: 'Senha',
+                    button_label: 'Entrar',
+                    loading_button_label: 'Entrando...',
+                    link_text: 'Já tem conta? Entre aqui',
+                  },
+                  sign_up: {
+                    email_label: 'E-mail',
+                    password_label: 'Senha',
+                    button_label: 'Criar conta',
+                    loading_button_label: 'Criando...',
+                    link_text: 'Não tem conta? Cadastre-se',
+                  },
                 },
-                sign_up: {
-                  email_label: 'Endereço de e-mail',
-                  password_label: 'Senha',
-                  button_label: 'Criar conta gratuita',
-                  loading_button_label: 'Criando conta...',
-                  social_provider_text: 'Cadastrar com {{provider}}',
-                  link_text: 'Não possui uma conta? Cadastre-se',
-                  confirmation_text: 'Verifique seu e-mail para confirmar o cadastro.',
-                },
-              },
-            }}
-            providers={[]}
-            theme="light"
-          />
+              }}
+              providers={[]}
+              theme="light"
+            />
+          </div>
 
           <div className="mt-6 flex items-start gap-3 rounded-lg bg-primary/5 p-4 text-xs text-muted-foreground">
             <Info className="h-4 w-4 shrink-0 text-primary" />
             <p>
-              Ao se cadastrar, você receberá um e-mail de confirmação. A validação é necessária para garantir a segurança da plataforma e dos profissionais.
+              Use o e-mail <strong>homecarematch@studio4x.com.br</strong> para acessar o painel administrativo.
             </p>
           </div>
         </div>

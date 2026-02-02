@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,16 +13,64 @@ import {
 } from "@/components/ui/select";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
-import { Search, Filter, X, Users } from "lucide-react";
+import { Search, Filter, X, Users, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Buscar = () => {
+  const [professionals, setProfessionals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     specialty: "",
     city: "",
     neighborhood: "",
+    search: "",
   });
 
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    fetchProfessionals();
+  }, []);
+
+  const fetchProfessionals = async () => {
+    setLoading(true);
+    let query = supabase
+      .from("profiles")
+      .select("*")
+      .not("full_name", "is", null);
+
+    if (filters.specialty) {
+      query = query.eq("specialty", filters.specialty);
+    }
+    if (filters.city) {
+      query = query.ilike("city", `%${filters.city}%`);
+    }
+    if (filters.neighborhood) {
+      query = query.ilike("neighborhood", `%${filters.neighborhood}%`);
+    }
+    if (filters.search) {
+      query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Erro ao buscar profissionais:", error);
+    } else {
+      setProfessionals(data || []);
+    }
+    setLoading(false);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      specialty: "",
+      city: "",
+      neighborhood: "",
+      search: "",
+    });
+    fetchProfessionals();
+  };
 
   const specialties = [
     { value: "enfermeiro", label: "Enfermeiro(a)" },
@@ -32,86 +82,7 @@ const Buscar = () => {
     { value: "cuidador", label: "Cuidador(a) de Idosos" },
   ];
 
-  const cities = [
-    "São Paulo",
-    "Rio de Janeiro",
-    "Belo Horizonte",
-    "Curitiba",
-    "Porto Alegre",
-    "Salvador",
-    "Brasília",
-    "Fortaleza",
-  ];
-
-  // Mock data for professionals
-  const professionals = [
-    {
-      name: "Maria Silva",
-      specialty: "Enfermeiro(a)",
-      registration: "COREN-SP 123456",
-      location: "Vila Mariana, São Paulo - SP",
-      experience: "5 anos em Home Care",
-    },
-    {
-      name: "João Santos",
-      specialty: "Fisioterapeuta",
-      registration: "CREFITO-3 654321",
-      location: "Pinheiros, São Paulo - SP",
-      experience: "8 anos de experiência",
-    },
-    {
-      name: "Ana Costa",
-      specialty: "Técnico(a) de Enfermagem",
-      registration: "COREN-SP 789012",
-      location: "Moema, São Paulo - SP",
-      experience: "3 anos em Home Care",
-    },
-    {
-      name: "Carlos Oliveira",
-      specialty: "Cuidador(a) de Idosos",
-      registration: "Certificado CBO",
-      location: "Santana, São Paulo - SP",
-      experience: "6 anos de experiência",
-    },
-    {
-      name: "Fernanda Lima",
-      specialty: "Fonoaudiólogo(a)",
-      registration: "CRFa-2 345678",
-      location: "Itaim Bibi, São Paulo - SP",
-      experience: "4 anos em Home Care",
-    },
-    {
-      name: "Roberto Almeida",
-      specialty: "Nutricionista",
-      registration: "CRN-3 901234",
-      location: "Jardins, São Paulo - SP",
-      experience: "7 anos de experiência",
-    },
-    {
-      name: "Patrícia Mendes",
-      specialty: "Terapeuta Ocupacional",
-      registration: "CREFITO-3 567890",
-      location: "Brooklin, São Paulo - SP",
-      experience: "5 anos em Home Care",
-    },
-    {
-      name: "Lucas Ferreira",
-      specialty: "Enfermeiro(a)",
-      registration: "COREN-RJ 234567",
-      location: "Copacabana, Rio de Janeiro - RJ",
-      experience: "10 anos de experiência",
-    },
-  ];
-
-  const clearFilters = () => {
-    setFilters({
-      specialty: "",
-      city: "",
-      neighborhood: "",
-    });
-  };
-
-  const hasActiveFilters = filters.specialty || filters.city || filters.neighborhood;
+  const hasActiveFilters = filters.specialty || filters.city || filters.neighborhood || filters.search;
 
   return (
     <Layout>
@@ -140,8 +111,10 @@ const Buscar = () => {
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="search"
-                    placeholder="Buscar por nome ou especialidade..."
+                    placeholder="Buscar por nome ou experiência..."
                     className="pl-10"
+                    value={filters.search}
+                    onChange={(e) => setFilters({...filters, search: e.target.value})}
                   />
                 </div>
               </div>
@@ -158,7 +131,7 @@ const Buscar = () => {
                   </span>
                 )}
               </Button>
-              <Button className="gap-2">
+              <Button className="gap-2" onClick={fetchProfessionals}>
                 <Search className="h-4 w-4" />
                 Buscar
               </Button>
@@ -204,23 +177,14 @@ const Buscar = () => {
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="city">Cidade</Label>
-                    <Select
+                    <Input
+                      id="city"
+                      placeholder="Ex: São Paulo"
                       value={filters.city}
-                      onValueChange={(value) =>
-                        setFilters({ ...filters, city: value })
+                      onChange={(e) =>
+                        setFilters({ ...filters, city: e.target.value })
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Todas as cidades" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {cities.map((city) => (
-                          <SelectItem key={city} value={city}>
-                            {city}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="neighborhood">Bairro</Label>
@@ -242,30 +206,44 @@ const Buscar = () => {
           <div className="mb-6 flex items-center gap-2 text-muted-foreground">
             <Users className="h-4 w-4" />
             <span>
-              <strong className="text-foreground">{professionals.length}</strong>{" "}
-              profissionais encontrados
+              {loading ? (
+                "Buscando profissionais..."
+              ) : (
+                <>
+                  <strong className="text-foreground">{professionals.length}</strong>{" "}
+                  profissionais encontrados
+                </>
+              )}
             </span>
           </div>
 
           {/* Results Grid */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {professionals.map((professional, index) => (
-              <ProfessionalCard
-                key={index}
-                name={professional.name}
-                specialty={professional.specialty}
-                registration={professional.registration}
-                location={professional.location}
-                experience={professional.experience}
-              />
-            ))}
-          </div>
-
-          {/* Load More */}
-          <div className="mt-12 text-center">
-            <Button variant="outline" size="lg">
-              Carregar Mais Profissionais
-            </Button>
+            {loading ? (
+              <div className="col-span-full flex h-64 flex-col items-center justify-center gap-4 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <p>Carregando talentos...</p>
+              </div>
+            ) : professionals.length > 0 ? (
+              professionals.map((professional) => (
+                <ProfessionalCard
+                  key={professional.id}
+                  name={professional.full_name}
+                  photo={professional.avatar_url}
+                  specialty={specialties.find(s => s.value === professional.specialty)?.label || professional.specialty}
+                  registration={professional.registration}
+                  location={`${professional.neighborhood}, ${professional.city} - ${professional.state}`}
+                  experience={professional.experience}
+                />
+              ))
+            ) : (
+              <div className="col-span-full flex h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card p-12 text-center">
+                <Users className="mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="text-lg font-semibold">Nenhum profissional encontrado</h3>
+                <p className="text-muted-foreground">Tente ajustar seus filtros para encontrar mais resultados.</p>
+                <Button variant="link" onClick={clearFilters}>Limpar Filtros</Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

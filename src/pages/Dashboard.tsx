@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,28 +24,79 @@ import {
   MapPin,
   Briefcase,
   Calendar,
+  LogOut,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
+import { Navigate } from "react-router-dom";
 
 const Dashboard = () => {
+  const { user, session, loading, signOut } = useAuth();
+  const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
-    name: "Maria Silva",
-    photo: "",
-    registration: "COREN-SP 123456",
-    specialty: "enfermeiro",
-    city: "São Paulo",
-    state: "SP",
-    neighborhood: "Vila Mariana",
-    experience: "5 anos de experiência em UTI e Home Care. Especialização em cuidados paliativos e administração de medicamentos.",
-    bio: "Profissional dedicada com foco em qualidade de vida do paciente. Experiência em cuidados domiciliares para idosos e pacientes com doenças crônicas.",
+    full_name: "",
+    registration: "",
+    specialty: "",
+    city: "",
+    state: "",
+    neighborhood: "",
+    experience: "",
+    bio: "",
+    avatar_url: "",
   });
 
-  const [subscriptionActive] = useState(true);
-  const [isEditing, setIsEditing] = useState(false);
+  useEffect(() => {
+    if (user) {
+      fetchProfile();
+    }
+  }, [user]);
 
-  const handleSave = () => {
-    setIsEditing(false);
-    toast.success("Perfil atualizado com sucesso!");
+  const fetchProfile = async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user?.id)
+      .single();
+
+    if (error) {
+      console.error("Erro ao carregar perfil:", error);
+    } else if (data) {
+      setProfile({
+        full_name: data.full_name || "",
+        registration: data.registration || "",
+        specialty: data.specialty || "",
+        city: data.city || "",
+        state: data.state || "",
+        neighborhood: data.neighborhood || "",
+        experience: data.experience || "",
+        bio: data.bio || "",
+        avatar_url: data.avatar_url || "",
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        ...profile,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      toast.error("Erro ao salvar perfil.");
+      console.error(error);
+    } else {
+      toast.success("Perfil atualizado com sucesso!");
+      setIsEditing(false);
+    }
+    setIsSaving(false);
   };
 
   const specialties = [
@@ -62,22 +115,28 @@ const Dashboard = () => {
     "RS", "RO", "RR", "SC", "SP", "SE", "TO"
   ];
 
-  const initials = profile.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  if (loading) return null;
+  if (!session) return <Navigate to="/login" replace />;
+
+  const initials = profile.full_name
+    ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+    : "??";
 
   return (
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">
         <div className="container mx-auto px-4">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground">Meu Perfil</h1>
-            <p className="mt-2 text-muted-foreground">
-              Gerencie suas informações profissionais e status da assinatura.
-            </p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Meu Perfil</h1>
+              <p className="mt-2 text-muted-foreground">
+                Gerencie suas informações profissionais e status da assinatura.
+              </p>
+            </div>
+            <Button variant="ghost" onClick={signOut} className="gap-2 text-muted-foreground">
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
@@ -88,30 +147,16 @@ const Dashboard = () => {
                 <h3 className="mb-4 font-semibold text-foreground">
                   Status da Assinatura
                 </h3>
-                {subscriptionActive ? (
-                  <div className="flex items-center gap-3 rounded-lg bg-success/10 p-4">
-                    <CheckCircle className="h-6 w-6 text-success" />
-                    <div>
-                      <p className="font-medium text-success">Assinatura Ativa</p>
-                      <p className="text-sm text-muted-foreground">
-                        Plano Anual - Renova em 15/02/2025
-                      </p>
-                    </div>
+                <div className="flex items-center gap-3 rounded-lg bg-success/10 p-4">
+                  <CheckCircle className="h-6 w-6 text-success" />
+                  <div>
+                    <p className="font-medium text-success">Acesso Gratuito (Beta)</p>
+                    <p className="text-sm text-muted-foreground">
+                      Perfil visível para empresas
+                    </p>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-3 rounded-lg bg-destructive/10 p-4">
-                    <AlertCircle className="h-6 w-6 text-destructive" />
-                    <div>
-                      <p className="font-medium text-destructive">
-                        Assinatura Inativa
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Seu perfil não está visível para empresas
-                      </p>
-                    </div>
-                  </div>
-                )}
-                <Button className="mt-4 w-full" variant="outline">
+                </div>
+                <Button className="mt-4 w-full" variant="outline" disabled>
                   Gerenciar Assinatura
                 </Button>
               </div>
@@ -123,33 +168,33 @@ const Dashboard = () => {
                 </h3>
                 <div className="text-center">
                   <Avatar className="mx-auto h-20 w-20 ring-4 ring-border">
-                    <AvatarImage src={profile.photo} alt={profile.name} />
+                    <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
                     <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                   <h4 className="mt-4 font-semibold text-foreground">
-                    {profile.name}
+                    {profile.full_name || "Seu Nome Aqui"}
                   </h4>
                   <Badge variant="secondary" className="mt-2">
-                    {specialties.find((s) => s.value === profile.specialty)?.label}
+                    {specialties.find((s) => s.value === profile.specialty)?.label || "Especialidade"}
                   </Badge>
                 </div>
 
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Award className="h-4 w-4 text-primary" />
-                    <span>{profile.registration}</span>
+                    <span>{profile.registration || "Registro Profissional"}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4 text-primary" />
                     <span>
-                      {profile.neighborhood}, {profile.city} - {profile.state}
+                      {profile.neighborhood || "Bairro"}, {profile.city || "Cidade"} - {profile.state || "UF"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="h-4 w-4 text-primary" />
-                    <span>Perfil criado em Jan/2024</span>
+                    <span>Membro desde {new Date(user?.created_at || "").toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}</span>
                   </div>
                 </div>
               </div>
@@ -168,29 +213,33 @@ const Dashboard = () => {
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setIsEditing(false)}>
+                      <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isSaving}>
                         Cancelar
                       </Button>
-                      <Button onClick={handleSave} className="gap-2">
-                        <Save className="h-4 w-4" />
-                        Salvar
+                      <Button onClick={handleSave} className="gap-2" disabled={isSaving}>
+                        {isSaving ? "Salvando..." : (
+                          <>
+                            <Save className="h-4 w-4" />
+                            Salvar
+                          </>
+                        )}
                       </Button>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-6">
-                  {/* Photo Upload */}
+                  {/* Photo Upload Placeholder */}
                   <div className="flex items-center gap-6">
                     <Avatar className="h-24 w-24 ring-4 ring-border">
-                      <AvatarImage src={profile.photo} alt={profile.name} />
+                      <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
                       <AvatarFallback className="bg-primary/10 text-2xl font-semibold text-primary">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
                     {isEditing && (
                       <div>
-                        <Button variant="outline" className="gap-2">
+                        <Button variant="outline" className="gap-2" onClick={() => toast.info("Upload de fotos em breve!")}>
                           <Camera className="h-4 w-4" />
                           Alterar Foto
                         </Button>
@@ -203,12 +252,12 @@ const Dashboard = () => {
 
                   {/* Name */}
                   <div className="grid gap-2">
-                    <Label htmlFor="name">Nome Completo</Label>
+                    <Label htmlFor="full_name">Nome Completo</Label>
                     <Input
-                      id="name"
-                      value={profile.name}
+                      id="full_name"
+                      value={profile.full_name}
                       onChange={(e) =>
-                        setProfile({ ...profile, name: e.target.value })
+                        setProfile({ ...profile, full_name: e.target.value })
                       }
                       disabled={!isEditing}
                       placeholder="Seu nome completo"

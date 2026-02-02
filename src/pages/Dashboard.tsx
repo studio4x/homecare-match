@@ -29,6 +29,7 @@ import {
   Phone,
   Loader2,
   Mail,
+  RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -40,6 +41,7 @@ const Dashboard = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [profile, setProfile] = useState({
@@ -84,6 +86,23 @@ const Dashboard = () => {
         phone: data.phone || "",
       });
     }
+  };
+
+  const handleResendEmail = async () => {
+    if (!user?.email) return;
+    setIsResending(true);
+    
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: user.email,
+    });
+
+    if (error) {
+      toast.error("Erro ao reenviar: " + error.message);
+    } else {
+      toast.success("E-mail de confirmação reenviado com sucesso!");
+    }
+    setIsResending(false);
   };
 
   const handleUploadClick = () => {
@@ -194,8 +213,24 @@ const Dashboard = () => {
             <Alert variant="destructive" className="mb-8 border-destructive/50 bg-destructive/5">
               <Mail className="h-4 w-4" />
               <AlertTitle>Confirme seu e-mail</AlertTitle>
-              <AlertDescription>
-                Enviamos um link de confirmação para <strong>{user?.email}</strong>. Por favor, valide seu e-mail para que seu perfil fique visível para as empresas.
+              <AlertDescription className="flex flex-col gap-4">
+                <p>
+                  Enviamos um link de confirmação para <strong>{user?.email}</strong>. Por favor, valide seu e-mail para que seu perfil fique visível para as empresas.
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-fit gap-2 border-destructive/20 hover:bg-destructive/10"
+                  onClick={handleResendEmail}
+                  disabled={isResending}
+                >
+                  {isResending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Reenviar e-mail de confirmação
+                </Button>
               </AlertDescription>
             </Alert>
           )}

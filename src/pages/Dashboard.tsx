@@ -29,7 +29,8 @@ import {
   Phone,
   Loader2,
   Mail,
-  RefreshCw
+  RefreshCw,
+  Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -42,6 +43,7 @@ const Dashboard = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [profile, setProfile] = useState({
@@ -85,6 +87,36 @@ const Dashboard = () => {
         avatar_url: data.avatar_url || "",
         phone: data.phone || "",
       });
+    }
+  };
+
+  const generateBioWithAI = async () => {
+    if (!profile.full_name || !profile.specialty || !profile.experience) {
+      toast.error("Preencha seu nome, especialidade e experiência para que a IA possa gerar uma bio melhor.");
+      return;
+    }
+
+    setIsGeneratingBio(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-bio', {
+        body: {
+          name: profile.full_name,
+          specialty: specialties.find(s => s.value === profile.specialty)?.label || profile.specialty,
+          experience: profile.experience,
+          city: profile.city,
+          state: profile.state
+        }
+      });
+
+      if (error) throw error;
+      
+      setProfile(prev => ({ ...prev, bio: data.bio }));
+      toast.success("Mini-bio gerada com sucesso!");
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao gerar bio com IA. Verifique sua chave do Gemini no Supabase.");
+    } finally {
+      setIsGeneratingBio(false);
     }
   };
 
@@ -488,17 +520,38 @@ const Dashboard = () => {
                       onChange={(e) => setProfile({ ...profile, experience: e.target.value })}
                       disabled={!isEditing}
                       rows={3}
+                      placeholder="Ex: 5 anos de atuação em UTI, experiência com pacientes de alta complexidade..."
                     />
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="bio">Mini-bio</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="bio">Mini-bio</Label>
+                      {isEditing && (
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 gap-2 text-primary hover:text-primary/80 hover:bg-primary/5"
+                          onClick={generateBioWithAI}
+                          disabled={isGeneratingBio}
+                        >
+                          {isGeneratingBio ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3 w-3" />
+                          )}
+                          Gerar com IA
+                        </Button>
+                      )}
+                    </div>
                     <Textarea
                       id="bio"
                       value={profile.bio}
                       onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                       disabled={!isEditing}
                       rows={4}
+                      placeholder="Conte um pouco sobre sua trajetória profissional..."
                     />
                   </div>
                 </div>

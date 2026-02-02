@@ -23,67 +23,66 @@ const Index = () => {
 
   const handleSubscribe = (planId: string) => {
     if (!session) {
-      toast.info("Por favor, crie uma conta para assinar um plano.");
+      toast.info("Por favor, crie uma conta para escolher seu plano.");
       navigate("/login");
       return;
     }
-    // Redireciona para o dashboard para completar a assinatura
     navigate("/dashboard", { state: { selectedPlan: planId } });
   };
 
   const features = [
     {
       icon: Search,
-      title: "Seja Encontrado",
+      title: "Visibilidade Total",
       description:
-        "Seu perfil visível para centenas de empresas de Home Care em busca de talentos.",
+        "Seu perfil disponível para as maiores empresas de Home Care do país.",
     },
     {
       icon: Shield,
       title: "Perfil Verificado",
       description:
-        "Validação do seu registro profissional (COREN, CREFITO) para maior credibilidade.",
+        "Validação profissional para garantir confiança entre você e o recrutador.",
     },
     {
       icon: Star,
-      title: "Destaque Premium",
+      title: "Destaque na Busca",
       description:
-        "Apareça no topo das buscas e receba mais oportunidades de trabalho.",
+        "Assinantes Anuais aparecem no topo dos resultados, aumentando as chances de contratação.",
     },
     {
       icon: Users,
-      title: "Networking",
+      title: "Contato Direto",
       description:
-        "Conecte-se com empresas de referência no mercado de Home Care.",
+        "Receba propostas diretamente no seu WhatsApp sem intermediários.",
     },
   ];
 
   const plans = [
     {
       id: "monthly",
-      name: "Mensal",
+      name: "Plano Mensal",
       price: "R$ 49,90",
       period: "mês",
-      description: "Ideal para começar",
+      description: "Acesso total à plataforma",
       features: [
         "Perfil profissional completo",
-        "Visibilidade para empresas",
-        "Notificações de oportunidades",
+        "Visibilidade para todas as empresas",
+        "Link direto para seu WhatsApp",
         "Suporte por email",
       ],
     },
     {
       id: "yearly",
-      name: "Anual",
+      name: "Plano Anual",
       price: "R$ 39,90",
       period: "mês",
-      description: "Melhor custo-benefício",
+      description: "O melhor custo-benefício",
       features: [
         "Tudo do plano Mensal",
-        "Destaque nas buscas",
-        "Badge de profissional verificado",
+        "Destaque no topo das buscas",
+        "Selo dourado de verificação",
         "Suporte prioritário",
-        "Acesso antecipado a vagas",
+        "Economia de R$ 120/ano",
       ],
       popular: true,
       savings: "Economize R$ 120/ano",
@@ -91,16 +90,14 @@ const Index = () => {
   ];
 
   const stats = [
-    { value: "2.500+", label: "Profissionais Cadastrados" },
+    { value: "2.500+", label: "Profissionais Ativos" },
     { value: "180+", label: "Empresas Parceiras" },
-    { value: "95%", label: "Taxa de Satisfação" },
+    { value: "100%", label: "Foco em Home Care" },
   ];
 
   return (
     <Layout>
-      {/* Hero Section */}
       <section className="gradient-hero relative overflow-hidden py-20 lg:py-28">
-        {/* Background decoration */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -right-40 -top-40 h-80 w-80 rounded-full bg-primary/5" />
           <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-success/5" />
@@ -111,7 +108,7 @@ const Index = () => {
             <div className="animate-fade-in mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm">
               <Heart className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-muted-foreground">
-                Plataforma #1 para profissionais de Home Care
+                Plataforma exclusiva para profissionais de Home Care
               </span>
             </div>
 
@@ -124,14 +121,13 @@ const Index = () => {
             </h1>
 
             <p className="animate-slide-up mx-auto mt-6 max-w-2xl text-lg text-muted-foreground" style={{ animationDelay: "0.1s" }}>
-              Acesse as melhores oportunidades, gerencie seu perfil profissional
-              e seja encontrado pelas maiores empresas de saúde do país.
+              Crie seu perfil profissional, seja encontrado pelas maiores empresas de saúde e receba propostas diretamente no seu celular.
             </p>
 
             <div className="animate-slide-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.2s" }}>
               <Button size="lg" asChild className="gap-2">
-                <Link to="/dashboard">
-                  Assinar e Criar Perfil
+                <Link to="/login">
+                  Escolher Plano e Começar
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -140,7 +136,6 @@ const Index = () => {
               </Button>
             </div>
 
-            {/* Stats */}
             <div className="animate-slide-up mt-16 grid grid-cols-3 gap-8" style={{ animationDelay: "0.3s" }}>
               {stats.map((stat, index) => (
                 <div key={index} className="text-center">
@@ -157,16 +152,14 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Features Section */}
       <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">
-              Por que escolher o HomeCareMatch?
+              Vantagens da Assinatura
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Oferecemos as melhores ferramentas para impulsionar sua carreira no
-              mercado de Home Care.
+              Acesso exclusivo às melhores oportunidades do mercado de saúde domiciliar.
             </p>
           </div>
 
@@ -183,64 +176,14 @@ const Index = () => {
         </div>
       </section>
 
-      {/* How it Works */}
-      <section className="bg-secondary/30 py-20">
-        <div className="container mx-auto px-4">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-foreground">Como Funciona</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Em apenas 3 passos simples você estará conectado às melhores
-              oportunidades.
-            </p>
-          </div>
-
-          <div className="mx-auto grid max-w-4xl gap-8 md:grid-cols-3">
-            {[
-              {
-                step: "01",
-                icon: CheckCircle,
-                title: "Crie sua Conta",
-                description: "Cadastre-se e escolha o plano ideal para você.",
-              },
-              {
-                step: "02",
-                icon: Award,
-                title: "Monte seu Perfil",
-                description:
-                  "Complete seu perfil com suas qualificações e experiência.",
-              },
-              {
-                step: "03",
-                icon: Clock,
-                title: "Seja Encontrado",
-                description:
-                  "Empresas visualizam seu perfil e entram em contato.",
-              },
-            ].map((item, index) => (
-              <div key={index} className="relative text-center">
-                <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-2xl font-bold text-primary-foreground">
-                  {item.step}
-                </div>
-                <h3 className="mb-2 text-lg font-semibold text-foreground">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="planos" className="scroll-mt-20 py-20">
+      <section id="planos" className="scroll-mt-20 py-20 bg-secondary/30">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">
-              Planos e Preços
+              Escolha seu Plano
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Escolha o plano que melhor se adapta às suas necessidades e comece
-              a receber oportunidades hoje mesmo.
+              Assine agora e torne seu perfil visível para centenas de empresas de recrutamento.
             </p>
           </div>
 
@@ -253,30 +196,6 @@ const Index = () => {
               />
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="gradient-primary py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-primary-foreground">
-            Pronto para dar o próximo passo na sua carreira?
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-primary-foreground/80">
-            Junte-se a milhares de profissionais que já encontraram as melhores
-            oportunidades através do HomeCareMatch.
-          </p>
-          <Button
-            size="lg"
-            variant="secondary"
-            className="mt-8 gap-2"
-            asChild
-          >
-            <Link to="/dashboard">
-              Começar Agora
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
         </div>
       </section>
     </Layout>

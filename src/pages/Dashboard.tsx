@@ -287,7 +287,7 @@ const Dashboard = () => {
 
           <div className="mb-8 flex items-center justify-between">
             <h1 className="text-3xl font-bold">Meu Perfil</h1>
-            <Button variant="ghost" onClick={signOut} className="gap-2">
+            <Button variant="ghost" onClick={signOut} className="gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
               <LogOut className="h-4 w-4" /> Sair
             </Button>
           </div>

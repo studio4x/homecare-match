@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface PricingCardProps {
+  id: string;
   name: string;
   price: string;
   period: string;
@@ -10,9 +11,12 @@ interface PricingCardProps {
   features: string[];
   popular?: boolean;
   savings?: string;
+  onSubscribe?: (id: string) => void;
+  isLoading?: boolean;
 }
 
 const PricingCard = ({
+  id,
   name,
   price,
   period,
@@ -20,6 +24,8 @@ const PricingCard = ({
   features,
   popular = false,
   savings,
+  onSubscribe,
+  isLoading
 }: PricingCardProps) => {
   return (
     <div
@@ -65,8 +71,10 @@ const PricingCard = ({
       <Button
         className={cn("w-full", popular ? "" : "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
         variant={popular ? "default" : "secondary"}
+        onClick={() => onSubscribe?.(id)}
+        disabled={isLoading}
       >
-        Assinar Agora
+        {isLoading ? "Processando..." : "Assinar Agora"}
       </Button>
     </div>
   );

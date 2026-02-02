@@ -39,7 +39,9 @@ const Buscar = () => {
     let query = supabase
       .from("profiles")
       .select("*")
-      .not("full_name", "is", null);
+      .not("full_name", "is", null)
+      .order('subscription_tier', { ascending: false }) // 'yearly' > 'monthly' > 'free' (ordem alfabética reversa ajuda aqui)
+      .order('updated_at', { ascending: false });
 
     if (filters.specialty) {
       query = query.eq("specialty", filters.specialty);
@@ -62,7 +64,14 @@ const Buscar = () => {
     if (error) {
       console.error("Erro ao buscar profissionais:", error);
     } else {
-      setProfessionals(data || []);
+      // Re-ordenar manualmente para garantir que 'yearly' venha primeiro, depois 'monthly', depois 'free'
+      const sorted = (data || []).sort((a, b) => {
+        const priority: Record<string, number> = { yearly: 3, monthly: 2, free: 1 };
+        const aPrio = priority[a.subscription_tier] || 1;
+        const bPrio = priority[b.subscription_tier] || 1;
+        return bPrio - aPrio;
+      });
+      setProfessionals(sorted);
     }
     setLoading(false);
   };
@@ -279,6 +288,8 @@ const Buscar = () => {
                   registration={professional.registration}
                   location={`${professional.neighborhood || ""}, ${professional.city || ""} - ${professional.state || ""}`}
                   experience={professional.experience}
+                  isVerified={professional.is_verified}
+                  subscriptionTier={professional.subscription_tier}
                 />
               ))
             ) : (

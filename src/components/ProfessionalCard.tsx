@@ -1,8 +1,9 @@
-import { MapPin, Briefcase, Award } from "lucide-react";
+import { MapPin, Briefcase, Award, CheckCircle, Star } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 interface ProfessionalCardProps {
   id: string;
@@ -12,6 +13,8 @@ interface ProfessionalCardProps {
   registration: string;
   location: string;
   experience: string;
+  isVerified?: boolean;
+  subscriptionTier?: string;
 }
 
 const ProfessionalCard = ({
@@ -22,6 +25,8 @@ const ProfessionalCard = ({
   registration,
   location,
   experience,
+  isVerified = false,
+  subscriptionTier = 'free'
 }: ProfessionalCardProps) => {
   const initials = name
     ?.split(" ")
@@ -30,17 +35,32 @@ const ProfessionalCard = ({
     .slice(0, 2)
     .toUpperCase();
 
+  const isPremium = subscriptionTier === 'yearly';
+
   return (
-    <div className="group flex flex-col rounded-2xl border border-border bg-card p-6 shadow-card transition-all duration-300 hover:shadow-card-hover">
+    <div className={cn(
+      "group flex flex-col rounded-2xl border bg-card p-6 shadow-card transition-all duration-300 hover:shadow-card-hover",
+      isPremium ? "border-primary/30 ring-1 ring-primary/10" : "border-border"
+    )}>
       <div className="mb-4 flex items-start gap-4">
-        <Avatar className="h-16 w-16 ring-2 ring-border transition-all group-hover:ring-primary/30">
-          <AvatarImage src={photo} alt={name} />
-          <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-16 w-16 ring-2 ring-border transition-all group-hover:ring-primary/30">
+            <AvatarImage src={photo} alt={name} />
+            <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          {isVerified && (
+            <div className="absolute -bottom-1 -right-1 rounded-full bg-success p-1 text-white ring-2 ring-card shadow-sm">
+              <CheckCircle className="h-3 w-3 fill-current" />
+            </div>
+          )}
+        </div>
         <div className="flex-1">
-          <h3 className="font-semibold text-foreground line-clamp-1">{name}</h3>
+          <div className="flex items-center gap-1">
+            <h3 className="font-semibold text-foreground line-clamp-1">{name}</h3>
+            {isPremium && <Star className="h-4 w-4 text-primary fill-primary" />}
+          </div>
           <Badge variant="secondary" className="mt-1">
             {specialty}
           </Badge>
@@ -62,7 +82,7 @@ const ProfessionalCard = ({
         </div>
       </div>
 
-      <Button variant="outline" className="mt-6 w-full" asChild>
+      <Button variant={isPremium ? "default" : "outline"} className="mt-6 w-full" asChild>
         <Link to={`/profissional/${id}`}>Ver Perfil Completo</Link>
       </Button>
     </div>

@@ -42,22 +42,27 @@ import {
   Mail,
   RefreshCw,
   Sparkles,
-  Trash2
+  Trash2,
+  Star,
+  Zap
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 const Dashboard = () => {
   const { user, session, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -72,6 +77,8 @@ const Dashboard = () => {
     bio: "",
     avatar_url: "",
     phone: "",
+    subscription_tier: "free",
+    is_verified: false
   });
 
   useEffect(() => {
@@ -79,6 +86,16 @@ const Dashboard = () => {
       fetchProfile();
     }
   }, [user]);
+
+  // Captura plano selecionado vindo da Home
+  useEffect(() => {
+    const state = location.state as { selectedPlan?: string };
+    if (state?.selectedPlan && profile.subscription_tier === 'free' && !isUpgrading) {
+      handleUpgrade(state.selectedPlan);
+      // Limpa o state para não disparar novamente
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, profile.subscription_tier]);
 
   const fetchProfile = async () => {
     const { data, error } = await supabase
@@ -101,7 +118,41 @@ const Dashboard = () => {
         bio: data.bio || "",
         avatar_url: data.avatar_url || "",
         phone: data.phone || "",
+        subscription_tier: data.subscription_tier || "free",
+        is_verified: data.is_verified || false
       });
+    }
+  };
+
+  const handleUpgrade = async (tier: string) => {
+    if (!user) return;
+    setIsUpgrading(true);
+    
+    try {
+      // Simulação de checkout - Em produção aqui iria a integração com Stripe/Pagar.me
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ 
+          subscription_tier: tier,
+          is_verified: tier === 'yearly' ? true : profile.is_verified // Plano anual ganha verificação automática
+        })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      setProfile(prev => ({ 
+        ...prev, 
+        subscription_tier: tier, 
+        is_verified: tier === 'yearly' ? true : prev.is_verified 
+      }));
+      
+      toast.success(`Plano ${tier === 'yearly' ? 'Anual' : 'Mensal'} ativado com sucesso!`);
+    } catch (error) {
+      toast.error("Erro ao processar assinatura.");
+    } finally {
+      setIsUpgrading(false);
     }
   };
 
@@ -276,6 +327,14 @@ const Dashboard = () => {
     ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
     : "??";
 
+  const getTierLabel = () => {
+    switch (profile.subscription_tier) {
+      case 'yearly': return 'Plano Anual (Premium)';
+      case 'monthly': return 'Plano Mensal';
+      default: return 'Plano Gratuito';
+    }
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">
@@ -328,18 +387,51 @@ const Dashboard = () => {
                 <h3 className="mb-4 font-semibold text-foreground">
                   Status da Assinatura
                 </h3>
-                <div className="flex items-center gap-3 rounded-lg bg-success/10 p-4">
-                  <CheckCircle className="h-6 w-6 text-success" />
+                <div className={cn(
+                  "flex items-center gap-3 rounded-lg p-4",
+                  profile.subscription_tier !== 'free' ? "bg-primary/10" : "bg-success/10"
+                )}>
+                  {profile.subscription_tier === 'yearly' ? (
+                    <Star className="h-6 w-6 text-primary fill-primary" />
+                  ) : profile.subscription_tier === 'monthly' ? (
+                    <Zap className="h-6 w-6 text-primary fill-primary" />
+                  ) : (
+                    <CheckCircle className="h-6 w-6 text-success" />
+                  )}
                   <div>
-                    <p className="font-medium text-success">Acesso Gratuito (Beta)</p>
+                    <p className={cn(
+                      "font-medium",
+                      profile.subscription_tier !== 'free' ? "text-primary" : "text-success"
+                    )}>
+                      {getTierLabel()}
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {isEmailConfirmed ? "Perfil visível para empresas" : "Invisível (e-mail não confirmado)"}
                     </p>
                   </div>
                 </div>
-                <Button className="mt-4 w-full" variant="outline" disabled>
-                  Gerenciar Assinatura
-                </Button>
+
+                {profile.subscription_tier === 'free' && (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-xs text-muted-foreground mb-3">Upgrade para aparecer no topo das buscas e ganhar selo de verificação.</p>
+                    <Button 
+                      className="w-full gap-2" 
+                      onClick={() => handleUpgrade('yearly')}
+                      disabled={isUpgrading}
+                    >
+                      {isUpgrading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+                      Assinar Plano Anual
+                    </Button>
+                    <Button 
+                      className="w-full" 
+                      variant="outline"
+                      onClick={() => handleUpgrade('monthly')}
+                      disabled={isUpgrading}
+                    >
+                      Assinar Plano Mensal
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
@@ -347,14 +439,22 @@ const Dashboard = () => {
                   Prévia do Perfil
                 </h3>
                 <div className="text-center">
-                  <Avatar className="mx-auto h-20 w-20 ring-4 ring-border shadow-md">
-                    <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
-                    <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h4 className="mt-4 font-semibold text-foreground">
+                  <div className="relative mx-auto w-fit">
+                    <Avatar className="h-20 w-20 ring-4 ring-border shadow-md">
+                      <AvatarImage src={profile.avatar_url} alt={profile.full_name} />
+                      <AvatarFallback className="bg-primary/10 text-xl font-semibold text-primary">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    {profile.is_verified && (
+                      <div className="absolute -bottom-1 -right-1 rounded-full bg-success p-1 text-white ring-2 ring-background">
+                        <CheckCircle className="h-3 w-3 fill-current" />
+                      </div>
+                    )}
+                  </div>
+                  <h4 className="mt-4 font-semibold text-foreground flex items-center justify-center gap-1">
                     {profile.full_name || "Seu Nome Aqui"}
+                    {profile.subscription_tier === 'yearly' && <Star className="h-4 w-4 text-primary fill-primary" />}
                   </h4>
                   <Badge variant="secondary" className="mt-2">
                     {specialties.find((s) => s.value === profile.specialty)?.label || "Especialidade"}

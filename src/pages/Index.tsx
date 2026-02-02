@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import PricingCard from "@/components/PricingCard";
@@ -14,8 +14,23 @@ import {
   CheckCircle,
   ArrowRight,
 } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { toast } from "sonner";
 
 const Index = () => {
+  const { session } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubscribe = (planId: string) => {
+    if (!session) {
+      toast.info("Por favor, crie uma conta para assinar um plano.");
+      navigate("/login");
+      return;
+    }
+    // Redireciona para o dashboard para completar a assinatura
+    navigate("/dashboard", { state: { selectedPlan: planId } });
+  };
+
   const features = [
     {
       icon: Search,
@@ -45,6 +60,7 @@ const Index = () => {
 
   const plans = [
     {
+      id: "monthly",
       name: "Mensal",
       price: "R$ 49,90",
       period: "mês",
@@ -57,6 +73,7 @@ const Index = () => {
       ],
     },
     {
+      id: "yearly",
       name: "Anual",
       price: "R$ 39,90",
       period: "mês",
@@ -229,7 +246,11 @@ const Index = () => {
 
           <div className="mx-auto grid max-w-3xl gap-8 md:grid-cols-2">
             {plans.map((plan, index) => (
-              <PricingCard key={index} {...plan} />
+              <PricingCard 
+                key={index} 
+                {...plan} 
+                onSubscribe={handleSubscribe}
+              />
             ))}
           </div>
         </div>

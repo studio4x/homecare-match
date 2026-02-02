@@ -12,12 +12,16 @@ import { Heart, Info } from 'lucide-react';
 const Login = () => {
   const { session, loading } = useAuth();
   const location = useLocation();
-  const [view, setView] = useState<'sign_in' | 'sign_up'>('sign_in');
+  
+  // Define o estado inicial baseado no hash para evitar que comece no login e depois mude
+  const [view, setView] = useState<'sign_in' | 'sign_up'>(
+    window.location.hash === '#auth-sign-up' ? 'sign_up' : 'sign_in'
+  );
 
   useEffect(() => {
     if (location.hash === '#auth-sign-up') {
       setView('sign_up');
-    } else {
+    } else if (location.hash === '#auth-sign-in') {
       setView('sign_in');
     }
   }, [location.hash]);
@@ -43,7 +47,9 @@ const Login = () => {
             </p>
           </div>
           
+          {/* A prop key={view} força o componente a remontar quando o view muda */}
           <Auth
+            key={view}
             supabaseClient={supabase}
             view={view}
             appearance={{ 

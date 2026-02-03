@@ -28,7 +28,8 @@ import {
   Plus,
   ShieldAlert,
   Trash2,
-  CreditCard
+  CreditCard,
+  Calendar
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -49,6 +50,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { differenceInDays, addDays } from "date-fns";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -190,9 +192,16 @@ const Admin = () => {
   const handleUpdatePlan = async (profileId: string, newPlan: string) => {
     setIsUpdatingPlan(profileId);
     try {
+      const updateData: any = { subscription_tier: newPlan };
+      
+      // Se estiver alterando para o plano de teste, reseta a data de início
+      if (newPlan === 'free_trial') {
+        updateData.trial_started_at = new Date().toISOString();
+      }
+
       const { error } = await supabase
         .from("profiles")
-        .update({ subscription_tier: newPlan })
+        .update(updateData)
         .eq("id", profileId);
 
       if (error) throw error;
@@ -245,6 +254,16 @@ const Admin = () => {
     } finally {
       setIsSavingPlan(false);
     }
+  };
+
+  const getTrialStatus = (user: any) => {
+    if (user.subscription_tier !== 'free_trial' || !user.trial_started_at) return null;
+    
+    const startDate = new Date(user.trial_started_at);
+    const endDate = addDays(startDate, 30);
+    const daysRemaining = differenceInDays(endDate, new Date());
+    
+    return daysRemaining;
   };
 
   if (authLoading || loading) {
@@ -334,80 +353,92 @@ const Admin = () => {
                       <TableHead>Nome</TableHead>
                       <TableHead>E-mail</TableHead>
                       <TableHead>Função</TableHead>
-                      <TableHead>Plano</TableHead>
+                      <TableHead>Plano / Status</TableHead>
                       <TableHead>Verificado</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allUsers.map(u => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.full_name || "Sem nome"}</TableCell>
-                        <TableCell>{u.email}</TableCell>
-                        <TableCell>
-                          {isUpdatingRole === u.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Select 
-                              defaultValue={u.role} 
-                              onValueChange={(value) => handleUpdateRole(u.id, value)}
-                              disabled={u.email === MASTER_ADMIN_EMAIL}
-                            >
-                              <SelectTrigger className="w-[140px] h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="professional">Profissional</SelectItem>
-                                <SelectItem value="company">Empresa</SelectItem>
-                                <SelectItem value="family">Família</SelectItem>
-                                <SelectItem 
-                                  value="admin" 
-                                  disabled={u.email !== MASTER_ADMIN_EMAIL}
+                    {allUsers.map(u => {
+                      const daysLeft = getTrialStatus(u);
+                      return (
+                        <TableRow key={u.id}>
+                          <TableCell className="font-medium">{u.full_name || "Sem nome"}</TableCell>
+                          <TableCell>{u.email}</TableCell>
+                          <TableCell>
+                            {isUpdatingRole === u.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Select 
+                                defaultValue={u.role} 
+                                onValueChange={(value) => handleUpdateRole(u.id, value)}
+                                disabled={u.email === MASTER_ADMIN_EMAIL}
+                              >
+                                <SelectTrigger className="w-[140px] h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="professional">Profissional</SelectItem>
+                                  <SelectItem value="company">Empresa</SelectItem>
+                                  <SelectItem value="family">Família</SelectItem>
+                                  <SelectItem 
+                                    value="admin" 
+                                    disabled={u.email !== MASTER_ADMIN_EMAIL}
+                                  >
+                                    Admin
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {isUpdatingPlan === u.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Select 
+                                  defaultValue={u.subscription_tier || 'monthly'} 
+                                  onValueChange={(value) => handleUpdatePlan(u.id, value)}
+                                  disabled={u.role !== 'professional'}
                                 >
-                                  Admin
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {isUpdatingPlan === u.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Select 
-                              defaultValue={u.subscription_tier || 'monthly'} 
-                              onValueChange={(value) => handleUpdatePlan(u.id, value)}
-                              disabled={u.role !== 'professional'}
-                            >
-                              <SelectTrigger className="w-[140px] h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {plans.map(plan => (
-                                  <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </TableCell>
-                        <TableCell>{u.is_verified ? <Badge className="bg-success">Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
-                        <TableCell className="text-right">
-                          {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-destructive hover:bg-destructive/10"
-                              onClick={() => {
-                                setUserToDelete(u);
-                                setDeleteModalOpen(true);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="free_trial">Teste Grátis</SelectItem>
+                                    {plans.map(plan => (
+                                      <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                              {daysLeft !== null && (
+                                <div className={`text-[10px] font-medium flex items-center gap-1 ${daysLeft <= 0 ? 'text-destructive' : 'text-primary'}`}>
+                                  <Calendar className="h-3 w-3" />
+                                  {daysLeft <= 0 ? 'Expirado' : `${daysLeft} dias restantes`}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{u.is_verified ? <Badge className="bg-success">Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
+                          <TableCell className="text-right">
+                            {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  setUserToDelete(u);
+                                  setDeleteModalOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -430,6 +461,17 @@ const Admin = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
+                    <TableRow>
+                      <TableCell>
+                        <div className="font-medium">Teste Grátis (Sistema)</div>
+                        <div className="text-xs text-muted-foreground text-primary">Plano Padrão de Cadastro</div>
+                      </TableCell>
+                      <TableCell>R$ 0,00/30 dias</TableCell>
+                      <TableCell><Badge variant="outline">Automático</Badge></TableCell>
+                      <TableCell className="text-right">
+                        <span className="text-xs text-muted-foreground px-2">Gerido pelo sistema</span>
+                      </TableCell>
+                    </TableRow>
                     {plans.length > 0 ? plans.map(p => (
                       <TableRow key={p.id}>
                         <TableCell>
@@ -444,7 +486,7 @@ const Admin = () => {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    )) : <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground">Nenhum plano cadastrado.</TableCell></TableRow>}
+                    )) : null}
                   </TableBody>
                 </Table>
               </div>

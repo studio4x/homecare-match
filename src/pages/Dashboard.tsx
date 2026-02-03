@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import Layout from "@/components/layout/Layout";
 import {
   CheckCircle2,
@@ -17,29 +18,25 @@ import {
   LogOut,
   Mail,
   ShieldAlert,
-  Star
+  Star,
+  Zap,
+  Calendar
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { differenceInDays, addDays } from "date-fns";
 
 const Dashboard = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isGeneratingBio, setIsGeneratingBio] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isUpgrading, setIsUpgrading] = useState(false);
-  const [isSubmittingDocs, setIsSubmittingDocs] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   
-  const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const idDocRef = useRef<HTMLInputElement>(null);
   const profDocRef = useRef<HTMLInputElement>(null);
   
@@ -54,11 +51,12 @@ const Dashboard = () => {
     bio: "",
     avatar_url: "",
     phone: "",
-    subscription_tier: "monthly",
+    subscription_tier: "free_trial",
     is_verified: false,
     verification_sent: false,
     id_document_url: "",
-    prof_registration_url: ""
+    prof_registration_url: "",
+    trial_started_at: null as string | null
   });
 
   useEffect(() => {
@@ -100,11 +98,12 @@ const Dashboard = () => {
           bio: data.bio || "",
           avatar_url: data.avatar_url || "",
           phone: data.phone || "",
-          subscription_tier: data.subscription_tier || "monthly",
+          subscription_tier: data.subscription_tier || "free_trial",
           is_verified: data.is_verified || false,
           verification_sent: data.verification_sent || false,
           id_document_url: data.id_document_url || "",
-          prof_registration_url: data.prof_registration_url || ""
+          prof_registration_url: data.prof_registration_url || "",
+          trial_started_at: data.trial_started_at
         });
       }
     } catch (err) {
@@ -168,6 +167,22 @@ const Dashboard = () => {
     setIsSaving(false);
   };
 
+  const getTrialInfo = () => {
+    if (profile.subscription_tier !== 'free_trial' || !profile.trial_started_at) return null;
+    
+    const startDate = new Date(profile.trial_started_at);
+    const endDate = addDays(startDate, 30);
+    const daysRemaining = differenceInDays(endDate, new Date());
+    const daysPassed = 30 - daysRemaining;
+    const progress = Math.min(100, Math.max(0, (daysPassed / 30) * 100));
+    
+    return {
+      daysRemaining: Math.max(0, daysRemaining),
+      progress,
+      isExpired: daysRemaining <= 0
+    };
+  };
+
   if (authLoading || isLoadingProfile) {
     return (
       <Layout>
@@ -180,6 +195,7 @@ const Dashboard = () => {
 
   const isEmailConfirmed = !!user?.email_confirmed_at;
   const initials = profile.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+  const trial = getTrialInfo();
 
   return (
     <Layout>
@@ -191,6 +207,39 @@ const Dashboard = () => {
               <AlertTitle>Confirme seu e-mail</AlertTitle>
               <AlertDescription>Valide seu e-mail para que seu perfil apareça nas buscas.</AlertDescription>
             </Alert>
+          )}
+
+          {trial && (
+            <div className="mb-8 rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 font-semibold text-primary">
+                    <Zap className="h-5 w-5 fill-current" />
+                    Período de Teste Gratuito
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Você tem <strong>{trial.daysRemaining} dias</strong> de acesso gratuito restante.
+                  </p>
+                </div>
+                <div className="flex-1 max-w-md">
+                  <div className="mb-2 flex justify-between text-xs font-medium">
+                    <span>Progresso do teste</span>
+                    <span>{Math.round(trial.progress)}%</span>
+                  </div>
+                  <Progress value={trial.progress} className="h-2" />
+                </div>
+                <Button size="sm" asChild className="shrink-0">
+                  <Link to="/#planos">Assinar agora</Link>
+                </Button>
+              </div>
+              {trial.isExpired && (
+                <Alert variant="destructive" className="mt-4">
+                  <ShieldAlert className="h-4 w-4" />
+                  <AlertTitle>Teste Expirado</AlertTitle>
+                  <AlertDescription>Seu período gratuito terminou. Seu perfil pode não estar mais visível para empresas.</AlertDescription>
+                </Alert>
+              )}
+            </div>
           )}
 
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -240,6 +289,21 @@ const Dashboard = () => {
                     
                     <Button onClick={() => toast.promise(supabase.functions.invoke('notify-verification', { body: { userName: profile.full_name, userId: user?.id }}), { loading: 'Enviando...', success: 'Enviado para análise!', error: 'Erro ao enviar.' })} className="w-full mt-4" disabled={!profile.id_document_url || !profile.prof_registration_url}>Solicitar Verificação</Button>
                   </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border bg-card p-6 shadow-card">
+                <h3 className="mb-4 font-semibold flex items-center gap-2"><Star className="h-4 w-4 text-primary" /> Plano Atual</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-muted-foreground">Nível:</span>
+                  <Badge variant="outline" className="capitalize">
+                    {profile.subscription_tier === 'free_trial' ? 'Teste Grátis' : profile.subscription_tier}
+                  </Badge>
+                </div>
+                {profile.subscription_tier === 'free_trial' && (
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    * Após os 30 dias, seu perfil deixará de aparecer no topo das buscas.
+                  </p>
                 )}
               </div>
             </div>

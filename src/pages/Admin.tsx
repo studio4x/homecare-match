@@ -75,7 +75,7 @@ const Admin = () => {
         setAdminExists(data);
       }
     } catch (e) {
-      console.error("[Admin] Erro ao verificar existência de admin:", e);
+      console.error("[Admin] Erro:", e);
     }
   };
 
@@ -93,18 +93,12 @@ const Admin = () => {
         .eq("id", user.id)
         .maybeSingle();
       
-      if (error) {
-        console.error("[Admin] Erro ao buscar perfil:", error);
-        setIsAdmin(false);
-      } else if (data && (data.is_admin || data.role === 'admin')) {
+      if (data && (data.is_admin || data.role === 'admin')) {
         setIsAdmin(true);
         await fetchData();
       } else {
         setIsAdmin(false);
       }
-    } catch (err) {
-      console.error("[Admin] Erro fatal:", err);
-      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
@@ -122,17 +116,15 @@ const Admin = () => {
       setAllUsers(users.data || []);
       setPlans(plansData.data || []);
     } catch (error) {
-      console.error("[Admin] Erro ao carregar dados:", error);
+      console.error("[Admin] Erro:", error);
     }
   };
 
   const handleApprove = async (profileId: string) => {
     setIsProcessingVerification(true);
     const { error } = await supabase.from("profiles").update({ is_verified: true }).eq("id", profileId);
-    if (error) {
-      toast.error("Erro ao aprovar perfil.");
-    } else {
-      toast.success("Perfil aprovado com sucesso!");
+    if (!error) {
+      toast.success("Perfil aprovado!");
       await notifyVerificationResult(profileId, 'approved');
       fetchData();
     }
@@ -140,15 +132,10 @@ const Admin = () => {
   };
 
   const handleReject = async () => {
-    if (!rejectionReason) {
-      toast.error("Por favor, informe o motivo da reprovação.");
-      return;
-    }
+    if (!rejectionReason) return;
     setIsProcessingVerification(true);
     const { error } = await supabase.from("profiles").update({ verification_sent: false }).eq("id", selectedProfile.id);
-    if (error) {
-      toast.error("Erro ao reprovar perfil.");
-    } else {
+    if (!error) {
       toast.success("Perfil reprovado.");
       await notifyVerificationResult(selectedProfile.id, 'rejected', rejectionReason);
       setRejectionModalOpen(false);
@@ -160,7 +147,10 @@ const Admin = () => {
 
   const notifyVerificationResult = async (profileId: string, status: 'approved' | 'rejected', reason?: string) => {
     const profileToNotify = allUsers.find(u => u.id === profileId);
-    if (!profileToNotify) return;
+    if (!profileToNotify?.email) {
+      console.error("[Admin] E-mail do usuário não encontrado para notificação.");
+      return;
+    }
 
     try {
       await supabase.functions.invoke('verification-result', {
@@ -169,64 +159,19 @@ const Admin = () => {
           status,
           reason,
           userName: profileToNotify.full_name,
+          userEmail: profileToNotify.email
         }
       });
     } catch (e) {
-      console.error("[Admin] Erro ao notificar usuário:", e);
+      console.error("[Admin] Erro ao enviar e-mail:", e);
     }
   };
 
   if (authLoading || loading) {
-    return (
-      <Layout>
-        <div className="flex h-96 items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Verificando permissões...</p>
-          </div>
-        </div>
-      </Layout>
-    );
+    return <Layout><div className="flex h-96 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div></Layout>;
   }
   
-  if (!session) {
-    return (
-      <Layout>
-        <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
-          <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-card">
-            <div className="text-center">
-              <Lock className="mx-auto h-12 w-12 text-primary" />
-              <h2 className="mt-6 text-3xl font-bold">Painel de Gestão</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Acesse com sua conta de administrador.</p>
-            </div>
-            <AuthForm mode={adminExists ? "login" : "register"} allowRegister={!adminExists} />
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <Layout>
-        <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
-          <div className="w-full max-w-md text-center space-y-6 rounded-2xl border border-destructive/20 bg-card p-8 shadow-card">
-            <AlertTriangle className="mx-auto h-16 w-16 text-destructive" />
-            <h2 className="text-2xl font-bold">Acesso Restrito</h2>
-            <p className="text-muted-foreground">O usuário <strong>{user?.email}</strong> não possui acesso administrativo.</p>
-            <div className="flex flex-col gap-3">
-              <Button onClick={checkCurrentUserAdminStatus} variant="outline" className="gap-2">
-                <RefreshCw className="h-4 w-4" /> Tentar Novamente
-              </Button>
-              <Button variant="ghost" onClick={signOut} className="text-destructive">
-                Sair e usar outra conta
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
+  if (!session) return <Layout><div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20"><div className="w-full max-w-md p-8 bg-card border rounded-2xl shadow-card text-center"><Lock className="mx-auto h-12 w-12 text-primary" /><h2 className="mt-6 text-3xl font-bold">Painel de Gestão</h2><AuthForm mode={adminExists ? "login" : "register"} allowRegister={!adminExists} /></div></div></Layout>;
 
   return (
     <Layout>
@@ -234,17 +179,13 @@ const Admin = () => {
         <div className="container mx-auto px-4">
           <div className="mb-8 flex items-center justify-between">
             <h1 className="text-3xl font-bold flex items-center gap-3"><ShieldCheck className="h-8 w-8 text-primary" /> Painel Admin</h1>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={fetchData} className="gap-2"><RefreshCw className="h-4 w-4" /> Atualizar</Button>
-              <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive"><LogOut className="h-4 w-4" /> Sair</Button>
-            </div>
+            <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive"><LogOut className="h-4 w-4" /> Sair</Button>
           </div>
 
           <Tabs defaultValue="verifications" className="space-y-6">
             <TabsList className="bg-card border">
               <TabsTrigger value="verifications">Verificações ({pendingProfiles.length})</TabsTrigger>
               <TabsTrigger value="users">Usuários ({allUsers.length})</TabsTrigger>
-              <TabsTrigger value="plans">Planos ({plans.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="verifications">
@@ -254,24 +195,19 @@ const Admin = () => {
                   <TableBody>
                     {pendingProfiles.length > 0 ? pendingProfiles.map(p => (
                       <TableRow key={p.id}>
-                        <TableCell><div className="font-medium">{p.full_name}</div><div className="text-xs text-muted-foreground">{p.specialty}</div></TableCell>
+                        <TableCell>
+                          <div className="font-medium">{p.full_name}</div>
+                          <div className="text-xs text-muted-foreground">{p.email}</div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
-                            {p.id_document_url && (
-                              <Button variant="outline" size="sm" asChild className="h-7 text-xs">
-                                <a href={p.id_document_url} target="_blank" rel="noopener noreferrer">Ver RG/CNH</a>
-                              </Button>
-                            )}
-                            {p.prof_registration_url && (
-                              <Button variant="outline" size="sm" asChild className="h-7 text-xs">
-                                <a href={p.prof_registration_url} target="_blank" rel="noopener noreferrer">Ver Registro</a>
-                              </Button>
-                            )}
+                            {p.id_document_url && <Button variant="outline" size="sm" asChild className="h-7 text-xs"><a href={p.id_document_url} target="_blank">RG/CNH</a></Button>}
+                            {p.prof_registration_url && <Button variant="outline" size="sm" asChild className="h-7 text-xs"><a href={p.prof_registration_url} target="_blank">Registro</a></Button>}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-2" />Reprovar</Button>
-                          <Button variant="ghost" size="sm" className="text-success hover:text-success" onClick={() => handleApprove(p.id)}><ThumbsUp className="h-4 w-4 mr-2" />Aprovar</Button>
+                          <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
+                          <Button variant="ghost" size="sm" className="text-success" onClick={() => handleApprove(p.id)}><ThumbsUp className="h-4 w-4 mr-1" />Aprovar</Button>
                         </TableCell>
                       </TableRow>
                     )) : <TableRow><TableCell colSpan={3} className="h-32 text-center text-muted-foreground">Nenhuma solicitação pendente.</TableCell></TableRow>}
@@ -283,23 +219,14 @@ const Admin = () => {
             <TabsContent value="users">
               <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Função</TableHead><TableHead>Plano</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>E-mail</TableHead><TableHead>Função</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {allUsers.map(u => (
-                      <TableRow key={u.id}>
-                        <TableCell>{u.full_name || 'Sem nome'}</TableCell>
-                        <TableCell>{u.role}</TableCell>
-                        <TableCell>{u.subscription_tier}</TableCell>
-                        <TableCell>{u.is_verified ? <span className="text-success">Verificado</span> : 'Pendente'}</TableCell>
-                      </TableRow>
+                      <TableRow key={u.id}><TableCell>{u.full_name}</TableCell><TableCell>{u.email}</TableCell><TableCell>{u.role}</TableCell></TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </div>
-            </TabsContent>
-
-            <TabsContent value="plans">
-                <div className="p-4 text-center text-muted-foreground">Gerenciamento de planos em breve.</div>
             </TabsContent>
           </Tabs>
         </div>
@@ -307,20 +234,11 @@ const Admin = () => {
 
       <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reprovar Verificação</DialogTitle>
-            <DialogDescription>Descreva o motivo da reprovação.</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="reason">Motivo da Reprovação</Label>
-            <Textarea id="reason" value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Ex: Documento de identidade ilegível." />
-          </div>
+          <DialogHeader><DialogTitle>Reprovar Verificação</DialogTitle><DialogDescription>Informe o motivo para {selectedProfile?.full_name}.</DialogDescription></DialogHeader>
+          <div className="py-4"><Label>Motivo</Label><Textarea value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Ex: Documento ilegível." /></div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleReject} disabled={isProcessingVerification || !rejectionReason}>
-              {isProcessingVerification ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-2" />}
-              Confirmar
-            </Button>
+            <Button variant="destructive" onClick={handleReject} disabled={isProcessingVerification || !rejectionReason}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

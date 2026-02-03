@@ -7,47 +7,32 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
-    const { name, specialty, experience, city, state } = await req.json()
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
-
-    if (!GEMINI_API_KEY) {
-      console.error("[generate-bio] Erro: GEMINI_API_KEY não configurada")
-      return new Response(
-        JSON.stringify({ error: 'Chave de API do Gemini não configurada no Supabase Secrets' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Não autorizado' }), { status: 401, headers: corsHeaders })
     }
 
-    console.log(`[generate-bio] Iniciando geração com Gemini 2.0 Flash para: ${name}`)
+    const { name, specialty, experience, city, state } = await req.json()
+    
+    // Validação de entrada
+    if (!name || !specialty || !experience) {
+      return new Response(JSON.stringify({ error: 'Dados incompletos para geração' }), { status: 400, headers: corsHeaders })
+    }
+
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
+    console.log(`[generate-bio] Processando bio para: ${name}`)
 
     const prompt = {
       contents: [{
         parts: [{
-          text: `Você é um redator especializado em recrutamento na área da saúde para Home Care. 
-          Crie uma mini-biografia profissional, curta e impactante (máximo 400 caracteres), para o seguinte profissional:
-          Nome: ${name}
-          Especialidade: ${specialty}
-          Experiência: ${experience}
-          Localização: ${city} - ${state}
-
-          REGRAS:
-          1. Use um tom profissional, porém acolhedor e humano.
-          2. Destaque a prontidão para atendimentos domiciliares na região de ${city}.
-          3. Escreva em primeira pessoa (Eu sou...).
-          4. NÃO use hashtags.
-          5. Seja direto e evite clichês excessivos.
-          6. O texto deve ser formatado como um parágrafo único pronto para publicação.`
+          text: `Crie uma biografia profissional curta (400 char) para ${name}, ${specialty}, com experiência em ${experience}, localizado em ${city}-${state}. Primeira pessoa, tom profissional.`
         }]
       }]
     }
 
-    // Atualizado para gemini-2.0-flash no endpoint v1beta
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -58,33 +43,11 @@ serve(async (req) => {
     )
 
     const data = await response.json()
-    
-    if (data.error) {
-      console.error("[generate-bio] Erro na API do Gemini:", data.error)
-      return new Response(
-        JSON.stringify({ error: data.error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    const generatedBio = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "Erro ao gerar bio."
 
-    if (!data.candidates || data.candidates.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'A IA não retornou um resultado válido.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const generatedBio = data.candidates[0].content.parts[0].text.trim()
-
-    return new Response(
-      JSON.stringify({ bio: generatedBio }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({ bio: generatedBio }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {
-    console.error("[generate-bio] Erro inesperado:", error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    console.error("[generate-bio] Erro:", error)
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
   }
 })

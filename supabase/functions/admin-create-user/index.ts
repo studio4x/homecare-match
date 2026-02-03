@@ -8,9 +8,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
     const supabaseAdmin = createClient(
@@ -18,52 +16,39 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Valida se quem está chamando é Admin
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
-    
-    const token = authHeader.replace('Bearer ', '')
+    const token = authHeader?.replace('Bearer ', '')
     const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token)
 
     if (authError || !caller) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
 
+    // Verificação de Admin REAL no servidor
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('is_admin')
+      .select('is_admin, role')
       .eq('id', caller.id)
       .single()
 
-    if (!profile?.is_admin) return new Response('Forbidden', { status: 403, headers: corsHeaders })
+    if (!profile?.is_admin && profile?.role !== 'admin') {
+      return new Response('Forbidden: Acesso restrito a administradores', { status: 403, headers: corsHeaders })
+    }
 
-    // Lógica de criação
     const { email, password, fullName, role } = await req.json()
-
-    console.log(`[admin-create-user] Criando usuário: ${email}`)
+    if (!email || !password) return new Response('Dados inválidos', { status: 400, headers: corsHeaders })
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: false, // Força o usuário a validar
+      email_confirm: true,
       user_metadata: { full_name: fullName }
     })
 
     if (createError) throw createError
 
-    // O trigger handle_new_user já criará o perfil, mas vamos garantir o role correto
-    await supabaseAdmin
-      .from('profiles')
-      .update({ role: role })
-      .eq('id', newUser.user.id)
+    await supabaseAdmin.from('profiles').update({ role: role || 'professional' }).eq('id', newUser.user.id)
 
-    return new Response(
-      JSON.stringify({ message: 'Usuário criado com sucesso' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({ message: 'Usuário criado com sucesso' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {
-    console.error("[admin-create-user] Erro:", error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
   }
 })

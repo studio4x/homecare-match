@@ -24,7 +24,9 @@ import {
   RefreshCw,
   FileCheck,
   X,
-  ClipboardCheck
+  ClipboardCheck,
+  RotateCcw,
+  AlertOctagon
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -69,6 +71,7 @@ const Dashboard = () => {
     subscription_tier: "free_trial",
     is_verified: false,
     verification_sent: false,
+    rejection_reason: null as string | null,
     id_document_url: "",
     prof_registration_url: "",
     trial_started_at: null as string | null
@@ -116,6 +119,7 @@ const Dashboard = () => {
           subscription_tier: data.subscription_tier || "free_trial",
           is_verified: data.is_verified || false,
           verification_sent: data.verification_sent || false,
+          rejection_reason: data.rejection_reason || null,
           id_document_url: data.id_document_url || "",
           prof_registration_url: data.prof_registration_url || "",
           trial_started_at: data.trial_started_at
@@ -191,6 +195,23 @@ const Dashboard = () => {
       toast.error("Erro ao processar solicitação.");
     } finally {
       setIsRequestingVerification(false);
+    }
+  };
+
+  const handleRetryVerification = async () => {
+    if (!user) return;
+    try {
+      // Limpa o motivo da rejeição para permitir novo envio
+      const { error } = await supabase
+        .from("profiles")
+        .update({ rejection_reason: null })
+        .eq("id", user.id);
+
+      if (error) throw error;
+      setProfile(prev => ({ ...prev, rejection_reason: null }));
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao reiniciar processo.");
     }
   };
 
@@ -345,6 +366,18 @@ const Dashboard = () => {
                     <CheckCircle2 className="h-10 w-10 text-success mb-2" />
                     <p className="font-semibold text-success">Perfil Verificado</p>
                     <p className="text-[10px] text-muted-foreground mt-1 px-4">Seu selo de confiança está ativo.</p>
+                  </div>
+                ) : profile.rejection_reason ? (
+                  <div className="flex flex-col items-center py-6 text-center bg-destructive/5 rounded-xl border border-destructive/20 animate-fade-in">
+                    <AlertOctagon className="h-10 w-10 text-destructive mb-3" />
+                    <h4 className="font-semibold text-destructive mb-2">Documentos Reprovados</h4>
+                    <p className="text-xs text-muted-foreground px-4 mb-4 leading-relaxed">
+                      O motivo da recusa foi enviado por e-mail. Por favor, corrija os problemas e envie novamente.
+                    </p>
+                    <Button variant="destructive" size="sm" onClick={handleRetryVerification} className="gap-2">
+                      <RotateCcw className="h-3 w-3" />
+                      Enviar Novos Documentos
+                    </Button>
                   </div>
                 ) : profile.verification_sent ? (
                   <div className="flex flex-col items-center py-6 text-center bg-primary/5 rounded-xl border border-primary/20">

@@ -142,7 +142,11 @@ const Admin = () => {
       // Encontrar dados do usuário para o e-mail
       const userToNotify = pendingProfiles.find(p => p.id === profileId);
 
-      const { error } = await supabase.from("profiles").update({ is_verified: true }).eq("id", profileId);
+      const { error } = await supabase.from("profiles").update({ 
+        is_verified: true,
+        rejection_reason: null // Limpa motivo anterior se houver
+      }).eq("id", profileId);
+      
       if (error) throw error;
 
       // Disparar e-mail de sucesso
@@ -170,7 +174,12 @@ const Admin = () => {
     if (!rejectionReason || !selectedProfile) return;
     setIsProcessingVerification(true);
     try {
-      const { error } = await supabase.from("profiles").update({ verification_sent: false }).eq("id", selectedProfile.id);
+      // Salva o motivo da rejeição no banco e reseta o status de envio
+      const { error } = await supabase.from("profiles").update({ 
+        verification_sent: false,
+        rejection_reason: rejectionReason 
+      }).eq("id", selectedProfile.id);
+      
       if (error) throw error;
 
       // Disparar e-mail de reprovação

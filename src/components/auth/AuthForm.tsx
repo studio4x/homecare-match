@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Eye, EyeOff, AlertCircle, MailWarning } from "lucide-react";
+import { Loader2, Eye, EyeOff, AlertCircle, MailWarning, MailCheck } from "lucide-react";
 import { toast } from "sonner";
 
 const authSchema = z.object({
@@ -54,23 +54,36 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         const { error } = await supabase.auth.signUp({
           email: data.email,
           password: data.password,
+          options: {
+            data: {
+              full_name: "", // Placeholder para o trigger handle_new_user
+            }
+          }
         });
         if (error) throw error;
-        toast.success("Cadastro realizado! Verifique seu e-mail para confirmar.");
+        
+        // Mensagem de sucesso com mais destaque
+        toast.success("Conta criada com sucesso!", {
+          description: "Enviamos um link de confirmação para o seu e-mail. Por favor, verifique sua caixa de entrada (e a pasta de spam) para ativar sua conta.",
+          icon: <MailCheck className="h-5 w-5 text-success" />,
+          duration: 10000,
+        });
+        
+        setMode("login");
+        reset();
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: data.email,
           password: data.password,
         });
         if (error) {
-          // Tratamento de erro específico para e-mail não confirmado
           if (error.message.includes("Email not confirmed")) {
             toast.error("Verifique seu e-mail para continuar.", {
               description: "Enviamos um link de confirmação para sua caixa de entrada. Por favor, clique nele para ativar sua conta.",
               icon: <MailWarning className="h-5 w-5" />,
               duration: 10000,
             });
-            return; // Interrompe a execução aqui
+            return;
           }
           throw error;
         }

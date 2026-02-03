@@ -411,7 +411,7 @@ const Dashboard = () => {
                         <Button 
                           type="button" 
                           variant="outline" 
-                          size="xs" 
+                          size="sm" 
                           className="h-7 gap-1 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20"
                           onClick={handleGenerateBio}
                           disabled={isGeneratingBio}

@@ -7,6 +7,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Valid roles that can be assigned
+const VALID_ROLES = ['professional', 'company', 'family'];
+
+// Validate email format
+const isValidEmail = (email: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 255;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
@@ -34,7 +42,20 @@ serve(async (req) => {
     }
 
     const { email, password, fullName, role } = await req.json()
-    if (!email || !password) return new Response('Dados inválidos', { status: 400, headers: corsHeaders })
+    
+    // Comprehensive input validation
+    if (!email || typeof email !== 'string' || !isValidEmail(email)) {
+      return new Response('Invalid email format', { status: 400, headers: corsHeaders })
+    }
+    if (!password || typeof password !== 'string' || password.length < 6 || password.length > 72) {
+      return new Response('Password must be 6-72 characters', { status: 400, headers: corsHeaders })
+    }
+    if (fullName && (typeof fullName !== 'string' || fullName.length > 200)) {
+      return new Response('Invalid fullName (max 200 characters)', { status: 400, headers: corsHeaders })
+    }
+    
+    // Validate role against allowed values
+    const sanitizedRole = role && VALID_ROLES.includes(role) ? role : 'professional';
 
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -45,10 +66,11 @@ serve(async (req) => {
 
     if (createError) throw createError
 
-    await supabaseAdmin.from('profiles').update({ role: role || 'professional' }).eq('id', newUser.user.id)
+    await supabaseAdmin.from('profiles').update({ role: sanitizedRole }).eq('id', newUser.user.id)
 
     return new Response(JSON.stringify({ message: 'Usuário criado com sucesso' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
+    console.error("[admin-create-user] Erro:", error)
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: corsHeaders })
   }
 })

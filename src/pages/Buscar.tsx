@@ -59,9 +59,12 @@ const Buscar = () => {
 
   const fetchProfessionals = async () => {
     setLoading(true);
+    // Only select safe public fields - never use .select("*") for security
+    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at";
+    
     let query = supabase
       .from("profiles")
-      .select("*")
+      .select(safePublicFields)
       .eq("role", "professional")
       .not("full_name", "is", null)
       .order('subscription_tier', { ascending: false })

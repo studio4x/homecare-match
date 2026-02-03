@@ -7,6 +7,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// HTML escape function to prevent XSS in emails
+const escapeHtml = (str: string): string => {
+  if (!str) return '';
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return str.replace(/[&<>"']/g, char => map[char]);
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
@@ -35,9 +48,19 @@ serve(async (req) => {
 
     const { status, reason, userName, userEmail } = await req.json()
     
-    // Validação de entrada
-    if (!userEmail || !userEmail.includes('@')) return new Response('Invalid Email', { status: 400, headers: corsHeaders })
-    if (!['approved', 'rejected'].includes(status)) return new Response('Invalid Status', { status: 400, headers: corsHeaders })
+    // Comprehensive input validation
+    if (!userEmail || typeof userEmail !== 'string' || !userEmail.includes('@') || userEmail.length > 255) {
+      return new Response('Invalid Email', { status: 400, headers: corsHeaders })
+    }
+    if (!['approved', 'rejected'].includes(status)) {
+      return new Response('Invalid Status', { status: 400, headers: corsHeaders })
+    }
+    if (userName && (typeof userName !== 'string' || userName.length > 200)) {
+      return new Response('Invalid userName', { status: 400, headers: corsHeaders })
+    }
+    if (reason && (typeof reason !== 'string' || reason.length > 500)) {
+      return new Response('Invalid reason', { status: 400, headers: corsHeaders })
+    }
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
     if (!RESEND_API_KEY) {
@@ -50,9 +73,13 @@ serve(async (req) => {
     const isApproved = status === 'approved'
     const subject = isApproved ? "Seu perfil foi aprovado! 🎉" : "Ação necessária no seu perfil ⚠️"
     
+    // Escape HTML to prevent XSS in email clients
+    const safeUserName = escapeHtml(userName || 'Usuário')
+    const safeReason = escapeHtml(reason || 'Motivo não especificado')
+    
     const htmlContent = isApproved 
-      ? `<p>Olá <strong>${userName}</strong>,</p><p>Seu perfil foi verificado com sucesso!</p>`
-      : `<p>Olá <strong>${userName}</strong>,</p><p>Sua verificação não foi aprovada: <strong>${reason}</strong></p>`
+      ? `<p>Olá <strong>${safeUserName}</strong>,</p><p>Seu perfil foi verificado com sucesso!</p>`
+      : `<p>Olá <strong>${safeUserName}</strong>,</p><p>Sua verificação não foi aprovada: <strong>${safeReason}</strong></p>`
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -73,6 +100,6 @@ serve(async (req) => {
     })
   } catch (error) {
     console.error("[verification-result] Erro:", error)
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: corsHeaders })
   }
 })

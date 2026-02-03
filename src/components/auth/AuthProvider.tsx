@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   session: Session | null;
@@ -22,9 +23,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Timeout de segurança para não travar a aplicação se o Supabase demorar
     const timer = setTimeout(() => {
       if (loading) {
         console.warn("[AuthProvider] Tempo de carregamento excedido, forçando renderização.");
@@ -32,7 +33,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }, 5000);
 
-    // Obter sessão inicial
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) console.error("[AuthProvider] Erro ao obter sessão:", error);
       setSession(session);
@@ -41,21 +41,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       clearTimeout(timer);
     });
 
-    // Ouvir mudanças na autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Redireciona para o dashboard após o login (incluindo verificação de e-mail)
+      if (event === 'SIGNED_IN') {
+        navigate('/dashboard');
+      }
     });
 
     return () => {
       subscription.unsubscribe();
       clearTimeout(timer);
     };
-  }, []);
+  }, [navigate]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    navigate('/');
   };
 
   return (

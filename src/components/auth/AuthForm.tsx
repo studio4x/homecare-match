@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, AlertCircle, MailWarning } from "lucide-react";
 import { toast } from "sonner";
 
 const authSchema = z.object({
@@ -56,13 +56,24 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           password: data.password,
         });
         if (error) throw error;
-        toast.success("Cadastro realizado! Verifique seu e-mail.");
+        toast.success("Cadastro realizado! Verifique seu e-mail para confirmar.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: data.email,
           password: data.password,
         });
-        if (error) throw error;
+        if (error) {
+          // Tratamento de erro específico para e-mail não confirmado
+          if (error.message.includes("Email not confirmed")) {
+            toast.error("Verifique seu e-mail para continuar.", {
+              description: "Enviamos um link de confirmação para sua caixa de entrada. Por favor, clique nele para ativar sua conta.",
+              icon: <MailWarning className="h-5 w-5" />,
+              duration: 10000,
+            });
+            return; // Interrompe a execução aqui
+          }
+          throw error;
+        }
         toast.success("Bem-vindo de volta!");
       }
       onSuccess?.();

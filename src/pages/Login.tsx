@@ -5,19 +5,21 @@ import Layout from '@/components/layout/Layout';
 import AuthForm from '@/components/auth/AuthForm';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Heart, Loader2 } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
-  const { session, loading } = useAuth();
+  const { session, loading: authLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const [isRedirecting, setIsRedirecting] = useState(false);
   
   const initialMode = location.hash === '#auth-sign-up' ? 'register' : 'login';
 
   useEffect(() => {
-    if (session) {
+    if (session && !authLoading) {
       const checkRoleAndRedirect = async () => {
+        setIsRedirecting(true);
         try {
           const { data } = await supabase
             .from('profiles')
@@ -31,20 +33,19 @@ const Login = () => {
             navigate('/dashboard', { replace: true });
           }
         } catch (error) {
-          console.error("Erro ao verificar permissões:", error);
           navigate('/dashboard', { replace: true });
         }
       };
 
       checkRoleAndRedirect();
     }
-  }, [session, navigate]);
+  }, [session, authLoading, navigate]);
 
-  // Mostra loader enquanto carrega a sessão ou enquanto verifica o redirecionamento (se session existir)
-  if (loading || session) {
+  // Se estiver carregando auth inicial ou redirecionando, mostra o loader
+  if (authLoading || (session && isRedirecting)) {
     return (
       <Layout>
-        <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex h-[60vh] items-center justify-center">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
       </Layout>
@@ -62,11 +63,7 @@ const Login = () => {
             <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">
               Portal HomeCareMatch
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Acesse sua conta para gerenciar seu perfil profissional.
-            </p>
           </div>
-          
           <AuthForm mode={initialMode} />
         </div>
       </div>

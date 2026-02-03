@@ -26,47 +26,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (loading) {
-        console.warn("[AuthProvider] Tempo de carregamento excedido, forçando renderização.");
-        setLoading(false);
-      }
-    }, 5000);
-
+    // Busca sessão inicial
     supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) console.error("[AuthProvider] Erro ao obter sessão:", error);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      clearTimeout(timer);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Escuta mudanças de auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-
-      if (event === 'SIGNED_IN' && session?.user) {
-        // Verifica o perfil para decidir o redirecionamento
-        const { data } = await supabase
-          .from('profiles')
-          .select('is_admin, role')
-          .eq('id', session.user.id)
-          .single();
-
-        if (data?.is_admin || data?.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
-      }
     });
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timer);
-    };
-  }, [navigate]);
+    return () => subscription.unsubscribe();
+  }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();

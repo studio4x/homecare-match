@@ -8,12 +8,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// --- CONFIGURAÇÃO ---
+// Para alterar o domínio, mude aqui OU configure a Secret 'SITE_URL' no Supabase
+const DEFAULT_SITE_URL = "https://homecarematch.lovable.app";
+// --------------------
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
-    // CONFIGURAÇÃO DO DOMÍNIO
-    const SITE_URL = Deno.env.get('SITE_URL') || "https://homecarematch.lovable.app";
+    const SITE_URL = Deno.env.get('SITE_URL') || DEFAULT_SITE_URL;
 
     // Verificar configurações SMTP
     const smtpHost = Deno.env.get('SMTP_HOST');

@@ -26,7 +26,8 @@ import {
   X,
   ClipboardCheck,
   RotateCcw,
-  AlertOctagon
+  AlertOctagon,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -39,6 +40,8 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
+  DialogHeader
 } from "@/components/ui/dialog";
 
 const Dashboard = () => {
@@ -52,6 +55,8 @@ const Dashboard = () => {
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isRequestingVerification, setIsRequestingVerification] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   const idDocRef = useRef<HTMLInputElement>(null);
   const profDocRef = useRef<HTMLInputElement>(null);
@@ -276,6 +281,24 @@ const Dashboard = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user');
+      if (error) throw error;
+
+      await signOut();
+      toast.success("Sua conta foi excluída com sucesso.");
+      navigate("/");
+    } catch (error) {
+      console.error("Erro ao excluir conta:", error);
+      toast.error("Não foi possível excluir sua conta. Tente novamente mais tarde.");
+    } finally {
+      setIsDeletingAccount(false);
+      setDeleteAccountModalOpen(false);
+    }
+  };
+
   const getTrialInfo = () => {
     if (profile.subscription_tier !== 'free_trial' || !profile.trial_started_at) return null;
     
@@ -468,7 +491,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 space-y-8">
               <div className="rounded-2xl border bg-card p-6 shadow-card">
                 <div className="mb-6 flex items-center justify-between">
                   <h3 className="text-xl font-semibold">Dados Profissionais</h3>
@@ -557,12 +580,25 @@ const Dashboard = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Botão Discreto de Exclusão de Conta */}
+              <div className="flex justify-end pt-4">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/5 text-xs h-8 px-2"
+                  onClick={() => setDeleteAccountModalOpen(true)}
+                >
+                  <Trash2 className="h-3 w-3 mr-2" />
+                  Excluir minha conta permanentemente
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Modal de Sucesso da Verificação (Mesmo padrão do Cadastro) */}
+      {/* Modal de Sucesso da Verificação */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
         <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl animate-scale-in">
           <div className="relative bg-card p-12 md:p-16 flex flex-col items-center text-center space-y-8">
@@ -598,6 +634,40 @@ const Dashboard = () => {
               A análise costuma levar até 48 horas úteis.
             </p>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Exclusão de Conta */}
+      <Dialog open={deleteAccountModalOpen} onOpenChange={setDeleteAccountModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Excluir Conta
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Você tem certeza que deseja excluir sua conta?
+              <br/><br/>
+              Esta ação é **permanente** e excluirá todos os seus dados, documentos e histórico. Não será possível recuperar o acesso.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => setDeleteAccountModalOpen(false)}
+              disabled={isDeletingAccount}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteAccount}
+              disabled={isDeletingAccount}
+            >
+              {isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirmar Exclusão
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Layout>

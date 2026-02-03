@@ -31,9 +31,12 @@ const Perfil = () => {
 
   const fetchProfile = async () => {
     setLoading(true);
+    // Only select safe public fields - never use .select("*") for security
+    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, phone";
+    
     const { data, error } = await supabase
       .from("profiles")
-      .select("*")
+      .select(safePublicFields)
       .eq("id", id)
       .single();
 

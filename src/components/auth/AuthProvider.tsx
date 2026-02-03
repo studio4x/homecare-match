@@ -41,14 +41,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       clearTimeout(timer);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // Redireciona para o dashboard após o login (incluindo verificação de e-mail)
-      if (event === 'SIGNED_IN') {
-        navigate('/dashboard');
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Verifica o perfil para decidir o redirecionamento
+        const { data } = await supabase
+          .from('profiles')
+          .select('is_admin, role')
+          .eq('id', session.user.id)
+          .single();
+
+        if (data?.is_admin || data?.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       }
     });
 

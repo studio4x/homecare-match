@@ -108,6 +108,12 @@ const Dashboard = () => {
     if (error) {
       console.error("Erro ao carregar perfil:", error);
     } else if (data) {
+      // Redireciona admin para a página correta
+      if (data.is_admin || data.role === 'admin') {
+        navigate('/admin');
+        return;
+      }
+
       setProfile({
         full_name: data.full_name || "",
         registration: data.registration || "",

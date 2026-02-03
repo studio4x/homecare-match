@@ -20,7 +20,8 @@ import {
   ExternalLink,
   Mail,
   UserPlus,
-  RefreshCw
+  RefreshCw,
+  Package
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -47,7 +48,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 
@@ -56,15 +56,14 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminExists, setAdminExists] = useState(false);
-  const [processingId, setProcessingId] = useState<string | null>(null);
   
   const [pendingProfiles, setPendingProfiles] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("all");
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
-  const [plans, setPlans] = useState<any[]>([]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -76,7 +75,6 @@ const Admin = () => {
     try {
       setLoading(true);
 
-      // 1. Verifica se existe algum admin no sistema
       const { count } = await supabase
         .from("profiles")
         .select("*", { count: 'exact', head: true })
@@ -84,7 +82,6 @@ const Admin = () => {
       setAdminExists((count || 0) > 0);
 
       if (user) {
-        // 2. Busca o perfil do usuário logado diretamente
         const { data, error } = await supabase
           .from("profiles")
           .select("is_admin, role")
@@ -109,12 +106,16 @@ const Admin = () => {
   };
 
   const fetchData = async () => {
+    console.log("[Admin] Buscando dados...");
     const [pending, users, plansData] = await Promise.all([
       supabase.from("profiles").select("*").eq("verification_sent", true).eq("is_verified", false),
-      supabase.from("profiles").select("*").order('created_at', { ascending: false }),
-      supabase.from("plans").select("*").order('created_at', { ascending: true })
+      supabase.from("profiles").select("*").order('updated_at', { ascending: false }),
+      supabase.from("plans").select("*").order('price', { ascending: true })
     ]);
     
+    if (users.error) toast.error("Erro ao carregar usuários: " + users.error.message);
+    if (plansData.error) toast.error("Erro ao carregar planos: " + plansData.error.message);
+
     setPendingProfiles(pending.data || []);
     setAllUsers(users.data || []);
     setPlans(plansData.data || []);
@@ -135,18 +136,19 @@ const Admin = () => {
         }
       });
       if (error) throw error;
-      toast.success("Usuário criado!");
+      toast.success("Usuário criado com sucesso!");
       setCreateUserModalOpen(false);
       fetchData();
-    } catch (err) {
-      toast.error("Erro ao criar usuário.");
+    } catch (err: any) {
+      toast.error("Erro ao criar usuário: " + (err.message || "Tente novamente"));
     } finally {
       setIsCreatingUser(false);
     }
   };
 
   const filteredUsers = allUsers.filter(u => {
-    const matchesSearch = u.full_name?.toLowerCase().includes(userSearch.toLowerCase());
+    const name = (u.full_name || u.id || "").toLowerCase();
+    const matchesSearch = name.includes(userSearch.toLowerCase());
     const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
     return matchesSearch && matchesRole;
   });
@@ -198,56 +200,166 @@ const Admin = () => {
         <div className="container mx-auto px-4">
           <div className="mb-8 flex items-center justify-between">
             <h1 className="text-3xl font-bold flex items-center gap-3">
-              <ShieldCheck className="h-8 w-8 text-primary" /> Admin
+              <ShieldCheck className="h-8 w-8 text-primary" /> Painel Admin
             </h1>
-            <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive">
-              <LogOut className="h-4 w-4" /> Sair
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={fetchData} className="gap-2">
+                <RefreshCw className="h-4 w-4" /> Atualizar
+              </Button>
+              <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive">
+                <LogOut className="h-4 w-4" /> Sair
+              </Button>
+            </div>
           </div>
 
-          <Tabs defaultValue="verifications" className="space-y-6">
-            <TabsList>
+          <Tabs defaultValue="users" className="space-y-6">
+            <TabsList className="bg-card border">
+              <TabsTrigger value="users">Usuários ({allUsers.length})</TabsTrigger>
               <TabsTrigger value="verifications">Verificações ({pendingProfiles.length})</TabsTrigger>
-              <TabsTrigger value="users">Usuários</TabsTrigger>
-              <TabsTrigger value="plans">Planos</TabsTrigger>
+              <TabsTrigger value="plans">Planos ({plans.length})</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="verifications">
-              <div className="rounded-xl border bg-card overflow-hidden">
+            <TabsContent value="users" className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-4 items-end">
+                <div className="flex-1 space-y-2">
+                  <Label>Buscar Usuários</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input placeholder="Nome ou ID..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="pl-10" />
+                  </div>
+                </div>
+                <div className="w-full md:w-48 space-y-2">
+                  <Label>Filtrar Cargo</Label>
+                  <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="professional">Profissional</SelectItem>
+                      <SelectItem value="company">Empresa</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button className="gap-2" onClick={() => setCreateUserModalOpen(true)}><UserPlus className="h-4 w-4" /> Novo Usuário</Button>
+              </div>
+
+              <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Profissional</TableHead><TableHead>Documentos</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Cargo</TableHead>
+                      <TableHead>Plano</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
-                    {pendingProfiles.map(p => (
-                      <TableRow key={p.id}>
-                        <TableCell><div className="font-medium">{p.full_name}</div><div className="text-xs text-muted-foreground">{p.specialty}</div></TableCell>
-                        <TableCell><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => window.open(p.id_document_url)}>RG</Button><Button variant="outline" size="sm" onClick={() => window.open(p.prof_registration_url)}>Prof.</Button></div></TableCell>
-                        <TableCell className="text-right"><Button variant="ghost" size="sm" asChild><Link to={`/profissional/${p.id}`} target="_blank">Ver</Link></Button></TableCell>
+                    {filteredUsers.length > 0 ? filteredUsers.map(u => (
+                      <TableRow key={u.id}>
+                        <TableCell>
+                          <div className="font-medium">{u.full_name || 'Usuário s/ nome'}</div>
+                          <div className="text-[10px] text-muted-foreground font-mono">{u.id}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={u.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                            {u.role === 'professional' ? 'Profissional' : u.role === 'company' ? 'Empresa' : u.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="capitalize">{u.subscription_tier}</TableCell>
+                        <TableCell>
+                          {u.is_verified ? (
+                            <Badge className="bg-success text-white">Verificado</Badge>
+                          ) : (
+                            <Badge variant="outline">Pendente</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link to={`/profissional/${u.id}`} target="_blank" className="gap-2">
+                              <ExternalLink className="h-3 w-3" /> Ver Perfil
+                            </Link>
+                          </Button>
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
+                          Nenhum usuário encontrado.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
             </TabsContent>
 
-            <TabsContent value="users" className="space-y-4">
-              <div className="flex gap-4">
-                <Input placeholder="Buscar..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="max-w-sm" />
-                <Button className="gap-2" onClick={() => setCreateUserModalOpen(true)}><UserPlus className="h-4 w-4" /> Novo</Button>
-              </div>
-              <div className="rounded-xl border bg-card overflow-hidden">
+            <TabsContent value="verifications">
+              <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cargo</TableHead><TableHead>Plano</TableHead><TableHead className="text-right">Perfil</TableHead></TableRow></TableHeader>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Profissional</TableHead>
+                      <TableHead>Documentos</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
-                    {filteredUsers.map(u => (
-                      <TableRow key={u.id}>
-                        <TableCell>{u.full_name || '---'}</TableCell>
-                        <TableCell className="capitalize">{u.role}</TableCell>
-                        <TableCell className="capitalize">{u.subscription_tier}</TableCell>
-                        <TableCell className="text-right"><Button variant="ghost" size="sm" asChild><Link to={`/profissional/${u.id}`} target="_blank">Perfil</Link></Button></TableCell>
+                    {pendingProfiles.length > 0 ? pendingProfiles.map(p => (
+                      <TableRow key={p.id}>
+                        <TableCell>
+                          <div className="font-medium">{p.full_name}</div>
+                          <div className="text-xs text-muted-foreground">{p.specialty}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => window.open(p.id_document_url)} className="h-7 text-[10px]">Ver RG</Button>
+                            <Button variant="outline" size="sm" onClick={() => window.open(p.prof_registration_url)} className="h-7 text-[10px]">Ver Prof.</Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link to={`/profissional/${p.id}`} target="_blank">Revisar Perfil</Link>
+                          </Button>
+                        </TableCell>
                       </TableRow>
-                    ))}
+                    )) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="h-32 text-center text-muted-foreground">
+                          Nenhuma solicitação de verificação pendente.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="plans">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {plans.length > 0 ? plans.map(p => (
+                  <div key={p.id} className="rounded-xl border bg-card p-6 shadow-sm">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="font-bold text-lg">{p.name}</h3>
+                        <p className="text-sm text-muted-foreground">{p.description}</p>
+                      </div>
+                      <Package className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="text-2xl font-bold text-primary mb-4">{p.price}<span className="text-xs text-muted-foreground font-normal"> / {p.period}</span></div>
+                    <div className="space-y-2">
+                      {p.features?.map((f: string, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <CheckCircle className="h-3 w-3 text-success" /> {f}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )) : (
+                  <div className="col-span-full h-32 flex items-center justify-center border border-dashed rounded-xl text-muted-foreground">
+                    Nenhum plano cadastrado no banco de dados.
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
@@ -256,16 +368,43 @@ const Admin = () => {
 
       <Dialog open={createUserModalOpen} onOpenChange={setCreateUserModalOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Criar Usuário</DialogTitle></DialogHeader>
-          <form onSubmit={handleCreateUser} className="space-y-4">
-            <div className="grid gap-2"><Label>Nome</Label><Input name="fullName" required /></div>
-            <div className="grid gap-2"><Label>E-mail</Label><Input name="email" type="email" required /></div>
-            <div className="grid gap-2"><Label>Senha</Label><Input name="password" type="password" required /></div>
+          <DialogHeader>
+            <DialogTitle>Criar Novo Usuário</DialogTitle>
+            <DialogDescription>O usuário receberá um e-mail para confirmar a conta.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateUser} className="space-y-4 pt-4">
             <div className="grid gap-2">
-              <Label>Cargo</Label>
-              <Select name="role" defaultValue="professional"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="professional">Profissional</SelectItem><SelectItem value="company">Empresa</SelectItem></SelectContent></Select>
+              <Label htmlFor="fullName">Nome Completo</Label>
+              <Input id="fullName" name="fullName" placeholder="Ex: João Silva" required />
             </div>
-            <Button type="submit" className="w-full" disabled={isCreatingUser}>{isCreatingUser ? <Loader2 className="animate-spin h-4 w-4" /> : "Criar"}</Button>
+            <div className="grid gap-2">
+              <Label htmlFor="email">E-mail</Label>
+              <Input id="email" name="email" type="email" placeholder="email@exemplo.com" required />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Senha Temporária</Label>
+              <Input id="password" name="password" type="password" required minLength={6} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="role">Cargo / Tipo de Conta</Label>
+              <Select name="role" defaultValue="professional">
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o cargo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="professional">Profissional de Saúde</SelectItem>
+                  <SelectItem value="company">Empresa de Home Care</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="ghost" onClick={() => setCreateUserModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isCreatingUser}>
+                {isCreatingUser ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <UserPlus className="h-4 w-4 mr-2" />}
+                Criar Usuário
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

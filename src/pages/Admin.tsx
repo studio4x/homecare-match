@@ -81,7 +81,7 @@ const Admin = () => {
       
       try {
         setLoading(true);
-        // Chamamos a função RPC diretamente para evitar problemas de RLS na leitura do próprio perfil
+        // Chamada RPC é mais segura pois ignora recursividade de RLS no backend
         const { data, error } = await supabase.rpc('check_is_admin');
         
         if (!error && data === true) {
@@ -91,7 +91,7 @@ const Admin = () => {
           setIsAdmin(false);
         }
       } catch (err) {
-        console.error("[Admin] Erro ao verificar privilégios:", err);
+        console.error("[Admin] Erro verificação:", err);
         setIsAdmin(false);
       } finally {
         setLoading(false);
@@ -113,7 +113,7 @@ const Admin = () => {
       setAllUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
     } catch (error) {
-      console.error("[Admin] Erro no fetch:", error);
+      console.error("[Admin] Erro fetch:", error);
     }
   };
 
@@ -193,7 +193,7 @@ const Admin = () => {
           <div className="text-center p-8 bg-card border rounded-2xl shadow-sm max-w-md">
             <ShieldAlert className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-bold">Acesso Negado</h2>
-            <p className="text-muted-foreground mt-2">Você não tem privilégios de administrador.</p>
+            <p className="text-muted-foreground mt-2">Sua conta não possui permissões administrativas.</p>
             <div className="mt-6">
               <Button onClick={signOut}>Sair da Conta</Button>
             </div>
@@ -273,7 +273,7 @@ const Admin = () => {
               </div>
               <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Preço</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Preço</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableHeader>
                   <TableBody>
                     {plans.length > 0 ? plans.map(p => (
                       <TableRow key={p.id}>

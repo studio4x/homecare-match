@@ -115,7 +115,6 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error("[Dashboard] Erro ao carregar perfil:", err);
-      toast.error("Erro ao carregar dados do perfil.");
     } finally {
       setIsLoadingProfile(false);
     }
@@ -168,9 +167,11 @@ const Dashboard = () => {
 
       if (error) throw error;
       
-      setProfile(prev => ({ ...prev, verification_sent: true }));
+      // Forçamos o recarregamento total do perfil para garantir sincronia com o banco
+      await fetchProfile();
       toast.success("Solicitação de verificação enviada!");
     } catch (err: any) {
+      console.error("[Dashboard] Erro verificação:", err);
       toast.error("Erro ao solicitar verificação.");
     } finally {
       setIsRequestingVerification(false);
@@ -246,8 +247,6 @@ const Dashboard = () => {
     const now = new Date();
     const daysRemaining = differenceInDays(endDate, now);
     const daysPassed = 30 - daysRemaining;
-    
-    // Proteção contra NaN no componente Progress
     const progress = Math.min(100, Math.max(0, (daysPassed / 30) * 100)) || 0;
     
     return {

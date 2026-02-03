@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
+import { createTransport } from "npm:nodemailer@6.9.13"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,22 +12,7 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
-    
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''))
-    if (authError || !user) return new Response('Invalid token', { status: 401, headers: corsHeaders })
-
-    const { userName, userEmail, userId } = await req.json()
-    const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br"
-    
-    console.log(`[notify-verification] Processando pedido de: ${userName}`);
-
+    // Verificar configurações SMTP
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpPort = Deno.env.get('SMTP_PORT');
     const smtpUser = Deno.env.get('SMTP_USER');
@@ -35,45 +20,56 @@ serve(async (req) => {
 
     if (!smtpHost || !smtpUser || !smtpPass) {
       console.error("[notify-verification] Erro: Secrets do SMTP não configuradas!");
-      return new Response(JSON.stringify({ error: "SMTP configuration missing" }), { status: 500, headers: corsHeaders });
+      throw new Error("SMTP configuration missing");
     }
 
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost,
-        port: parseInt(smtpPort || "587"),
-        tls: true,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    
+    // Validar usuário
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''))
+    if (authError || !user) return new Response('Invalid token', { status: 401, headers: corsHeaders })
+
+    const { userName, userEmail, userId } = await req.json()
+    const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br"
+    
+    console.log(`[notify-verification] Processando pedido de: ${userName} (${userEmail})`);
+
+    // Configurar Nodemailer
+    const transporter = createTransport({
+      host: smtpHost,
+      port: parseInt(smtpPort || "587"),
+      secure: parseInt(smtpPort || "587") === 465, // true para 465, false para outras portas
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
 
-    try {
-      await client.send({
-        from: smtpUser,
-        to: MASTER_ADMIN_EMAIL,
-        subject: `⚠️ Verificação Pendente: ${userName}`,
-        content: "text/html",
-        html: `
-          <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
-            <h2 style="color: #2563eb;">Nova Solicitação de Verificação</h2>
-            <p>O profissional <strong>${userName}</strong> enviou documentos para análise.</p>
-            <div style="margin: 20px 0; padding: 15px; background: #f1f5f9; border-radius: 8px;">
-              <p><strong>E-mail:</strong> ${userEmail}</p>
-              <p><strong>ID:</strong> ${userId}</p>
-            </div>
-            <p>Acesse o painel administrativo para validar.</p>
+    // Enviar E-mail
+    await transporter.sendMail({
+      from: `"HomeCareMatch" <${smtpUser}>`,
+      to: MASTER_ADMIN_EMAIL,
+      subject: `⚠️ Verificação Pendente: ${userName}`,
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+          <h2 style="color: #2563eb;">Nova Solicitação de Verificação</h2>
+          <p>O profissional <strong>${userName}</strong> enviou documentos para análise.</p>
+          <div style="margin: 20px 0; padding: 15px; background: #f1f5f9; border-radius: 8px;">
+            <p><strong>E-mail:</strong> ${userEmail}</p>
+            <p><strong>ID:</strong> ${userId}</p>
           </div>
-        `,
-      });
-      await client.close();
-      console.log("[notify-verification] E-mail enviado com sucesso!");
-    } catch (smtpError) {
-      console.error("[notify-verification] Erro ao conectar/enviar e-mail:", smtpError);
-      throw smtpError;
-    }
+          <p>Acesse o painel administrativo para validar.</p>
+          <a href="${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovable.app')}/admin" style="display:inline-block; padding:10px 20px; background:#2563eb; color:white; text-decoration:none; border-radius:5px;">Acessar Admin</a>
+        </div>
+      `,
+    });
+
+    console.log("[notify-verification] E-mail enviado com sucesso!");
 
     return new Response(JSON.stringify({ success: true }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

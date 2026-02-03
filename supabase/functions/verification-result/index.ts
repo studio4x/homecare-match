@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
+import { createTransport } from "npm:nodemailer@6.9.13"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +12,17 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
+    // Verificar configurações SMTP
+    const smtpHost = Deno.env.get('SMTP_HOST');
+    const smtpPort = Deno.env.get('SMTP_PORT');
+    const smtpUser = Deno.env.get('SMTP_USER');
+    const smtpPass = Deno.env.get('SMTP_PASS');
+
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      console.error("[verification-result] Erro: Secrets do SMTP não configuradas!");
+      throw new Error("SMTP configuration missing");
+    }
+
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -26,38 +37,54 @@ serve(async (req) => {
     const { status, reason, userName, userEmail } = await req.json()
     console.log(`[verification-result] Enviando resultado para: ${userEmail} (${status})`);
 
-    const smtpHost = Deno.env.get('SMTP_HOST');
-    const smtpPort = Deno.env.get('SMTP_PORT');
-    const smtpUser = Deno.env.get('SMTP_USER');
-    const smtpPass = Deno.env.get('SMTP_PASS');
-
-    const client = new SMTPClient({
-      connection: {
-        hostname: smtpHost || "",
-        port: parseInt(smtpPort || "587"),
-        tls: true,
-        auth: {
-          user: smtpUser || "",
-          pass: smtpPass || "",
-        },
+    // Configurar Nodemailer
+    const transporter = createTransport({
+      host: smtpHost,
+      port: parseInt(smtpPort || "587"),
+      secure: parseInt(smtpPort || "587") === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
 
-    try {
-      const isApproved = status === 'approved';
-      await client.send({
-        from: smtpUser || "notificacoes@homecarematch.com.br",
-        to: userEmail,
-        subject: isApproved ? "Seu perfil foi aprovado! 🎉" : "Ação necessária no seu perfil ⚠️",
-        content: "text/html",
-        html: isApproved ? `<h2>Boas notícias, ${userName}! Seu perfil foi aprovado.</h2>` : `<h2>Olá ${userName}, sua verificação não foi aprovada. Motivo: ${reason}</h2>`,
-      });
-      await client.close();
-      console.log("[verification-result] E-mail enviado com sucesso!");
-    } catch (smtpError) {
-      console.error("[verification-result] Erro SMTP:", smtpError);
-      throw smtpError;
-    }
+    const isApproved = status === 'approved';
+    const subject = isApproved ? "Seu perfil foi aprovado! 🎉" : "Ação necessária no seu perfil ⚠️";
+    
+    const htmlContent = isApproved 
+      ? `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+           <div style="text-align: center; margin-bottom: 20px;">
+             <h2 style="color: #10b981;">Parabéns!</h2>
+           </div>
+           <p>Olá <strong>${userName}</strong>,</p>
+           <p>Temos ótimas notícias! Seus documentos foram analisados e aprovados pela nossa equipe.</p>
+           <p>Seu perfil agora exibe o selo de <strong>Verificado</strong>, o que transmite muito mais confiança para quem busca seus serviços.</p>
+           <div style="margin: 20px 0; padding: 15px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; color: #166534;">
+             ✅ Perfil Verificado com Sucesso
+           </div>
+           <p>Continue mantendo seu perfil atualizado!</p>
+         </div>` 
+      : `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+           <div style="text-align: center; margin-bottom: 20px;">
+             <h2 style="color: #ef4444;">Atenção Necessária</h2>
+           </div>
+           <p>Olá <strong>${userName}</strong>,</p>
+           <p>Infelizmente, não pudemos concluir a verificação do seu perfil neste momento.</p>
+           <div style="margin: 20px 0; padding: 15px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px;">
+             <p style="margin: 0; font-weight: bold; color: #991b1b;">Motivo da reprovação:</p>
+             <p style="margin: 5px 0 0 0; color: #7f1d1d;">${reason}</p>
+           </div>
+           <p>Não se preocupe! Você pode acessar seu painel, corrigir o problema e enviar os documentos novamente para análise.</p>
+         </div>`;
+
+    await transporter.sendMail({
+      from: `"HomeCareMatch" <${smtpUser}>`,
+      to: userEmail,
+      subject: subject,
+      html: htmlContent,
+    });
+
+    console.log("[verification-result] E-mail enviado com sucesso!");
 
     return new Response(JSON.stringify({ success: true }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

@@ -21,7 +21,8 @@ import {
   Star,
   Zap,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  FileCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -38,6 +39,7 @@ const Dashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
+  const [isRequestingVerification, setIsRequestingVerification] = useState(false);
   
   const idDocRef = useRef<HTMLInputElement>(null);
   const profDocRef = useRef<HTMLInputElement>(null);
@@ -139,7 +141,7 @@ const Dashboard = () => {
       if (updateError) throw updateError;
 
       setProfile(prev => ({ ...prev, ...updateData }));
-      toast.success("Documento atualizado!");
+      toast.success("Documento carregado com sucesso!");
     } catch (error: any) {
       toast.error("Erro no upload.");
     } finally {
@@ -147,9 +149,33 @@ const Dashboard = () => {
     }
   };
 
+  const handleRequestVerification = async () => {
+    if (!user) return;
+    setIsRequestingVerification(true);
+    
+    try {
+      const { error } = await supabase.functions.invoke('notify-verification', { 
+        body: { 
+          userName: profile.full_name, 
+          userEmail: user.email,
+          userId: user.id 
+        } 
+      });
+
+      if (error) throw error;
+      
+      setProfile(prev => ({ ...prev, verification_sent: true }));
+      toast.success("Solicitação enviada!");
+    } catch (err: any) {
+      toast.error("Erro ao enviar solicitação.");
+    } finally {
+      setIsRequestingVerification(false);
+    }
+  };
+
   const handleGenerateBio = async () => {
     if (!profile.full_name || !profile.specialty || !profile.experience) {
-      toast.error("Preencha seu nome, especialidade e formações primeiro para que a IA possa gerar uma biografia personalizada.");
+      toast.error("Preencha seu nome, especialidade e formações primeiro.");
       return;
     }
 
@@ -173,7 +199,7 @@ const Dashboard = () => {
       }
     } catch (err: any) {
       console.error("[Dashboard] Erro IA:", err);
-      toast.error("Erro ao gerar biografia com IA.");
+      toast.error("Erro ao gerar biografia.");
     } finally {
       setIsGeneratingBio(false);
     }
@@ -267,13 +293,6 @@ const Dashboard = () => {
                   <Link to="/#planos">Assinar agora</Link>
                 </Button>
               </div>
-              {trial.isExpired && (
-                <Alert variant="destructive" className="mt-4">
-                  <ShieldAlert className="h-4 w-4" />
-                  <AlertTitle>Teste Expirado</AlertTitle>
-                  <AlertDescription>Seu período gratuito terminou. Seu perfil pode não estar mais visível para empresas.</AlertDescription>
-                </Alert>
-              )}
             </div>
           )}
 
@@ -292,37 +311,73 @@ const Dashboard = () => {
               <div className="rounded-2xl border bg-card p-6 shadow-card">
                 <h3 className="mb-4 font-semibold">Status de Verificação</h3>
                 {profile.is_verified ? (
-                  <div className="flex flex-col items-center py-4 text-center">
+                  <div className="flex flex-col items-center py-4 text-center bg-success/5 rounded-xl border border-success/20">
                     <CheckCircle2 className="h-10 w-10 text-success mb-2" />
                     <p className="font-semibold text-success">Perfil Verificado</p>
+                    <p className="text-[10px] text-muted-foreground mt-1 px-4">Seu selo está ativo para todas as empresas.</p>
                   </div>
                 ) : profile.verification_sent ? (
-                  <div className="flex flex-col items-center py-4 text-center">
-                    <Clock className="h-10 w-10 text-primary animate-pulse mb-2" />
-                    <p className="font-semibold">Documentos em Análise</p>
+                  <div className="flex flex-col items-center py-6 text-center bg-primary/5 rounded-xl border border-primary/20">
+                    <Clock className="h-10 w-10 text-primary animate-pulse mb-3" />
+                    <h4 className="font-semibold text-primary mb-2">Documentos em Análise</h4>
+                    <p className="text-xs text-muted-foreground px-4 leading-relaxed">
+                      Seus documentos foram enviados e estão sendo analisados pela nossa equipe. 
+                      Você receberá um e-mail com o resultado da aprovação em breve.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground mb-4">Envie seus documentos para ganhar o selo de verificação.</p>
+                    <p className="text-xs text-muted-foreground mb-4">Envie seus documentos para ganhar o selo de verificação.</p>
                     <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs mb-1 block">RG ou CNH (Frente/Verso)</Label>
-                        <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => idDocRef.current?.click()} disabled={!!isUploadingDoc}>
-                          {isUploadingDoc === 'id_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : profile.id_document_url ? "Documento Enviado ✓" : "Selecionar Arquivo"}
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">RG ou CNH (Frente/Verso)</Label>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={cn(
+                            "w-full border-dashed justify-start h-10",
+                            profile.id_document_url && "border-success/50 bg-success/5"
+                          )} 
+                          onClick={() => idDocRef.current?.click()} 
+                          disabled={!!isUploadingDoc}
+                        >
+                          {isUploadingDoc === 'id_doc' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileCheck className={cn("h-4 w-4 mr-2", profile.id_document_url ? "text-success" : "text-muted-foreground")} />}
+                          <span className="truncate text-xs">
+                            {profile.id_document_url ? "Documento Enviado ✓" : "Selecionar Arquivo"}
+                          </span>
                         </Button>
                         <input type="file" ref={idDocRef} onChange={(e) => handleFileUpload(e, 'id_doc')} className="hidden" accept="image/*,.pdf" />
                       </div>
                       
-                      <div>
-                        <Label className="text-xs mb-1 block">Registro Profissional (COREN/CREFITO)</Label>
-                        <Button variant="outline" size="sm" className="w-full border-dashed" onClick={() => profDocRef.current?.click()} disabled={!!isUploadingDoc}>
-                          {isUploadingDoc === 'prof_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : profile.prof_registration_url ? "Registro Enviado ✓" : "Selecionar Arquivo"}
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Registro Profissional (COREN/CREFITO)</Label>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={cn(
+                            "w-full border-dashed justify-start h-10",
+                            profile.prof_registration_url && "border-success/50 bg-success/5"
+                          )} 
+                          onClick={() => profDocRef.current?.click()} 
+                          disabled={!!isUploadingDoc}
+                        >
+                          {isUploadingDoc === 'prof_doc' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileCheck className={cn("h-4 w-4 mr-2", profile.prof_registration_url ? "text-success" : "text-muted-foreground")} />}
+                          <span className="truncate text-xs">
+                            {profile.prof_registration_url ? "Registro Enviado ✓" : "Selecionar Arquivo"}
+                          </span>
                         </Button>
                         <input type="file" ref={profDocRef} onChange={(e) => handleFileUpload(e, 'prof_doc')} className="hidden" accept="image/*,.pdf" />
                       </div>
                     </div>
                     
-                    <Button onClick={() => toast.promise(supabase.functions.invoke('notify-verification', { body: { userName: profile.full_name, userId: user?.id }}), { loading: 'Enviando...', success: 'Enviado para análise!', error: 'Erro ao enviar.' })} className="w-full mt-4" disabled={!profile.id_document_url || !profile.prof_registration_url}>Solicitar Verificação</Button>
+                    <Button 
+                      onClick={handleRequestVerification} 
+                      className="w-full mt-4" 
+                      disabled={!profile.id_document_url || !profile.prof_registration_url || isRequestingVerification}
+                    >
+                      {isRequestingVerification ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Solicitar Verificação
+                    </Button>
                   </div>
                 )}
               </div>
@@ -336,7 +391,7 @@ const Dashboard = () => {
                   </Badge>
                 </div>
                 {profile.subscription_tier === 'free_trial' && (
-                  <p className="text-[10px] text-muted-foreground mt-2">
+                  <p className="text-[10px] text-muted-foreground mt-2 italic">
                     * Após os 30 dias, seu perfil deixará de aparecer no topo das buscas.
                   </p>
                 )}
@@ -367,10 +422,11 @@ const Dashboard = () => {
                       <AvatarFallback className="text-xl">{initials}</AvatarFallback>
                     </Avatar>
                     {isEditing && (
-                      <>
+                      <div className="flex flex-col gap-2">
                         <Button variant="outline" size="sm" onClick={() => avatarRef.current?.click()}>Alterar Foto</Button>
+                        <p className="text-[10px] text-muted-foreground">JPG ou PNG, máx. 2MB</p>
                         <input type="file" ref={avatarRef} onChange={(e) => handleFileUpload(e, 'avatar')} className="hidden" accept="image/*" />
-                      </>
+                      </div>
                     )}
                   </div>
 
@@ -411,7 +467,7 @@ const Dashboard = () => {
                         <Button 
                           type="button" 
                           variant="outline" 
-                          size="sm" 
+                          size="xs" 
                           className="h-7 gap-1 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20"
                           onClick={handleGenerateBio}
                           disabled={isGeneratingBio}

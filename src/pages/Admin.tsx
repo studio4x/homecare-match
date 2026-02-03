@@ -17,7 +17,11 @@ import {
   RefreshCw,
   XCircle,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Edit2,
+  Plus,
+  Trash2,
+  CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -38,6 +42,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -50,9 +55,12 @@ const Admin = () => {
   const [plans, setPlans] = useState<any[]>([]);
   
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessingVerification, setIsProcessingVerification] = useState(false);
+  const [isSavingPlan, setIsSavingPlan] = useState(false);
 
   useEffect(() => {
     checkGlobalAdminStatus();
@@ -167,6 +175,65 @@ const Admin = () => {
     }
   };
 
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPlan.name || !selectedPlan.price || !selectedPlan.id) {
+      toast.error("Preencha os campos obrigatórios.");
+      return;
+    }
+
+    setIsSavingPlan(true);
+    try {
+      const planData = {
+        id: selectedPlan.id,
+        name: selectedPlan.name,
+        price: selectedPlan.price,
+        period: selectedPlan.period || 'mês',
+        description: selectedPlan.description || '',
+        features: Array.isArray(selectedPlan.features) ? selectedPlan.features : selectedPlan.features.split('\n').filter((f: string) => f.trim() !== ''),
+        popular: !!selectedPlan.popular,
+        savings: selectedPlan.savings || ''
+      };
+
+      const { error } = await supabase
+        .from("plans")
+        .upsert(planData);
+
+      if (error) throw error;
+      
+      toast.success("Plano salvo com sucesso!");
+      setPlanModalOpen(false);
+      fetchData();
+    } catch (error: any) {
+      console.error("[Admin] Erro ao salvar plano:", error);
+      toast.error("Erro ao salvar plano.");
+    } finally {
+      setIsSavingPlan(false);
+    }
+  };
+
+  const openEditPlan = (plan: any) => {
+    setSelectedPlan({
+      ...plan,
+      features: Array.isArray(plan.features) ? plan.features.join('\n') : plan.features
+    });
+    setPlanModalOpen(true);
+  };
+
+  const openNewPlan = () => {
+    setSelectedPlan({
+      id: '',
+      name: '',
+      price: '',
+      period: 'mês',
+      description: '',
+      features: '',
+      popular: false,
+      savings: ''
+    });
+    setPlanModalOpen(true);
+  };
+
   if (authLoading || loading) {
     return <Layout><div className="flex h-96 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div></Layout>;
   }
@@ -186,6 +253,7 @@ const Admin = () => {
             <TabsList className="bg-card border">
               <TabsTrigger value="verifications">Verificações ({pendingProfiles.length})</TabsTrigger>
               <TabsTrigger value="users">Usuários ({allUsers.length})</TabsTrigger>
+              <TabsTrigger value="plans">Planos ({plans.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="verifications">
@@ -228,6 +296,45 @@ const Admin = () => {
                 </Table>
               </div>
             </TabsContent>
+
+            <TabsContent value="plans">
+              <div className="mb-4 flex justify-end">
+                <Button onClick={openNewPlan} className="gap-2">
+                  <Plus className="h-4 w-4" /> Novo Plano
+                </Button>
+              </div>
+              <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Preço</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {plans.length > 0 ? plans.map(p => (
+                      <TableRow key={p.id}>
+                        <TableCell>
+                          <div className="font-medium">{p.name}</div>
+                          <div className="text-xs text-muted-foreground">{p.id}</div>
+                        </TableCell>
+                        <TableCell>{p.price}/{p.period}</TableCell>
+                        <TableCell>
+                          {p.popular && <Badge variant="secondary" className="bg-primary/10 text-primary">Popular</Badge>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => openEditPlan(p)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )) : <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground">Nenhum plano cadastrado.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
       </div>
@@ -240,6 +347,96 @@ const Admin = () => {
             <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={handleReject} disabled={isProcessingVerification || !rejectionReason}>Confirmar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={planModalOpen} onOpenChange={setPlanModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{selectedPlan?.id ? "Editar Plano" : "Novo Plano"}</DialogTitle>
+            <DialogDescription>Configure os detalhes do plano de assinatura.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSavePlan} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="plan-id">ID do Plano (Único)</Label>
+                <Input 
+                  id="plan-id" 
+                  value={selectedPlan?.id || ''} 
+                  onChange={e => setSelectedPlan({...selectedPlan, id: e.target.value})} 
+                  placeholder="Ex: mensal_v1"
+                  disabled={!!selectedPlan?.created_at}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="plan-name">Nome Comercial</Label>
+                <Input 
+                  id="plan-name" 
+                  value={selectedPlan?.name || ''} 
+                  onChange={e => setSelectedPlan({...selectedPlan, name: e.target.value})} 
+                  placeholder="Ex: Plano Profissional"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="plan-price">Preço (Ex: R$ 49,90)</Label>
+                <Input 
+                  id="plan-price" 
+                  value={selectedPlan?.price || ''} 
+                  onChange={e => setSelectedPlan({...selectedPlan, price: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="plan-period">Período (Ex: mês, ano)</Label>
+                <Input 
+                  id="plan-period" 
+                  value={selectedPlan?.period || ''} 
+                  onChange={e => setSelectedPlan({...selectedPlan, period: e.target.value})} 
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="plan-desc">Descrição Curta</Label>
+              <Input 
+                id="plan-desc" 
+                value={selectedPlan?.description || ''} 
+                onChange={e => setSelectedPlan({...selectedPlan, description: e.target.value})} 
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="plan-features">Recursos (Um por linha)</Label>
+              <Textarea 
+                id="plan-features" 
+                value={selectedPlan?.features || ''} 
+                onChange={e => setSelectedPlan({...selectedPlan, features: e.target.value})} 
+                rows={5}
+                placeholder="Ex: Perfil verificado\nDestaque na busca"
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label>Plano Popular</Label>
+                <p className="text-sm text-muted-foreground">Destaca este plano com uma etiqueta visual.</p>
+              </div>
+              <Switch 
+                checked={!!selectedPlan?.popular} 
+                onCheckedChange={checked => setSelectedPlan({...selectedPlan, popular: checked})}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setPlanModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isSavingPlan}>
+                {isSavingPlan && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar Plano
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </Layout>

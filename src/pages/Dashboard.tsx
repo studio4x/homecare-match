@@ -107,10 +107,12 @@ const Dashboard = () => {
 
   const fetchProfile = async () => {
     try {
+      if (!user?.id) return;
+      
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user?.id)
+        .eq("id", user.id)
         .single();
 
       if (error) throw error;
@@ -140,7 +142,7 @@ const Dashboard = () => {
         });
       }
     } catch (err) {
-      console.error("Erro no perfil:", err);
+      console.error("Erro ao carregar perfil:", err);
     } finally {
       setIsLoadingProfile(false);
     }

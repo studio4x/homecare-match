@@ -3,12 +3,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
+import AuthForm from "@/components/auth/AuthForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { 
   CheckCircle, 
   ShieldCheck, 
@@ -47,6 +46,7 @@ const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminExists, setAdminExists] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   
   // States para Verificações
@@ -66,17 +66,20 @@ const Admin = () => {
   const [editingPlan, setEditingPlan] = useState<any>(null);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (user) {
-        checkAdminStatus();
-      } else {
-        setLoading(false);
-      }
-    }
+    checkInitialStatus();
   }, [user, authLoading]);
 
-  const checkAdminStatus = async () => {
-    try {
+  const checkInitialStatus = async () => {
+    // 1. Verifica se existe qualquer admin no sistema
+    const { count } = await supabase
+      .from("profiles")
+      .select("*", { count: 'exact', head: true })
+      .eq("is_admin", true);
+    
+    setAdminExists((count || 0) > 0);
+
+    // 2. Se estiver logado, verifica se o usuário atual é admin
+    if (!authLoading && user) {
       const { data } = await supabase
         .from("profiles")
         .select("is_admin")
@@ -89,11 +92,8 @@ const Admin = () => {
       } else {
         setIsAdmin(false);
       }
-    } catch (err) {
-      console.error("Erro admin:", err);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const fetchData = async () => {
@@ -221,6 +221,7 @@ const Admin = () => {
     </Layout>
   );
 
+  // PORTAL DE LOGIN ADMIN
   if (!session) {
     return (
       <Layout>
@@ -231,24 +232,17 @@ const Admin = () => {
                 <Lock className="h-6 w-6 text-primary-foreground" />
               </div>
               <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">Acesso Administrativo</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Portal restrito para gestores da plataforma.</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {adminExists 
+                  ? "Portal restrito para gestores da plataforma." 
+                  : "Nenhum administrador encontrado. Crie o primeiro acesso."}
+              </p>
             </div>
             
             <div className="mt-8">
-              <Auth
-                supabaseClient={supabase}
-                appearance={{ theme: ThemeSupa }}
-                providers={[]}
-                theme="light"
-                localization={{
-                  variables: {
-                    sign_in: {
-                      email_label: 'E-mail Admin',
-                      password_label: 'Senha de Acesso',
-                      button_label: 'Entrar no Painel',
-                    }
-                  }
-                }}
+              <AuthForm 
+                mode={adminExists ? "login" : "register"} 
+                allowRegister={!adminExists} 
               />
             </div>
           </div>
@@ -257,6 +251,7 @@ const Admin = () => {
     );
   }
 
+  // ACESSO NEGADO
   if (session && !isAdmin) {
     return (
       <Layout>
@@ -266,7 +261,7 @@ const Admin = () => {
               <AlertTriangle className="h-8 w-8 text-destructive" />
             </div>
             <h2 className="text-2xl font-bold text-foreground">Acesso Negado</h2>
-            <p className="text-muted-foreground">Esta conta não possui privilégios administrativos para acessar este portal.</p>
+            <p className="text-muted-foreground">Esta conta não possui privilégios administrativos.</p>
             <div className="flex flex-col gap-3">
               <Button onClick={() => window.location.href = '/dashboard'}>Ir para meu Perfil</Button>
               <Button variant="ghost" onClick={signOut} className="text-destructive">Sair e usar outra conta</Button>
@@ -277,6 +272,7 @@ const Admin = () => {
     );
   }
 
+  // PAINEL ADMINISTRATIVO
   return (
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">
@@ -446,7 +442,6 @@ const Admin = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editingPlan ? 'Editar Plano' : 'Novo Plano'}</DialogTitle>
-            <DialogDescription>Configure os detalhes do plano de assinatura.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSavePlan} className="space-y-4">
             <div className="grid gap-2">

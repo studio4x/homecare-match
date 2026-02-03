@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   CheckCircle, 
   XCircle, 
@@ -13,7 +15,13 @@ import {
   Loader2,
   User,
   AlertTriangle,
-  LogOut
+  LogOut,
+  Users as UsersIcon,
+  CreditCard,
+  Search,
+  Plus,
+  Trash2,
+  Edit
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -33,19 +41,32 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Admin = () => {
   const { user, loading: authLoading, signOut } = useAuth();
-  const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   
+  // States para Verificações
+  const [pendingProfiles, setPendingProfiles] = useState<any[]>([]);
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+
+  // States para Usuários
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
+
+  // States para Planos
+  const [plans, setPlans] = useState<any[]>([]);
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<any>(null);
 
   useEffect(() => {
     if (!authLoading) {
@@ -67,7 +88,7 @@ const Admin = () => {
       
       if (data?.is_admin) {
         setIsAdmin(true);
-        await fetchPendingVerifications();
+        await fetchData();
       }
     } catch (err) {
       console.error("Erro admin:", err);
@@ -76,18 +97,37 @@ const Admin = () => {
     }
   };
 
-  const fetchPendingVerifications = async () => {
-    try {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("verification_sent", true)
-        .eq("is_verified", false);
+  const fetchData = async () => {
+    await Promise.all([
+      fetchPendingVerifications(),
+      fetchAllUsers(),
+      fetchPlans()
+    ]);
+  };
 
-      setProfiles(data || []);
-    } catch (e) {
-      console.error(e);
-    }
+  const fetchPendingVerifications = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("verification_sent", true)
+      .eq("is_verified", false);
+    setPendingProfiles(data || []);
+  };
+
+  const fetchAllUsers = async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .order('created_at', { ascending: false });
+    setAllUsers(data || []);
+  };
+
+  const fetchPlans = async () => {
+    const { data } = await supabase
+      .from("plans")
+      .select("*")
+      .order('created_at', { ascending: true });
+    setPlans(data || []);
   };
 
   const handleApprove = async (profile: any) => {
@@ -99,17 +139,12 @@ const Admin = () => {
         .eq("id", profile.id);
 
       if (error) throw error;
-
       await supabase.functions.invoke('verification-result', {
-        body: { 
-          profileId: profile.id, 
-          status: 'approved',
-          userName: profile.full_name
-        }
+        body: { profileId: profile.id, status: 'approved', userName: profile.full_name }
       });
-
       toast.success("Profissional aprovado!");
-      setProfiles(profiles.filter(p => p.id !== profile.id));
+      setPendingProfiles(prev => prev.filter(p => p.id !== profile.id));
+      fetchAllUsers(); // Atualizar lista geral
     } catch (error) {
       toast.error("Erro ao aprovar.");
     } finally {
@@ -117,18 +152,7 @@ const Admin = () => {
     }
   };
 
-  const openRejectionModal = (profile: any) => {
-    setSelectedProfile(profile);
-    setRejectionReason("");
-    setRejectionModalOpen(true);
-  };
-
   const confirmRejection = async () => {
-    if (!rejectionReason.trim()) {
-      toast.error("Insira o motivo.");
-      return;
-    }
-
     setProcessingId(selectedProfile.id);
     try {
       const { error } = await supabase
@@ -137,7 +161,6 @@ const Admin = () => {
         .eq("id", selectedProfile.id);
 
       if (error) throw error;
-
       await supabase.functions.invoke('verification-result', {
         body: { 
           profileId: selectedProfile.id, 
@@ -146,9 +169,8 @@ const Admin = () => {
           userName: selectedProfile.full_name
         }
       });
-
       toast.info("Solicitação reprovada.");
-      setProfiles(profiles.filter(p => p.id !== selectedProfile.id));
+      setPendingProfiles(prev => prev.filter(p => p.id !== selectedProfile.id));
       setRejectionModalOpen(false);
     } catch (error) {
       toast.error("Erro ao reprovar.");
@@ -156,6 +178,41 @@ const Admin = () => {
       setProcessingId(null);
     }
   };
+
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    const planData = {
+      id: editingPlan?.id || formData.get('id') as string,
+      name: formData.get('name') as string,
+      price: formData.get('price') as string,
+      period: formData.get('period') as string,
+      description: formData.get('description') as string,
+      popular: formData.get('popular') === 'on',
+      features: (formData.get('features') as string).split('\n').filter(f => f.trim() !== '')
+    };
+
+    try {
+      const { error } = await supabase
+        .from("plans")
+        .upsert(planData);
+      
+      if (error) throw error;
+      toast.success("Plano salvo com sucesso!");
+      fetchPlans();
+      setPlanModalOpen(false);
+      setEditingPlan(null);
+    } catch (e) {
+      toast.error("Erro ao salvar plano.");
+    }
+  };
+
+  const filteredUsers = allUsers.filter(u => {
+    const matchesSearch = u.full_name?.toLowerCase().includes(userSearch.toLowerCase()) || 
+                         u.email?.toLowerCase().includes(userSearch.toLowerCase());
+    const matchesRole = userRoleFilter === 'all' || u.role === userRoleFilter;
+    return matchesSearch && matchesRole;
+  });
 
   if (authLoading || loading) return (
     <Layout>
@@ -172,142 +229,207 @@ const Admin = () => {
       <div className="min-h-screen bg-secondary/20 py-8">
         <div className="container mx-auto px-4">
           <div className="mb-8 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold flex items-center gap-3">
-                <ShieldCheck className="h-8 w-8 text-primary" /> Painel Admin
-              </h1>
-              <Badge variant="outline" className="px-4 py-1">
-                {profiles.length} Pendentes
-              </Badge>
-            </div>
-            <Button 
-              variant="ghost" 
-              onClick={signOut} 
-              className="gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            >
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              <ShieldCheck className="h-8 w-8 text-primary" /> Painel Administrativo
+            </h1>
+            <Button variant="ghost" onClick={signOut} className="gap-2 hover:bg-destructive/10 hover:text-destructive">
               <LogOut className="h-4 w-4" /> Sair
             </Button>
           </div>
 
-          <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="w-[300px]">Profissional</TableHead>
-                  <TableHead>Dados & Documentos</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {profiles.length > 0 ? (
-                  profiles.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-muted/20">
-                      <TableCell>
-                        <div className="font-semibold text-foreground">{p.full_name}</div>
-                        <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-                          {p.specialty}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="gap-2 h-8 text-primary border-primary/20 hover:bg-primary/5"
-                            asChild
-                          >
-                            <Link to={`/profissional/${p.id}`} target="_blank">
-                              <User className="h-3.5 w-3.5" /> Ver Perfil
-                            </Link>
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="gap-2 h-8"
-                            onClick={() => window.open(p.id_document_url, '_blank')}
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" /> RG/CNH
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="gap-2 h-8"
-                            onClick={() => window.open(p.prof_registration_url, '_blank')}
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" /> Registro
-                          </Button>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-destructive hover:bg-destructive/10 gap-2"
-                            onClick={() => openRejectionModal(p)}
-                            disabled={!!processingId}
-                          >
-                            <XCircle className="h-4 w-4" /> Reprovar
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            className="bg-success hover:bg-success/90 gap-2"
-                            onClick={() => handleApprove(p)}
-                            disabled={!!processingId}
-                          >
-                            {processingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                            Aprovar
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center py-20">
-                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                        <CheckCircle className="h-10 w-10 text-success/20" />
-                        <p>Nenhuma solicitação pendente.</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+          <Tabs defaultValue="verifications" className="space-y-6">
+            <TabsList className="grid w-full max-w-md grid-cols-3">
+              <TabsTrigger value="verifications" className="gap-2">
+                <CheckCircle className="h-4 w-4" /> Verificações
+                {pendingProfiles.length > 0 && (
+                  <Badge variant="destructive" className="ml-1 h-5 w-5 justify-center rounded-full p-0 text-[10px]">
+                    {pendingProfiles.length}
+                  </Badge>
                 )}
-              </TableBody>
-            </Table>
-          </div>
+              </TabsTrigger>
+              <TabsTrigger value="users" className="gap-2">
+                <UsersIcon className="h-4 w-4" /> Usuários
+              </TabsTrigger>
+              <TabsTrigger value="plans" className="gap-2">
+                <CreditCard className="h-4 w-4" /> Planos
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Aba de Verificações */}
+            <TabsContent value="verifications" className="space-y-4">
+              <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead>Profissional</TableHead>
+                      <TableHead>Documentos</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingProfiles.length > 0 ? (
+                      pendingProfiles.map((p) => (
+                        <TableRow key={p.id}>
+                          <TableCell>
+                            <div className="font-semibold">{p.full_name}</div>
+                            <div className="text-xs text-muted-foreground">{p.specialty}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => window.open(p.id_document_url, '_blank')}>RG/CNH</Button>
+                              <Button variant="outline" size="sm" onClick={() => window.open(p.prof_registration_url, '_blank')}>Registro</Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}>Reprovar</Button>
+                              <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => handleApprove(p)} disabled={!!processingId}>Aprovar</Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground">Nenhuma verificação pendente.</TableCell></TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            {/* Aba de Usuários */}
+            <TabsContent value="users" className="space-y-4">
+              <div className="flex flex-col md:flex-row gap-4 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input placeholder="Buscar por nome..." className="pl-10" value={userSearch} onChange={e => setUserSearch(e.target.value)} />
+                </div>
+                <div className="flex gap-2">
+                  {['all', 'professional', 'company', 'family'].map(role => (
+                    <Button 
+                      key={role} 
+                      variant={userRoleFilter === role ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setUserRoleFilter(role)}
+                      className="capitalize"
+                    >
+                      {role === 'all' ? 'Todos' : role === 'professional' ? 'Profissionais' : role === 'company' ? 'Empresas' : 'Famílias'}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-muted/50">
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Localização</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.full_name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">
+                            {u.role === 'professional' ? 'Profissional' : u.role === 'company' ? 'Empresa' : 'Família'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{u.city || '-'} / {u.state || '-'}</TableCell>
+                        <TableCell>
+                          {u.is_verified ? (
+                            <Badge className="bg-success/10 text-success border-success/20">Verificado</Badge>
+                          ) : (
+                            <Badge variant="secondary">Pendente</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            {/* Aba de Planos */}
+            <TabsContent value="plans" className="space-y-4">
+              <div className="flex justify-end">
+                <Button className="gap-2" onClick={() => { setEditingPlan(null); setPlanModalOpen(true); }}>
+                  <Plus className="h-4 w-4" /> Novo Plano
+                </Button>
+              </div>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {plans.map((plan) => (
+                  <div key={plan.id} className="rounded-2xl border bg-card p-6 shadow-card relative">
+                    {plan.popular && <Badge className="absolute -top-2 right-4 bg-primary">Popular</Badge>}
+                    <h3 className="text-xl font-bold">{plan.name}</h3>
+                    <p className="text-2xl font-bold text-primary mt-2">{plan.price} <span className="text-sm font-normal text-muted-foreground">/{plan.period}</span></p>
+                    <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
+                    <div className="mt-4 flex gap-2">
+                      <Button variant="outline" size="sm" className="flex-1 gap-2" onClick={() => { setEditingPlan(plan); setPlanModalOpen(true); }}>
+                        <Edit className="h-4 w-4" /> Editar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
+      {/* Modal de Rejeição */}
       <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" /> Reprovar Verificação
-            </DialogTitle>
-            <DialogDescription>
-              Explique a <strong>{selectedProfile?.full_name}</strong> o motivo da rejeição.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Textarea
-              placeholder="Ex: Documento ilegível..."
-              className="min-h-[120px] resize-none"
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-            />
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
+        <DialogContent>
+          <DialogHeader><DialogTitle>Reprovar Verificação</DialogTitle></DialogHeader>
+          <Textarea placeholder="Motivo da reprovação..." value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} className="min-h-[100px]" />
+          <DialogFooter>
             <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>Cancelar</Button>
-            <Button 
-              variant="destructive" 
-              onClick={confirmRejection}
-              disabled={!!processingId || !rejectionReason.trim()}
-              className="gap-2"
-            >
-              {processingId === selectedProfile?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-              Confirmar Reprovação
-            </Button>
+            <Button variant="destructive" onClick={confirmRejection}>Confirmar Reprovação</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Planos */}
+      <Dialog open={planModalOpen} onOpenChange={setPlanModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{editingPlan ? 'Editar Plano' : 'Novo Plano'}</DialogTitle></DialogHeader>
+          <form onSubmit={handleSavePlan} className="space-y-4">
+            <div className="grid gap-2">
+              <Label>ID do Plano (Slug)</Label>
+              <Input name="id" defaultValue={editingPlan?.id} disabled={!!editingPlan} placeholder="ex: plano-premium" required />
+            </div>
+            <div className="grid gap-2">
+              <Label>Nome</Label>
+              <Input name="name" defaultValue={editingPlan?.name} placeholder="Nome do plano" required />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Preço</Label>
+                <Input name="price" defaultValue={editingPlan?.price} placeholder="R$ 0,00" required />
+              </div>
+              <div className="grid gap-2">
+                <Label>Período</Label>
+                <Input name="period" defaultValue={editingPlan?.period} placeholder="mês/ano" required />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Descrição</Label>
+              <Input name="description" defaultValue={editingPlan?.description} placeholder="Breve descrição" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Funcionalidades (uma por linha)</Label>
+              <Textarea name="features" defaultValue={editingPlan?.features?.join('\n')} placeholder="Lista de benefícios" className="h-24" />
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" name="popular" id="popular" defaultChecked={editingPlan?.popular} />
+              <Label htmlFor="popular">Marcar como Mais Popular</Label>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPlanModalOpen(false)}>Cancelar</Button>
+              <Button type="submit">Salvar Plano</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </Layout>

@@ -139,12 +139,28 @@ const Admin = () => {
   const handleApprove = async (profileId: string) => {
     setIsProcessingVerification(true);
     try {
+      // Encontrar dados do usuário para o e-mail
+      const userToNotify = pendingProfiles.find(p => p.id === profileId);
+
       const { error } = await supabase.from("profiles").update({ is_verified: true }).eq("id", profileId);
       if (error) throw error;
+
+      // Disparar e-mail de sucesso
+      if (userToNotify) {
+        await supabase.functions.invoke('verification-result', {
+          body: {
+            status: 'approved',
+            userName: userToNotify.full_name,
+            userEmail: userToNotify.email
+          }
+        });
+      }
+
       toast.success("Perfil aprovado!");
       fetchData();
     } catch (err: any) {
       toast.error("Erro ao aprovar.");
+      console.error(err);
     } finally {
       setIsProcessingVerification(false);
     }
@@ -156,12 +172,24 @@ const Admin = () => {
     try {
       const { error } = await supabase.from("profiles").update({ verification_sent: false }).eq("id", selectedProfile.id);
       if (error) throw error;
+
+      // Disparar e-mail de reprovação
+      await supabase.functions.invoke('verification-result', {
+        body: {
+          status: 'rejected',
+          reason: rejectionReason,
+          userName: selectedProfile.full_name,
+          userEmail: selectedProfile.email
+        }
+      });
+
       toast.success("Perfil reprovado.");
       setRejectionModalOpen(false);
       setRejectionReason("");
       fetchData();
     } catch (err: any) {
       toast.error("Erro ao reprovar.");
+      console.error(err);
     } finally {
       setIsProcessingVerification(false);
     }

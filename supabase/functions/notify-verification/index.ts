@@ -24,64 +24,62 @@ serve(async (req) => {
     if (authError || !user) return new Response('Invalid token', { status: 401, headers: corsHeaders })
 
     const { userName, userEmail, userId } = await req.json()
-    
-    // E-MAIL DE DESTINO (ADMINISTRADOR)
     const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br"
     
-    console.log(`[notify-verification] Iniciando processo para: ${userName} (${userId})`)
+    console.log(`[notify-verification] Processando pedido de: ${userName}`);
 
-    // 1. Atualizar o status no banco de dados
-    const { error: updateError } = await supabaseAdmin
-      .from('profiles')
-      .update({ verification_sent: true })
-      .eq('id', user.id)
+    const smtpHost = Deno.env.get('SMTP_HOST');
+    const smtpPort = Deno.env.get('SMTP_PORT');
+    const smtpUser = Deno.env.get('SMTP_USER');
+    const smtpPass = Deno.env.get('SMTP_PASS');
 
-    if (updateError) throw updateError
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      console.error("[notify-verification] Erro: Secrets do SMTP não configuradas!");
+      return new Response(JSON.stringify({ error: "SMTP configuration missing" }), { status: 500, headers: corsHeaders });
+    }
 
-    // 2. Configurar o cliente SMTP com as credenciais que você deve adicionar nas Secrets
     const client = new SMTPClient({
       connection: {
-        hostname: Deno.env.get('SMTP_HOST') || "", // Ex: smtp.gmail.com
-        port: parseInt(Deno.env.get('SMTP_PORT') || "587"),
+        hostname: smtpHost,
+        port: parseInt(smtpPort || "587"),
         tls: true,
         auth: {
-          user: Deno.env.get('SMTP_USER') || "", // Seu e-mail de envio
-          pass: Deno.env.get('SMTP_PASS') || "", // Sua senha
+          user: smtpUser,
+          pass: smtpPass,
         },
       },
     });
 
-    // 3. Enviar o e-mail
-    await client.send({
-      from: Deno.env.get('SMTP_USER') || "notificacoes@homecarematch.com.br",
-      to: MASTER_ADMIN_EMAIL,
-      subject: `⚠️ Verificação Pendente: ${userName}`,
-      content: "text/html",
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
-          <h2 style="color: #2563eb;">Nova Solicitação de Verificação</h2>
-          <p>O profissional <strong>${userName}</strong> enviou documentos para análise.</p>
-          <div style="margin: 20px 0; padding: 15px; background: #f1f5f9; border-radius: 8px;">
-            <p><strong>E-mail:</strong> ${userEmail}</p>
-            <p><strong>ID:</strong> ${userId}</p>
+    try {
+      await client.send({
+        from: smtpUser,
+        to: MASTER_ADMIN_EMAIL,
+        subject: `⚠️ Verificação Pendente: ${userName}`,
+        content: "text/html",
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+            <h2 style="color: #2563eb;">Nova Solicitação de Verificação</h2>
+            <p>O profissional <strong>${userName}</strong> enviou documentos para análise.</p>
+            <div style="margin: 20px 0; padding: 15px; background: #f1f5f9; border-radius: 8px;">
+              <p><strong>E-mail:</strong> ${userEmail}</p>
+              <p><strong>ID:</strong> ${userId}</p>
+            </div>
+            <p>Acesse o painel administrativo para validar.</p>
           </div>
-          <p>Você pode validar este perfil no painel administrativo.</p>
-          <a href="https://rkjvtnadqkbwomgzyswr.supabase.co/admin" 
-             style="display: inline-flex; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-            Acessar Painel Admin
-          </a>
-        </div>
-      `,
-    });
-
-    await client.close();
-    console.log("[notify-verification] E-mail enviado com sucesso via SMTP.");
+        `,
+      });
+      await client.close();
+      console.log("[notify-verification] E-mail enviado com sucesso!");
+    } catch (smtpError) {
+      console.error("[notify-verification] Erro ao conectar/enviar e-mail:", smtpError);
+      throw smtpError;
+    }
 
     return new Response(JSON.stringify({ success: true }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })
   } catch (error) {
-    console.error("[notify-verification] Erro fatal:", error.message)
+    console.error("[notify-verification] Erro crítico:", error.message)
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
   }
 })

@@ -8,8 +8,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Eye, EyeOff, AlertCircle, MailWarning, MailCheck } from "lucide-react";
+import { 
+  Loader2, 
+  Eye, 
+  EyeOff, 
+  AlertCircle, 
+  MailWarning, 
+  MailCheck,
+  X
+} from "lucide-react";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const authSchema = z.object({
   fullName: z.string().min(3, "Digite seu nome completo").optional(),
@@ -25,7 +40,6 @@ const authSchema = z.object({
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
 }).refine((data) => {
-  // Se estiver no modo registro (confirmPassword existe), fullName é obrigatório
   if (data.confirmPassword !== undefined && (!data.fullName || data.fullName.trim().length < 3)) {
     return false;
   }
@@ -47,6 +61,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const {
     register,
@@ -72,12 +87,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         });
         if (error) throw error;
         
-        toast.success("Conta criada com sucesso!", {
-          description: "Enviamos um link de confirmação para o seu e-mail. Por favor, verifique sua caixa de entrada para ativar sua conta.",
-          icon: <MailCheck className="h-5 w-5 text-success" />,
-          duration: 10000,
-        });
-        
+        setShowSuccessModal(true);
         setMode("login");
         reset();
       } else {
@@ -201,6 +211,45 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           <p>O cadastro de novos administradores está desabilitado. Entre com uma conta existente.</p>
         </div>
       )}
+
+      {/* Modal de Sucesso Customizado (3x maior e centralizado) */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl animate-scale-in">
+          <div className="relative bg-card p-12 md:p-16 flex flex-col items-center text-center space-y-8">
+            <button 
+              onClick={() => setShowSuccessModal(false)}
+              className="absolute right-6 top-6 p-2 rounded-full hover:bg-secondary transition-colors"
+            >
+              <X className="h-6 w-6 text-muted-foreground" />
+            </button>
+
+            <div className="h-24 w-24 rounded-full bg-success/10 flex items-center justify-center animate-bounce">
+              <MailCheck className="h-12 w-12 text-success" />
+            </div>
+
+            <div className="space-y-4">
+              <DialogTitle className="text-4xl font-bold tracking-tight text-foreground">
+                Conta criada com sucesso!
+              </DialogTitle>
+              <DialogDescription className="text-xl text-muted-foreground leading-relaxed max-w-lg mx-auto">
+                Enviamos um link de confirmação para o seu e-mail. Por favor, <strong>verifique sua caixa de entrada</strong> para ativar sua conta e começar.
+              </DialogDescription>
+            </div>
+
+            <Button 
+              size="lg" 
+              className="w-full max-w-xs h-14 text-lg font-semibold shadow-lg"
+              onClick={() => setShowSuccessModal(false)}
+            >
+              Entendido
+            </Button>
+            
+            <p className="text-sm text-muted-foreground italic">
+              Não recebeu? Verifique sua caixa de spam ou lixo eletrônico.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

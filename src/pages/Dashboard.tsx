@@ -157,22 +157,33 @@ const Dashboard = () => {
     setIsRequestingVerification(true);
     
     try {
-      const { error } = await supabase.functions.invoke('notify-verification', { 
-        body: { 
-          userName: profile.full_name, 
-          userEmail: user.email,
-          userId: user.id 
-        } 
-      });
+      // 1. Atualiza diretamente no banco de dados para garantir persistência
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ verification_sent: true })
+        .eq("id", user.id);
 
-      if (error) throw error;
-      
-      // Forçamos o recarregamento total do perfil para garantir sincronia com o banco
-      await fetchProfile();
+      if (updateError) throw updateError;
+
+      // 2. Notifica o administrador (via Edge Function)
+      // Não damos throw se a notificação falhar, pois o banco já está atualizado
+      try {
+        await supabase.functions.invoke('notify-verification', { 
+          body: { 
+            userName: profile.full_name, 
+            userEmail: user.email,
+            userId: user.id 
+          } 
+        });
+      } catch (notifyErr) {
+        console.warn("[Dashboard] Erro ao notificar admin:", notifyErr);
+      }
+
+      setProfile(prev => ({ ...prev, verification_sent: true }));
       toast.success("Solicitação de verificação enviada!");
     } catch (err: any) {
       console.error("[Dashboard] Erro verificação:", err);
-      toast.error("Erro ao solicitar verificação.");
+      toast.error("Erro ao processar solicitação.");
     } finally {
       setIsRequestingVerification(false);
     }

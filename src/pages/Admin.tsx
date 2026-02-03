@@ -27,7 +27,8 @@ import {
   Edit2,
   Plus,
   ShieldAlert,
-  Trash2
+  Trash2,
+  CreditCard
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -72,6 +73,7 @@ const Admin = () => {
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
+  const [isUpdatingPlan, setIsUpdatingPlan] = useState<string | null>(null);
 
   const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br";
 
@@ -182,6 +184,25 @@ const Admin = () => {
       console.error(err);
     } finally {
       setIsUpdatingRole(null);
+    }
+  };
+
+  const handleUpdatePlan = async (profileId: string, newPlan: string) => {
+    setIsUpdatingPlan(profileId);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ subscription_tier: newPlan })
+        .eq("id", profileId);
+
+      if (error) throw error;
+      toast.success("Plano atualizado com sucesso!");
+      fetchData();
+    } catch (err: any) {
+      toast.error("Erro ao atualizar plano.");
+      console.error(err);
+    } finally {
+      setIsUpdatingPlan(null);
     }
   };
 
@@ -313,6 +334,7 @@ const Admin = () => {
                       <TableHead>Nome</TableHead>
                       <TableHead>E-mail</TableHead>
                       <TableHead>Função</TableHead>
+                      <TableHead>Plano</TableHead>
                       <TableHead>Verificado</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -344,6 +366,26 @@ const Admin = () => {
                                 >
                                   Admin
                                 </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isUpdatingPlan === u.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Select 
+                              defaultValue={u.subscription_tier || 'monthly'} 
+                              onValueChange={(value) => handleUpdatePlan(u.id, value)}
+                              disabled={u.role !== 'professional'}
+                            >
+                              <SelectTrigger className="w-[140px] h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {plans.map(plan => (
+                                  <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           )}

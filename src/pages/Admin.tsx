@@ -86,7 +86,7 @@ const Admin = () => {
   const checkInitialStatus = async () => {
     if (authLoading) return;
 
-    // 1. Verifica se existe qualquer admin no sistema (para habilitar o primeiro registro se necessário)
+    // 1. Verifica se existe qualquer admin no sistema
     const { count } = await supabase
       .from("profiles")
       .select("*", { count: 'exact', head: true })

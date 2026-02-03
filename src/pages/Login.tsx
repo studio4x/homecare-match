@@ -3,16 +3,45 @@
 import { useAuth } from '@/components/auth/AuthProvider';
 import Layout from '@/components/layout/Layout';
 import AuthForm from '@/components/auth/AuthForm';
-import { Navigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Heart, Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
   const { session, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   
   const initialMode = location.hash === '#auth-sign-up' ? 'register' : 'login';
 
-  if (loading) {
+  useEffect(() => {
+    if (session) {
+      const checkRoleAndRedirect = async () => {
+        try {
+          const { data } = await supabase
+            .from('profiles')
+            .select('is_admin, role')
+            .eq('id', session.user.id)
+            .single();
+
+          if (data?.is_admin || data?.role === 'admin') {
+            navigate('/admin', { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+        } catch (error) {
+          console.error("Erro ao verificar permissões:", error);
+          navigate('/dashboard', { replace: true });
+        }
+      };
+
+      checkRoleAndRedirect();
+    }
+  }, [session, navigate]);
+
+  // Mostra loader enquanto carrega a sessão ou enquanto verifica o redirecionamento (se session existir)
+  if (loading || session) {
     return (
       <Layout>
         <div className="flex min-h-[60vh] items-center justify-center">
@@ -20,10 +49,6 @@ const Login = () => {
         </div>
       </Layout>
     );
-  }
-
-  if (session) {
-    return <Navigate to="/dashboard" replace />;
   }
 
   return (

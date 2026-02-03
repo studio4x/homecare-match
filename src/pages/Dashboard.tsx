@@ -61,6 +61,7 @@ const Dashboard = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isSubmittingDocs, setIsSubmittingDocs] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true); // Novo estado
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const idDocRef = useRef<HTMLInputElement>(null);
@@ -99,6 +100,7 @@ const Dashboard = () => {
   }, [location.state]);
 
   const fetchProfile = async () => {
+    setIsLoadingProfile(true);
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -108,9 +110,9 @@ const Dashboard = () => {
     if (error) {
       console.error("Erro ao carregar perfil:", error);
     } else if (data) {
-      // Redireciona admin para a página correta
+      // Redireciona admin para a página correta imediatamente
       if (data.is_admin || data.role === 'admin') {
-        navigate('/admin');
+        navigate('/admin', { replace: true });
         return;
       }
 
@@ -132,6 +134,7 @@ const Dashboard = () => {
         prof_registration_url: data.prof_registration_url || ""
       });
     }
+    setIsLoadingProfile(false);
   };
 
   const handleUpgrade = async (tier: string) => {
@@ -303,6 +306,17 @@ const Dashboard = () => {
 
   if (loading) return null;
   if (!session) return <Navigate to="/login" replace />;
+  
+  // Mostra loader enquanto carrega o perfil (o que impede que o admin veja a tela por engano)
+  if (isLoadingProfile) {
+    return (
+      <Layout>
+        <div className="flex h-[80vh] items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   const isEmailConfirmed = !!user?.email_confirmed_at;
   const initials = profile.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "??";

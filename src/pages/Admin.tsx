@@ -40,11 +40,9 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useNavigate } from "react-router-dom";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminExists, setAdminExists] = useState(true);
@@ -67,50 +65,40 @@ const Admin = () => {
         const { data, error } = await supabase.rpc('any_admin_exists');
         if (!error) setAdminExists(data);
       } catch (e) {
-        console.error("[Admin] Erro check global:", e);
+        console.error("[Admin] Erro global:", e);
       }
     };
     checkGlobalAdmin();
   }, []);
 
   useEffect(() => {
-    const checkUserAdmin = async () => {
+    const verifyAdmin = async () => {
       if (authLoading) return;
-      
       if (!user) {
-        setIsAdmin(false);
         setLoading(false);
         return;
       }
       
       try {
         setLoading(true);
-        // Usamos uma função RPC ou uma consulta direta com RLS ativo
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("is_admin, role")
-          .eq("id", user.id)
-          .single();
+        // Chamamos a função RPC diretamente para evitar problemas de RLS na leitura do próprio perfil
+        const { data, error } = await supabase.rpc('check_is_admin');
         
-        if (!error && data && (data.is_admin === true || data.role === 'admin')) {
+        if (!error && data === true) {
           setIsAdmin(true);
           await fetchData();
         } else {
           setIsAdmin(false);
-          // Se não for admin, podemos redirecionar para o dashboard
-          if (location.pathname === '/admin') {
-            toast.error("Acesso negado. Você não é um administrador.");
-          }
         }
       } catch (err) {
-        console.error("[Admin] Erro crítico de verificação:", err);
+        console.error("[Admin] Erro ao verificar privilégios:", err);
         setIsAdmin(false);
       } finally {
         setLoading(false);
       }
     };
 
-    checkUserAdmin();
+    verifyAdmin();
   }, [user, authLoading]);
 
   const fetchData = async () => {
@@ -125,7 +113,7 @@ const Admin = () => {
       setAllUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
     } catch (error) {
-      console.error("[Admin] Erro fetch:", error);
+      console.error("[Admin] Erro no fetch:", error);
     }
   };
 
@@ -180,12 +168,10 @@ const Admin = () => {
     }
   };
 
-  // Se estiver carregando, mostra o spinner
   if (authLoading || loading) {
     return <Layout><div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></Layout>;
   }
   
-  // Se não estiver logado, mostra o formulário de login (ou registro se for o primeiro admin)
   if (!session) {
     return (
       <Layout>
@@ -200,7 +186,6 @@ const Admin = () => {
     );
   }
 
-  // Se estiver logado mas NÃO for admin, bloqueia TOTALMENTE a renderização do conteúdo
   if (!isAdmin) {
     return (
       <Layout>
@@ -208,10 +193,9 @@ const Admin = () => {
           <div className="text-center p-8 bg-card border rounded-2xl shadow-sm max-w-md">
             <ShieldAlert className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-bold">Acesso Negado</h2>
-            <p className="text-muted-foreground mt-2">Você não possui privilégios de administrador para visualizar esta página.</p>
-            <div className="mt-6 flex flex-col gap-2">
-              <Button asChild variant="default"><a href="/dashboard">Ir para Meu Painel</a></Button>
-              <Button variant="ghost" onClick={signOut}>Sair</Button>
+            <p className="text-muted-foreground mt-2">Você não tem privilégios de administrador.</p>
+            <div className="mt-6">
+              <Button onClick={signOut}>Sair da Conta</Button>
             </div>
           </div>
         </div>
@@ -219,7 +203,6 @@ const Admin = () => {
     );
   }
 
-  // Apenas se isAdmin for TRUE, renderiza o dashboard
   return (
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">

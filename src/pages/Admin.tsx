@@ -19,7 +19,8 @@ import {
   Plus,
   Edit,
   Lock,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -41,6 +42,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Link } from "react-router-dom";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -148,8 +150,7 @@ const Admin = () => {
         body: { profileId: profile.id, status: 'approved', userName: profile.full_name }
       });
       toast.success("Profissional aprovado!");
-      setPendingProfiles(prev => prev.filter(p => p.id !== profile.id));
-      fetchAllUsers();
+      fetchData(); // Recarrega tudo
     } catch (error) {
       toast.error("Erro ao aprovar.");
     } finally {
@@ -175,8 +176,8 @@ const Admin = () => {
         }
       });
       toast.info("Solicitação reprovada.");
-      setPendingProfiles(prev => prev.filter(p => p.id !== selectedProfile.id));
       setRejectionModalOpen(false);
+      fetchData();
     } catch (error) {
       toast.error("Erro ao reprovar.");
     } finally {
@@ -230,7 +231,6 @@ const Admin = () => {
     </Layout>
   );
 
-  // PORTAL DE LOGIN ADMIN
   if (!session) {
     return (
       <Layout>
@@ -260,7 +260,6 @@ const Admin = () => {
     );
   }
 
-  // ACESSO NEGADO
   if (session && !isAdmin) {
     return (
       <Layout>
@@ -281,7 +280,6 @@ const Admin = () => {
     );
   }
 
-  // PAINEL ADMINISTRATIVO
   return (
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">
@@ -339,6 +337,11 @@ const Admin = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
+                              <Button variant="outline" size="sm" asChild className="gap-2">
+                                <Link to={`/profissional/${p.id}`} target="_blank">
+                                  <ExternalLink className="h-3 w-3" /> Ver Perfil
+                                </Link>
+                              </Button>
                               <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}>Reprovar</Button>
                               <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => handleApprove(p)} disabled={!!processingId}>Aprovar</Button>
                             </div>
@@ -360,17 +363,9 @@ const Admin = () => {
                   <Input placeholder="Buscar por nome..." className="pl-10" value={userSearch} onChange={e => setUserSearch(e.target.value)} />
                 </div>
                 <div className="flex gap-2">
-                  {['all', 'professional', 'company', 'family'].map(role => (
-                    <Button 
-                      key={role} 
-                      variant={userRoleFilter === role ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setUserRoleFilter(role)}
-                      className="capitalize"
-                    >
-                      {role === 'all' ? 'Todos' : role === 'professional' ? 'Profissionais' : role === 'company' ? 'Empresas' : 'Famílias'}
-                    </Button>
-                  ))}
+                  <Button variant={userRoleFilter === 'all' ? "default" : "outline"} size="sm" onClick={() => setUserRoleFilter('all')}>Todos</Button>
+                  <Button variant={userRoleFilter === 'professional' ? "default" : "outline"} size="sm" onClick={() => setUserRoleFilter('professional')}>Profissionais</Button>
+                  <Button variant={userRoleFilter === 'company' ? "default" : "outline"} size="sm" onClick={() => setUserRoleFilter('company')}>Empresas</Button>
                 </div>
               </div>
               <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
@@ -380,28 +375,30 @@ const Admin = () => {
                       <TableHead>Nome</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Localização</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((u) => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.full_name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {u.role === 'professional' ? 'Profissional' : u.role === 'company' ? 'Empresa' : 'Família'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{u.city || '-'} / {u.state || '-'}</TableCell>
-                        <TableCell>
-                          {u.is_verified ? (
-                            <Badge className="bg-success/10 text-success border-success/20">Verificado</Badge>
-                          ) : (
-                            <Badge variant="secondary">Pendente</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filteredUsers.length > 0 ? (
+                      filteredUsers.map((u) => (
+                        <TableRow key={u.id}>
+                          <TableCell className="font-medium">{u.full_name || 'Usuário sem nome'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">
+                              {u.role === 'professional' ? 'Profissional' : u.role === 'company' ? 'Empresa' : 'Admin'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{u.city || '-'} / {u.state || '-'}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to={`/profissional/${u.id}`} target="_blank">Ver</Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground">Nenhum usuário encontrado.</TableCell></TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>

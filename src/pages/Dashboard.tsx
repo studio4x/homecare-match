@@ -22,7 +22,9 @@ import {
   Zap,
   Sparkles,
   RefreshCw,
-  FileCheck
+  FileCheck,
+  X,
+  ClipboardCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -30,6 +32,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router-dom";
 import { differenceInDays, addDays, isValid, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const Dashboard = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -41,6 +49,7 @@ const Dashboard = () => {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isRequestingVerification, setIsRequestingVerification] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   const idDocRef = useRef<HTMLInputElement>(null);
   const profDocRef = useRef<HTMLInputElement>(null);
@@ -88,7 +97,6 @@ const Dashboard = () => {
       if (error) throw error;
 
       if (data) {
-        // Redireciona admins para o painel correto
         if (data.is_admin || data.role === 'admin') {
           navigate('/admin', { replace: true });
           return;
@@ -157,7 +165,6 @@ const Dashboard = () => {
     setIsRequestingVerification(true);
     
     try {
-      // 1. Atualiza diretamente no banco de dados para garantir persistência
       const { error: updateError } = await supabase
         .from("profiles")
         .update({ verification_sent: true })
@@ -165,8 +172,6 @@ const Dashboard = () => {
 
       if (updateError) throw updateError;
 
-      // 2. Notifica o administrador (via Edge Function)
-      // Não damos throw se a notificação falhar, pois o banco já está atualizado
       try {
         await supabase.functions.invoke('notify-verification', { 
           body: { 
@@ -180,7 +185,7 @@ const Dashboard = () => {
       }
 
       setProfile(prev => ({ ...prev, verification_sent: true }));
-      toast.success("Solicitação de verificação enviada!");
+      setShowSuccessModal(true);
     } catch (err: any) {
       console.error("[Dashboard] Erro verificação:", err);
       toast.error("Erro ao processar solicitação.");
@@ -515,6 +520,45 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Sucesso da Verificação (Mesmo padrão do Cadastro) */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl animate-scale-in">
+          <div className="relative bg-card p-12 md:p-16 flex flex-col items-center text-center space-y-8">
+            <button 
+              onClick={() => setShowSuccessModal(false)}
+              className="absolute right-6 top-6 p-2 rounded-full hover:bg-secondary transition-colors"
+            >
+              <X className="h-6 w-6 text-muted-foreground" />
+            </button>
+
+            <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center animate-bounce">
+              <ClipboardCheck className="h-12 w-12 text-primary" />
+            </div>
+
+            <div className="space-y-4">
+              <DialogTitle className="text-4xl font-bold tracking-tight text-foreground">
+                Documentos enviados!
+              </DialogTitle>
+              <DialogDescription className="text-xl text-muted-foreground leading-relaxed max-w-lg mx-auto">
+                Sua solicitação de análise foi registrada com sucesso. Agora, nossa equipe revisará seus dados e você será notificado por e-mail em breve.
+              </DialogDescription>
+            </div>
+
+            <Button 
+              size="lg" 
+              className="w-full max-w-xs h-14 text-lg font-semibold shadow-lg"
+              onClick={() => setShowSuccessModal(false)}
+            >
+              Entendido
+            </Button>
+            
+            <p className="text-sm text-muted-foreground italic">
+              A análise costuma levar até 48 horas úteis.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

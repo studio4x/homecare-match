@@ -20,12 +20,13 @@ import {
   ShieldAlert,
   Star,
   Zap,
-  Calendar
+  Sparkles,
+  RefreshCw
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { differenceInDays, addDays } from "date-fns";
 
 const Dashboard = () => {
@@ -36,9 +37,11 @@ const Dashboard = () => {
   const [isUploadingDoc, setIsUploadingDoc] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   
   const idDocRef = useRef<HTMLInputElement>(null);
   const profDocRef = useRef<HTMLInputElement>(null);
+  const avatarRef = useRef<HTMLInputElement>(null);
   
   const [profile, setProfile] = useState({
     full_name: "",
@@ -141,6 +144,38 @@ const Dashboard = () => {
       toast.error("Erro no upload.");
     } finally {
       setIsUploadingDoc(null);
+    }
+  };
+
+  const handleGenerateBio = async () => {
+    if (!profile.full_name || !profile.specialty || !profile.experience) {
+      toast.error("Preencha seu nome, especialidade e formações primeiro para que a IA possa gerar uma biografia personalizada.");
+      return;
+    }
+
+    setIsGeneratingBio(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-bio', {
+        body: {
+          name: profile.full_name,
+          specialty: profile.specialty,
+          experience: profile.experience,
+          city: profile.city || "sua cidade",
+          state: profile.state || ""
+        }
+      });
+
+      if (error) throw error;
+      
+      if (data?.bio) {
+        setProfile(prev => ({ ...prev, bio: data.bio }));
+        toast.success("Biografia gerada com sucesso!");
+      }
+    } catch (err: any) {
+      console.error("[Dashboard] Erro IA:", err);
+      toast.error("Erro ao gerar biografia com IA.");
+    } finally {
+      setIsGeneratingBio(false);
     }
   };
 
@@ -332,7 +367,10 @@ const Dashboard = () => {
                       <AvatarFallback className="text-xl">{initials}</AvatarFallback>
                     </Avatar>
                     {isEditing && (
-                      <Button variant="outline" size="sm" onClick={() => idDocRef.current?.click()}>Alterar Foto</Button>
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => avatarRef.current?.click()}>Alterar Foto</Button>
+                        <input type="file" ref={avatarRef} onChange={(e) => handleFileUpload(e, 'avatar')} className="hidden" accept="image/*" />
+                      </>
                     )}
                   </div>
 
@@ -356,7 +394,33 @@ const Dashboard = () => {
                   </div>
 
                   <div className="grid gap-2">
-                    <Label>Biografia Profissional</Label>
+                    <Label>Formações</Label>
+                    <Textarea 
+                      value={profile.experience} 
+                      onChange={e => setProfile({...profile, experience: e.target.value})} 
+                      disabled={!isEditing} 
+                      className="h-32"
+                      placeholder="Cursos, especializações e histórico acadêmico..."
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Biografia Profissional</Label>
+                      {isEditing && (
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="xs" 
+                          className="h-7 gap-1 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20"
+                          onClick={handleGenerateBio}
+                          disabled={isGeneratingBio}
+                        >
+                          {isGeneratingBio ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
+                          Gerar com IA
+                        </Button>
+                      )}
+                    </div>
                     <Textarea 
                       value={profile.bio} 
                       onChange={e => setProfile({...profile, bio: e.target.value})} 

@@ -11,13 +11,11 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
-    // Usamos SERVICE_ROLE_KEY para garantir que a atualização do banco ocorra independentemente de RLS
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Validar Token do usuário que chamou
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
     
@@ -35,7 +33,7 @@ serve(async (req) => {
     
     console.log(`[notify-verification] Processando solicitação de: ${userName} (${userId})`)
 
-    // 1. Atualizar o perfil no banco de dados PRIMEIRO
+    // 1. Atualizar o perfil no banco de dados
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({ verification_sent: true })
@@ -49,6 +47,8 @@ serve(async (req) => {
     // 2. Enviar e-mail para o Admin se a chave estiver configurada
     if (RESEND_API_KEY) {
       try {
+        const adminUrl = "https://rkjvtnadqkbwomgzyswr.supabase.co/admin"; // URL do seu painel administrativo
+
         await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
@@ -58,16 +58,31 @@ serve(async (req) => {
           body: JSON.stringify({
             from: 'HomeCareMatch <notificacoes@resend.dev>',
             to: [MASTER_ADMIN_EMAIL],
-            subject: `Nova Solicitação de Verificação: ${userName}`,
+            subject: `⚠️ Verificação Pendente: ${userName}`,
             html: `
-              <div style="font-family: sans-serif; padding: 20px; color: #333;">
-                <h2 style="color: #007BFF;">Nova Verificação Pendente</h2>
-                <p>O profissional <strong>${userName}</strong> (${userEmail}) enviou os documentos para análise.</p>
-                <div style="margin-top: 30px;">
-                  <a href="https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID/admin" 
-                     style="background-color: #007BFF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
-                    Acessar Painel de Verificações
-                  </a>
+              <div style="font-family: sans-serif; padding: 40px; color: #1e293b; background-color: #f8fafc; border-radius: 12px;">
+                <div style="background-color: white; padding: 32px; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+                  <h2 style="color: #2563eb; margin-top: 0; font-size: 24px;">Nova Verificação de Perfil</h2>
+                  <p style="font-size: 16px; line-height: 24px; color: #475569;">
+                    Um profissional acaba de enviar documentos para análise e aguarda a sua validação.
+                  </p>
+                  
+                  <div style="margin: 24px 0; padding: 20px; background-color: #f1f5f9; border-radius: 8px;">
+                    <p style="margin: 0 0 10px 0;"><strong>Nome:</strong> ${userName}</p>
+                    <p style="margin: 0 0 10px 0;"><strong>E-mail:</strong> ${userEmail}</p>
+                    <p style="margin: 0;"><strong>ID do Usuário:</strong> <code style="font-size: 12px; color: #64748b;">${userId}</code></p>
+                  </div>
+
+                  <div style="margin-top: 32px; text-align: center;">
+                    <a href="https://rkjvtnadqkbwomgzyswr.supabase.co/admin" 
+                       style="display: inline-block; background-color: #2563eb; color: white; padding: 16px 32px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                      Acessar Painel de Controle
+                    </a>
+                  </div>
+                  
+                  <p style="margin-top: 24px; font-size: 12px; color: #94a3b8; text-align: center;">
+                    Esta é uma notificação automática do sistema HomeCareMatch.
+                  </p>
                 </div>
               </div>
             `,
@@ -75,11 +90,10 @@ serve(async (req) => {
         })
       } catch (emailErr) {
         console.error("[notify-verification] Erro ao enviar e-mail:", emailErr)
-        // Não travamos o processo se apenas o e-mail falhar, pois o banco já foi atualizado
       }
     }
 
-    return new Response(JSON.stringify({ message: 'Solicitação registrada com sucesso' }), { 
+    return new Response(JSON.stringify({ message: 'Solicitação registrada e administrador notificado' }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })
   } catch (error) {

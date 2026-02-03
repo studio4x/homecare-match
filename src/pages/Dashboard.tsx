@@ -130,6 +130,12 @@ const Dashboard = () => {
           prof_registration_url: data.prof_registration_url || "",
           trial_started_at: data.trial_started_at
         });
+      } else {
+        // Se o usuário tem sessão mas não tem perfil, significa que foi excluído
+        console.warn("Usuário autenticado sem perfil encontrado. Forçando logout.");
+        toast.error("Sua conta não foi encontrada ou foi desativada.");
+        await signOut();
+        navigate("/");
       }
     } catch (err) {
       console.error("[Dashboard] Erro ao carregar perfil:", err);

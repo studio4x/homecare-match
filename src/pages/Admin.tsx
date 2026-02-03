@@ -40,9 +40,11 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNavigate } from "react-router-dom";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminExists, setAdminExists] = useState(true);
@@ -59,44 +61,50 @@ const Admin = () => {
   const [isProcessingVerification, setIsProcessingVerification] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
 
-  // 1. Verificar se existe algum admin no sistema
   useEffect(() => {
     const checkGlobalAdmin = async () => {
       try {
         const { data, error } = await supabase.rpc('any_admin_exists');
         if (!error) setAdminExists(data);
       } catch (e) {
-        console.error("[Admin] Erro global:", e);
+        console.error("[Admin] Erro check global:", e);
       }
     };
     checkGlobalAdmin();
   }, []);
 
-  // 2. Verificar se o usuário logado é admin
   useEffect(() => {
     const checkUserAdmin = async () => {
       if (authLoading) return;
+      
       if (!user) {
+        setIsAdmin(false);
         setLoading(false);
         return;
       }
       
       try {
         setLoading(true);
+        // Usamos uma função RPC ou uma consulta direta com RLS ativo
         const { data, error } = await supabase
           .from("profiles")
           .select("is_admin, role")
           .eq("id", user.id)
-          .maybeSingle();
+          .single();
         
-        if (data && (data.is_admin || data.role === 'admin')) {
+        if (!error && data && (data.is_admin === true || data.role === 'admin')) {
           setIsAdmin(true);
           await fetchData();
         } else {
           setIsAdmin(false);
+          // Se não for admin, podemos redirecionar para o dashboard
+          if (location.pathname === '/admin') {
+            toast.error("Acesso negado. Você não é um administrador.");
+          }
         }
       } catch (err) {
-        console.error("[Admin] Erro ao verificar admin:", err);
+        console.error("[Admin] Erro crítico de verificação:", err);
+        setIsAdmin(false);
       } finally {
         setLoading(false);
       }
@@ -117,8 +125,7 @@ const Admin = () => {
       setAllUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
     } catch (error) {
-      console.error("[Admin] Erro ao carregar dados:", error);
-      toast.error("Erro ao carregar dados administrativos.");
+      console.error("[Admin] Erro fetch:", error);
     }
   };
 
@@ -127,15 +134,10 @@ const Admin = () => {
     try {
       const { error } = await supabase.from("profiles").update({ is_verified: true }).eq("id", profileId);
       if (error) throw error;
-      
       toast.success("Perfil aprovado!");
-      // Notificação em background
-      supabase.functions.invoke('verification-result', {
-        body: { profileId, status: 'approved', userName: pendingProfiles.find(p => p.id === profileId)?.full_name, userEmail: pendingProfiles.find(p => p.id === profileId)?.email }
-      });
       fetchData();
     } catch (err: any) {
-      toast.error("Erro ao aprovar: " + err.message);
+      toast.error("Erro ao aprovar.");
     } finally {
       setIsProcessingVerification(false);
     }
@@ -147,17 +149,12 @@ const Admin = () => {
     try {
       const { error } = await supabase.from("profiles").update({ verification_sent: false }).eq("id", selectedProfile.id);
       if (error) throw error;
-      
       toast.success("Perfil reprovado.");
-      // Notificação em background
-      supabase.functions.invoke('verification-result', {
-        body: { profileId: selectedProfile.id, status: 'rejected', reason: rejectionReason, userName: selectedProfile.full_name, userEmail: selectedProfile.email }
-      });
       setRejectionModalOpen(false);
       setRejectionReason("");
       fetchData();
     } catch (err: any) {
-      toast.error("Erro ao reprovar: " + err.message);
+      toast.error("Erro ao reprovar.");
     } finally {
       setIsProcessingVerification(false);
     }
@@ -165,41 +162,30 @@ const Admin = () => {
 
   const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPlan?.name || !selectedPlan?.price || !selectedPlan?.id) {
-      toast.error("Preencha os campos obrigatórios.");
-      return;
-    }
-
+    if (!selectedPlan?.id || !selectedPlan?.name) return;
     setIsSavingPlan(true);
     try {
-      const planData = {
-        id: selectedPlan.id,
-        name: selectedPlan.name,
-        price: selectedPlan.price,
-        period: selectedPlan.period || 'mês',
-        description: selectedPlan.description || '',
-        features: Array.isArray(selectedPlan.features) ? selectedPlan.features : selectedPlan.features.split('\n').filter((f: string) => f.trim() !== ''),
-        popular: !!selectedPlan.popular,
-        savings: selectedPlan.savings || ''
-      };
-
-      const { error } = await supabase.from("plans").upsert(planData);
+      const { error } = await supabase.from("plans").upsert({
+        ...selectedPlan,
+        features: Array.isArray(selectedPlan.features) ? selectedPlan.features : selectedPlan.features.split('\n').filter((f: string) => f.trim() !== '')
+      });
       if (error) throw error;
-      
-      toast.success("Plano salvo com sucesso!");
+      toast.success("Plano salvo!");
       setPlanModalOpen(false);
       fetchData();
     } catch (error: any) {
-      toast.error("Erro ao salvar plano: " + error.message);
+      toast.error("Erro ao salvar plano.");
     } finally {
       setIsSavingPlan(false);
     }
   };
 
+  // Se estiver carregando, mostra o spinner
   if (authLoading || loading) {
     return <Layout><div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></Layout>;
   }
   
+  // Se não estiver logado, mostra o formulário de login (ou registro se for o primeiro admin)
   if (!session) {
     return (
       <Layout>
@@ -214,6 +200,7 @@ const Admin = () => {
     );
   }
 
+  // Se estiver logado mas NÃO for admin, bloqueia TOTALMENTE a renderização do conteúdo
   if (!isAdmin) {
     return (
       <Layout>
@@ -221,14 +208,18 @@ const Admin = () => {
           <div className="text-center p-8 bg-card border rounded-2xl shadow-sm max-w-md">
             <ShieldAlert className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-bold">Acesso Negado</h2>
-            <p className="text-muted-foreground mt-2">Você não tem permissão para acessar esta área.</p>
-            <Button className="mt-6" variant="outline" onClick={signOut}>Sair</Button>
+            <p className="text-muted-foreground mt-2">Você não possui privilégios de administrador para visualizar esta página.</p>
+            <div className="mt-6 flex flex-col gap-2">
+              <Button asChild variant="default"><a href="/dashboard">Ir para Meu Painel</a></Button>
+              <Button variant="ghost" onClick={signOut}>Sair</Button>
+            </div>
           </div>
         </div>
       </Layout>
     );
   }
 
+  // Apenas se isAdmin for TRUE, renderiza o dashboard
   return (
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">

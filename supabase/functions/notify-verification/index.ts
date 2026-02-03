@@ -26,8 +26,12 @@ serve(async (req) => {
     const { userName, userEmail } = await req.json()
     
     // Validação de entrada
-    if (!userName || !userEmail) {
-      return new Response('Missing required fields', { status: 400, headers: corsHeaders })
+    if (!userName || typeof userName !== 'string' || userName.length < 3) {
+      return new Response('Invalid Name', { status: 400, headers: corsHeaders })
+    }
+
+    if (!userEmail || !userEmail.includes('@')) {
+      return new Response('Invalid Email', { status: 400, headers: corsHeaders })
     }
     
     console.log(`[notify-verification] Solicitação de: ${userName} (${userEmail}) - ID: ${user.id}`)

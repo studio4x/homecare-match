@@ -22,21 +22,24 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''))
     if (authError || !user) return new Response('Invalid token', { status: 401, headers: corsHeaders })
 
-    const { name, specialty, experience, city, state } = await req.json()
+    const body = await req.json()
+    const { name, specialty, experience, city, state } = body
     
     // Validação rigorosa
-    if (!name || !specialty || !experience || specialty.length < 2) {
-      return new Response('Invalid profile data', { status: 400, headers: corsHeaders })
-    }
+    if (!name || typeof name !== 'string' || name.length < 2) return new Response('Invalid Name', { status: 400, headers: corsHeaders })
+    if (!specialty || typeof specialty !== 'string') return new Response('Invalid Specialty', { status: 400, headers: corsHeaders })
+    if (!experience || typeof experience !== 'string') return new Response('Invalid Experience', { status: 400, headers: corsHeaders })
 
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
+    if (!GEMINI_API_KEY) return new Response('AI Key missing', { status: 500, headers: corsHeaders })
+
     console.log(`[generate-bio] Gerando para: ${user.id}`)
+
+    const promptText = `Crie uma biografia profissional curta (máx 400 caracteres) para um ${specialty} chamado ${name}, com experiência em ${experience}, localizado em ${city}-${state}. Use a primeira pessoa e tom profissional.`
 
     const prompt = {
       contents: [{
-        parts: [{
-          text: `Crie uma biografia profissional curta (máx 400 caracteres) para um ${specialty} chamado ${name}, com experiência em ${experience}, localizado em ${city}-${state}. Use a primeira pessoa e tom profissional.`
-        }]
+        parts: [{ text: promptText }]
       }]
     }
 

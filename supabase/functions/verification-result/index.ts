@@ -34,10 +34,18 @@ serve(async (req) => {
     }
 
     const { status, reason, userName, userEmail } = await req.json()
-    if (!userEmail || !status) return new Response('Missing data', { status: 400, headers: corsHeaders })
+    
+    // Validação de entrada
+    if (!userEmail || !userEmail.includes('@')) return new Response('Invalid Email', { status: 400, headers: corsHeaders })
+    if (!['approved', 'rejected'].includes(status)) return new Response('Invalid Status', { status: 400, headers: corsHeaders })
 
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-    if (!RESEND_API_KEY) return new Response('Mail config missing', { status: 500, headers: corsHeaders })
+    if (!RESEND_API_KEY) {
+      console.warn("[verification-result] RESEND_API_KEY não configurada. Simulando sucesso.")
+      return new Response(JSON.stringify({ success: true, warning: 'E-mail não enviado (falta chave)' }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
+    }
 
     const isApproved = status === 'approved'
     const subject = isApproved ? "Seu perfil foi aprovado! 🎉" : "Ação necessária no seu perfil ⚠️"

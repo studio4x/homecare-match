@@ -7,25 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Auth } from '@supabase/auth-ui-react';
+import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { 
   CheckCircle, 
-  XCircle, 
-  ExternalLink, 
   ShieldCheck, 
   Loader2,
-  User,
-  AlertTriangle,
   LogOut,
   Users as UsersIcon,
   CreditCard,
   Search,
   Plus,
-  Trash2,
-  Edit
+  Edit,
+  Lock,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Navigate, Link } from "react-router-dom";
 import { 
   Table, 
   TableBody, 
@@ -40,14 +38,13 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-  DialogTrigger
+  DialogTitle
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Admin = () => {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, session, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -89,6 +86,8 @@ const Admin = () => {
       if (data?.is_admin) {
         setIsAdmin(true);
         await fetchData();
+      } else {
+        setIsAdmin(false);
       }
     } catch (err) {
       console.error("Erro admin:", err);
@@ -144,7 +143,7 @@ const Admin = () => {
       });
       toast.success("Profissional aprovado!");
       setPendingProfiles(prev => prev.filter(p => p.id !== profile.id));
-      fetchAllUsers(); // Atualizar lista geral
+      fetchAllUsers();
     } catch (error) {
       toast.error("Erro ao aprovar.");
     } finally {
@@ -222,7 +221,61 @@ const Admin = () => {
     </Layout>
   );
 
-  if (!user || !isAdmin) return <Navigate to="/dashboard" replace />;
+  if (!session) {
+    return (
+      <Layout>
+        <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
+          <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-card">
+            <div className="text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
+                <Lock className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">Acesso Administrativo</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Portal restrito para gestores da plataforma.</p>
+            </div>
+            
+            <div className="mt-8">
+              <Auth
+                supabaseClient={supabase}
+                appearance={{ theme: ThemeSupa }}
+                providers={[]}
+                theme="light"
+                localization={{
+                  variables: {
+                    sign_in: {
+                      email_label: 'E-mail Admin',
+                      password_label: 'Senha de Acesso',
+                      button_label: 'Entrar no Painel',
+                    }
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (session && !isAdmin) {
+    return (
+      <Layout>
+        <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
+          <div className="w-full max-w-md text-center space-y-6 rounded-2xl border border-destructive/20 bg-card p-8 shadow-card">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground">Acesso Negado</h2>
+            <p className="text-muted-foreground">Esta conta não possui privilégios administrativos para acessar este portal.</p>
+            <div className="flex flex-col gap-3">
+              <Button onClick={() => window.location.href = '/dashboard'}>Ir para meu Perfil</Button>
+              <Button variant="ghost" onClick={signOut} className="text-destructive">Sair e usar outra conta</Button>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -255,7 +308,6 @@ const Admin = () => {
               </TabsTrigger>
             </TabsList>
 
-            {/* Aba de Verificações */}
             <TabsContent value="verifications" className="space-y-4">
               <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
                 <Table>
@@ -296,7 +348,6 @@ const Admin = () => {
               </div>
             </TabsContent>
 
-            {/* Aba de Usuários */}
             <TabsContent value="users" className="space-y-4">
               <div className="flex flex-col md:flex-row gap-4 mb-4">
                 <div className="relative flex-1">
@@ -351,7 +402,6 @@ const Admin = () => {
               </div>
             </TabsContent>
 
-            {/* Aba de Planos */}
             <TabsContent value="plans" className="space-y-4">
               <div className="flex justify-end">
                 <Button className="gap-2" onClick={() => { setEditingPlan(null); setPlanModalOpen(true); }}>
@@ -378,10 +428,12 @@ const Admin = () => {
         </div>
       </div>
 
-      {/* Modal de Rejeição */}
       <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Reprovar Verificação</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Reprovar Verificação</DialogTitle>
+            <DialogDescription>Informe o motivo para que o profissional possa corrigir.</DialogDescription>
+          </DialogHeader>
           <Textarea placeholder="Motivo da reprovação..." value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} className="min-h-[100px]" />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>Cancelar</Button>
@@ -390,10 +442,12 @@ const Admin = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Planos */}
       <Dialog open={planModalOpen} onOpenChange={setPlanModalOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editingPlan ? 'Editar Plano' : 'Novo Plano'}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editingPlan ? 'Editar Plano' : 'Novo Plano'}</DialogTitle>
+            <DialogDescription>Configure os detalhes do plano de assinatura.</DialogDescription>
+          </DialogHeader>
           <form onSubmit={handleSavePlan} className="space-y-4">
             <div className="grid gap-2">
               <Label>ID do Plano (Slug)</Label>

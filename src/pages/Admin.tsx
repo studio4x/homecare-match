@@ -11,6 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
   ShieldCheck, 
   Loader2,
   LogOut,
@@ -58,6 +65,9 @@ const Admin = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessingVerification, setIsProcessingVerification] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
+
+  const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br";
 
   useEffect(() => {
     const checkGlobalAdmin = async () => {
@@ -81,7 +91,6 @@ const Admin = () => {
       
       try {
         setLoading(true);
-        // Chamada RPC é mais segura pois ignora recursividade de RLS no backend
         const { data, error } = await supabase.rpc('check_is_admin');
         
         if (!error && data === true) {
@@ -145,6 +154,30 @@ const Admin = () => {
       toast.error("Erro ao reprovar.");
     } finally {
       setIsProcessingVerification(false);
+    }
+  };
+
+  const handleUpdateRole = async (profileId: string, newRole: string) => {
+    setIsUpdatingRole(profileId);
+    try {
+      // Se for mudar para admin, verificamos a regra do e-mail (opcional, mas seguro)
+      // O banco de dados já deve refletir quem é quem
+      const { error } = await supabase
+        .from("profiles")
+        .update({ 
+          role: newRole,
+          is_admin: newRole === 'admin' 
+        })
+        .eq("id", profileId);
+
+      if (error) throw error;
+      toast.success("Função atualizada com sucesso!");
+      fetchData();
+    } catch (err: any) {
+      toast.error("Erro ao atualizar função.");
+      console.error(err);
+    } finally {
+      setIsUpdatingRole(null);
     }
   };
 
@@ -254,9 +287,34 @@ const Admin = () => {
                   <TableBody>
                     {allUsers.map(u => (
                       <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.full_name}</TableCell>
+                        <TableCell className="font-medium">{u.full_name || "Sem nome"}</TableCell>
                         <TableCell>{u.email}</TableCell>
-                        <TableCell><Badge variant="outline" className="capitalize">{u.role}</Badge></TableCell>
+                        <TableCell>
+                          {isUpdatingRole === u.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Select 
+                              defaultValue={u.role} 
+                              onValueChange={(value) => handleUpdateRole(u.id, value)}
+                              disabled={u.email === MASTER_ADMIN_EMAIL}
+                            >
+                              <SelectTrigger className="w-[140px] h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="professional">Profissional</SelectItem>
+                                <SelectItem value="company">Empresa</SelectItem>
+                                <SelectItem value="family">Família</SelectItem>
+                                <SelectItem 
+                                  value="admin" 
+                                  disabled={u.email !== MASTER_ADMIN_EMAIL}
+                                >
+                                  Admin
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </TableCell>
                         <TableCell>{u.is_verified ? <Badge className="bg-success">Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
                       </TableRow>
                     ))}

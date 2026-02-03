@@ -17,15 +17,21 @@ const Login = () => {
   const initialMode = location.hash === '#auth-sign-up' ? 'register' : 'login';
 
   useEffect(() => {
-    if (session && !authLoading) {
+    if (session && !authLoading && !isRedirecting) {
       const checkRoleAndRedirect = async () => {
         setIsRedirecting(true);
         try {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('profiles')
             .select('is_admin, role')
             .eq('id', session.user.id)
-            .single();
+            .maybeSingle();
+
+          if (error) {
+            console.error("[Login] Erro ao verificar papel:", error);
+            navigate('/dashboard', { replace: true });
+            return;
+          }
 
           if (data?.is_admin || data?.role === 'admin') {
             navigate('/admin', { replace: true });
@@ -33,7 +39,11 @@ const Login = () => {
             navigate('/dashboard', { replace: true });
           }
         } catch (error) {
+          console.error("[Login] Erro fatal no redirecionamento:", error);
           navigate('/dashboard', { replace: true });
+        } finally {
+          // Timeout de segurança para garantir que o loader suma caso o navigate demore
+          setTimeout(() => setIsRedirecting(false), 2000);
         }
       };
 
@@ -41,12 +51,14 @@ const Login = () => {
     }
   }, [session, authLoading, navigate]);
 
-  // Se estiver carregando auth inicial ou redirecionando, mostra o loader
   if (authLoading || (session && isRedirecting)) {
     return (
       <Layout>
         <div className="flex h-[60vh] items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground animate-pulse">Autenticando...</p>
+          </div>
         </div>
       </Layout>
     );

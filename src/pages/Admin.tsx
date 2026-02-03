@@ -43,7 +43,7 @@ const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminExists, setAdminExists] = useState(true); // Default to true for security (show login first)
+  const [adminExists, setAdminExists] = useState(true);
   
   const [pendingProfiles, setPendingProfiles] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -55,39 +55,46 @@ const Admin = () => {
   const [isProcessingVerification, setIsProcessingVerification] = useState(false);
 
   useEffect(() => {
-    // Check global admin status immediately for the form logic
     checkGlobalAdminStatus();
   }, []);
 
   useEffect(() => {
-    // Check current user status when auth changes
-    if (!authLoading && user) {
-      checkCurrentUserAdminStatus();
-    } else if (!authLoading && !user) {
-      setLoading(false);
+    if (!authLoading) {
+      if (user) {
+        checkCurrentUserAdminStatus();
+      } else {
+        setLoading(false);
+      }
     }
   }, [user, authLoading]);
 
   const checkGlobalAdminStatus = async () => {
     try {
-      // Use the secure RPC function
       const { data, error } = await supabase.rpc('any_admin_exists');
       if (!error && data !== null) {
         setAdminExists(data);
       }
     } catch (e) {
-      console.error("Error checking admin status", e);
+      console.error("[Admin] Erro ao verificar existência de admin:", e);
     }
   };
 
   const checkCurrentUserAdminStatus = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
-      const { data, error } = await supabase.from("profiles").select("is_admin, role").eq("id", user.id).single();
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("is_admin, role")
+        .eq("id", user.id)
+        .maybeSingle();
       
       if (error) {
-        console.error("Profile check error:", error);
+        console.error("[Admin] Erro ao buscar perfil:", error);
         setIsAdmin(false);
       } else if (data && (data.is_admin || data.role === 'admin')) {
         setIsAdmin(true);
@@ -95,21 +102,28 @@ const Admin = () => {
       } else {
         setIsAdmin(false);
       }
+    } catch (err) {
+      console.error("[Admin] Erro fatal:", err);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchData = async () => {
-    const [pending, users, plansData] = await Promise.all([
-      supabase.from("profiles").select("*").eq("verification_sent", true).eq("is_verified", false),
-      supabase.from("profiles").select("*").order('updated_at', { ascending: false }),
-      supabase.from("plans").select("*").order('price', { ascending: true })
-    ]);
-    
-    setPendingProfiles(pending.data || []);
-    setAllUsers(users.data || []);
-    setPlans(plansData.data || []);
+    try {
+      const [pending, users, plansData] = await Promise.all([
+        supabase.from("profiles").select("*").eq("verification_sent", true).eq("is_verified", false),
+        supabase.from("profiles").select("*").order('updated_at', { ascending: false }),
+        supabase.from("plans").select("*").order('price', { ascending: true })
+      ]);
+      
+      setPendingProfiles(pending.data || []);
+      setAllUsers(users.data || []);
+      setPlans(plansData.data || []);
+    } catch (error) {
+      console.error("[Admin] Erro ao carregar dados:", error);
+    }
   };
 
   const handleApprove = async (profileId: string) => {
@@ -158,11 +172,22 @@ const Admin = () => {
         }
       });
     } catch (e) {
-      console.error("Erro ao notificar usuário:", e);
+      console.error("[Admin] Erro ao notificar usuário:", e);
     }
   };
 
-  if (authLoading || loading) return <Layout><div className="flex h-96 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></Layout>;
+  if (authLoading || loading) {
+    return (
+      <Layout>
+        <div className="flex h-96 items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Verificando permissões...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
   
   if (!session) {
     return (
@@ -174,7 +199,6 @@ const Admin = () => {
               <h2 className="mt-6 text-3xl font-bold">Painel de Gestão</h2>
               <p className="mt-2 text-sm text-muted-foreground">Acesse com sua conta de administrador.</p>
             </div>
-            {/* Se admin existe, força login. Se não existe, permite registro do primeiro admin */}
             <AuthForm mode={adminExists ? "login" : "register"} allowRegister={!adminExists} />
           </div>
         </div>

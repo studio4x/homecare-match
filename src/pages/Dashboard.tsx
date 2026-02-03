@@ -15,17 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import Layout from "@/components/layout/Layout";
 import {
   Camera,
@@ -95,7 +84,7 @@ const Dashboard = () => {
         fetchProfile();
       }
     }
-  }, [authLoading, session, user]);
+  }, [authLoading, session, user?.id]);
 
   useEffect(() => {
     const state = location.state as { selectedPlan?: string };
@@ -106,18 +95,25 @@ const Dashboard = () => {
   }, [location.state]);
 
   const fetchProfile = async () => {
+    if (!user?.id) {
+      setIsLoadingProfile(false);
+      return;
+    }
+
     try {
-      if (!user?.id) return;
-      
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error("[Dashboard] Erro ao buscar perfil:", error);
+        throw error;
+      }
 
       if (data) {
+        // Redireciona admins para o painel correto
         if (data.is_admin || data.role === 'admin') {
           navigate('/admin', { replace: true });
           return;
@@ -140,9 +136,11 @@ const Dashboard = () => {
           id_document_url: data.id_document_url || "",
           prof_registration_url: data.prof_registration_url || ""
         });
+      } else {
+        console.warn("[Dashboard] Perfil não encontrado no banco de dados.");
       }
     } catch (err) {
-      console.error("Erro ao carregar perfil:", err);
+      console.error("[Dashboard] Erro fatal:", err);
     } finally {
       setIsLoadingProfile(false);
     }
@@ -297,7 +295,10 @@ const Dashboard = () => {
     return (
       <Layout>
         <div className="flex h-[80vh] items-center justify-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground animate-pulse">Carregando painel...</p>
+          </div>
         </div>
       </Layout>
     );

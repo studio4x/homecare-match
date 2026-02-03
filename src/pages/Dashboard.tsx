@@ -29,35 +29,25 @@ import {
 import Layout from "@/components/layout/Layout";
 import {
   Camera,
-  Save,
-  CheckCircle,
-  AlertCircle,
-  Award,
-  MapPin,
-  Briefcase,
-  LogOut,
-  Phone,
-  Loader2,
-  Mail,
-  RefreshCw,
-  Sparkles,
-  Trash2,
-  Star,
-  Zap,
-  CreditCard,
-  ShieldAlert,
-  FileText,
-  Upload,
-  FileCheck,
-  Send,
+  CheckCircle2,
   Clock,
-  CheckCircle2
+  ExternalLink,
+  FileCheck,
+  Loader2,
+  LogOut,
+  Mail,
+  Send,
+  ShieldAlert,
+  Sparkles,
+  Star,
+  Trash2,
+  Upload,
+  Zap
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { Navigate, useNavigate, useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { Navigate, useNavigate, useLocation, Link } from "react-router-dom";
 
 const Dashboard = () => {
   const { user, session, loading, signOut } = useAuth();
@@ -216,7 +206,6 @@ const Dashboard = () => {
 
     setIsSubmittingDocs(true);
     try {
-      // 1. Notifica a equipe via Edge Function
       await supabase.functions.invoke('notify-verification', {
         body: {
           userName: profile.full_name,
@@ -225,7 +214,6 @@ const Dashboard = () => {
         }
       });
 
-      // 2. Atualiza o status no banco de dados
       const { error } = await supabase
         .from("profiles")
         .update({ verification_sent: true })
@@ -233,7 +221,6 @@ const Dashboard = () => {
 
       if (error) throw error;
 
-      // 3. Atualiza estado local para refletir a mudança imediatamente
       setProfile(prev => ({ ...prev, verification_sent: true }));
       toast.success("Documentos enviados com sucesso!");
     } catch (error) {
@@ -328,11 +315,18 @@ const Dashboard = () => {
             </Alert>
           )}
 
-          <div className="mb-8 flex items-center justify-between">
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h1 className="text-3xl font-bold">Meu Perfil</h1>
-            <Button variant="ghost" onClick={signOut} className="gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-              <LogOut className="h-4 w-4" /> Sair
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild className="gap-2">
+                <Link to={`/profissional/${user?.id}`}>
+                  <ExternalLink className="h-4 w-4" /> Ver Perfil Público
+                </Link>
+              </Button>
+              <Button variant="ghost" onClick={signOut} className="gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                <LogOut className="h-4 w-4" /> Sair
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">

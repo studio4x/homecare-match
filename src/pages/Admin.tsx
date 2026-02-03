@@ -26,7 +26,8 @@ import {
   ThumbsDown,
   Edit2,
   Plus,
-  ShieldAlert
+  ShieldAlert,
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -60,11 +61,16 @@ const Admin = () => {
   
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
+  
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessingVerification, setIsProcessingVerification] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
 
   const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br";
@@ -160,8 +166,6 @@ const Admin = () => {
   const handleUpdateRole = async (profileId: string, newRole: string) => {
     setIsUpdatingRole(profileId);
     try {
-      // Se for mudar para admin, verificamos a regra do e-mail (opcional, mas seguro)
-      // O banco de dados já deve refletir quem é quem
       const { error } = await supabase
         .from("profiles")
         .update({ 
@@ -178,6 +182,27 @@ const Admin = () => {
       console.error(err);
     } finally {
       setIsUpdatingRole(null);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-delete-user', {
+        body: { targetUserId: userToDelete.id }
+      });
+
+      if (error) throw error;
+      
+      toast.success("Usuário excluído definitivamente!");
+      setDeleteModalOpen(false);
+      setUserToDelete(null);
+      fetchData();
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao excluir usuário.");
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -283,7 +308,15 @@ const Admin = () => {
             <TabsContent value="users">
               <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>E-mail</TableHead><TableHead>Função</TableHead><TableHead>Verificado</TableHead></TableRow></TableHeader>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>E-mail</TableHead>
+                      <TableHead>Função</TableHead>
+                      <TableHead>Verificado</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
                     {allUsers.map(u => (
                       <TableRow key={u.id}>
@@ -316,6 +349,21 @@ const Admin = () => {
                           )}
                         </TableCell>
                         <TableCell>{u.is_verified ? <Badge className="bg-success">Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
+                        <TableCell className="text-right">
+                          {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => {
+                                setUserToDelete(u);
+                                setDeleteModalOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -356,6 +404,7 @@ const Admin = () => {
         </div>
       </div>
 
+      {/* Modal de Reprovação */}
       <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Reprovar Verificação</DialogTitle><DialogDescription>Informe o motivo para {selectedProfile?.full_name}.</DialogDescription></DialogHeader>
@@ -367,6 +416,7 @@ const Admin = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Modal de Plano */}
       <Dialog open={planModalOpen} onOpenChange={setPlanModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -406,6 +456,41 @@ const Admin = () => {
               <Button type="submit" disabled={isSavingPlan}>{isSavingPlan ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null} Salvar</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Exclusão de Usuário */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Excluir Usuário Definitivamente
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Esta ação é **irreversível**. Todos os dados de perfil, documentos e o acesso do usuário <strong>{userToDelete?.full_name || userToDelete?.email}</strong> serão excluídos permanentemente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => {
+                setDeleteModalOpen(false);
+                setUserToDelete(null);
+              }}
+              disabled={isDeletingUser}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteUser}
+              disabled={isDeletingUser}
+            >
+              {isDeletingUser ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Excluir Definitivamente
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Layout>

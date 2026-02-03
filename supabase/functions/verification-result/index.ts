@@ -1,24 +1,12 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
-
-// HTML escape function to prevent XSS in emails
-const escapeHtml = (str: string): string => {
-  if (!str) return '';
-  const map: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  };
-  return str.replace(/[&<>"']/g, char => map[char]);
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -48,58 +36,70 @@ serve(async (req) => {
 
     const { status, reason, userName, userEmail } = await req.json()
     
-    // Comprehensive input validation
-    if (!userEmail || typeof userEmail !== 'string' || !userEmail.includes('@') || userEmail.length > 255) {
-      return new Response('Invalid Email', { status: 400, headers: corsHeaders })
-    }
-    if (!['approved', 'rejected'].includes(status)) {
-      return new Response('Invalid Status', { status: 400, headers: corsHeaders })
-    }
-    if (userName && (typeof userName !== 'string' || userName.length > 200)) {
-      return new Response('Invalid userName', { status: 400, headers: corsHeaders })
-    }
-    if (reason && (typeof reason !== 'string' || reason.length > 500)) {
-      return new Response('Invalid reason', { status: 400, headers: corsHeaders })
-    }
-
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-    if (!RESEND_API_KEY) {
-      console.warn("[verification-result] RESEND_API_KEY não configurada. Simulando sucesso.")
-      return new Response(JSON.stringify({ success: true, warning: 'E-mail não enviado (falta chave)' }), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
-    }
-
     const isApproved = status === 'approved'
     const subject = isApproved ? "Seu perfil foi aprovado! 🎉" : "Ação necessária no seu perfil ⚠️"
     
-    // Escape HTML to prevent XSS in email clients
-    const safeUserName = escapeHtml(userName || 'Usuário')
-    const safeReason = escapeHtml(reason || 'Motivo não especificado')
-    
     const htmlContent = isApproved 
-      ? `<p>Olá <strong>${safeUserName}</strong>,</p><p>Seu perfil foi verificado com sucesso!</p>`
-      : `<p>Olá <strong>${safeUserName}</strong>,</p><p>Sua verificação não foi aprovada: <strong>${safeReason}</strong></p>`
+      ? `
+        <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+          <h2 style="color: #16a34a;">Boas notícias, ${userName}!</h2>
+          <p>Seu perfil foi verificado com sucesso pela nossa equipe.</p>
+          <p>Agora você já possui o selo de confiança e seu perfil aparecerá com destaque nas buscas das empresas.</p>
+          <div style="margin-top: 25px;">
+            <a href="https://rkjvtnadqkbwomgzyswr.supabase.co/dashboard" 
+               style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              Ir para meu Painel
+            </a>
+          </div>
+        </div>
+      `
+      : `
+        <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+          <h2 style="color: #dc2626;">Olá, ${userName}</h2>
+          <p>Sua solicitação de verificação não foi aprovada neste momento.</p>
+          <div style="margin: 20px 0; padding: 15px; background: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px;">
+            <p><strong>Motivo:</strong> ${reason || "Não especificado."}</p>
+          </div>
+          <p>Por favor, revise seus dados e envie os documentos novamente através do seu painel.</p>
+          <div style="margin-top: 25px;">
+            <a href="https://rkjvtnadqkbwomgzyswr.supabase.co/dashboard" 
+               style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              Acessar Painel
+            </a>
+          </div>
+        </div>
+      `;
 
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
+    // Configurar cliente SMTP
+    const client = new SMTPClient({
+      connection: {
+        hostname: Deno.env.get('SMTP_HOST') || "",
+        port: parseInt(Deno.env.get('SMTP_PORT') || "587"),
+        tls: true,
+        auth: {
+          user: Deno.env.get('SMTP_USER') || "",
+          pass: Deno.env.get('SMTP_PASS') || "",
+        },
       },
-      body: JSON.stringify({
-        from: 'HomeCareMatch <onboarding@resend.dev>',
-        to: [userEmail],
-        subject: subject,
-        html: htmlContent,
-      }),
-    })
+    });
 
-    return new Response(JSON.stringify({ success: res.ok }), { 
+    // Enviar e-mail para o profissional
+    await client.send({
+      from: Deno.env.get('SMTP_USER') || "notificacoes@homecarematch.com.br",
+      to: userEmail,
+      subject: subject,
+      content: "text/html",
+      html: htmlContent,
+    });
+
+    await client.close();
+    console.log(`[verification-result] E-mail de ${status} enviado para ${userEmail}`);
+
+    return new Response(JSON.stringify({ success: true }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     })
   } catch (error) {
-    console.error("[verification-result] Erro:", error)
-    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: corsHeaders })
+    console.error("[verification-result] Erro:", error.message)
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
   }
 })

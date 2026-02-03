@@ -12,6 +12,12 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
+    // CONFIGURAÇÃO DO DOMÍNIO
+    // Para facilitar ajustes futuros:
+    // 1. O sistema tenta ler a variável de ambiente SITE_URL
+    // 2. Se não existir, usa o valor padrão hardcoded abaixo
+    const SITE_URL = Deno.env.get('SITE_URL') || "https://homecarematch.lovable.app";
+
     // Verificar configurações SMTP
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpPort = Deno.env.get('SMTP_PORT');
@@ -43,7 +49,7 @@ serve(async (req) => {
     const transporter = createTransport({
       host: smtpHost,
       port: parseInt(smtpPort || "587"),
-      secure: parseInt(smtpPort || "587") === 465, // true para 465, false para outras portas
+      secure: parseInt(smtpPort || "587") === 465,
       auth: {
         user: smtpUser,
         pass: smtpPass,
@@ -64,7 +70,14 @@ serve(async (req) => {
             <p><strong>ID:</strong> ${userId}</p>
           </div>
           <p>Acesse o painel administrativo para validar.</p>
-          <a href="${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.lovable.app')}/admin" style="display:inline-block; padding:10px 20px; background:#2563eb; color:white; text-decoration:none; border-radius:5px;">Acessar Admin</a>
+          <div style="margin-top: 20px;">
+            <a href="${SITE_URL}/admin" style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">
+              Acessar Painel Admin
+            </a>
+          </div>
+          <p style="font-size: 12px; color: #64748b; margin-top: 20px;">
+            Link configurado para: ${SITE_URL}
+          </p>
         </div>
       `,
     });

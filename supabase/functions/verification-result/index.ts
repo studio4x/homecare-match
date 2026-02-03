@@ -12,6 +12,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
+    // CONFIGURAÇÃO DO DOMÍNIO
+    const SITE_URL = Deno.env.get('SITE_URL') || "https://homecarematch.lovable.app";
+
     // Verificar configurações SMTP
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpPort = Deno.env.get('SMTP_PORT');
@@ -51,6 +54,14 @@ serve(async (req) => {
     const isApproved = status === 'approved';
     const subject = isApproved ? "Seu perfil foi aprovado! 🎉" : "Ação necessária no seu perfil ⚠️";
     
+    const actionButton = `
+      <div style="margin-top: 25px;">
+        <a href="${SITE_URL}/dashboard" style="display:inline-block; padding:12px 24px; background:${isApproved ? '#16a34a' : '#2563eb'}; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">
+          Acessar Meu Painel
+        </a>
+      </div>
+    `;
+    
     const htmlContent = isApproved 
       ? `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
            <div style="text-align: center; margin-bottom: 20px;">
@@ -63,6 +74,7 @@ serve(async (req) => {
              ✅ Perfil Verificado com Sucesso
            </div>
            <p>Continue mantendo seu perfil atualizado!</p>
+           ${actionButton}
          </div>` 
       : `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
            <div style="text-align: center; margin-bottom: 20px;">
@@ -75,6 +87,7 @@ serve(async (req) => {
              <p style="margin: 5px 0 0 0; color: #7f1d1d;">${reason}</p>
            </div>
            <p>Não se preocupe! Você pode acessar seu painel, corrigir o problema e enviar os documentos novamente para análise.</p>
+           ${actionButton}
          </div>`;
 
     await transporter.sendMail({

@@ -331,7 +331,14 @@ const Admin = () => {
               </div>
               <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Preço</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableHeader>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Preço</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
                     {plans.length > 0 ? plans.map(p => (
                       <TableRow key={p.id}>

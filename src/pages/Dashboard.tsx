@@ -28,7 +28,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router-dom";
-import { differenceInDays, addDays } from "date-fns";
+import { differenceInDays, addDays, isValid, parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
 
 const Dashboard = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -87,6 +88,7 @@ const Dashboard = () => {
       if (error) throw error;
 
       if (data) {
+        // Redireciona admins para o painel correto
         if (data.is_admin || data.role === 'admin') {
           navigate('/admin', { replace: true });
           return;
@@ -112,7 +114,8 @@ const Dashboard = () => {
         });
       }
     } catch (err) {
-      console.error("[Dashboard] Erro:", err);
+      console.error("[Dashboard] Erro ao carregar perfil:", err);
+      toast.error("Erro ao carregar dados do perfil.");
     } finally {
       setIsLoadingProfile(false);
     }
@@ -141,9 +144,10 @@ const Dashboard = () => {
       if (updateError) throw updateError;
 
       setProfile(prev => ({ ...prev, ...updateData }));
-      toast.success("Documento carregado com sucesso!");
+      toast.success("Arquivo carregado com sucesso!");
     } catch (error: any) {
-      toast.error("Erro no upload.");
+      console.error("[Dashboard] Erro upload:", error);
+      toast.error("Erro ao enviar arquivo.");
     } finally {
       setIsUploadingDoc(null);
     }
@@ -165,9 +169,9 @@ const Dashboard = () => {
       if (error) throw error;
       
       setProfile(prev => ({ ...prev, verification_sent: true }));
-      toast.success("Solicitação enviada!");
+      toast.success("Solicitação de verificação enviada!");
     } catch (err: any) {
-      toast.error("Erro ao enviar solicitação.");
+      toast.error("Erro ao solicitar verificação.");
     } finally {
       setIsRequestingVerification(false);
     }
@@ -175,7 +179,7 @@ const Dashboard = () => {
 
   const handleGenerateBio = async () => {
     if (!profile.full_name || !profile.specialty || !profile.experience) {
-      toast.error("Preencha seu nome, especialidade e formações primeiro.");
+      toast.error("Preencha nome, especialidade e formações primeiro.");
       return;
     }
 
@@ -195,11 +199,11 @@ const Dashboard = () => {
       
       if (data?.bio) {
         setProfile(prev => ({ ...prev, bio: data.bio }));
-        toast.success("Biografia gerada com sucesso!");
+        toast.success("Biografia profissional gerada!");
       }
     } catch (err: any) {
       console.error("[Dashboard] Erro IA:", err);
-      toast.error("Erro ao gerar biografia.");
+      toast.error("Erro ao gerar biografia automática.");
     } finally {
       setIsGeneratingBio(false);
     }
@@ -208,34 +212,43 @@ const Dashboard = () => {
   const handleSave = async () => {
     if (!user) return;
     setIsSaving(true);
-    const { error } = await supabase.from("profiles").update({
-      full_name: profile.full_name,
-      phone: profile.phone,
-      bio: profile.bio,
-      experience: profile.experience,
-      city: profile.city,
-      state: profile.state,
-      neighborhood: profile.neighborhood,
-      specialty: profile.specialty,
-      registration: profile.registration
-    }).eq("id", user.id);
+    try {
+      const { error } = await supabase.from("profiles").update({
+        full_name: profile.full_name,
+        phone: profile.phone,
+        bio: profile.bio,
+        experience: profile.experience,
+        city: profile.city,
+        state: profile.state,
+        neighborhood: profile.neighborhood,
+        specialty: profile.specialty,
+        registration: profile.registration
+      }).eq("id", user.id);
 
-    if (error) toast.error("Erro ao salvar.");
-    else {
-      toast.success("Perfil atualizado!");
+      if (error) throw error;
+      
+      toast.success("Perfil atualizado com sucesso!");
       setIsEditing(false);
+    } catch (error) {
+      toast.error("Erro ao salvar alterações.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const getTrialInfo = () => {
     if (profile.subscription_tier !== 'free_trial' || !profile.trial_started_at) return null;
     
-    const startDate = new Date(profile.trial_started_at);
+    const startDate = parseISO(profile.trial_started_at);
+    if (!isValid(startDate)) return null;
+
     const endDate = addDays(startDate, 30);
-    const daysRemaining = differenceInDays(endDate, new Date());
+    const now = new Date();
+    const daysRemaining = differenceInDays(endDate, now);
     const daysPassed = 30 - daysRemaining;
-    const progress = Math.min(100, Math.max(0, (daysPassed / 30) * 100));
+    
+    // Proteção contra NaN no componente Progress
+    const progress = Math.min(100, Math.max(0, (daysPassed / 30) * 100)) || 0;
     
     return {
       daysRemaining: Math.max(0, daysRemaining),
@@ -255,7 +268,9 @@ const Dashboard = () => {
   }
 
   const isEmailConfirmed = !!user?.email_confirmed_at;
-  const initials = profile.full_name ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() : "??";
+  const initials = profile.full_name 
+    ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() 
+    : "??";
   const trial = getTrialInfo();
 
   return (
@@ -266,7 +281,7 @@ const Dashboard = () => {
             <Alert variant="destructive" className="mb-8">
               <Mail className="h-4 w-4" />
               <AlertTitle>Confirme seu e-mail</AlertTitle>
-              <AlertDescription>Valide seu e-mail para que seu perfil apareça nas buscas.</AlertDescription>
+              <AlertDescription>Seu perfil só ficará visível para buscas após a confirmação do e-mail.</AlertDescription>
             </Alert>
           )}
 
@@ -314,15 +329,14 @@ const Dashboard = () => {
                   <div className="flex flex-col items-center py-4 text-center bg-success/5 rounded-xl border border-success/20">
                     <CheckCircle2 className="h-10 w-10 text-success mb-2" />
                     <p className="font-semibold text-success">Perfil Verificado</p>
-                    <p className="text-[10px] text-muted-foreground mt-1 px-4">Seu selo está ativo para todas as empresas.</p>
+                    <p className="text-[10px] text-muted-foreground mt-1 px-4">Seu selo de confiança está ativo.</p>
                   </div>
                 ) : profile.verification_sent ? (
                   <div className="flex flex-col items-center py-6 text-center bg-primary/5 rounded-xl border border-primary/20">
                     <Clock className="h-10 w-10 text-primary animate-pulse mb-3" />
                     <h4 className="font-semibold text-primary mb-2">Documentos em Análise</h4>
                     <p className="text-xs text-muted-foreground px-4 leading-relaxed">
-                      Seus documentos foram enviados e estão sendo analisados pela nossa equipe. 
-                      Você receberá um e-mail com o resultado da aprovação em breve.
+                      Seus documentos foram enviados e serão analisados. Você receberá um e-mail informando a decisão sobre a aprovação.
                     </p>
                   </div>
                 ) : (
@@ -392,7 +406,7 @@ const Dashboard = () => {
                 </div>
                 {profile.subscription_tier === 'free_trial' && (
                   <p className="text-[10px] text-muted-foreground mt-2 italic">
-                    * Após os 30 dias, seu perfil deixará de aparecer no topo das buscas.
+                    * Após 30 dias, seu perfil deixará de aparecer no topo das buscas.
                   </p>
                 )}
               </div>
@@ -455,7 +469,7 @@ const Dashboard = () => {
                       value={profile.experience} 
                       onChange={e => setProfile({...profile, experience: e.target.value})} 
                       disabled={!isEditing} 
-                      className="h-32"
+                      className="min-h-[120px]"
                       placeholder="Cursos, especializações e histórico acadêmico..."
                     />
                   </div>
@@ -467,7 +481,7 @@ const Dashboard = () => {
                         <Button 
                           type="button" 
                           variant="outline" 
-                          size="xs" 
+                          size="sm"
                           className="h-7 gap-1 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20"
                           onClick={handleGenerateBio}
                           disabled={isGeneratingBio}
@@ -481,8 +495,8 @@ const Dashboard = () => {
                       value={profile.bio} 
                       onChange={e => setProfile({...profile, bio: e.target.value})} 
                       disabled={!isEditing} 
-                      className="h-32"
-                      placeholder="Conte um pouco sobre sua trajetória e diferenciais..."
+                      className="min-h-[120px]"
+                      placeholder="Conte um pouco sobre sua trajetória..."
                     />
                   </div>
                 </div>

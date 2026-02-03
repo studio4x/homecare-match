@@ -45,6 +45,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminExists, setAdminExists] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -70,7 +71,9 @@ const Admin = () => {
   }, [user, authLoading]);
 
   const checkInitialStatus = async () => {
-    // 1. Verifica se existe qualquer admin no sistema
+    if (authLoading) return;
+
+    // 1. Verifica se existe qualquer admin no sistema para o modo de registro
     const { count } = await supabase
       .from("profiles")
       .select("*", { count: 'exact', head: true })
@@ -78,20 +81,23 @@ const Admin = () => {
     
     setAdminExists((count || 0) > 0);
 
-    // 2. Se estiver logado, verifica se o usuário atual é admin
-    if (!authLoading && user) {
-      const { data } = await supabase
+    // 2. Se estiver logado, verifica privilégios
+    if (user) {
+      setIsCheckingAdmin(true);
+      const { data, error } = await supabase
         .from("profiles")
-        .select("is_admin")
+        .select("is_admin, role")
         .eq("id", user?.id)
         .maybeSingle();
       
-      if (data?.is_admin) {
+      if (data && (data.is_admin || data.role === 'admin')) {
         setIsAdmin(true);
         await fetchData();
       } else {
         setIsAdmin(false);
+        if (error) console.error("Erro ao verificar admin:", error);
       }
+      setIsCheckingAdmin(false);
     }
     setLoading(false);
   };
@@ -213,10 +219,13 @@ const Admin = () => {
     return matchesSearch && matchesRole;
   });
 
-  if (authLoading || loading) return (
+  if (authLoading || loading || isCheckingAdmin) return (
     <Layout>
       <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground animate-pulse">Verificando credenciais...</p>
+        </div>
       </div>
     </Layout>
   );

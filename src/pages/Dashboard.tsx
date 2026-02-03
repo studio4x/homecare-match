@@ -91,9 +91,10 @@ const Dashboard = () => {
     if (!user?.id) return;
 
     try {
+      // Adicionando rejection_reason explicitamente para garantir que venha na query
       const { data, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select("*, rejection_reason")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -204,11 +205,12 @@ const Dashboard = () => {
       // Limpa o motivo da rejeição para permitir novo envio
       const { error } = await supabase
         .from("profiles")
-        .update({ rejection_reason: null })
+        .update({ rejection_reason: null, verification_sent: false })
         .eq("id", user.id);
 
       if (error) throw error;
-      setProfile(prev => ({ ...prev, rejection_reason: null }));
+      setProfile(prev => ({ ...prev, rejection_reason: null, verification_sent: false }));
+      toast.success("Agora você pode reenviar seus documentos.");
     } catch (err) {
       console.error(err);
       toast.error("Erro ao reiniciar processo.");
@@ -361,25 +363,30 @@ const Dashboard = () => {
             <div className="space-y-6">
               <div className="rounded-2xl border bg-card p-6 shadow-card">
                 <h3 className="mb-4 font-semibold">Status de Verificação</h3>
+                
+                {/* Lógica de Exibição Condicional */}
                 {profile.is_verified ? (
+                  // ESTADO: VERIFICADO (VERDE)
                   <div className="flex flex-col items-center py-4 text-center bg-success/5 rounded-xl border border-success/20">
                     <CheckCircle2 className="h-10 w-10 text-success mb-2" />
                     <p className="font-semibold text-success">Perfil Verificado</p>
                     <p className="text-[10px] text-muted-foreground mt-1 px-4">Seu selo de confiança está ativo.</p>
                   </div>
                 ) : profile.rejection_reason ? (
+                  // ESTADO: REPROVADO (VERMELHO) - Prioridade sobre o padrão
                   <div className="flex flex-col items-center py-6 text-center bg-destructive/5 rounded-xl border border-destructive/20 animate-fade-in">
                     <AlertOctagon className="h-10 w-10 text-destructive mb-3" />
                     <h4 className="font-semibold text-destructive mb-2">Documentos Reprovados</h4>
                     <p className="text-xs text-muted-foreground px-4 mb-4 leading-relaxed">
-                      O motivo da recusa foi enviado por e-mail. Por favor, corrija os problemas e envie novamente.
+                      O motivo da recusa foi enviado para seu e-mail. Por favor, verifique, corrija os problemas e tente novamente.
                     </p>
-                    <Button variant="destructive" size="sm" onClick={handleRetryVerification} className="gap-2">
+                    <Button variant="destructive" size="sm" onClick={handleRetryVerification} className="gap-2 w-full">
                       <RotateCcw className="h-3 w-3" />
                       Enviar Novos Documentos
                     </Button>
                   </div>
                 ) : profile.verification_sent ? (
+                  // ESTADO: PENDENTE (AZUL)
                   <div className="flex flex-col items-center py-6 text-center bg-primary/5 rounded-xl border border-primary/20">
                     <Clock className="h-10 w-10 text-primary animate-pulse mb-3" />
                     <h4 className="font-semibold text-primary mb-2">Documentos em Análise</h4>
@@ -388,6 +395,7 @@ const Dashboard = () => {
                     </p>
                   </div>
                 ) : (
+                  // ESTADO: PADRÃO / UPLOAD
                   <div className="space-y-4">
                     <p className="text-xs text-muted-foreground mb-4">Envie seus documentos para ganhar o selo de verificação.</p>
                     <div className="space-y-3">

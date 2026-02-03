@@ -13,11 +13,8 @@ import {
   ShieldCheck, 
   Loader2,
   LogOut,
-  Users as UsersIcon,
-  CreditCard,
   Search,
   Plus,
-  Edit,
   Lock,
   AlertTriangle,
   ExternalLink,
@@ -57,112 +54,70 @@ import { Link } from "react-router-dom";
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminExists, setAdminExists] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   
-  // States para Verificações
   const [pendingProfiles, setPendingProfiles] = useState<any[]>([]);
-  const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<any>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
-
-  // States para Usuários
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState("");
   const [userRoleFilter, setUserRoleFilter] = useState("all");
   const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
   const [isCreatingUser, setIsCreatingUser] = useState(false);
-
-  // States para Planos
   const [plans, setPlans] = useState<any[]>([]);
-  const [planModalOpen, setPlanModalOpen] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<any>(null);
 
   useEffect(() => {
-    checkInitialStatus();
+    if (!authLoading) {
+      checkAdminStatus();
+    }
   }, [user, authLoading]);
 
-  const checkInitialStatus = async () => {
-    if (authLoading) return;
-
+  const checkAdminStatus = async () => {
     try {
-      // 1. Verifica se existe qualquer admin no sistema
-      const { count, error: countError } = await supabase
+      setLoading(true);
+
+      // 1. Verifica se existe algum admin no sistema
+      const { count } = await supabase
         .from("profiles")
         .select("*", { count: 'exact', head: true })
         .eq("is_admin", true);
-      
-      if (countError) console.error("Erro ao contar admins:", countError);
       setAdminExists((count || 0) > 0);
 
-      // 2. Se estiver logado, verifica privilégios
       if (user) {
-        setIsCheckingAdmin(true);
-        // Forçamos a busca do perfil sem cache para garantir que pegamos o status de admin
+        // 2. Busca o perfil do usuário logado diretamente
         const { data, error } = await supabase
           .from("profiles")
           .select("is_admin, role")
-          .eq("id", user?.id)
-          .maybeSingle();
-        
-        console.log("[Admin] Verificação de privilégios:", { data, error, userId: user.id });
+          .eq("id", user.id)
+          .single();
 
-        if (data && (data.is_admin === true || data.role === 'admin')) {
+        if (error) {
+          console.error("Erro ao buscar perfil admin:", error);
+          setIsAdmin(false);
+        } else if (data && (data.is_admin || data.role === 'admin')) {
           setIsAdmin(true);
           await fetchData();
         } else {
           setIsAdmin(false);
-          if (error) {
-            console.error("Erro ao verificar admin:", error);
-            toast.error("Erro ao validar permissões de administrador.");
-          }
         }
-        setIsCheckingAdmin(false);
       }
     } catch (err) {
-      console.error("[Admin] Erro crítico na inicialização:", err);
+      console.error("Erro crítico no Admin:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchData = async () => {
-    try {
-      await Promise.all([
-        fetchPendingVerifications(),
-        fetchAllUsers(),
-        fetchPlans()
-      ]);
-    } catch (err) {
-      console.error("[Admin] Erro ao carregar dados:", err);
-    }
-  };
-
-  const fetchPendingVerifications = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("verification_sent", true)
-      .eq("is_verified", false);
-    setPendingProfiles(data || []);
-  };
-
-  const fetchAllUsers = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .order('created_at', { ascending: false });
-    setAllUsers(data || []);
-  };
-
-  const fetchPlans = async () => {
-    const { data } = await supabase
-      .from("plans")
-      .select("*")
-      .order('created_at', { ascending: true });
-    setPlans(data || []);
+    const [pending, users, plansData] = await Promise.all([
+      supabase.from("profiles").select("*").eq("verification_sent", true).eq("is_verified", false),
+      supabase.from("profiles").select("*").order('created_at', { ascending: false }),
+      supabase.from("plans").select("*").order('created_at', { ascending: true })
+    ]);
+    
+    setPendingProfiles(pending.data || []);
+    setAllUsers(users.data || []);
+    setPlans(plansData.data || []);
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -179,63 +134,14 @@ const Admin = () => {
           role: formData.get('role')
         }
       });
-
       if (error) throw error;
-      toast.success("Usuário criado com sucesso!");
+      toast.success("Usuário criado!");
       setCreateUserModalOpen(false);
-      fetchAllUsers();
+      fetchData();
     } catch (err) {
       toast.error("Erro ao criar usuário.");
     } finally {
       setIsCreatingUser(false);
-    }
-  };
-
-  const handleApprove = async (profile: any) => {
-    setProcessingId(profile.id);
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ is_verified: true, verification_sent: false })
-        .eq("id", profile.id);
-
-      if (error) throw error;
-      await supabase.functions.invoke('verification-result', {
-        body: { profileId: profile.id, status: 'approved', userName: profile.full_name }
-      });
-      toast.success("Profissional aprovado!");
-      fetchData();
-    } catch (error) {
-      toast.error("Erro ao aprovar.");
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const confirmRejection = async () => {
-    setProcessingId(selectedProfile.id);
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ verification_sent: false })
-        .eq("id", selectedProfile.id);
-
-      if (error) throw error;
-      await supabase.functions.invoke('verification-result', {
-        body: { 
-          profileId: selectedProfile.id, 
-          status: 'rejected',
-          reason: rejectionReason,
-          userName: selectedProfile.full_name
-        }
-      });
-      toast.info("Solicitação reprovada.");
-      setRejectionModalOpen(false);
-      fetchData();
-    } catch (error) {
-      toast.error("Erro ao reprovar.");
-    } finally {
-      setProcessingId(null);
     }
   };
 
@@ -245,264 +151,121 @@ const Admin = () => {
     return matchesSearch && matchesRole;
   });
 
-  if (authLoading || loading || isCheckingAdmin) return (
+  if (authLoading || loading) return (
     <Layout>
       <div className="flex h-96 items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground animate-pulse">Autenticando gestor...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    </Layout>
+  );
+
+  if (!session) return (
+    <Layout>
+      <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
+        <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-card">
+          <div className="text-center">
+            <Lock className="mx-auto h-12 w-12 text-primary" />
+            <h2 className="mt-6 text-3xl font-bold">Painel de Gestão</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Acesse com sua conta de administrador.</p>
+          </div>
+          <AuthForm mode={adminExists ? "login" : "register"} allowRegister={!adminExists} />
         </div>
       </div>
     </Layout>
   );
 
-  // SE NÃO ESTIVER LOGADO -> MOSTRAR LOGIN
-  if (!session) {
-    return (
-      <Layout>
-        <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
-          <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-card">
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-                <Lock className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">Acesso Administrativo</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {adminExists 
-                  ? "Portal restrito para gestores da plataforma." 
-                  : "Nenhum administrador encontrado. Crie o primeiro acesso."}
-              </p>
-            </div>
-            
-            <div className="mt-8">
-              <AuthForm 
-                mode={adminExists ? "login" : "register"} 
-                allowRegister={!adminExists} 
-              />
-            </div>
+  if (!isAdmin) return (
+    <Layout>
+      <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
+        <div className="w-full max-w-md text-center space-y-6 rounded-2xl border border-destructive/20 bg-card p-8 shadow-card">
+          <AlertTriangle className="mx-auto h-16 w-16 text-destructive" />
+          <h2 className="text-2xl font-bold">Acesso Restrito</h2>
+          <p className="text-muted-foreground">O usuário <strong>{user?.email}</strong> não possui acesso administrativo.</p>
+          <div className="flex flex-col gap-3">
+            <Button onClick={checkAdminStatus} variant="outline" className="gap-2">
+              <RefreshCw className="h-4 w-4" /> Tentar Novamente
+            </Button>
+            <Button variant="ghost" onClick={signOut} className="text-destructive">Sair e usar outra conta</Button>
           </div>
         </div>
-      </Layout>
-    );
-  }
+      </div>
+    </Layout>
+  );
 
-  // SE ESTIVER LOGADO MAS NÃO FOR ADMIN -> ACESSO NEGADO
-  if (session && !isAdmin) {
-    return (
-      <Layout>
-        <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
-          <div className="w-full max-w-md text-center space-y-6 rounded-2xl border border-destructive/20 bg-card p-8 shadow-card">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
-              <AlertTriangle className="h-8 w-8 text-destructive" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground">Acesso Negado</h2>
-            <p className="text-muted-foreground">
-              Sua conta (<strong>{user?.email}</strong>) não possui privilégios administrativos.
-            </p>
-            <div className="flex flex-col gap-3">
-              <Button onClick={() => checkInitialStatus()} variant="outline" className="gap-2">
-                <RefreshCw className="h-4 w-4" /> Tentar Novamente
-              </Button>
-              <Button onClick={() => window.location.href = '/dashboard'}>Ir para meu Painel</Button>
-              <Button variant="ghost" onClick={signOut} className="text-destructive">Sair e usar outra conta</Button>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  // SE FOR ADMIN -> MOSTRAR PAINEL
   return (
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">
         <div className="container mx-auto px-4">
           <div className="mb-8 flex items-center justify-between">
             <h1 className="text-3xl font-bold flex items-center gap-3">
-              <ShieldCheck className="h-8 w-8 text-primary" /> Painel Administrativo
+              <ShieldCheck className="h-8 w-8 text-primary" /> Admin
             </h1>
-            <Button variant="ghost" onClick={signOut} className="gap-2 hover:bg-destructive/10 hover:text-destructive">
+            <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive">
               <LogOut className="h-4 w-4" /> Sair
             </Button>
           </div>
 
           <Tabs defaultValue="verifications" className="space-y-6">
-            <TabsList className="grid w-full max-w-md grid-cols-3">
-              <TabsTrigger value="verifications" className="gap-2">
-                Verificações
-                {pendingProfiles.length > 0 && (
-                  <Badge variant="destructive" className="ml-1 h-5 w-5 justify-center rounded-full p-0 text-[10px]">
-                    {pendingProfiles.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
+            <TabsList>
+              <TabsTrigger value="verifications">Verificações ({pendingProfiles.length})</TabsTrigger>
               <TabsTrigger value="users">Usuários</TabsTrigger>
               <TabsTrigger value="plans">Planos</TabsTrigger>
             </TabsList>
 
             <TabsContent value="verifications">
-              <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
+              <div className="rounded-xl border bg-card overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      <TableHead>Profissional</TableHead>
-                      <TableHead>Documentos</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader><TableRow><TableHead>Profissional</TableHead><TableHead>Documentos</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {pendingProfiles.length > 0 ? (
-                      pendingProfiles.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell>
-                            <div className="font-semibold">{p.full_name}</div>
-                            <div className="text-xs text-muted-foreground">{p.specialty}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => window.open(p.id_document_url, '_blank')}>RG/CNH</Button>
-                              <Button variant="outline" size="sm" onClick={() => window.open(p.prof_registration_url, '_blank')}>Registro</Button>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button variant="outline" size="sm" asChild className="gap-2">
-                                <Link to={`/profissional/${p.id}`} target="_blank">
-                                  <ExternalLink className="h-3 w-3" /> Ver Perfil
-                                </Link>
-                              </Button>
-                              <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}>Reprovar</Button>
-                              <Button size="sm" className="bg-success hover:bg-success/90" onClick={() => handleApprove(p)} disabled={!!processingId}>Aprovar</Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow><TableCell colSpan={3} className="text-center py-10 text-muted-foreground">Nenhuma verificação pendente.</TableCell></TableRow>
-                    )}
+                    {pendingProfiles.map(p => (
+                      <TableRow key={p.id}>
+                        <TableCell><div className="font-medium">{p.full_name}</div><div className="text-xs text-muted-foreground">{p.specialty}</div></TableCell>
+                        <TableCell><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => window.open(p.id_document_url)}>RG</Button><Button variant="outline" size="sm" onClick={() => window.open(p.prof_registration_url)}>Prof.</Button></div></TableCell>
+                        <TableCell className="text-right"><Button variant="ghost" size="sm" asChild><Link to={`/profissional/${p.id}`} target="_blank">Ver</Link></Button></TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
             </TabsContent>
 
             <TabsContent value="users" className="space-y-4">
-              <div className="flex flex-col md:flex-row gap-4 justify-between">
-                <div className="flex gap-4 flex-1">
-                  <div className="relative flex-1 max-sm:w-full max-w-sm">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Buscar por nome..." className="pl-10" value={userSearch} onChange={e => setUserSearch(e.target.value)} />
-                  </div>
-                  <Select value={userRoleFilter} onValueChange={setUserRoleFilter}>
-                    <SelectTrigger className="w-[180px]"><SelectValue placeholder="Cargo" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos os Cargos</SelectItem>
-                      <SelectItem value="professional">Profissionais</SelectItem>
-                      <SelectItem value="company">Empresas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button className="gap-2" onClick={() => setCreateUserModalOpen(true)}>
-                  <UserPlus className="h-4 w-4" /> Novo Usuário
-                </Button>
+              <div className="flex gap-4">
+                <Input placeholder="Buscar..." value={userSearch} onChange={e => setUserSearch(e.target.value)} className="max-w-sm" />
+                <Button className="gap-2" onClick={() => setCreateUserModalOpen(true)}><UserPlus className="h-4 w-4" /> Novo</Button>
               </div>
-
-              <div className="rounded-2xl border bg-card shadow-card overflow-hidden">
+              <div className="rounded-xl border bg-card overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-muted/50">
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>E-mail Validado</TableHead>
-                      <TableHead>Plano</TableHead>
-                      <TableHead>Cargo</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cargo</TableHead><TableHead>Plano</TableHead><TableHead className="text-right">Perfil</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {filteredUsers.length > 0 ? (
-                      filteredUsers.map((u) => (
-                        <TableRow key={u.id}>
-                          <TableCell className="font-medium">{u.full_name || 'Sem nome'}</TableCell>
-                          <TableCell>
-                            {u.email_confirmed ? (
-                              <Badge className="bg-success/10 text-success border-success/20 gap-1"><CheckCircle className="h-3 w-3" /> Validado</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-muted-foreground gap-1"><Mail className="h-3 w-3" /> Pendente</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="capitalize">
-                              {u.subscription_tier === 'yearly' ? 'Anual' : 'Mensal'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="capitalize">{u.role}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link to={`/profissional/${u.id}`} target="_blank">Ver</Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    ) : (
-                      <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">Nenhum usuário encontrado.</TableCell></TableRow>
-                    )}
+                    {filteredUsers.map(u => (
+                      <TableRow key={u.id}>
+                        <TableCell>{u.full_name || '---'}</TableCell>
+                        <TableCell className="capitalize">{u.role}</TableCell>
+                        <TableCell className="capitalize">{u.subscription_tier}</TableCell>
+                        <TableCell className="text-right"><Button variant="ghost" size="sm" asChild><Link to={`/profissional/${u.id}`} target="_blank">Perfil</Link></Button></TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="plans" className="space-y-4">
-              <div className="flex justify-end">
-                <Button className="gap-2" onClick={() => { setEditingPlan(null); setPlanModalOpen(true); }}>
-                  <Plus className="h-4 w-4" /> Novo Plano
-                </Button>
-              </div>
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {plans.map((plan) => (
-                  <div key={plan.id} className="rounded-2xl border bg-card p-6 shadow-card relative">
-                    {plan.popular && <Badge className="absolute -top-2 right-4 bg-primary">Popular</Badge>}
-                    <h3 className="text-xl font-bold">{plan.name}</h3>
-                    <p className="text-2xl font-bold text-primary mt-2">{plan.price} <span className="text-sm font-normal text-muted-foreground">/{plan.period}</span></p>
-                    <div className="mt-4"><Button variant="outline" size="sm" className="w-full" onClick={() => { setEditingPlan(plan); setPlanModalOpen(true); }}>Editar</Button></div>
-                  </div>
-                ))}
               </div>
             </TabsContent>
           </Tabs>
         </div>
       </div>
 
-      {/* Modais omitidos para brevidade mas mantidos no arquivo completo */}
       <Dialog open={createUserModalOpen} onOpenChange={setCreateUserModalOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Criar Novo Usuário</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Criar Usuário</DialogTitle></DialogHeader>
           <form onSubmit={handleCreateUser} className="space-y-4">
-            <div className="grid gap-2">
-              <Label>Nome Completo</Label>
-              <Input name="fullName" required />
-            </div>
-            <div className="grid gap-2">
-              <Label>E-mail</Label>
-              <Input name="email" type="email" required />
-            </div>
-            <div className="grid gap-2">
-              <Label>Senha Temporária</Label>
-              <Input name="password" type="password" required />
-            </div>
+            <div className="grid gap-2"><Label>Nome</Label><Input name="fullName" required /></div>
+            <div className="grid gap-2"><Label>E-mail</Label><Input name="email" type="email" required /></div>
+            <div className="grid gap-2"><Label>Senha</Label><Input name="password" type="password" required /></div>
             <div className="grid gap-2">
               <Label>Cargo</Label>
-              <Select name="role" defaultValue="professional">
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Profissional</SelectItem>
-                  <SelectItem value="company">Empresa</SelectItem>
-                </SelectContent>
-              </Select>
+              <Select name="role" defaultValue="professional"><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="professional">Profissional</SelectItem><SelectItem value="company">Empresa</SelectItem></SelectContent></Select>
             </div>
-            <DialogFooter>
-              <Button type="submit" disabled={isCreatingUser}>Criar</Button>
-            </DialogFooter>
+            <Button type="submit" className="w-full" disabled={isCreatingUser}>{isCreatingUser ? <Loader2 className="animate-spin h-4 w-4" /> : "Criar"}</Button>
           </form>
         </DialogContent>
       </Dialog>

@@ -12,6 +12,7 @@ import { Loader2, Eye, EyeOff, AlertCircle, MailWarning, MailCheck } from "lucid
 import { toast } from "sonner";
 
 const authSchema = z.object({
+  fullName: z.string().min(3, "Digite seu nome completo").optional(),
   email: z.string().email("E-mail inválido"),
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string().optional(),
@@ -23,6 +24,15 @@ const authSchema = z.object({
 }, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
+}).refine((data) => {
+  // Se estiver no modo registro (confirmPassword existe), fullName é obrigatório
+  if (data.confirmPassword !== undefined && (!data.fullName || data.fullName.trim().length < 3)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Nome completo é obrigatório",
+  path: ["fullName"],
 });
 
 type AuthFormData = z.infer<typeof authSchema>;
@@ -56,15 +66,14 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           password: data.password,
           options: {
             data: {
-              full_name: "", // Placeholder para o trigger handle_new_user
+              full_name: data.fullName,
             }
           }
         });
         if (error) throw error;
         
-        // Mensagem de sucesso com mais destaque
         toast.success("Conta criada com sucesso!", {
-          description: "Enviamos um link de confirmação para o seu e-mail. Por favor, verifique sua caixa de entrada (e a pasta de spam) para ativar sua conta.",
+          description: "Enviamos um link de confirmação para o seu e-mail. Por favor, verifique sua caixa de entrada para ativar sua conta.",
           icon: <MailCheck className="h-5 w-5 text-success" />,
           duration: 10000,
         });
@@ -79,7 +88,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         if (error) {
           if (error.message.includes("Email not confirmed")) {
             toast.error("Verifique seu e-mail para continuar.", {
-              description: "Enviamos um link de confirmação para sua caixa de entrada. Por favor, clique nele para ativar sua conta.",
+              description: "Clique no link de confirmação enviado para sua caixa de entrada.",
               icon: <MailWarning className="h-5 w-5" />,
               duration: 10000,
             });
@@ -100,6 +109,19 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
   return (
     <div className="space-y-6">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {mode === "register" && (
+          <div className="space-y-2 animate-fade-in">
+            <Label htmlFor="fullName">Nome Completo</Label>
+            <Input
+              id="fullName"
+              placeholder="Nome e Sobrenome"
+              {...register("fullName")}
+              className={errors.fullName ? "border-destructive" : ""}
+            />
+            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
+          </div>
+        )}
+
         <div className="space-y-2">
           <Label htmlFor="email">E-mail</Label>
           <Input

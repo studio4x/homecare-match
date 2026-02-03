@@ -29,7 +29,8 @@ import {
   ShieldAlert,
   Trash2,
   CreditCard,
-  Calendar
+  Calendar,
+  CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -63,6 +64,7 @@ const Admin = () => {
   const [plans, setPlans] = useState<any[]>([]);
   
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   
@@ -136,9 +138,11 @@ const Admin = () => {
     }
   };
 
-  const handleApprove = async (profileId: string) => {
+  const handleApprove = async () => {
+    if (!selectedProfile) return;
     setIsProcessingVerification(true);
     try {
+      const profileId = selectedProfile.id;
       // Encontrar dados do usuário para o e-mail
       const userToNotify = pendingProfiles.find(p => p.id === profileId);
 
@@ -160,7 +164,8 @@ const Admin = () => {
         });
       }
 
-      toast.success("Perfil aprovado!");
+      toast.success("Perfil aprovado com sucesso!");
+      setApproveModalOpen(false);
       fetchData();
     } catch (err: any) {
       toast.error("Erro ao aprovar.");
@@ -373,7 +378,7 @@ const Admin = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
-                          <Button variant="ghost" size="sm" className="text-success" onClick={() => handleApprove(p.id)}><ThumbsUp className="h-4 w-4 mr-1" />Aprovar</Button>
+                          <Button variant="ghost" size="sm" className="text-success" onClick={() => { setSelectedProfile(p); setApproveModalOpen(true); }}><ThumbsUp className="h-4 w-4 mr-1" />Aprovar</Button>
                         </TableCell>
                       </TableRow>
                     )) : <TableRow><TableCell colSpan={3} className="h-32 text-center text-muted-foreground">Nenhuma solicitação pendente.</TableCell></TableRow>}
@@ -540,6 +545,27 @@ const Admin = () => {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={handleReject} disabled={isProcessingVerification || !rejectionReason}>Confirmar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Aprovação */}
+      <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar Aprovação</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja aprovar a documentação de <strong>{selectedProfile?.full_name}</strong>?
+              <br/><br/>
+              Isso concederá o selo de verificado ao perfil e enviará um e-mail de notificação.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setApproveModalOpen(false)}>Cancelar</Button>
+            <Button className="bg-success hover:bg-success/90" onClick={handleApprove} disabled={isProcessingVerification}>
+              {isProcessingVerification ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Confirmar Aprovação
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

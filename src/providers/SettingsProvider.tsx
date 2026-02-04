@@ -2,11 +2,16 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { hexToHsl } from '@/lib/utils';
 
 interface Settings {
   logoUrl: string;
   faviconUrl: string;
   logoHeight: number;
+  primaryHex: string;
+  successHex: string;
+  backgroundHex: string;
+  foregroundHex: string;
 }
 
 interface SettingsContextType extends Settings {
@@ -17,6 +22,10 @@ const SettingsContext = createContext<SettingsContextType>({
   logoUrl: '',
   faviconUrl: '',
   logoHeight: 48,
+  primaryHex: '#007BFF',
+  successHex: '#28A745',
+  backgroundHex: '#F8F9FA',
+  foregroundHex: '#182742',
   loading: true,
 });
 
@@ -25,6 +34,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     logoUrl: '',
     faviconUrl: '',
     logoHeight: 48,
+    primaryHex: '#007BFF',
+    successHex: '#28A745',
+    backgroundHex: '#F8F9FA',
+    foregroundHex: '#182742',
   });
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +46,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       try {
         const { data, error } = await supabase
           .from('site_config')
-          .select('logo_url, favicon_url, logo_height_px')
+          .select('logo_url, favicon_url, logo_height_px, primary_hex, success_hex, background_hex, foreground_hex')
           .eq('id', 1)
           .single();
 
@@ -44,14 +57,32 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             logoUrl: data.logo_url || '',
             faviconUrl: data.favicon_url || '',
             logoHeight: data.logo_height_px || 48,
+            primaryHex: data.primary_hex || '#007BFF',
+            successHex: data.success_hex || '#28A745',
+            backgroundHex: data.background_hex || '#F8F9FA',
+            foregroundHex: data.foreground_hex || '#182742',
           };
           setSettings(newSettings);
 
-          // Atualiza o favicon dinamicamente
+          // Aplica as configurações
           const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
           if (favicon && newSettings.faviconUrl) {
             favicon.href = newSettings.faviconUrl;
           }
+
+          const root = document.documentElement;
+          const primaryHsl = hexToHsl(newSettings.primaryHex);
+          const successHsl = hexToHsl(newSettings.successHex);
+          const backgroundHsl = hexToHsl(newSettings.backgroundHex);
+          const foregroundHsl = hexToHsl(newSettings.foregroundHex);
+
+          if (primaryHsl) root.style.setProperty('--primary', primaryHsl);
+          if (successHsl) {
+            root.style.setProperty('--success', successHsl);
+            root.style.setProperty('--accent', successHsl); // Accent e Success usam a mesma cor
+          }
+          if (backgroundHsl) root.style.setProperty('--background', backgroundHsl);
+          if (foregroundHsl) root.style.setProperty('--foreground', foregroundHsl);
         }
       } catch (error) {
         console.error("Erro ao buscar configurações do site:", error);

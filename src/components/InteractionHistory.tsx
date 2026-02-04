@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, ArrowRight, Trash2, Building2, Home, Phone, Eye } from "lucide-react";
+import { Users, ArrowRight, Trash2, Building2, Home, Eye } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -23,6 +23,20 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+
+// Componente de Ícone do WhatsApp personalizado
+const WhatsAppIcon = ({ className, ...props }: React.ComponentProps<"svg">) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+    {...props}
+  >
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.272-.57-.422z" />
+    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.08L2 22l5.05-1.32A9.95 9.95 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.65 0-3.21-.49-4.54-1.33l-.33-.21-3.37.88.9-3.28-.21-.34A7.95 7.95 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z" />
+  </svg>
+);
 
 interface Interaction {
   interacted_at: string;
@@ -149,8 +163,8 @@ const InteractionHistory = ({
                       <Button variant="ghost" size="sm" onClick={() => handleViewProfileClick(profile)} className="gap-1.5 h-8">
                         <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Ver</span>
                       </Button>
-                      <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8">
-                        <span className="hidden sm:inline">Contato</span> <Phone className="h-3 w-3" />
+                      <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
+                        <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : (
@@ -215,16 +229,16 @@ const InteractionHistory = ({
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="flex items-center gap-3 rounded-lg border p-4">
-              <Phone className="h-5 w-5 text-primary" />
+              <WhatsAppIcon className="h-6 w-6 text-green-600" />
               <div>
                 <p className="text-sm text-muted-foreground">WhatsApp</p>
                 <p className="font-semibold">{selectedContact?.phone || "Não informado"}</p>
               </div>
             </div>
             {selectedContact?.phone && (
-              <Button asChild className="w-full gap-2">
+              <Button asChild className="w-full gap-2 bg-green-600 hover:bg-green-700">
                 <a href={`https://wa.me/${selectedContact.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path><path d="M14.05 2.95A16 16 0 0 1 21.05 9.95"></path><path d="M14.05 6.95A12 12 0 0 1 17.05 9.95"></path></svg>
+                  <WhatsAppIcon className="h-4 w-4" />
                   Iniciar Conversa
                 </a>
               </Button>

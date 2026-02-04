@@ -550,7 +550,7 @@ const Dashboard = () => {
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label>Nome Completo</Label>
+                      <Label>{isProfessional ? "Nome Completo" : "Nome (Empresa ou Responsável)"}</Label>
                       <Input value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} disabled={!isEditing} />
                     </div>
                     <div className="grid gap-2">
@@ -571,7 +571,7 @@ const Dashboard = () => {
                     )}
                   </div>
 
-                  {isProfessional && (
+                  {isProfessional ? (
                     <>
                       <div className="grid gap-2">
                         <Label>Formações</Label>
@@ -590,6 +590,27 @@ const Dashboard = () => {
                         <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Conte um pouco sobre sua trajetória..." />
                       </div>
                     </>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-2">
+                          <Label>Cidade</Label>
+                          <Input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value})} disabled={!isEditing} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Estado (UF)</Label>
+                          <Input value={profile.state} onChange={e => setProfile({...profile, state: e.target.value})} disabled={!isEditing} maxLength={2} />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Bairro</Label>
+                        <Input value={profile.neighborhood} onChange={e => setProfile({...profile, neighborhood: e.target.value})} disabled={!isEditing} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>{profile.role === 'company' ? 'Sobre a Empresa' : 'Descrição da Necessidade'}</Label>
+                        <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder={profile.role === 'company' ? 'Descreva brevemente sua empresa...' : 'Descreva a necessidade do paciente, o local do atendimento, etc...'} />
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

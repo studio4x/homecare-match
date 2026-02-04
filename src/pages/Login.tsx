@@ -4,7 +4,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import Layout from '@/components/layout/Layout';
 import AuthForm from '@/components/auth/AuthForm';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Heart, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -69,11 +69,9 @@ const Login = () => {
       <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
         <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-card">
           <div className="text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-              <Heart className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <img src="/logo.png" alt="HomeCareMatch" className="mx-auto h-24" />
             <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">
-              Portal HomeCareMatch
+              Portal de Acesso
             </h2>
           </div>
           <AuthForm mode={initialMode} />

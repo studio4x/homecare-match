@@ -31,20 +31,13 @@ import {
 import { translateAuthError } from "@/lib/error-utils";
 import { useNavigate } from "react-router-dom";
 
-// Esquema flexível para lidar com os dois métodos
+// REMOVIDO o superRefine daqui para evitar bloqueio no Login
+// A validação de senhas iguais será feita manualmente no onSubmit
 const authSchema = z.object({
   fullName: z.string().optional(),
   email: z.string({ required_error: "E-mail é obrigatório" }).email("Digite um e-mail válido"),
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
-}).superRefine((data, ctx) => {
-  if (data.confirmPassword !== undefined && data.password !== data.confirmPassword) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "As senhas não coincidem",
-      path: ["confirmPassword"],
-    });
-  }
 });
 
 type AuthFormData = z.infer<typeof authSchema>;
@@ -73,6 +66,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
     handleSubmit,
     formState: { errors },
     reset,
+    setError, // Usado para setar erro manual
   } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
     defaultValues: {
@@ -84,7 +78,9 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
   });
 
   const onSubmit = async (data: AuthFormData) => {
-    // Validação manual baseada no modo
+    // --- VALIDAÇÕES MANUAIS ---
+    
+    // Validação específica para REGISTRO
     if (mode === "register") {
       if (!data.fullName || data.fullName.length < 3) {
         toast.error("Nome completo é obrigatório");
@@ -94,8 +90,15 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         toast.error("A senha deve ter pelo menos 6 caracteres");
         return;
       }
+      // Aqui fazemos a verificação de senhas iguais apenas no registro
+      if (data.password !== data.confirmPassword) {
+        setError("confirmPassword", { message: "As senhas não coincidem" });
+        toast.error("As senhas não coincidem");
+        return;
+      }
     }
 
+    // Validação específica para LOGIN com SENHA
     if (mode === "login" && loginMethod === "password") {
       if (!data.password) {
         toast.error("Digite sua senha");

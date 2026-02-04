@@ -14,6 +14,7 @@ interface Settings {
   foregroundHex: string;
   footerLogoUrl: string;
   footerLogoHeight: number;
+  fontFamily: string;
 }
 
 interface SettingsContextType extends Settings {
@@ -30,6 +31,7 @@ const SettingsContext = createContext<SettingsContextType>({
   foregroundHex: '#182742',
   footerLogoUrl: '',
   footerLogoHeight: 32,
+  fontFamily: 'Inter',
   loading: true,
 });
 
@@ -44,6 +46,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     foregroundHex: '#182742',
     footerLogoUrl: '',
     footerLogoHeight: 32,
+    fontFamily: 'Inter',
   });
   const [loading, setLoading] = useState(true);
 
@@ -52,7 +55,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       try {
         const { data, error } = await supabase
           .from('site_config')
-          .select('logo_url, favicon_url, logo_height_px, primary_hex, success_hex, background_hex, foreground_hex, footer_logo_url, footer_logo_height_px')
+          .select('logo_url, favicon_url, logo_height_px, primary_hex, success_hex, background_hex, foreground_hex, footer_logo_url, footer_logo_height_px, font_family')
           .eq('id', 1)
           .single();
 
@@ -69,28 +72,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             foregroundHex: data.foreground_hex || '#182742',
             footerLogoUrl: data.footer_logo_url || '',
             footerLogoHeight: data.footer_logo_height_px || 32,
+            fontFamily: data.font_family || 'Inter',
           };
           setSettings(newSettings);
-
-          // Aplica as configurações
-          const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
-          if (favicon && newSettings.faviconUrl) {
-            favicon.href = newSettings.faviconUrl;
-          }
-
-          const root = document.documentElement;
-          const primaryHsl = hexToHsl(newSettings.primaryHex);
-          const successHsl = hexToHsl(newSettings.successHex);
-          const backgroundHsl = hexToHsl(newSettings.backgroundHex);
-          const foregroundHsl = hexToHsl(newSettings.foregroundHex);
-
-          if (primaryHsl) root.style.setProperty('--primary', primaryHsl);
-          if (successHsl) {
-            root.style.setProperty('--success', successHsl);
-            root.style.setProperty('--accent', successHsl); // Accent e Success usam a mesma cor
-          }
-          if (backgroundHsl) root.style.setProperty('--background', backgroundHsl);
-          if (foregroundHsl) root.style.setProperty('--foreground', foregroundHsl);
         }
       } catch (error) {
         console.error("Erro ao buscar configurações do site:", error);
@@ -101,6 +85,45 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      // Aplica as configurações de cor e favicon
+      const favicon = document.querySelector('link[rel="icon"]') as HTMLLinkElement;
+      if (favicon && settings.faviconUrl) {
+        favicon.href = settings.faviconUrl;
+      }
+
+      const root = document.documentElement;
+      const primaryHsl = hexToHsl(settings.primaryHex);
+      const successHsl = hexToHsl(settings.successHex);
+      const backgroundHsl = hexToHsl(settings.backgroundHex);
+      const foregroundHsl = hexToHsl(settings.foregroundHex);
+
+      if (primaryHsl) root.style.setProperty('--primary', primaryHsl);
+      if (successHsl) {
+        root.style.setProperty('--success', successHsl);
+        root.style.setProperty('--accent', successHsl);
+      }
+      if (backgroundHsl) root.style.setProperty('--background', backgroundHsl);
+      if (foregroundHsl) root.style.setProperty('--foreground', foregroundHsl);
+
+      // Aplica a fonte dinamicamente
+      const fontId = 'google-font-stylesheet';
+      const existingLink = document.getElementById(fontId);
+      if (existingLink) {
+        existingLink.remove();
+      }
+
+      const fontLink = document.createElement('link');
+      fontLink.id = fontId;
+      fontLink.rel = 'stylesheet';
+      fontLink.href = `https://fonts.googleapis.com/css2?family=${settings.fontFamily.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`;
+      document.head.appendChild(fontLink);
+
+      root.style.setProperty('--font-sans', `'${settings.fontFamily}', system-ui, sans-serif`);
+    }
+  }, [settings, loading]);
 
   return (
     <SettingsContext.Provider value={{ ...settings, loading }}>

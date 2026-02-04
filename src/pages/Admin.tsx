@@ -36,12 +36,15 @@ const Admin = () => {
     success_hex: '#28A745',
     background_hex: '#F8F9FA',
     foreground_hex: '#182742',
+    footer_logo_url: '',
+    footer_logo_height_px: 32,
   });
   
   const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [isUploading, setIsUploading] = useState<null | 'logo' | 'favicon'>(null);
+  const [isUploading, setIsUploading] = useState<null | 'logo' | 'favicon' | 'footer_logo'>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
+  const footerLogoInputRef = useRef<HTMLInputElement>(null);
   // ... (outros estados de Admin.tsx)
 
   useEffect(() => {
@@ -96,12 +99,12 @@ const Admin = () => {
     }
   };
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon') => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon' | 'footer_logo') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsUploading(type);
-    const fileName = type === 'logo' ? 'logo' : 'favicon';
+    const fileName = type;
     const fileExt = file.name.split('.').pop();
     const filePath = `public/${fileName}.${fileExt}`;
 
@@ -116,15 +119,14 @@ const Admin = () => {
         .from('site-assets')
         .getPublicUrl(filePath);
       
-      // Adiciona um timestamp para evitar problemas de cache do navegador
       const finalUrl = `${publicUrl}?t=${new Date().getTime()}`;
 
       setSiteConfig(prev => ({
         ...prev,
-        [type === 'logo' ? 'logo_url' : 'favicon_url']: finalUrl
+        [`${type}_url`]: finalUrl
       }));
 
-      toast.success(`${type === 'logo' ? 'Logotipo' : 'Favicon'} enviado! Clique em salvar para aplicar.`);
+      toast.success(`Imagem enviada! Clique em salvar para aplicar.`);
     } catch (error: any) {
       toast.error("Erro no upload da imagem.", {
         description: "Verifique se o bucket 'site-assets' existe e é público no Supabase Storage."
@@ -149,6 +151,8 @@ const Admin = () => {
           success_hex: siteConfig.success_hex,
           background_hex: siteConfig.background_hex,
           foreground_hex: siteConfig.foreground_hex,
+          footer_logo_url: siteConfig.footer_logo_url,
+          footer_logo_height_px: siteConfig.footer_logo_height_px,
         })
         .eq('id', 1);
       
@@ -212,7 +216,7 @@ const Admin = () => {
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Settings className="h-5 w-5" /> Identidade Visual</h3>
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <Label>Logotipo</Label>
+                        <Label>Logotipo (Cabeçalho)</Label>
                         <div className="flex items-center gap-4">
                           {siteConfig.logo_url && <img src={siteConfig.logo_url} alt="Logo Preview" className="h-12 w-auto bg-muted p-1 rounded-md border" />}
                           <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()} disabled={!!isUploading}>
@@ -221,6 +225,25 @@ const Admin = () => {
                           </Button>
                           <input type="file" ref={logoInputRef} className="hidden" accept="image/png, image/jpeg, image/svg+xml" onChange={(e) => handleImageUpload(e, 'logo')} />
                         </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="logo_height">Altura do Logotipo (pixels)</Label>
+                        <Input id="logo_height" type="number" value={siteConfig.logo_height_px} onChange={e => setSiteConfig({...siteConfig, logo_height_px: parseInt(e.target.value) || 48})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Logotipo (Rodapé)</Label>
+                        <div className="flex items-center gap-4">
+                          {siteConfig.footer_logo_url && <img src={siteConfig.footer_logo_url} alt="Footer Logo Preview" className="h-12 w-auto bg-muted p-1 rounded-md border" />}
+                          <Button type="button" variant="outline" onClick={() => footerLogoInputRef.current?.click()} disabled={!!isUploading}>
+                            {isUploading === 'footer_logo' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            Alterar Imagem
+                          </Button>
+                          <input type="file" ref={footerLogoInputRef} className="hidden" accept="image/png, image/jpeg, image/svg+xml" onChange={(e) => handleImageUpload(e, 'footer_logo')} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="footer_logo_height">Altura do Logotipo do Rodapé (pixels)</Label>
+                        <Input id="footer_logo_height" type="number" value={siteConfig.footer_logo_height_px} onChange={e => setSiteConfig({...siteConfig, footer_logo_height_px: parseInt(e.target.value) || 32})} />
                       </div>
                       <div className="space-y-2">
                         <Label>Favicon</Label>
@@ -232,10 +255,6 @@ const Admin = () => {
                           </Button>
                           <input type="file" ref={faviconInputRef} className="hidden" accept="image/png, image/x-icon, image/svg+xml" onChange={(e) => handleImageUpload(e, 'favicon')} />
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="logo_height">Altura do Logotipo (pixels)</Label>
-                        <Input id="logo_height" type="number" value={siteConfig.logo_height_px} onChange={e => setSiteConfig({...siteConfig, logo_height_px: parseInt(e.target.value) || 48})} />
                       </div>
                     </div>
                   </div>

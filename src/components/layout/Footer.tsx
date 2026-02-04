@@ -3,7 +3,16 @@ import { Mail, Phone, MapPin } from "lucide-react";
 import { useSettings } from "../../providers/SettingsProvider";
 
 const Footer = () => {
-  const { logoUrl, logoHeight, loading: settingsLoading } = useSettings();
+  const { 
+    logoUrl, 
+    logoHeight, 
+    footerLogoUrl, 
+    footerLogoHeight, 
+    loading: settingsLoading 
+  } = useSettings();
+
+  const displayLogoUrl = footerLogoUrl || logoUrl;
+  const displayLogoHeight = footerLogoUrl ? footerLogoHeight : logoHeight;
 
   return (
     <footer className="border-t border-border bg-card">
@@ -12,8 +21,8 @@ const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2">
-              {!settingsLoading && logoUrl && (
-                <img src={logoUrl} alt="HomeCareMatch" style={{ height: `${logoHeight}px` }} />
+              {!settingsLoading && displayLogoUrl && (
+                <img src={displayLogoUrl} alt="HomeCareMatch" style={{ height: `${displayLogoHeight}px` }} />
               )}
             </Link>
             <p className="text-sm text-muted-foreground">

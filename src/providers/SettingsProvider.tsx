@@ -12,6 +12,8 @@ interface Settings {
   successHex: string;
   backgroundHex: string;
   foregroundHex: string;
+  footerLogoUrl: string;
+  footerLogoHeight: number;
 }
 
 interface SettingsContextType extends Settings {
@@ -26,6 +28,8 @@ const SettingsContext = createContext<SettingsContextType>({
   successHex: '#28A745',
   backgroundHex: '#F8F9FA',
   foregroundHex: '#182742',
+  footerLogoUrl: '',
+  footerLogoHeight: 32,
   loading: true,
 });
 
@@ -38,6 +42,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     successHex: '#28A745',
     backgroundHex: '#F8F9FA',
     foregroundHex: '#182742',
+    footerLogoUrl: '',
+    footerLogoHeight: 32,
   });
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +52,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       try {
         const { data, error } = await supabase
           .from('site_config')
-          .select('logo_url, favicon_url, logo_height_px, primary_hex, success_hex, background_hex, foreground_hex')
+          .select('logo_url, favicon_url, logo_height_px, primary_hex, success_hex, background_hex, foreground_hex, footer_logo_url, footer_logo_height_px')
           .eq('id', 1)
           .single();
 
@@ -61,6 +67,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             successHex: data.success_hex || '#28A745',
             backgroundHex: data.background_hex || '#F8F9FA',
             foregroundHex: data.foreground_hex || '#182742',
+            footerLogoUrl: data.footer_logo_url || '',
+            footerLogoHeight: data.footer_logo_height_px || 32,
           };
           setSettings(newSettings);
 

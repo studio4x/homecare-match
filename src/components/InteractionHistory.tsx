@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, ArrowRight, Trash2 } from "lucide-react";
+import { Users, ArrowRight, Trash2, Building2, Home } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -14,6 +14,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface Interaction {
   interacted_at: string;
@@ -89,7 +90,24 @@ const InteractionHistory = ({
                     <AvatarFallback>{getInitials(profile.full_name)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold text-foreground">{profile.full_name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-foreground">{profile.full_name}</p>
+                      {profile.role && profile.role !== 'professional' && (
+                        <Badge variant={profile.role === 'company' ? "secondary" : "outline"} className="capitalize flex items-center gap-1 text-xs">
+                          {profile.role === 'company' ? (
+                            <>
+                              <Building2 className="h-3 w-3" />
+                              Empresa
+                            </>
+                          ) : (
+                            <>
+                              <Home className="h-3 w-3" />
+                              Família
+                            </>
+                          )}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Contato em: {new Date(interacted_at).toLocaleDateString('pt-BR')}
                     </p>

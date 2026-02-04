@@ -29,7 +29,9 @@ import {
   RotateCcw,
   AlertOctagon,
   Trash2,
-  Info
+  Info,
+  Building2,
+  Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -643,8 +645,25 @@ const Dashboard = () => {
             {/* --- COLUNA DIREITA --- */}
             <div className="lg:col-span-2 space-y-8">
               <div className="rounded-2xl border bg-card p-6 shadow-card">
-                <div className="mb-6 flex items-center justify-between">
-                  <h3 className="text-xl font-semibold">Meus Dados</h3>
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-xl font-semibold">Meus Dados</h3>
+                    {!isProfessional && (
+                      <Badge variant={isCompany ? "secondary" : "outline"} className="capitalize flex items-center gap-1.5">
+                        {isCompany ? (
+                          <>
+                            <Building2 className="h-3 w-3" />
+                            Empresa
+                          </>
+                        ) : (
+                          <>
+                            <Home className="h-3 w-3" />
+                            Família
+                          </>
+                        )}
+                      </Badge>
+                    )}
+                  </div>
                   {isProfessional && profileCompleteness.isComplete && !isEditing && (
                     <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
                   )}

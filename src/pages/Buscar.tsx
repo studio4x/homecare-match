@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
-import { Search, Filter, X, Users, ShieldAlert, Building2, Home } from "lucide-react";
+import { Search, Filter, X, Users, ShieldAlert, Building2, Home, DollarSign } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -30,6 +30,9 @@ const Buscar = () => {
     neighborhood: "",
     state: "",
     search: "",
+    availability: "",
+    patient_profile: "",
+    max_hourly_rate: "",
   });
 
   const [showFilters, setShowFilters] = useState(false);
@@ -59,7 +62,6 @@ const Buscar = () => {
 
   const fetchProfessionals = async () => {
     setLoading(true);
-    // Only select safe public fields - never use .select("*") for security
     const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at";
     
     let query = supabase
@@ -75,6 +77,11 @@ const Buscar = () => {
     if (filters.city) query = query.ilike("city", `%${filters.city}%`);
     if (filters.neighborhood) query = query.ilike("neighborhood", `%${filters.neighborhood}%`);
     if (filters.search) query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
+    if (filters.availability) query = query.contains('availability', [filters.availability]);
+    if (filters.patient_profile) query = query.contains('patient_profiles', [filters.patient_profile]);
+    if (userRole === 'family' && filters.max_hourly_rate) {
+      query = query.lte('hourly_rate', parseFloat(filters.max_hourly_rate));
+    }
 
     const { data } = await query;
     setProfessionals(data || []);
@@ -103,7 +110,7 @@ const Buscar = () => {
   }
 
   const clearFilters = () => {
-    setFilters({ specialty: "", city: "", neighborhood: "", state: "", search: "" });
+    setFilters({ specialty: "", city: "", neighborhood: "", state: "", search: "", availability: "", patient_profile: "", max_hourly_rate: "" });
     fetchProfessionals();
   };
 
@@ -122,8 +129,26 @@ const Buscar = () => {
     { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
   ];
 
+  const availabilityOptions = [
+    "Período da Manhã",
+    "Período da Tarde",
+    "Período da Noite",
+    "Dia Integral (Diurno)",
+    "Plantão 12h (Noturno)",
+    "Finais de Semana",
+  ];
+
+  const patientProfileOptions = [
+    "Idosos",
+    "Pediátrico",
+    "Pós-cirúrgico",
+    "Doenças Crônicas",
+    "Cuidados Paliativos",
+    "Reabilitação Neurológica",
+  ];
+
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
-  const hasActiveFilters = filters.specialty || filters.city || filters.neighborhood || filters.search || filters.state;
+  const hasActiveFilters = Object.values(filters).some(value => value !== "");
 
   return (
     <Layout>
@@ -164,7 +189,7 @@ const Buscar = () => {
 
             {showFilters && (
               <div className="mt-6 animate-fade-in border-t border-border pt-6">
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                   <div className="grid gap-2">
                     <Label>Especialidade</Label>
                     <Select value={filters.specialty} onValueChange={(v) => setFilters({...filters, specialty: v})}>
@@ -187,6 +212,35 @@ const Buscar = () => {
                     <Label>Bairro</Label>
                     <Input placeholder="Digite o bairro..." value={filters.neighborhood} onChange={(e) => setFilters({...filters, neighborhood: e.target.value})} />
                   </div>
+                  <div className="grid gap-2">
+                    <Label>Disponibilidade</Label>
+                    <Select value={filters.availability} onValueChange={(v) => setFilters({...filters, availability: v})}>
+                      <SelectTrigger><SelectValue placeholder="Qualquer" /></SelectTrigger>
+                      <SelectContent>{availabilityOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Perfil do Paciente</Label>
+                    <Select value={filters.patient_profile} onValueChange={(v) => setFilters({...filters, patient_profile: v})}>
+                      <SelectTrigger><SelectValue placeholder="Qualquer" /></SelectTrigger>
+                      <SelectContent>{patientProfileOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  {userRole === 'family' && (
+                    <div className="grid gap-2 lg:col-span-2">
+                      <Label>Valor Máximo por Hora (R$)</Label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          type="number"
+                          placeholder="Ex: 100.00"
+                          className="pl-10"
+                          value={filters.max_hourly_rate}
+                          onChange={(e) => setFilters({...filters, max_hourly_rate: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -214,7 +268,8 @@ const Buscar = () => {
               <div className="col-span-full py-20 text-center">
                 <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
                 <h3 className="text-lg font-semibold">Nenhum profissional encontrado</h3>
-                <Button variant="link" onClick={clearFilters}>Limpar Filtros</Button>
+                <p className="text-sm text-muted-foreground mt-2">Tente ajustar seus filtros para uma busca mais ampla.</p>
+                {hasActiveFilters && <Button variant="link" onClick={clearFilters}>Limpar Filtros</Button>}
               </div>
             )}
           </div>

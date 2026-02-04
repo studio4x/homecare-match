@@ -7,7 +7,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
-import logo from "../../assets/logo.png";
+
+const logoUrl = "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
 
 const Navbar = () => {
   const location = useLocation();
@@ -46,7 +47,7 @@ const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <img src={logo} alt="HomeCareMatch" className="h-12" />
+            <img src={logoUrl} alt="HomeCareMatch" className="h-12" />
           </Link>
 
           {/* Desktop Navigation */}

@@ -28,9 +28,9 @@ import {
   Plus,
   ShieldAlert,
   Trash2,
-  CreditCard,
   Calendar,
-  CheckCircle2
+  CheckCircle2,
+  Settings
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { differenceInDays, addDays } from "date-fns";
+import SiteConfigTab from "@/components/admin/SiteConfigTab";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -353,10 +354,11 @@ const Admin = () => {
           </div>
 
           <Tabs defaultValue="verifications" className="space-y-6">
-            <TabsList className="bg-card border w-full justify-start md:w-auto">
+            <TabsList className="bg-card border w-full justify-start md:w-auto overflow-x-auto">
               <TabsTrigger value="verifications">Verificações ({pendingProfiles.length})</TabsTrigger>
               <TabsTrigger value="users">Usuários ({allUsers.length})</TabsTrigger>
               <TabsTrigger value="plans">Planos ({plans.length})</TabsTrigger>
+              <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
             </TabsList>
 
             <TabsContent value="verifications">
@@ -532,6 +534,10 @@ const Admin = () => {
                   </TableBody>
                 </Table>
               </div>
+            </TabsContent>
+
+            <TabsContent value="settings">
+              <SiteConfigTab />
             </TabsContent>
           </Tabs>
         </div>

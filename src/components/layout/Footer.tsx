@@ -1,9 +1,16 @@
 import { Link } from "react-router-dom";
 import { Mail, Phone, MapPin } from "lucide-react";
+import { useSiteConfig } from "@/hooks/use-site-config";
 
-const logoUrl = "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
+// Fallback logo
+const DEFAULT_LOGO = "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
 
 const Footer = () => {
+  const { data: config } = useSiteConfig();
+  
+  const logoUrl = config?.footer_logo_url || config?.logo_url || DEFAULT_LOGO;
+  const logoHeight = config?.footer_logo_height_px || 48;
+
   return (
     <footer className="border-t border-border bg-card">
       <div className="container mx-auto px-4 py-12">
@@ -11,7 +18,12 @@ const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2">
-              <img src={logoUrl} alt="HomeCareMatch" className="h-12" />
+              <img 
+                src={logoUrl} 
+                alt="HomeCareMatch" 
+                style={{ height: `${logoHeight}px`, maxHeight: '60px' }}
+                className="object-contain" 
+              />
             </Link>
             <p className="text-sm text-muted-foreground">
               Conectando profissionais de saúde às melhores oportunidades em Home Care.

@@ -7,12 +7,15 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteConfig } from "@/hooks/use-site-config";
 
-const logoUrl = "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
+// Fallback logo
+const DEFAULT_LOGO = "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
 
 const Navbar = () => {
   const location = useLocation();
   const { session, user } = useAuth();
+  const { data: config } = useSiteConfig();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState<{ avatar_url: string | null; full_name: string | null; role: string | null } | null>(null);
 
@@ -41,13 +44,21 @@ const Navbar = () => {
 
   const canSeeSearch = !session || (session && profile && profile.role !== 'professional');
 
+  const logoUrl = config?.logo_url || DEFAULT_LOGO;
+  const logoHeight = config?.logo_height_px || 48;
+
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <img src={logoUrl} alt="HomeCareMatch" className="h-12" />
+            <img 
+              src={logoUrl} 
+              alt="HomeCareMatch" 
+              style={{ height: `${logoHeight}px`, maxHeight: '60px' }} 
+              className="object-contain"
+            />
           </Link>
 
           {/* Desktop Navigation */}

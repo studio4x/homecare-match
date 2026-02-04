@@ -691,7 +691,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-2">
             {/* --- COLUNA ESQUERDA --- */}
             <div className="space-y-6">
               {isProfessional ? (
@@ -796,7 +796,7 @@ const Dashboard = () => {
             </div>
 
             {/* --- COLUNA DIREITA --- */}
-            <div className="lg:col-span-2 space-y-8">
+            <div className="space-y-8">
               <div className="rounded-2xl border bg-card p-6 shadow-card">
                 <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-3">

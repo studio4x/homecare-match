@@ -114,17 +114,17 @@ const InteractionHistory = ({
               ))
             ) : interactions.length > 0 ? (
               interactions.map(({ interacted_at, profile }) => (
-                <div key={profile.id} className="flex items-center justify-between gap-4 rounded-lg p-3 hover:bg-secondary/50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
+                <div key={profile.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg p-3 hover:bg-secondary/50 transition-colors">
+                  <div className="flex items-center gap-4 min-w-[180px]">
+                    <Avatar className="h-12 w-12 shrink-0">
                       <AvatarImage src={profile.avatar_url} />
                       <AvatarFallback>{getInitials(profile.full_name)}</AvatarFallback>
                     </Avatar>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-foreground">{profile.full_name}</p>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-foreground truncate max-w-[150px]">{profile.full_name}</p>
                         {profile.role && profile.role !== 'professional' && (
-                          <Badge variant={profile.role === 'company' ? "secondary" : "outline"} className="capitalize flex items-center gap-1 text-xs">
+                          <Badge variant={profile.role === 'company' ? "secondary" : "outline"} className="capitalize flex items-center gap-1 text-xs whitespace-nowrap">
                             {profile.role === 'company' ? (
                               <>
                                 <Building2 className="h-3 w-3" />
@@ -145,16 +145,16 @@ const InteractionHistory = ({
                     </div>
                   </div>
                   {viewerRole === 'professional' ? (
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleViewProfileClick(profile)} className="gap-1.5">
-                        <Eye className="h-4 w-4" /> Ver
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Button variant="ghost" size="sm" onClick={() => handleViewProfileClick(profile)} className="gap-1.5 h-8">
+                        <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Ver</span>
                       </Button>
-                      <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2">
-                        Contato <Phone className="h-3 w-3" />
+                      <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8">
+                        <span className="hidden sm:inline">Contato</span> <Phone className="h-3 w-3" />
                       </Button>
                     </div>
                   ) : (
-                    <Button variant="ghost" size="sm" asChild>
+                    <Button variant="ghost" size="sm" asChild className="ml-auto">
                       <Link to={`/profissional/${profile.id}`}>
                         Ver Perfil <ArrowRight className="h-3 w-3 ml-2" />
                       </Link>

@@ -7,12 +7,10 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
-import { useSettings } from "../../providers/SettingsProvider";
 
 const Navbar = () => {
   const location = useLocation();
   const { session, user } = useAuth();
-  const { logoUrl, logoHeight, loading: settingsLoading } = useSettings();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState<{ avatar_url: string | null; full_name: string | null; role: string | null } | null>(null);
 
@@ -47,9 +45,7 @@ const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            {!settingsLoading && logoUrl && (
-              <img src={logoUrl} alt="HomeCareMatch" style={{ height: `${logoHeight}px` }} />
-            )}
+            <img src="/logo.png" alt="HomeCareMatch" className="h-12" />
           </Link>
 
           {/* Desktop Navigation */}

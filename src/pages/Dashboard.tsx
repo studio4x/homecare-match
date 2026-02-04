@@ -182,19 +182,21 @@ const Dashboard = () => {
   const fetchInteractions = async (userId: string, userRole: string) => {
     setLoadingInteractions(true);
     try {
-      let query;
       const profileColumns = 'id, full_name, avatar_url, specialty, role';
+      let query;
   
       if (userRole === 'professional') {
+        // A professional wants to see who contacted them (the senders)
         query = supabase
           .from('interactions')
-          .select(`created_at, sender_profile:profiles!sender_id (${profileColumns})`)
+          .select(`created_at, sender:sender_id (${profileColumns})`)
           .eq('professional_id', userId)
           .order('created_at', { ascending: false });
       } else {
+        // A company/family wants to see which professionals they contacted
         query = supabase
           .from('interactions')
-          .select(`created_at, professional_profile:profiles!professional_id (${profileColumns})`)
+          .select(`created_at, professional:professional_id (${profileColumns})`)
           .eq('sender_id', userId)
           .order('created_at', { ascending: false });
       }
@@ -205,7 +207,7 @@ const Dashboard = () => {
       const formattedInteractions = data
         .map(item => ({
           interacted_at: item.created_at,
-          profile: item.sender_profile || item.professional_profile
+          profile: item.sender || item.professional
         }))
         .filter(item => item.profile);
   

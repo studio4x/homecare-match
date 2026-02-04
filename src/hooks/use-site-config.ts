@@ -8,6 +8,7 @@ export interface SiteConfig {
   footer_logo_url: string | null;
   footer_logo_height_px: number;
   favicon_url: string | null;
+  whatsapp_number: string | null;
 }
 
 export const useSiteConfig = () => {
@@ -30,6 +31,7 @@ export const useSiteConfig = () => {
           footer_logo_url: null,
           footer_logo_height_px: 48,
           favicon_url: null,
+          whatsapp_number: null,
         };
       }
 

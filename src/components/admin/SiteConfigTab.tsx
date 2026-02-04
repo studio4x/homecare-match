@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Upload, Save, Image as ImageIcon } from "lucide-react";
+import { Loader2, Upload, Save, Image as ImageIcon, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -16,6 +16,7 @@ const SiteConfigTab = () => {
   const [formData, setFormData] = useState({
     logo_height_px: 48,
     footer_logo_height_px: 48,
+    whatsapp_number: "",
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -30,6 +31,7 @@ const SiteConfigTab = () => {
       setFormData({
         logo_height_px: config.logo_height_px || 48,
         footer_logo_height_px: config.footer_logo_height_px || 48,
+        whatsapp_number: config.whatsapp_number || "",
       });
     }
   }, [config]);
@@ -44,7 +46,6 @@ const SiteConfigTab = () => {
     const filePath = `site-assets/${fileName}`;
 
     try {
-      // Try to upload to 'uploads' bucket which is commonly available
       const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, file);
       
       if (uploadError) {
@@ -82,6 +83,7 @@ const SiteConfigTab = () => {
         .update({
           logo_height_px: formData.logo_height_px,
           footer_logo_height_px: formData.footer_logo_height_px,
+          whatsapp_number: formData.whatsapp_number,
           updated_at: new Date().toISOString()
         })
         .eq('id', 1);
@@ -103,11 +105,31 @@ const SiteConfigTab = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Identidade Visual</CardTitle>
-          <CardDescription>Gerencie os logotipos e ícones do site.</CardDescription>
+          <CardTitle>Identidade Visual & Contato</CardTitle>
+          <CardDescription>Gerencie os logotipos, ícones e contatos principais do site.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           
+          {/* WhatsApp Config */}
+          <div className="grid gap-4 items-start p-4 border rounded-lg bg-success/5 border-success/20">
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-success" />
+                WhatsApp do Concierge
+              </Label>
+              <Input 
+                placeholder="Ex: 5511999999999"
+                value={formData.whatsapp_number} 
+                onChange={(e) => setFormData({...formData, whatsapp_number: e.target.value})} 
+              />
+              <p className="text-xs text-muted-foreground">
+                Este número receberá as mensagens quando um cliente usar a busca e não encontrar profissionais (Concierge).
+                <br/>
+                <strong>Importante:</strong> Digite apenas números, incluindo o código do país (55) e DDD.
+              </p>
+            </div>
+          </div>
+
           {/* Header Logo */}
           <div className="grid gap-4 md:grid-cols-2 items-start p-4 border rounded-lg">
             <div className="space-y-2">

@@ -18,12 +18,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Link } from "react-router-dom";
+import { useSiteConfig } from "@/hooks/use-site-config";
 
 // Configuração do limite mínimo para exibir a lista
 const MIN_RESULTS_TO_SHOW = 10;
 
 const Buscar = () => {
   const { user } = useAuth();
+  const { data: config } = useSiteConfig();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,11 +116,6 @@ const Buscar = () => {
 
   const clearFilters = () => {
     setFilters({ specialty: "", city: "", neighborhood: "", state: "", search: "", availability: "", patient_profile: "", max_hourly_rate: "" });
-    // O fetch será disparado pelo useEffect se algo mudar, ou forçamos aqui se necessário, 
-    // mas como setFilters é assíncrono, o ideal seria usar useEffect nas dependências de filters se quiséssemos busca automática.
-    // Como o botão "Buscar" chama fetchProfessionals, vamos chamar explicitamente após limpar (com timeout zero para pegar o estado novo ou passando parâmetros limpos).
-    // Para simplificar, vamos forçar uma nova busca passando filtros limpos.
-    // Mas a melhor UX aqui é limpar e o usuário clicar em buscar, ou buscar automático. Vamos manter o comportamento atual.
     setTimeout(fetchProfessionals, 0); 
   };
 
@@ -159,6 +156,10 @@ const Buscar = () => {
   
   // Lógica do Concierge
   const showConcierge = !loading && professionals.length < MIN_RESULTS_TO_SHOW;
+
+  // Número do WhatsApp dinâmico
+  const whatsappNumber = config?.whatsapp_number?.replace(/\D/g, '') || "5511999999999";
+  const conciergeMessage = `Olá, sou ${userRole === 'company' ? 'uma empresa' : 'uma família'} buscando profissionais no HomeCareMatch e gostaria de ajuda da equipe de concierge.`;
 
   return (
     <Layout>
@@ -280,7 +281,7 @@ const Buscar = () => {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                   <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
                     <a 
-                      href={`https://wa.me/5511999999999?text=Olá, sou ${userRole === 'company' ? 'uma empresa' : 'uma família'} buscando profissionais no HomeCareMatch e gostaria de ajuda da equipe de concierge.`} 
+                      href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
                       target="_blank" 
                       rel="noopener noreferrer"
                     >

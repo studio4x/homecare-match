@@ -1,11 +1,18 @@
 import { Link } from "react-router-dom";
 import { Mail, Phone, MapPin } from "lucide-react";
-import { useSiteConfig } from "../../contexts/SiteConfigProvider";
+import { useSettings } from "../../providers/SettingsProvider";
 
 const Footer = () => {
-  const config = useSiteConfig();
-  const logoUrl = config?.footer_logo_url || config?.logo_url || "/logo.png";
-  const logoHeight = config?.footer_logo_height_px || 32;
+  const { 
+    logoUrl, 
+    logoHeight, 
+    footerLogoUrl, 
+    footerLogoHeight, 
+    loading: settingsLoading 
+  } = useSettings();
+
+  const displayLogoUrl = footerLogoUrl || logoUrl;
+  const displayLogoHeight = footerLogoUrl ? footerLogoHeight : logoHeight;
 
   return (
     <footer className="border-t border-border bg-card">
@@ -14,11 +21,9 @@ const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src={logoUrl} 
-                alt="HomeCareMatch" 
-                style={{ height: `${logoHeight}px` }}
-              />
+              {!settingsLoading && displayLogoUrl && (
+                <img src={displayLogoUrl} alt="HomeCareMatch" style={{ height: `${displayLogoHeight}px` }} />
+              )}
             </Link>
             <p className="text-sm text-muted-foreground">
               Conectando profissionais de saúde às melhores oportunidades em Home Care.

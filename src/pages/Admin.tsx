@@ -53,6 +53,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { differenceInDays, addDays } from "date-fns";
 import SiteConfigTab from "@/components/admin/SiteConfigTab";
+import { translateAuthError } from "@/lib/error-utils";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -273,7 +274,7 @@ const Admin = () => {
       setUserToDelete(null);
       fetchData();
     } catch (error: any) {
-      toast.error(error.message || "Erro ao excluir usuário.");
+      toast.error(translateAuthError(error.message));
     } finally {
       setIsDeletingUser(false);
     }

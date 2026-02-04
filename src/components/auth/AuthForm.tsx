@@ -21,15 +21,15 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { translateAuthError } from "@/lib/error-utils";
 
 const authSchema = z.object({
-  fullName: z.string().min(3, "Digite seu nome completo").optional(),
-  email: z.string().email("E-mail inválido"),
-  password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
+  fullName: z.string({ required_error: "Nome é obrigatório" }).min(3, "Digite seu nome completo").optional(),
+  email: z.string({ required_error: "E-mail é obrigatório" }).email("Digite um e-mail válido"),
+  password: z.string({ required_error: "Senha é obrigatória" }).min(6, "A senha deve ter pelo menos 6 caracteres"),
   confirmPassword: z.string().optional(),
 }).refine((data) => {
   if (data.confirmPassword !== undefined && data.password !== data.confirmPassword) {
@@ -45,7 +45,7 @@ const authSchema = z.object({
   }
   return true;
 }, {
-  message: "Nome completo é obrigatório",
+  message: "Nome completo é obrigatório para cadastro",
   path: ["fullName"],
 });
 
@@ -110,7 +110,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
       }
       onSuccess?.();
     } catch (error: any) {
-      toast.error(error.message || "Ocorreu um erro na autenticação.");
+      toast.error(translateAuthError(error.message));
     } finally {
       setLoading(false);
     }
@@ -212,7 +212,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         </div>
       )}
 
-      {/* Modal de Sucesso Customizado (3x maior e centralizado) */}
+      {/* Modal de Sucesso Customizado */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
         <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl animate-scale-in">
           <div className="relative bg-card p-12 md:p-16 flex flex-col items-center text-center space-y-8">

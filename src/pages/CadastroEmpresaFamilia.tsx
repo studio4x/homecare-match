@@ -7,7 +7,6 @@ import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -28,19 +27,19 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
 import Layout from "@/components/layout/Layout";
 import { Link, useNavigate } from "react-router-dom";
+import { translateAuthError } from "@/lib/error-utils";
 
 const registerSchema = z.object({
-  fullName: z.string().min(3, "O nome da empresa ou responsável é obrigatório"),
-  email: z.string().email("E-mail inválido"),
+  fullName: z.string({ required_error: "Nome é obrigatório" }).min(3, "O nome da empresa ou responsável é obrigatório"),
+  email: z.string({ required_error: "E-mail é obrigatório" }).email("Digite um e-mail válido"),
   role: z.enum(["company", "family"], { required_error: "Selecione o tipo de conta" }),
-  password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
-  confirmPassword: z.string(),
+  password: z.string({ required_error: "Senha é obrigatória" }).min(6, "A senha deve ter pelo menos 6 caracteres"),
+  confirmPassword: z.string({ required_error: "Confirmação de senha é obrigatória" }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
@@ -82,7 +81,7 @@ const CadastroEmpresaFamilia = () => {
       setShowSuccessModal(true);
       form.reset();
     } catch (error: any) {
-      toast.error(error.message || "Ocorreu um erro no cadastro.");
+      toast.error(translateAuthError(error.message));
     } finally {
       setLoading(false);
     }

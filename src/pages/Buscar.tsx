@@ -21,7 +21,7 @@ import { Link } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
 
 // Configuração do limite mínimo para exibir a lista
-const MIN_RESULTS_TO_SHOW = 10;
+const MIN_RESULTS_TO_SHOW = 1;
 
 const Buscar = () => {
   const { user } = useAuth();

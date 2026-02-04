@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
 import AuthForm from "@/components/auth/AuthForm";
@@ -13,7 +13,8 @@ import {
   LogOut,
   Lock,
   Settings,
-  Palette
+  Palette,
+  Upload
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -38,6 +39,9 @@ const Admin = () => {
   });
   
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [isUploading, setIsUploading] = useState<null | 'logo' | 'favicon'>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
   // ... (outros estados de Admin.tsx)
 
   useEffect(() => {
@@ -89,6 +93,45 @@ const Admin = () => {
       // ... (outras chamadas de fetch de Admin.tsx)
     } catch (error) {
       console.error("[Admin] Erro fetch:", error);
+    }
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon') => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(type);
+    const fileName = type === 'logo' ? 'logo' : 'favicon';
+    const fileExt = file.name.split('.').pop();
+    const filePath = `public/${fileName}.${fileExt}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('site-assets')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('site-assets')
+        .getPublicUrl(filePath);
+      
+      // Adiciona um timestamp para evitar problemas de cache do navegador
+      const finalUrl = `${publicUrl}?t=${new Date().getTime()}`;
+
+      setSiteConfig(prev => ({
+        ...prev,
+        [type === 'logo' ? 'logo_url' : 'favicon_url']: finalUrl
+      }));
+
+      toast.success(`${type === 'logo' ? 'Logotipo' : 'Favicon'} enviado! Clique em salvar para aplicar.`);
+    } catch (error: any) {
+      toast.error("Erro no upload da imagem.", {
+        description: "Verifique se o bucket 'site-assets' existe e é público no Supabase Storage."
+      });
+      console.error(error);
+    } finally {
+      setIsUploading(null);
     }
   };
 
@@ -167,14 +210,28 @@ const Admin = () => {
                 <form onSubmit={handleSaveConfig} className="space-y-8">
                   <div>
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Settings className="h-5 w-5" /> Identidade Visual</h3>
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       <div className="space-y-2">
-                        <Label htmlFor="logo_url">URL do Logotipo</Label>
-                        <Input id="logo_url" value={siteConfig.logo_url} onChange={e => setSiteConfig({...siteConfig, logo_url: e.target.value})} />
+                        <Label>Logotipo</Label>
+                        <div className="flex items-center gap-4">
+                          {siteConfig.logo_url && <img src={siteConfig.logo_url} alt="Logo Preview" className="h-12 w-auto bg-muted p-1 rounded-md border" />}
+                          <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()} disabled={!!isUploading}>
+                            {isUploading === 'logo' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            Alterar Imagem
+                          </Button>
+                          <input type="file" ref={logoInputRef} className="hidden" accept="image/png, image/jpeg, image/svg+xml" onChange={(e) => handleImageUpload(e, 'logo')} />
+                        </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="favicon_url">URL do Favicon</Label>
-                        <Input id="favicon_url" value={siteConfig.favicon_url} onChange={e => setSiteConfig({...siteConfig, favicon_url: e.target.value})} />
+                        <Label>Favicon</Label>
+                         <div className="flex items-center gap-4">
+                          {siteConfig.favicon_url && <img src={siteConfig.favicon_url} alt="Favicon Preview" className="h-8 w-8 bg-muted p-1 rounded-md border" />}
+                          <Button type="button" variant="outline" onClick={() => faviconInputRef.current?.click()} disabled={!!isUploading}>
+                            {isUploading === 'favicon' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            Alterar Imagem
+                          </Button>
+                          <input type="file" ref={faviconInputRef} className="hidden" accept="image/png, image/x-icon, image/svg+xml" onChange={(e) => handleImageUpload(e, 'favicon')} />
+                        </div>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="logo_height">Altura do Logotipo (pixels)</Label>
@@ -213,8 +270,8 @@ const Admin = () => {
                   </div>
 
                   <div className="flex justify-end pt-4 border-t">
-                    <Button type="submit" disabled={isSavingConfig}>
-                      {isSavingConfig && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                    <Button type="submit" disabled={isSavingConfig || !!isUploading}>
+                      {(isSavingConfig || isUploading) && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                       Salvar Todas as Configurações
                     </Button>
                   </div>

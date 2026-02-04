@@ -32,6 +32,7 @@ import {
   Info,
   Building2,
   Home,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -188,7 +189,7 @@ const Dashboard = () => {
   const fetchInteractions = async (userId: string, userRole: string) => {
     setLoadingInteractions(true);
     try {
-      const profileColumns = 'id, full_name, avatar_url, specialty, role';
+      const profileColumns = 'id, full_name, avatar_url, specialty, role, phone';
       let query;
   
       if (userRole === 'professional') {
@@ -638,6 +639,7 @@ const Dashboard = () => {
                   currentPage={currentPage}
                   onPageChange={setCurrentPage}
                   onClear={handleClearInteractions}
+                  viewerRole={profile.role}
                 />
               )}
             </div>
@@ -664,9 +666,13 @@ const Dashboard = () => {
                       </Badge>
                     )}
                   </div>
-                  {isProfessional && profileCompleteness.isComplete && !isEditing && (
+                  {isProfessional && profileCompleteness.isComplete && !isEditing ? (
                     <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
-                  )}
+                  ) : !isProfessional ? (
+                    <Button asChild variant="outline" className="gap-2">
+                      <Link to="/buscar"><Search className="h-4 w-4" /> Buscar Profissionais</Link>
+                    </Button>
+                  ) : null}
                 </div>
                 
                 {isProfessional && !profileCompleteness.isComplete && (
@@ -832,6 +838,7 @@ const Dashboard = () => {
                   currentPage={currentPage}
                   onPageChange={setCurrentPage}
                   onClear={handleClearInteractions}
+                  viewerRole={profile.role}
                 />
               )}
 

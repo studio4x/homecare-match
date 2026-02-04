@@ -106,6 +106,11 @@ const Perfil = () => {
 
       if (error) throw error;
 
+      // Dispara a notificação por e-mail em segundo plano
+      supabase.functions.invoke('notify-contact', {
+        body: { professional_id: profile.id, sender_id: user.id }
+      }).catch(err => console.warn("Falha ao enviar notificação por e-mail:", err));
+
       setShowSuccessModal(true);
       
     } catch (error) {

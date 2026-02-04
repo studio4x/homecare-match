@@ -71,7 +71,7 @@ const Login = () => {
       <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
         <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-card">
           <div className="text-center">
-            <img src={logoUrl} alt="HomeCareMatch" className="mx-auto h-24" />
+            <img src={logoUrl} alt="HomeCare Match" className="mx-auto h-24" />
             <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">
               Portal de Acesso
             </h2>

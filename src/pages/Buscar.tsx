@@ -159,7 +159,7 @@ const Buscar = () => {
 
   // Número do WhatsApp dinâmico
   const whatsappNumber = config?.whatsapp_number?.replace(/\D/g, '') || "5511999999999";
-  const conciergeMessage = `Olá, sou ${userRole === 'company' ? 'uma empresa' : 'uma família'} buscando profissionais no HomeCareMatch e gostaria de ajuda da equipe de concierge.`;
+  const conciergeMessage = `Olá, sou ${userRole === 'company' ? 'uma empresa' : 'uma família'} buscando profissionais no HomeCare Match e gostaria de ajuda da equipe de concierge.`;
 
   return (
     <Layout>

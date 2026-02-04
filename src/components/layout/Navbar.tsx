@@ -55,7 +55,7 @@ const Navbar = () => {
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
             <img 
               src={logoUrl} 
-              alt="HomeCareMatch" 
+              alt="HomeCare Match" 
               style={{ height: `${logoHeight}px`, width: 'auto' }} 
               className="object-contain"
             />

@@ -100,7 +100,7 @@ const Familias = () => {
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">
-              Por que usar o HomeCareMatch?
+              Por que usar o HomeCare Match?
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
               Entendemos que contratar alguém para cuidar de um ente querido é uma decisão importante. 

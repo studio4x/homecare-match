@@ -93,7 +93,7 @@ serve(async (req) => {
     const senderProfileLink = `${SITE_URL}/recruiter/${sender_id}`;
 
     const mailOptions = {
-      from: `"HomeCareMatch" <${smtpUser}>`,
+      from: `"HomeCare Match" <${smtpUser}>`,
       to: professional.email,
       subject: `🎉 Boa notícia! Você recebeu um novo contato!`,
       html: `

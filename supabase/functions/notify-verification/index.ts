@@ -59,7 +59,7 @@ serve(async (req) => {
 
     // Enviar E-mail
     await transporter.sendMail({
-      from: `"HomeCareMatch" <${smtpUser}>`,
+      from: `"HomeCare Match" <${smtpUser}>`,
       to: MASTER_ADMIN_EMAIL,
       subject: `⚠️ Verificação Pendente: ${userName}`,
       html: `

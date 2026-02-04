@@ -20,7 +20,7 @@ const Footer = () => {
             <Link to="/" className="flex items-center gap-2">
               <img 
                 src={logoUrl} 
-                alt="HomeCareMatch" 
+                alt="HomeCare Match" 
                 style={{ height: `${logoHeight}px`, width: 'auto' }}
                 className="object-contain" 
               />
@@ -108,7 +108,7 @@ const Footer = () => {
 
         <div className="mt-12 border-t border-border pt-6">
           <p className="text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} HomeCareMatch. Todos os direitos reservados.
+            © {new Date().getFullYear()} HomeCare Match. Todos os direitos reservados.
           </p>
         </div>
       </div>

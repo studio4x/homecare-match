@@ -95,7 +95,7 @@ serve(async (req) => {
          </div>`;
 
     await transporter.sendMail({
-      from: `"HomeCareMatch" <${smtpUser}>`,
+      from: `"HomeCare Match" <${smtpUser}>`,
       to: userEmail,
       subject: subject,
       html: htmlContent,

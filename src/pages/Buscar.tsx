@@ -13,11 +13,14 @@ import {
 } from "@/components/ui/select";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
-import { Search, Filter, X, Users, ShieldAlert, Building2, Home, DollarSign } from "lucide-react";
+import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Link } from "react-router-dom";
+
+// Configuração do limite mínimo para exibir a lista
+const MIN_RESULTS_TO_SHOW = 10;
 
 const Buscar = () => {
   const { user } = useAuth();
@@ -111,7 +114,12 @@ const Buscar = () => {
 
   const clearFilters = () => {
     setFilters({ specialty: "", city: "", neighborhood: "", state: "", search: "", availability: "", patient_profile: "", max_hourly_rate: "" });
-    fetchProfessionals();
+    // O fetch será disparado pelo useEffect se algo mudar, ou forçamos aqui se necessário, 
+    // mas como setFilters é assíncrono, o ideal seria usar useEffect nas dependências de filters se quiséssemos busca automática.
+    // Como o botão "Buscar" chama fetchProfessionals, vamos chamar explicitamente após limpar (com timeout zero para pegar o estado novo ou passando parâmetros limpos).
+    // Para simplificar, vamos forçar uma nova busca passando filtros limpos.
+    // Mas a melhor UX aqui é limpar e o usuário clicar em buscar, ou buscar automático. Vamos manter o comportamento atual.
+    setTimeout(fetchProfessionals, 0); 
   };
 
   const specialties = [
@@ -148,7 +156,9 @@ const Buscar = () => {
   ];
 
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
-  const hasActiveFilters = Object.values(filters).some(value => value !== "");
+  
+  // Lógica do Concierge
+  const showConcierge = !loading && professionals.length < MIN_RESULTS_TO_SHOW;
 
   return (
     <Layout>
@@ -249,7 +259,43 @@ const Buscar = () => {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {loading ? (
               Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
-            ) : professionals.length > 0 ? (
+            ) : showConcierge ? (
+              // Componente Concierge (Ativado quando há poucos resultados)
+              <div className="col-span-full py-16 text-center animate-fade-in bg-card border border-border rounded-2xl shadow-card p-8">
+                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 animate-pulse">
+                  <Headset className="h-10 w-10 text-primary" />
+                  <div className="absolute -top-1 -right-1">
+                    <Sparkles className="h-6 w-6 text-yellow-500 fill-yellow-500" />
+                  </div>
+                </div>
+                
+                <h3 className="text-2xl font-bold text-foreground mb-3">Busca Personalizada (Concierge)</h3>
+                
+                <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
+                  Para garantir a melhor experiência, nossa equipe realiza uma seleção manual dos melhores profissionais para o seu perfil. 
+                  <br/><br/>
+                  Temos profissionais disponíveis que correspondem aos seus critérios, mas que estão passando por nossa verificação de qualidade rigorosa neste momento.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                  <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
+                    <a 
+                      href={`https://wa.me/5511999999999?text=Olá, sou ${userRole === 'company' ? 'uma empresa' : 'uma família'} buscando profissionais no HomeCareMatch e gostaria de ajuda da equipe de concierge.`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      Solicitar Profissionais Agora
+                      <ArrowRight className="h-5 w-5" />
+                    </a>
+                  </Button>
+                </div>
+                
+                <p className="mt-6 text-sm text-muted-foreground">
+                  Serviço gratuito para {userRole === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
+                </p>
+              </div>
+            ) : (
+              // Lista normal de profissionais (Só aparece se tiver >= MIN_RESULTS_TO_SHOW)
               professionals.map((professional) => (
                 <ProfessionalCard
                   key={professional.id}
@@ -264,13 +310,6 @@ const Buscar = () => {
                   subscriptionTier={professional.subscription_tier}
                 />
               ))
-            ) : (
-              <div className="col-span-full py-20 text-center">
-                <Users className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                <h3 className="text-lg font-semibold">Nenhum profissional encontrado</h3>
-                <p className="text-sm text-muted-foreground mt-2">Tente ajustar seus filtros para uma busca mais ampla.</p>
-                {hasActiveFilters && <Button variant="link" onClick={clearFilters}>Limpar Filtros</Button>}
-              </div>
             )}
           </div>
         </div>

@@ -691,7 +691,7 @@ const Dashboard = () => {
                   currentPage={currentPage}
                   onPageChange={setCurrentPage}
                   onClear={handleClearInteractions}
-                  viewerRole={profile.role}
+                  viewerRole={profile.role as 'professional' | 'company' | 'family'}
                 />
               )}
             </div>
@@ -948,7 +948,7 @@ const Dashboard = () => {
                   currentPage={currentPage}
                   onPageChange={setCurrentPage}
                   onClear={handleClearInteractions}
-                  viewerRole={profile.role}
+                  viewerRole={profile.role as 'professional' | 'company' | 'family'}
                 />
               )}
 

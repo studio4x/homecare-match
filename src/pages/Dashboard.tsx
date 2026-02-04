@@ -480,6 +480,14 @@ const Dashboard = () => {
 
     // --- Phone Validation ---
     const cleanPhone = profile.phone.replace(/\D/g, "");
+    
+    if (!profile.phone || cleanPhone.length === 0) {
+       toast.error("O WhatsApp é obrigatório.", {
+        description: "Precisamos do seu contato para que os perfis possam interagir.",
+      });
+      return;
+    }
+
     if (cleanPhone.length < 10) {
       toast.error("Número de WhatsApp inválido.", {
         description: "O número deve conter o DDD e ter no mínimo 10 dígitos.",
@@ -844,7 +852,7 @@ const Dashboard = () => {
                       <Input value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} disabled={!isEditing} />
                     </div>
                     <div className="grid gap-2">
-                      <Label>WhatsApp (com DDD) {isProfessional && "*"}</Label>
+                      <Label>WhatsApp (com DDD) *</Label>
                       <Input 
                         value={profile.phone} 
                         onChange={handlePhoneChange}

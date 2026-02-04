@@ -9,6 +9,7 @@ export interface SiteConfig {
   footer_logo_height_px: number;
   favicon_url: string | null;
   whatsapp_number: string | null;
+  enable_professional_list: boolean;
 }
 
 export const useSiteConfig = () => {
@@ -32,6 +33,7 @@ export const useSiteConfig = () => {
           footer_logo_height_px: 48,
           favicon_url: null,
           whatsapp_number: null,
+          enable_professional_list: true,
         };
       }
 

@@ -25,7 +25,7 @@ const MIN_RESULTS_TO_SHOW = 10;
 
 const Buscar = () => {
   const { user } = useAuth();
-  const { data: config } = useSiteConfig();
+  const { data: config, isLoading: isLoadingConfig } = useSiteConfig();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,14 +60,23 @@ const Buscar = () => {
   }, [user]);
 
   useEffect(() => {
-    if (userRole && userRole !== 'professional') {
+    // Só busca se tiver o papel definido E a configuração do site já tiver sido carregada
+    if (userRole && userRole !== 'professional' && !isLoadingConfig) {
       fetchProfessionals();
     }
-  }, [userRole]);
+  }, [userRole, isLoadingConfig, config]);
 
   const fetchProfessionals = async () => {
     setLoading(true);
-    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at";
+
+    // Verificação Global de "Kill Switch"
+    if (config && config.enable_professional_list === false) {
+      setProfessionals([]);
+      setLoading(false);
+      return;
+    }
+
+    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, hourly_rate";
     
     let query = supabase
       .from("profiles")
@@ -258,10 +267,10 @@ const Buscar = () => {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {loading ? (
+            {loading || isLoadingConfig ? (
               Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
             ) : showConcierge ? (
-              // Componente Concierge (Ativado quando há poucos resultados)
+              // Componente Concierge (Ativado quando há poucos resultados ou Kill Switch ATIVO)
               <div className="col-span-full py-16 text-center animate-fade-in bg-card border border-border rounded-2xl shadow-card p-8">
                 <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 animate-pulse">
                   <Headset className="h-10 w-10 text-primary" />
@@ -296,7 +305,7 @@ const Buscar = () => {
                 </p>
               </div>
             ) : (
-              // Lista normal de profissionais (Só aparece se tiver >= MIN_RESULTS_TO_SHOW)
+              // Lista normal de profissionais (Só aparece se tiver >= MIN_RESULTS_TO_SHOW e Switch ON)
               professionals.map((professional) => (
                 <ProfessionalCard
                   key={professional.id}

@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Upload, Save, Image as ImageIcon, Phone } from "lucide-react";
+import { Loader2, Upload, Save, Image as ImageIcon, Phone, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
+import { Switch } from "@/components/ui/switch";
 
 const SiteConfigTab = () => {
   const { data: config, isLoading } = useSiteConfig();
@@ -17,6 +18,7 @@ const SiteConfigTab = () => {
     logo_height_px: 48,
     footer_logo_height_px: 48,
     whatsapp_number: "",
+    enable_professional_list: true,
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -32,6 +34,7 @@ const SiteConfigTab = () => {
         logo_height_px: config.logo_height_px || 48,
         footer_logo_height_px: config.footer_logo_height_px || 48,
         whatsapp_number: config.whatsapp_number || "",
+        enable_professional_list: config.enable_professional_list ?? true,
       });
     }
   }, [config]);
@@ -84,6 +87,7 @@ const SiteConfigTab = () => {
           logo_height_px: formData.logo_height_px,
           footer_logo_height_px: formData.footer_logo_height_px,
           whatsapp_number: formData.whatsapp_number,
+          enable_professional_list: formData.enable_professional_list,
           updated_at: new Date().toISOString()
         })
         .eq('id', 1);
@@ -105,11 +109,30 @@ const SiteConfigTab = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Identidade Visual & Contato</CardTitle>
-          <CardDescription>Gerencie os logotipos, ícones e contatos principais do site.</CardDescription>
+          <CardTitle>Configurações Globais do Site</CardTitle>
+          <CardDescription>Gerencie identidade visual, contatos e visibilidade.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           
+          {/* Controle de Visibilidade (DEV/Teste) */}
+          <div className="flex items-center justify-between p-4 border rounded-lg bg-secondary/10">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                {formData.enable_professional_list ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                <Label className="text-base">Exibir Profissionais na Busca</Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Controle global (útil para desenvolvimento). Se desligado, a busca não retornará resultados e mostrará o Concierge.
+              </p>
+            </div>
+            <Switch 
+              checked={formData.enable_professional_list}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, enable_professional_list: checked }))}
+            />
+          </div>
+
+          <div className="border-t my-4" />
+
           {/* WhatsApp Config */}
           <div className="grid gap-4 items-start p-4 border rounded-lg bg-success/5 border-success/20">
             <div className="space-y-2">

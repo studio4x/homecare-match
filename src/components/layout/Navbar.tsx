@@ -195,7 +195,7 @@ const Navbar = () => {
                   </Button>
                 ) : (
                   <>
-                    <Button variant="ghost" asChild className="justify-start">
+                    <Button asChild className="bg-success hover:bg-success/90 text-white">
                       <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
                         Entrar
                       </Link>

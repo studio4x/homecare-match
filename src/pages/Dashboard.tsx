@@ -62,7 +62,7 @@ const Dashboard = () => {
   
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isRequestingVerification, setIsRequestingVerification] = useState(false);
@@ -119,6 +119,36 @@ const Dashboard = () => {
     { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
   ];
 
+  const getProfileCompleteness = () => {
+    if (profile.role !== 'professional') {
+      return { progress: 100, missingFields: [], isComplete: true };
+    }
+    const requiredFields: { [key: string]: string } = {
+      avatar_url: "Foto de Perfil",
+      full_name: "Nome Completo",
+      phone: "WhatsApp",
+      specialty: "Especialidade",
+      registration: "Registro",
+      neighborhood: "Bairro",
+      city: "Cidade",
+      state: "Estado",
+      experience: "Formações",
+      bio: "Biografia Profissional",
+    };
+    let completedCount = 0;
+    const missingFields: string[] = [];
+    const totalFields = Object.keys(requiredFields).length;
+    for (const [key, label] of Object.entries(requiredFields)) {
+      if (profile[key as keyof typeof profile] && String(profile[key as keyof typeof profile]).trim() !== '') {
+        completedCount++;
+      } else {
+        missingFields.push(label);
+      }
+    }
+    const progress = Math.round((completedCount / totalFields) * 100);
+    return { progress, missingFields, isComplete: missingFields.length === 0 };
+  };
+
   useEffect(() => {
     if (!authLoading) {
       if (!session) {
@@ -128,6 +158,15 @@ const Dashboard = () => {
       }
     }
   }, [authLoading, session]);
+
+  useEffect(() => {
+    if (!isLoadingProfile) {
+      const { isComplete } = getProfileCompleteness();
+      if (!isComplete) {
+        setIsEditing(true);
+      }
+    }
+  }, [isLoadingProfile]);
 
   const fetchProfileAndInteractions = async () => {
     if (!user?.id) return;
@@ -342,36 +381,6 @@ const Dashboard = () => {
     } finally {
       setIsGeneratingBio(false);
     }
-  };
-
-  const getProfileCompleteness = () => {
-    if (profile.role !== 'professional') {
-      return { progress: 100, missingFields: [], isComplete: true };
-    }
-    const requiredFields: { [key: string]: string } = {
-      avatar_url: "Foto de Perfil",
-      full_name: "Nome Completo",
-      phone: "WhatsApp",
-      specialty: "Especialidade",
-      registration: "Registro",
-      neighborhood: "Bairro",
-      city: "Cidade",
-      state: "Estado",
-      experience: "Formações",
-      bio: "Biografia Profissional",
-    };
-    let completedCount = 0;
-    const missingFields: string[] = [];
-    const totalFields = Object.keys(requiredFields).length;
-    for (const [key, label] of Object.entries(requiredFields)) {
-      if (profile[key as keyof typeof profile] && String(profile[key as keyof typeof profile]).trim() !== '') {
-        completedCount++;
-      } else {
-        missingFields.push(label);
-      }
-    }
-    const progress = Math.round((completedCount / totalFields) * 100);
-    return { progress, missingFields, isComplete: missingFields.length === 0 };
   };
 
   const handleSave = async () => {
@@ -668,10 +677,8 @@ const Dashboard = () => {
                   </div>
                   {isProfessional && profileCompleteness.isComplete && !isEditing ? (
                     <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
-                  ) : !isProfessional ? (
-                    <Button asChild variant="outline" className="gap-2">
-                      <Link to="/buscar"><Search className="h-4 w-4" /> Buscar Profissionais</Link>
-                    </Button>
+                  ) : !isProfessional && !isEditing ? (
+                    <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
                   ) : null}
                 </div>
                 

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import Layout from "@/components/layout/Layout";
+import InteractionHistory from "@/components/InteractionHistory";
 import {
   CheckCircle2,
   Clock,
@@ -79,24 +80,27 @@ const Dashboard = () => {
     rejection_reason: null as string | null,
     id_document_url: "",
     prof_registration_url: "",
-    trial_started_at: null as string | null
+    trial_started_at: null as string | null,
+    role: "professional"
   });
+
+  const [interactions, setInteractions] = useState<any[]>([]);
+  const [loadingInteractions, setLoadingInteractions] = useState(true);
 
   useEffect(() => {
     if (!authLoading) {
       if (!session) {
         navigate("/login");
       } else {
-        fetchProfile();
+        fetchProfileAndInteractions();
       }
     }
   }, [authLoading, session]);
 
-  const fetchProfile = async () => {
+  const fetchProfileAndInteractions = async () => {
     if (!user?.id) return;
 
     try {
-      // Adicionando rejection_reason explicitamente para garantir que venha na query
       const { data, error } = await supabase
         .from("profiles")
         .select("*, rejection_reason")
@@ -111,7 +115,7 @@ const Dashboard = () => {
           return;
         }
 
-        setProfile({
+        const userProfile = {
           full_name: data.full_name || "",
           registration: data.registration || "",
           specialty: data.specialty || "",
@@ -128,10 +132,15 @@ const Dashboard = () => {
           rejection_reason: data.rejection_reason || null,
           id_document_url: data.id_document_url || "",
           prof_registration_url: data.prof_registration_url || "",
-          trial_started_at: data.trial_started_at
-        });
+          trial_started_at: data.trial_started_at,
+          role: data.role || "professional"
+        };
+        setProfile(userProfile);
+        
+        // Agora, buscar interações com base no papel do usuário
+        await fetchInteractions(user.id, userProfile.role);
+
       } else {
-        // Se o usuário tem sessão mas não tem perfil, significa que foi excluído
         console.warn("Usuário autenticado sem perfil encontrado. Forçando logout.");
         toast.error("Sua conta não foi encontrada ou foi desativada.");
         await signOut();
@@ -141,6 +150,46 @@ const Dashboard = () => {
       console.error("[Dashboard] Erro ao carregar perfil:", err);
     } finally {
       setIsLoadingProfile(false);
+    }
+  };
+
+  const fetchInteractions = async (userId: string, userRole: string) => {
+    setLoadingInteractions(true);
+    try {
+      let query;
+      const profileColumns = 'id, full_name, avatar_url, specialty, role';
+
+      if (userRole === 'professional') {
+        // Profissional: buscar quem entrou em contato com ele
+        query = supabase
+          .from('interactions')
+          .select(`created_at, profiles:sender_id (${profileColumns})`)
+          .eq('professional_id', userId)
+          .order('created_at', { ascending: false });
+      } else {
+        // Empresa/Família: buscar com quem eles entraram em contato
+        query = supabase
+          .from('interactions')
+          .select(`created_at, profiles:professional_id (${profileColumns})`)
+          .eq('sender_id', userId)
+          .order('created_at', { ascending: false });
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const formattedInteractions = data
+        .map(item => ({
+          interacted_at: item.created_at,
+          profile: item.profiles
+        }))
+        .filter(item => item.profile); // Garante que não há perfis nulos
+
+      setInteractions(formattedInteractions);
+    } catch (error) {
+      console.error("[Dashboard] Erro ao buscar interações:", error);
+    } finally {
+      setLoadingInteractions(false);
     }
   };
 
@@ -213,7 +262,6 @@ const Dashboard = () => {
   const handleRetryVerification = async () => {
     if (!user) return;
     try {
-      // Limpa o motivo da rejeição para permitir novo envio
       const { error } = await supabase
         .from("profiles")
         .update({ rejection_reason: null, verification_sent: false })
@@ -339,6 +387,7 @@ const Dashboard = () => {
     ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() 
     : "??";
   const trial = getTrialInfo();
+  const isProfessional = profile.role === 'professional';
 
   return (
     <Layout>
@@ -352,7 +401,7 @@ const Dashboard = () => {
             </Alert>
           )}
 
-          {trial && (
+          {trial && isProfessional && (
             <div className="mb-8 rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
@@ -379,128 +428,98 @@ const Dashboard = () => {
           )}
 
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h1 className="text-3xl font-bold">Meu Perfil</h1>
+            <h1 className="text-3xl font-bold">Meu Painel</h1>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" asChild className="gap-2">
-                <Link to={`/profissional/${user?.id}`}><ExternalLink className="h-4 w-4" /> Ver Público</Link>
-              </Button>
+              {isProfessional && (
+                <Button variant="outline" asChild className="gap-2">
+                  <Link to={`/profissional/${user?.id}`}><ExternalLink className="h-4 w-4" /> Ver Público</Link>
+                </Button>
+              )}
               <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive"><LogOut className="h-4 w-4" /> Sair</Button>
             </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            <div className="space-y-6">
-              <div className="rounded-2xl border bg-card p-6 shadow-card">
-                <h3 className="mb-4 font-semibold">Status de Verificação</h3>
-                
-                {/* Lógica de Exibição Condicional */}
-                {profile.is_verified ? (
-                  // ESTADO: VERIFICADO (VERDE)
-                  <div className="flex flex-col items-center py-4 text-center bg-success/5 rounded-xl border border-success/20">
-                    <CheckCircle2 className="h-10 w-10 text-success mb-2" />
-                    <p className="font-semibold text-success">Perfil Verificado</p>
-                    <p className="text-[10px] text-muted-foreground mt-1 px-4">Seu selo de confiança está ativo.</p>
-                  </div>
-                ) : profile.rejection_reason ? (
-                  // ESTADO: REPROVADO (VERMELHO) - Prioridade sobre o padrão
-                  <div className="flex flex-col items-center py-6 text-center bg-destructive/5 rounded-xl border border-destructive/20 animate-fade-in">
-                    <AlertOctagon className="h-10 w-10 text-destructive mb-3" />
-                    <h4 className="font-semibold text-destructive mb-2">Documentos Reprovados</h4>
-                    <p className="text-xs text-muted-foreground px-4 mb-4 leading-relaxed">
-                      O motivo da recusa foi enviado para seu e-mail. Por favor, verifique, corrija os problemas e tente novamente.
-                    </p>
-                    <Button variant="destructive" size="sm" onClick={handleRetryVerification} className="gap-2 w-full">
-                      <RotateCcw className="h-3 w-3" />
-                      Enviar Novos Documentos
-                    </Button>
-                  </div>
-                ) : profile.verification_sent ? (
-                  // ESTADO: PENDENTE (AZUL)
-                  <div className="flex flex-col items-center py-6 text-center bg-primary/5 rounded-xl border border-primary/20">
-                    <Clock className="h-10 w-10 text-primary animate-pulse mb-3" />
-                    <h4 className="font-semibold text-primary mb-2">Documentos em Análise</h4>
-                    <p className="text-xs text-muted-foreground px-4 leading-relaxed">
-                      Seus documentos foram enviados e serão analisados. Você receberá um e-mail informando a decisão sobre a aprovação.
-                    </p>
-                  </div>
-                ) : (
-                  // ESTADO: PADRÃO / UPLOAD
-                  <div className="space-y-4">
-                    <p className="text-xs text-muted-foreground mb-4">Envie seus documentos para ganhar o selo de verificação.</p>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">RG ou CNH (Frente/Verso)</Label>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className={cn(
-                            "w-full border-dashed justify-start h-10",
-                            profile.id_document_url && "border-success/50 bg-success/5"
-                          )} 
-                          onClick={() => idDocRef.current?.click()} 
-                          disabled={!!isUploadingDoc}
-                        >
-                          {isUploadingDoc === 'id_doc' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileCheck className={cn("h-4 w-4 mr-2", profile.id_document_url ? "text-success" : "text-muted-foreground")} />}
-                          <span className="truncate text-xs">
-                            {profile.id_document_url ? "Documento Enviado ✓" : "Selecionar Arquivo"}
-                          </span>
-                        </Button>
-                        <input type="file" ref={idDocRef} onChange={(e) => handleFileUpload(e, 'id_doc')} className="hidden" accept="image/*,.pdf" />
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Registro Profissional (COREN/CREFITO)</Label>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className={cn(
-                            "w-full border-dashed justify-start h-10",
-                            profile.prof_registration_url && "border-success/50 bg-success/5"
-                          )} 
-                          onClick={() => profDocRef.current?.click()} 
-                          disabled={!!isUploadingDoc}
-                        >
-                          {isUploadingDoc === 'prof_doc' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileCheck className={cn("h-4 w-4 mr-2", profile.prof_registration_url ? "text-success" : "text-muted-foreground")} />}
-                          <span className="truncate text-xs">
-                            {profile.prof_registration_url ? "Registro Enviado ✓" : "Selecionar Arquivo"}
-                          </span>
-                        </Button>
-                        <input type="file" ref={profDocRef} onChange={(e) => handleFileUpload(e, 'prof_doc')} className="hidden" accept="image/*,.pdf" />
-                      </div>
+            {isProfessional && (
+              <div className="space-y-6">
+                <div className="rounded-2xl border bg-card p-6 shadow-card">
+                  <h3 className="mb-4 font-semibold">Status de Verificação</h3>
+                  {profile.is_verified ? (
+                    <div className="flex flex-col items-center py-4 text-center bg-success/5 rounded-xl border border-success/20">
+                      <CheckCircle2 className="h-10 w-10 text-success mb-2" />
+                      <p className="font-semibold text-success">Perfil Verificado</p>
+                      <p className="text-[10px] text-muted-foreground mt-1 px-4">Seu selo de confiança está ativo.</p>
                     </div>
-                    
-                    <Button 
-                      onClick={handleRequestVerification} 
-                      className="w-full mt-4" 
-                      disabled={!profile.id_document_url || !profile.prof_registration_url || isRequestingVerification}
-                    >
-                      {isRequestingVerification ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      Solicitar Verificação
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-2xl border bg-card p-6 shadow-card">
-                <h3 className="mb-4 font-semibold flex items-center gap-2"><Star className="h-4 w-4 text-primary" /> Plano Atual</h3>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">Nível:</span>
-                  <Badge variant="outline" className="capitalize">
-                    {profile.subscription_tier === 'free_trial' ? 'Teste Grátis' : profile.subscription_tier}
-                  </Badge>
+                  ) : profile.rejection_reason ? (
+                    <div className="flex flex-col items-center py-6 text-center bg-destructive/5 rounded-xl border border-destructive/20 animate-fade-in">
+                      <AlertOctagon className="h-10 w-10 text-destructive mb-3" />
+                      <h4 className="font-semibold text-destructive mb-2">Documentos Reprovados</h4>
+                      <p className="text-xs text-muted-foreground px-4 mb-4 leading-relaxed">
+                        O motivo da recusa foi enviado para seu e-mail. Por favor, verifique, corrija os problemas e tente novamente.
+                      </p>
+                      <Button variant="destructive" size="sm" onClick={handleRetryVerification} className="gap-2 w-full">
+                        <RotateCcw className="h-3 w-3" />
+                        Enviar Novos Documentos
+                      </Button>
+                    </div>
+                  ) : profile.verification_sent ? (
+                    <div className="flex flex-col items-center py-6 text-center bg-primary/5 rounded-xl border border-primary/20">
+                      <Clock className="h-10 w-10 text-primary animate-pulse mb-3" />
+                      <h4 className="font-semibold text-primary mb-2">Documentos em Análise</h4>
+                      <p className="text-xs text-muted-foreground px-4 leading-relaxed">
+                        Seus documentos foram enviados e serão analisados. Você receberá um e-mail informando a decisão sobre a aprovação.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-xs text-muted-foreground mb-4">Envie seus documentos para ganhar o selo de verificação.</p>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">RG ou CNH (Frente/Verso)</Label>
+                          <Button variant="outline" size="sm" className={cn("w-full border-dashed justify-start h-10", profile.id_document_url && "border-success/50 bg-success/5")} onClick={() => idDocRef.current?.click()} disabled={!!isUploadingDoc}>
+                            {isUploadingDoc === 'id_doc' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileCheck className={cn("h-4 w-4 mr-2", profile.id_document_url ? "text-success" : "text-muted-foreground")} />}
+                            <span className="truncate text-xs">{profile.id_document_url ? "Documento Enviado ✓" : "Selecionar Arquivo"}</span>
+                          </Button>
+                          <input type="file" ref={idDocRef} onChange={(e) => handleFileUpload(e, 'id_doc')} className="hidden" accept="image/*,.pdf" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Registro Profissional (COREN/CREFITO)</Label>
+                          <Button variant="outline" size="sm" className={cn("w-full border-dashed justify-start h-10", profile.prof_registration_url && "border-success/50 bg-success/5")} onClick={() => profDocRef.current?.click()} disabled={!!isUploadingDoc}>
+                            {isUploadingDoc === 'prof_doc' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileCheck className={cn("h-4 w-4 mr-2", profile.prof_registration_url ? "text-success" : "text-muted-foreground")} />}
+                            <span className="truncate text-xs">{profile.prof_registration_url ? "Registro Enviado ✓" : "Selecionar Arquivo"}</span>
+                          </Button>
+                          <input type="file" ref={profDocRef} onChange={(e) => handleFileUpload(e, 'prof_doc')} className="hidden" accept="image/*,.pdf" />
+                        </div>
+                      </div>
+                      <Button onClick={handleRequestVerification} className="w-full mt-4" disabled={!profile.id_document_url || !profile.prof_registration_url || isRequestingVerification}>
+                        {isRequestingVerification ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Solicitar Verificação
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                {profile.subscription_tier === 'free_trial' && (
-                  <p className="text-[10px] text-muted-foreground mt-2 italic">
-                    * Após 30 dias, seu perfil deixará de aparecer no topo das buscas.
-                  </p>
-                )}
-              </div>
-            </div>
 
-            <div className="lg:col-span-2 space-y-8">
+                <div className="rounded-2xl border bg-card p-6 shadow-card">
+                  <h3 className="mb-4 font-semibold flex items-center gap-2"><Star className="h-4 w-4 text-primary" /> Plano Atual</h3>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-muted-foreground">Nível:</span>
+                    <Badge variant="outline" className="capitalize">
+                      {profile.subscription_tier === 'free_trial' ? 'Teste Grátis' : profile.subscription_tier}
+                    </Badge>
+                  </div>
+                  {profile.subscription_tier === 'free_trial' && (
+                    <p className="text-[10px] text-muted-foreground mt-2 italic">
+                      * Após 30 dias, seu perfil deixará de aparecer no topo das buscas.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className={isProfessional ? "lg:col-span-2 space-y-8" : "col-span-full space-y-8"}>
               <div className="rounded-2xl border bg-card p-6 shadow-card">
                 <div className="mb-6 flex items-center justify-between">
-                  <h3 className="text-xl font-semibold">Dados Profissionais</h3>
+                  <h3 className="text-xl font-semibold">Meus Dados</h3>
                   {!isEditing ? (
                     <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
                   ) : (
@@ -538,63 +557,51 @@ const Dashboard = () => {
                       <Label>WhatsApp (com DDD)</Label>
                       <Input value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} disabled={!isEditing} placeholder="11999999999" />
                     </div>
-                    <div className="grid gap-2">
-                      <Label>Especialidade</Label>
-                      <Input value={profile.specialty} onChange={e => setProfile({...profile, specialty: e.target.value})} disabled={!isEditing} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Registro (COREN/CREFITO)</Label>
-                      <Input value={profile.registration} onChange={e => setProfile({...profile, registration: e.target.value})} disabled={!isEditing} />
-                    </div>
+                    {isProfessional && (
+                      <>
+                        <div className="grid gap-2">
+                          <Label>Especialidade</Label>
+                          <Input value={profile.specialty} onChange={e => setProfile({...profile, specialty: e.target.value})} disabled={!isEditing} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Registro (COREN/CREFITO)</Label>
+                          <Input value={profile.registration} onChange={e => setProfile({...profile, registration: e.target.value})} disabled={!isEditing} />
+                        </div>
+                      </>
+                    )}
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label>Formações</Label>
-                    <Textarea 
-                      value={profile.experience} 
-                      onChange={e => setProfile({...profile, experience: e.target.value})} 
-                      disabled={!isEditing} 
-                      className="min-h-[120px]"
-                      placeholder="Cursos, especializações e histórico acadêmico..."
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Biografia Profissional</Label>
-                      {isEditing && (
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          className="h-7 gap-1 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20"
-                          onClick={handleGenerateBio}
-                          disabled={isGeneratingBio}
-                        >
-                          {isGeneratingBio ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
-                          Gerar com IA
-                        </Button>
-                      )}
-                    </div>
-                    <Textarea 
-                      value={profile.bio} 
-                      onChange={e => setProfile({...profile, bio: e.target.value})} 
-                      disabled={!isEditing} 
-                      className="min-h-[120px]"
-                      placeholder="Conte um pouco sobre sua trajetória..."
-                    />
-                  </div>
+                  {isProfessional && (
+                    <>
+                      <div className="grid gap-2">
+                        <Label>Formações</Label>
+                        <Textarea value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Cursos, especializações e histórico acadêmico..." />
+                      </div>
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Biografia Profissional</Label>
+                          {isEditing && (
+                            <Button type="button" variant="outline" size="sm" className="h-7 gap-1 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={handleGenerateBio} disabled={isGeneratingBio}>
+                              {isGeneratingBio ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
+                              Gerar com IA
+                            </Button>
+                          )}
+                        </div>
+                        <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Conte um pouco sobre sua trajetória..." />
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* Botão Discreto de Exclusão de Conta */}
+              <InteractionHistory
+                title={isProfessional ? "Quem me contatou" : "Profissionais que contatei"}
+                interactions={interactions}
+                loading={loadingInteractions}
+              />
+
               <div className="flex justify-end pt-4">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/5 text-xs h-8 px-2"
-                  onClick={() => setDeleteAccountModalOpen(true)}
-                >
+                <Button variant="ghost" size="sm" className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/5 text-xs h-8 px-2" onClick={() => setDeleteAccountModalOpen(true)}>
                   <Trash2 className="h-3 w-3 mr-2" />
                   Excluir minha conta permanentemente
                 </Button>
@@ -604,21 +611,15 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Modal de Sucesso da Verificação */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
         <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl animate-scale-in">
           <div className="relative bg-card p-12 md:p-16 flex flex-col items-center text-center space-y-8">
-            <button 
-              onClick={() => setShowSuccessModal(false)}
-              className="absolute right-6 top-6 p-2 rounded-full hover:bg-secondary transition-colors"
-            >
+            <button onClick={() => setShowSuccessModal(false)} className="absolute right-6 top-6 p-2 rounded-full hover:bg-secondary transition-colors">
               <X className="h-6 w-6 text-muted-foreground" />
             </button>
-
             <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center animate-bounce">
               <ClipboardCheck className="h-12 w-12 text-primary" />
             </div>
-
             <div className="space-y-4">
               <DialogTitle className="text-4xl font-bold tracking-tight text-foreground">
                 Documentos enviados!
@@ -627,15 +628,9 @@ const Dashboard = () => {
                 Sua solicitação de análise foi registrada com sucesso. Agora, nossa equipe revisará seus dados e você será notificado por e-mail em breve.
               </DialogDescription>
             </div>
-
-            <Button 
-              size="lg" 
-              className="w-full max-w-xs h-14 text-lg font-semibold shadow-lg"
-              onClick={() => setShowSuccessModal(false)}
-            >
+            <Button size="lg" className="w-full max-w-xs h-14 text-lg font-semibold shadow-lg" onClick={() => setShowSuccessModal(false)}>
               Entendido
             </Button>
-            
             <p className="text-sm text-muted-foreground italic">
               A análise costuma levar até 48 horas úteis.
             </p>
@@ -643,7 +638,6 @@ const Dashboard = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Exclusão de Conta */}
       <Dialog open={deleteAccountModalOpen} onOpenChange={setDeleteAccountModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -658,18 +652,10 @@ const Dashboard = () => {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => setDeleteAccountModalOpen(false)}
-              disabled={isDeletingAccount}
-            >
+            <Button variant="ghost" onClick={() => setDeleteAccountModalOpen(false)} disabled={isDeletingAccount}>
               Cancelar
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleDeleteAccount}
-              disabled={isDeletingAccount}
-            >
+            <Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeletingAccount}>
               {isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirmar Exclusão
             </Button>

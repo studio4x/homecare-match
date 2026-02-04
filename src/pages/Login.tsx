@@ -7,7 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import logo from "@/assets/logo.png";
+import logo from "../assets/logo.png";
 
 const Login = () => {
   const { session, loading: authLoading } = useAuth();

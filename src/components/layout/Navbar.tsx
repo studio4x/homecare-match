@@ -12,7 +12,7 @@ const Navbar = () => {
   const location = useLocation();
   const { session, user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [profile, setProfile] = useState<{ avatar_url: string | null; full_name: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ avatar_url: string | null; full_name: string | null; role: string | null } | null>(null);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -21,7 +21,7 @@ const Navbar = () => {
       const fetchProfile = async () => {
         const { data } = await supabase
           .from("profiles")
-          .select("avatar_url, full_name")
+          .select("avatar_url, full_name, role")
           .eq("id", user.id)
           .single();
         
@@ -36,6 +36,8 @@ const Navbar = () => {
   const initials = profile?.full_name 
     ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() 
     : "??";
+
+  const canSeeSearch = !session || (session && profile && profile.role !== 'professional');
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -69,14 +71,16 @@ const Navbar = () => {
             >
               Para Empresas
             </Link>
-            <Link
-              to="/buscar"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive("/buscar") ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
-              Buscar Profissionais
-            </Link>
+            {canSeeSearch && (
+              <Link
+                to="/buscar"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive("/buscar") ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                Buscar Profissionais
+              </Link>
+            )}
           </div>
 
           {/* Desktop CTA */}
@@ -142,15 +146,17 @@ const Navbar = () => {
               >
                 Para Empresas
               </Link>
-              <Link
-                to="/buscar"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`text-sm font-medium ${
-                  isActive("/buscar") ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                Buscar Profissionais
-              </Link>
+              {canSeeSearch && (
+                <Link
+                  to="/buscar"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`text-sm font-medium ${
+                    isActive("/buscar") ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  Buscar Profissionais
+                </Link>
+              )}
               <div className="flex flex-col gap-2 pt-2 border-t border-border mt-2">
                 {session ? (
                   <Button variant="outline" asChild className="justify-start gap-3 h-12">

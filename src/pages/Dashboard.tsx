@@ -952,7 +952,9 @@ const Dashboard = () => {
                       <div className="bg-secondary/20 p-4 rounded-xl space-y-4 border border-border/50">
                         <div className="flex items-center gap-2 mb-2">
                           <MapPin className="h-4 w-4 text-primary" />
-                          <h4 className="font-semibold text-sm">Local do Atendimento</h4>
+                          <h4 className="font-semibold text-sm">
+                            {profile.role === 'company' ? "Endereço da empresa" : "Local do Atendimento"}
+                          </h4>
                         </div>
                         
                         <div className="grid gap-2">

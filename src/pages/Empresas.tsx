@@ -85,9 +85,9 @@ const Empresas = () => {
 
             <div className="animate-slide-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.2s" }}>
               <Button size="lg" asChild className="gap-2 bg-success hover:bg-success/90">
-                <Link to="/buscar">
-                  Buscar Profissionais Agora
-                  <Search className="h-4 w-4" />
+                <Link to="/cadastro-empresa">
+                  Cadastre-se Gratuitamente
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
@@ -255,8 +255,8 @@ const Empresas = () => {
             className="mt-8 gap-2"
             asChild
           >
-            <Link to="/buscar">
-              Buscar Profissionais
+            <Link to="/cadastro-empresa">
+              Comece a Buscar Agora
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>

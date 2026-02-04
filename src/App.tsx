@@ -11,6 +11,7 @@ import Buscar from "./pages/Buscar";
 import Login from "./pages/Login";
 import Perfil from "./pages/Perfil";
 import Admin from "./pages/Admin";
+import CadastroEmpresaFamilia from "./pages/CadastroEmpresaFamilia";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/profissional/:id" element={<Perfil />} />
+            <Route path="/cadastro-empresa" element={<CadastroEmpresaFamilia />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

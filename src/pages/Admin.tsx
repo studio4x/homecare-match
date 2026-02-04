@@ -241,7 +241,47 @@ const Admin = () => {
                   <div>
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Settings className="h-5 w-5" /> Identidade Visual</h3>
                     <div className="space-y-6">
-                      {/* ... campos de logo e favicon ... */}
+                      <div className="space-y-2">
+                        <Label>Logotipo (Cabeçalho)</Label>
+                        <div className="flex items-center gap-4">
+                          {siteConfig.logo_url && <img src={siteConfig.logo_url} alt="Logo Preview" className="h-12 w-auto bg-muted p-1 rounded-md border" />}
+                          <Button type="button" variant="outline" onClick={() => logoInputRef.current?.click()} disabled={!!isUploading}>
+                            {isUploading === 'logo' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            Alterar Imagem
+                          </Button>
+                          <input type="file" ref={logoInputRef} className="hidden" accept="image/png, image/jpeg, image/svg+xml" onChange={(e) => handleImageUpload(e, 'logo')} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="logo_height">Altura do Logotipo (pixels)</Label>
+                        <Input id="logo_height" type="number" value={siteConfig.logo_height_px} onChange={e => setSiteConfig({...siteConfig, logo_height_px: parseInt(e.target.value) || 48})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Logotipo (Rodapé)</Label>
+                        <div className="flex items-center gap-4">
+                          {siteConfig.footer_logo_url && <img src={siteConfig.footer_logo_url} alt="Footer Logo Preview" className="h-12 w-auto bg-muted p-1 rounded-md border" />}
+                          <Button type="button" variant="outline" onClick={() => footerLogoInputRef.current?.click()} disabled={!!isUploading}>
+                            {isUploading === 'footer_logo' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            Alterar Imagem
+                          </Button>
+                          <input type="file" ref={footerLogoInputRef} className="hidden" accept="image/png, image/jpeg, image/svg+xml" onChange={(e) => handleImageUpload(e, 'footer_logo')} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="footer_logo_height">Altura do Logotipo do Rodapé (pixels)</Label>
+                        <Input id="footer_logo_height" type="number" value={siteConfig.footer_logo_height_px} onChange={e => setSiteConfig({...siteConfig, footer_logo_height_px: parseInt(e.target.value) || 32})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Favicon</Label>
+                         <div className="flex items-center gap-4">
+                          {siteConfig.favicon_url && <img src={siteConfig.favicon_url} alt="Favicon Preview" className="h-8 w-8 bg-muted p-1 rounded-md border" />}
+                          <Button type="button" variant="outline" onClick={() => faviconInputRef.current?.click()} disabled={!!isUploading}>
+                            {isUploading === 'favicon' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                            Alterar Imagem
+                          </Button>
+                          <input type="file" ref={faviconInputRef} className="hidden" accept="image/png, image/x-icon, image/svg+xml" onChange={(e) => handleImageUpload(e, 'favicon')} />
+                        </div>
+                      </div>
                     </div>
                   </div>
 

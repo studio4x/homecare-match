@@ -595,11 +595,11 @@ const Dashboard = () => {
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h1 className="text-3xl font-bold">Meu Painel</h1>
             <div className="flex flex-wrap gap-2">
-              {isProfessional && (
-                <Button variant="outline" asChild className="gap-2">
-                  <Link to={`/profissional/${user?.id}`}><ExternalLink className="h-4 w-4" /> Ver Público</Link>
-                </Button>
-              )}
+              <Button variant="outline" asChild className="gap-2">
+                <Link to={isProfessional ? `/profissional/${user?.id}` : `/recruiter/${user?.id}`}>
+                  <ExternalLink className="h-4 w-4" /> Ver Perfil Público
+                </Link>
+              </Button>
               <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive"><LogOut className="h-4 w-4" /> Sair</Button>
             </div>
           </div>

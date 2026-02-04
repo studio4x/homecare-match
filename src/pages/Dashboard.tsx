@@ -33,7 +33,6 @@ import {
   Building2,
   Home,
   Search,
-  DollarSign,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -853,13 +852,13 @@ const Dashboard = () => {
                         <div className="grid gap-2">
                           <Label>Valor por Hora de Atendimento (R$)</Label>
                           <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
                             <Input
                               type="number"
                               value={profile.hourly_rate || ""}
                               onChange={(e) => setProfile({ ...profile, hourly_rate: e.target.value ? parseFloat(e.target.value) : null })}
                               disabled={!isEditing}
-                              className="pl-10"
+                              className="pl-9"
                               placeholder="Ex: 80.00"
                             />
                           </div>

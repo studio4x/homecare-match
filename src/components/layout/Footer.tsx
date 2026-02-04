@@ -21,7 +21,7 @@ const Footer = () => {
               <img 
                 src={logoUrl} 
                 alt="HomeCareMatch" 
-                style={{ height: `${logoHeight}px`, maxHeight: '60px' }}
+                style={{ height: `${logoHeight}px`, width: 'auto' }}
                 className="object-contain" 
               />
             </Link>

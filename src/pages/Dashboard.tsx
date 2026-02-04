@@ -767,6 +767,18 @@ const Dashboard = () => {
                       </p>
                     )}
                   </div>
+
+                  <InteractionHistory
+                    title="Quem me contatou"
+                    interactions={paginatedInteractions}
+                    loading={loadingInteractions}
+                    totalItems={interactions.length}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                    currentPage={currentPage}
+                    onPageChange={setCurrentPage}
+                    onClear={handleClearInteractions}
+                    viewerRole={profile.role as 'professional' | 'company' | 'family'}
+                  />
                 </>
               ) : (
                 <InteractionHistory
@@ -1079,20 +1091,6 @@ const Dashboard = () => {
                   )}
                 </div>
               </div>
-
-              {isProfessional && (
-                <InteractionHistory
-                  title="Quem me contatou"
-                  interactions={paginatedInteractions}
-                  loading={loadingInteractions}
-                  totalItems={interactions.length}
-                  itemsPerPage={ITEMS_PER_PAGE}
-                  currentPage={currentPage}
-                  onPageChange={setCurrentPage}
-                  onClear={handleClearInteractions}
-                  viewerRole={profile.role as 'professional' | 'company' | 'family'}
-                />
-              )}
 
               <div className="flex justify-end pt-4">
                 <Button variant="ghost" size="sm" className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/5 text-xs h-8 px-2" onClick={() => setDeleteAccountModalOpen(true)}>

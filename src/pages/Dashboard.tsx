@@ -28,7 +28,8 @@ import {
   ClipboardCheck,
   RotateCcw,
   AlertOctagon,
-  Trash2
+  Trash2,
+  Info
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -58,7 +59,7 @@ const Dashboard = () => {
   
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(true); // Começa editando se o perfil estiver incompleto
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isRequestingVerification, setIsRequestingVerification] = useState(false);
@@ -163,7 +164,6 @@ const Dashboard = () => {
         };
         setProfile(userProfile);
         
-        // Agora, buscar interações com base no papel do usuário
         await fetchInteractions(user.id, userProfile.role);
 
       } else {
@@ -186,14 +186,12 @@ const Dashboard = () => {
       const profileColumns = 'id, full_name, avatar_url, specialty, role';
 
       if (userRole === 'professional') {
-        // Profissional: buscar quem entrou em contato com ele
         query = supabase
           .from('interactions')
           .select(`created_at, profiles:sender_id (${profileColumns})`)
           .eq('professional_id', userId)
           .order('created_at', { ascending: false });
       } else {
-        // Empresa/Família: buscar com quem eles entraram em contato
         query = supabase
           .from('interactions')
           .select(`created_at, profiles:professional_id (${profileColumns})`)
@@ -209,7 +207,7 @@ const Dashboard = () => {
           interacted_at: item.created_at,
           profile: item.profiles
         }))
-        .filter(item => item.profile); // Garante que não há perfis nulos
+        .filter(item => item.profile);
 
       setInteractions(formattedInteractions);
     } catch (error) {
@@ -334,8 +332,44 @@ const Dashboard = () => {
     }
   };
 
+  const getProfileCompleteness = () => {
+    if (profile.role !== 'professional') {
+      return { progress: 100, missingFields: [], isComplete: true };
+    }
+    const requiredFields: { [key: string]: string } = {
+      avatar_url: "Foto de Perfil",
+      full_name: "Nome Completo",
+      phone: "WhatsApp",
+      specialty: "Especialidade",
+      registration: "Registro",
+      experience: "Formações",
+      bio: "Biografia Profissional",
+    };
+    let completedCount = 0;
+    const missingFields: string[] = [];
+    const totalFields = Object.keys(requiredFields).length;
+    for (const [key, label] of Object.entries(requiredFields)) {
+      if (profile[key as keyof typeof profile] && String(profile[key as keyof typeof profile]).trim() !== '') {
+        completedCount++;
+      } else {
+        missingFields.push(label);
+      }
+    }
+    const progress = Math.round((completedCount / totalFields) * 100);
+    return { progress, missingFields, isComplete: missingFields.length === 0 };
+  };
+
   const handleSave = async () => {
     if (!user) return;
+
+    const { isComplete, missingFields } = getProfileCompleteness();
+    if (isProfessional && !isComplete) {
+      toast.error("Complete seu perfil para salvar", {
+        description: `Campos pendentes: ${missingFields.join(", ")}.`,
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       const { error } = await supabase.from("profiles").update({
@@ -417,6 +451,7 @@ const Dashboard = () => {
   const trial = getTrialInfo();
   const isProfessional = profile.role === 'professional';
   const isCompany = profile.role === 'company';
+  const profileCompleteness = getProfileCompleteness();
 
   return (
     <Layout>
@@ -549,28 +584,41 @@ const Dashboard = () => {
               <div className="rounded-2xl border bg-card p-6 shadow-card">
                 <div className="mb-6 flex items-center justify-between">
                   <h3 className="text-xl font-semibold">Meus Dados</h3>
-                  {!isEditing ? (
+                  {isProfessional && profileCompleteness.isComplete && !isEditing && (
                     <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
-                      <Button onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        Salvar Alterações
-                      </Button>
-                    </div>
                   )}
                 </div>
                 
+                {isProfessional && !profileCompleteness.isComplete && (
+                  <Alert className="mb-6 border-primary/20 bg-primary/5">
+                    <Info className="h-4 w-4 text-primary" />
+                    <AlertTitle className="text-primary">Complete seu Perfil</AlertTitle>
+                    <AlertDescription className="text-xs text-muted-foreground">
+                      Para que seu perfil seja visível nas buscas, todos os campos abaixo são obrigatórios.
+                      <div className="mt-3">
+                        <Progress value={profileCompleteness.progress} className="h-2" />
+                        <p className="mt-2 text-[10px]">
+                          Pendente: {profileCompleteness.missingFields.join(", ")}
+                        </p>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="space-y-6">
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-20 w-20 ring-4 ring-border">
-                      <AvatarImage src={profile.avatar_url} />
-                      <AvatarFallback className="text-xl">{initials}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className={cn("h-20 w-20 ring-4 ring-border", isProfessional && !profile.avatar_url && "ring-destructive")}>
+                        <AvatarImage src={profile.avatar_url} />
+                        <AvatarFallback className="text-xl">{initials}</AvatarFallback>
+                      </Avatar>
+                      {isProfessional && !profile.avatar_url && (
+                        <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive border-2 border-card" />
+                      )}
+                    </div>
                     {isEditing && (
                       <div className="flex flex-col gap-2">
-                        <Button variant="outline" size="sm" onClick={() => avatarRef.current?.click()}>Alterar Foto</Button>
+                        <Button variant="outline" size="sm" onClick={() => avatarRef.current?.click()}>Alterar Foto *</Button>
                         <p className="text-[10px] text-muted-foreground">JPG ou PNG, máx. 2MB</p>
                         <input type="file" ref={avatarRef} onChange={(e) => handleFileUpload(e, 'avatar')} className="hidden" accept="image/*" />
                       </div>
@@ -579,11 +627,11 @@ const Dashboard = () => {
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label>{isProfessional ? "Nome Completo" : (isCompany ? "Razão Social / Nome do Responsável" : "Nome do Responsável")}</Label>
+                      <Label>{isProfessional ? "Nome Completo *" : (isCompany ? "Razão Social / Nome do Responsável" : "Nome do Responsável")}</Label>
                       <Input value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} disabled={!isEditing} />
                     </div>
                     <div className="grid gap-2">
-                      <Label>WhatsApp (com DDD)</Label>
+                      <Label>WhatsApp (com DDD) {isProfessional && "*"}</Label>
                       <Input value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} disabled={!isEditing} placeholder="11999999999" />
                     </div>
                     {isCompany && (
@@ -601,7 +649,7 @@ const Dashboard = () => {
                     {isProfessional && (
                       <>
                         <div className="grid gap-2">
-                          <Label>Especialidade</Label>
+                          <Label>Especialidade *</Label>
                           <Select
                             value={profile.specialty}
                             onValueChange={(value) => setProfile({ ...profile, specialty: value })}
@@ -620,7 +668,7 @@ const Dashboard = () => {
                           </Select>
                         </div>
                         <div className="grid gap-2">
-                          <Label>Registro (COREN/CREFITO)</Label>
+                          <Label>Registro (COREN/CREFITO) *</Label>
                           <Input value={profile.registration} onChange={e => setProfile({...profile, registration: e.target.value})} disabled={!isEditing} />
                         </div>
                       </>
@@ -630,12 +678,12 @@ const Dashboard = () => {
                   {isProfessional ? (
                     <>
                       <div className="grid gap-2">
-                        <Label>Formações</Label>
+                        <Label>Formações *</Label>
                         <Textarea value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Cursos, especializações e histórico acadêmico..." />
                       </div>
                       <div className="grid gap-2">
                         <div className="flex items-center justify-between">
-                          <Label>Biografia Profissional</Label>
+                          <Label>Biografia Profissional *</Label>
                           {isEditing && (
                             <Button type="button" variant="outline" size="sm" className="h-7 gap-1 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={handleGenerateBio} disabled={isGeneratingBio}>
                               {isGeneratingBio ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
@@ -666,6 +714,15 @@ const Dashboard = () => {
                         <Label>{profile.role === 'company' ? 'Sobre a Empresa' : 'Descrição da Necessidade'}</Label>
                         <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder={profile.role === 'company' ? 'Descreva brevemente sua empresa...' : 'Descreva a necessidade do paciente, o local do atendimento, etc...'} />
                       </div>
+                    </div>
+                  )}
+                  {isEditing && (
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" onClick={() => { if (profileCompleteness.isComplete) setIsEditing(false); }}>Cancelar</Button>
+                      <Button onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Salvar Alterações
+                      </Button>
                     </div>
                   )}
                 </div>

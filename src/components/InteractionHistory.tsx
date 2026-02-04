@@ -1,11 +1,19 @@
 "use client";
 
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, ArrowRight } from "lucide-react";
+import { Users, ArrowRight, Trash2 } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { cn } from "@/lib/utils";
 
 interface Interaction {
   interacted_at: string;
@@ -22,9 +30,23 @@ interface InteractionHistoryProps {
   title: string;
   interactions: Interaction[];
   loading: boolean;
+  totalItems: number;
+  itemsPerPage: number;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  onClear: () => void;
 }
 
-const InteractionHistory = ({ title, interactions, loading }: InteractionHistoryProps) => {
+const InteractionHistory = ({
+  title,
+  interactions,
+  loading,
+  totalItems,
+  itemsPerPage,
+  currentPage,
+  onPageChange,
+  onClear,
+}: InteractionHistoryProps) => {
   const getInitials = (name: string) =>
     name
       ?.split(" ")
@@ -33,12 +55,20 @@ const InteractionHistory = ({ title, interactions, loading }: InteractionHistory
       .slice(0, 2)
       .toUpperCase() || "??";
 
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
   return (
-    <Card className="shadow-card">
-      <CardHeader>
+    <Card className="shadow-card flex flex-col">
+      <CardHeader className="flex-row items-center justify-between">
         <CardTitle>{title}</CardTitle>
+        {totalItems > 0 && !loading && (
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-destructive" onClick={onClear}>
+            <Trash2 className="h-3 w-3 mr-1" />
+            Limpar Lista
+          </Button>
+        )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-grow">
         <div className="space-y-4">
           {loading ? (
             Array.from({ length: 3 }).map((_, i) => (
@@ -80,6 +110,39 @@ const InteractionHistory = ({ title, interactions, loading }: InteractionHistory
           )}
         </div>
       </CardContent>
+      {totalPages > 1 && (
+        <CardFooter className="border-t pt-4">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) onPageChange(currentPage - 1);
+                  }}
+                  className={cn("cursor-pointer", currentPage === 1 && "pointer-events-none opacity-50")}
+                />
+              </PaginationItem>
+              <PaginationItem>
+                <span className="text-sm font-medium text-muted-foreground">
+                  Página {currentPage} de {totalPages}
+                </span>
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) onPageChange(currentPage + 1);
+                  }}
+                  className={cn("cursor-pointer", currentPage === totalPages && "pointer-events-none opacity-50")}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </CardFooter>
+      )}
     </Card>
   );
 };

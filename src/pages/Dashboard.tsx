@@ -59,13 +59,15 @@ const Dashboard = () => {
   
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingDoc, setIsUploadingDoc] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(true); // Começa editando se o perfil estiver incompleto
+  const [isEditing, setIsEditing] = useState(true);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isRequestingVerification, setIsRequestingVerification] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   
   const idDocRef = useRef<HTMLInputElement>(null);
   const profDocRef = useRef<HTMLInputElement>(null);
@@ -96,6 +98,8 @@ const Dashboard = () => {
 
   const [interactions, setInteractions] = useState<any[]>([]);
   const [loadingInteractions, setLoadingInteractions] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 7;
 
   const specialties = [
     { value: "assistente-social", label: "Assistente Social" },
@@ -186,14 +190,12 @@ const Dashboard = () => {
       let query;
   
       if (userRole === 'professional') {
-        // A professional wants to see who contacted them (the senders)
         query = supabase
           .from('interactions')
           .select(`created_at, sender:sender_id (${profileColumns})`)
           .eq('professional_id', userId)
           .order('created_at', { ascending: false });
       } else {
-        // A company/family wants to see which professionals they contacted
         query = supabase
           .from('interactions')
           .select(`created_at, professional:professional_id (${profileColumns})`)
@@ -204,13 +206,18 @@ const Dashboard = () => {
       const { data, error } = await query;
       if (error) throw error;
   
-      const formattedInteractions = data
-        .map(item => ({
-          interacted_at: item.created_at,
-          profile: item.sender || item.professional
-        }))
-        .filter(item => item.profile);
-  
+      const uniqueInteractions = new Map();
+      data.forEach(item => {
+        const profile = item.sender || item.professional;
+        if (profile && !uniqueInteractions.has(profile.id)) {
+          uniqueInteractions.set(profile.id, {
+            interacted_at: item.created_at,
+            profile: profile
+          });
+        }
+      });
+
+      const formattedInteractions = Array.from(uniqueInteractions.values());
       setInteractions(formattedInteractions);
     } catch (error) {
       console.error("[Dashboard] Erro ao buscar interações:", error);
@@ -420,6 +427,35 @@ const Dashboard = () => {
     }
   };
 
+  const handleClearInteractions = () => {
+    if (interactions.length === 0) return;
+    setShowClearConfirm(true);
+  };
+
+  const performClearInteractions = async () => {
+    if (!user) return;
+    setIsClearing(true);
+    try {
+      const columnToFilter = profile.role === 'professional' ? 'professional_id' : 'sender_id';
+      const { error } = await supabase
+        .from('interactions')
+        .delete()
+        .eq(columnToFilter, user.id);
+
+      if (error) throw error;
+
+      toast.success("Histórico de contatos limpo!");
+      setInteractions([]);
+      setCurrentPage(1);
+      setShowClearConfirm(false);
+    } catch (err) {
+      toast.error("Erro ao limpar o histórico.");
+      console.error(err);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   const getTrialInfo = () => {
     if (profile.subscription_tier !== 'free_trial' || !profile.trial_started_at) return null;
     
@@ -457,6 +493,11 @@ const Dashboard = () => {
   const isProfessional = profile.role === 'professional';
   const isCompany = profile.role === 'company';
   const profileCompleteness = getProfileCompleteness();
+
+  const paginatedInteractions = interactions.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <Layout>
@@ -588,8 +629,13 @@ const Dashboard = () => {
               ) : (
                 <InteractionHistory
                   title="Profissionais que contatei"
-                  interactions={interactions}
+                  interactions={paginatedInteractions}
                   loading={loadingInteractions}
+                  totalItems={interactions.length}
+                  itemsPerPage={ITEMS_PER_PAGE}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onClear={handleClearInteractions}
                 />
               )}
             </div>
@@ -760,8 +806,13 @@ const Dashboard = () => {
               {isProfessional && (
                 <InteractionHistory
                   title="Quem me contatou"
-                  interactions={interactions}
+                  interactions={paginatedInteractions}
                   loading={loadingInteractions}
+                  totalItems={interactions.length}
+                  itemsPerPage={ITEMS_PER_PAGE}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onClear={handleClearInteractions}
                 />
               )}
 
@@ -823,6 +874,26 @@ const Dashboard = () => {
             <Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeletingAccount}>
               {isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirmar Exclusão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Limpar Histórico?</DialogTitle>
+            <DialogDescription className="pt-2">
+              Esta ação é irreversível e removerá todos os contatos da sua lista. Deseja continuar?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="ghost" onClick={() => setShowClearConfirm(false)} disabled={isClearing}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={performClearInteractions} disabled={isClearing}>
+              {isClearing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Limpar Histórico
             </Button>
           </DialogFooter>
         </DialogContent>

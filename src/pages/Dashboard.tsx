@@ -81,7 +81,9 @@ const Dashboard = () => {
     id_document_url: "",
     prof_registration_url: "",
     trial_started_at: null as string | null,
-    role: "professional"
+    role: "professional",
+    company_name: "",
+    cnpj: ""
   });
 
   const [interactions, setInteractions] = useState<any[]>([]);
@@ -133,7 +135,9 @@ const Dashboard = () => {
           id_document_url: data.id_document_url || "",
           prof_registration_url: data.prof_registration_url || "",
           trial_started_at: data.trial_started_at,
-          role: data.role || "professional"
+          role: data.role || "professional",
+          company_name: data.company_name || "",
+          cnpj: data.cnpj || ""
         };
         setProfile(userProfile);
         
@@ -321,7 +325,9 @@ const Dashboard = () => {
         state: profile.state,
         neighborhood: profile.neighborhood,
         specialty: profile.specialty,
-        registration: profile.registration
+        registration: profile.registration,
+        company_name: profile.company_name,
+        cnpj: profile.cnpj
       }).eq("id", user.id);
 
       if (error) throw error;
@@ -388,6 +394,7 @@ const Dashboard = () => {
     : "??";
   const trial = getTrialInfo();
   const isProfessional = profile.role === 'professional';
+  const isCompany = profile.role === 'company';
 
   return (
     <Layout>
@@ -550,13 +557,25 @@ const Dashboard = () => {
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="grid gap-2">
-                      <Label>{isProfessional ? "Nome Completo" : "Nome (Empresa ou Responsável)"}</Label>
+                      <Label>{isProfessional ? "Nome Completo" : (isCompany ? "Razão Social / Nome do Responsável" : "Nome do Responsável")}</Label>
                       <Input value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} disabled={!isEditing} />
                     </div>
                     <div className="grid gap-2">
                       <Label>WhatsApp (com DDD)</Label>
                       <Input value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} disabled={!isEditing} placeholder="11999999999" />
                     </div>
+                    {isCompany && (
+                      <>
+                        <div className="grid gap-2">
+                          <Label>Nome Fantasia</Label>
+                          <Input value={profile.company_name} onChange={e => setProfile({...profile, company_name: e.target.value})} disabled={!isEditing} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>CNPJ</Label>
+                          <Input value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} disabled={!isEditing} />
+                        </div>
+                      </>
+                    )}
                     {isProfessional && (
                       <>
                         <div className="grid gap-2">

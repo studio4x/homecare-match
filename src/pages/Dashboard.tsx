@@ -675,9 +675,7 @@ const Dashboard = () => {
                       </Badge>
                     )}
                   </div>
-                  {isProfessional && profileCompleteness.isComplete && !isEditing ? (
-                    <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
-                  ) : !isProfessional && !isEditing ? (
+                  {!isEditing ? (
                     <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
                   ) : null}
                 </div>
@@ -825,7 +823,7 @@ const Dashboard = () => {
                   )}
                   {isEditing && (
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" onClick={() => { if (profileCompleteness.isComplete) setIsEditing(false); }}>Cancelar</Button>
+                      <Button variant="ghost" onClick={() => { setIsEditing(false); fetchProfileAndInteractions(); }}>Cancelar</Button>
                       <Button onClick={handleSave} disabled={isSaving}>
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         Salvar Alterações

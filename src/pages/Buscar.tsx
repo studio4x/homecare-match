@@ -111,7 +111,11 @@ const Buscar = () => {
     { value: "enfermeiro", label: "Enfermeiro(a)" },
     { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
     { value: "fisioterapeuta", label: "Fisioterapeuta" },
-    { value: "cuidador", label: "Cuidador(a) de Idosos" },
+    { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
+    { value: "fonoaudiologo", label: "Fonoaudiólogo(a)" },
+    { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
+    { value: "nutricionista", label: "Nutricionista" },
+    { value: "psicologo", label: "Psicólogo(a)" },
   ];
 
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];

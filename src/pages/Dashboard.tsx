@@ -44,6 +44,13 @@ import {
   DialogFooter,
   DialogHeader
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Dashboard = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -88,6 +95,17 @@ const Dashboard = () => {
 
   const [interactions, setInteractions] = useState<any[]>([]);
   const [loadingInteractions, setLoadingInteractions] = useState(true);
+
+  const specialties = [
+    { value: "enfermeiro", label: "Enfermeiro(a)" },
+    { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
+    { value: "fisioterapeuta", label: "Fisioterapeuta" },
+    { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
+    { value: "fonoaudiologo", label: "Fonoaudiólogo(a)" },
+    { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
+    { value: "nutricionista", label: "Nutricionista" },
+    { value: "psicologo", label: "Psicólogo(a)" },
+  ];
 
   useEffect(() => {
     if (!authLoading) {
@@ -580,7 +598,22 @@ const Dashboard = () => {
                       <>
                         <div className="grid gap-2">
                           <Label>Especialidade</Label>
-                          <Input value={profile.specialty} onChange={e => setProfile({...profile, specialty: e.target.value})} disabled={!isEditing} />
+                          <Select
+                            value={profile.specialty}
+                            onValueChange={(value) => setProfile({ ...profile, specialty: value })}
+                            disabled={!isEditing}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione sua especialidade" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {specialties.map((s) => (
+                                <SelectItem key={s.value} value={s.value}>
+                                  {s.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="grid gap-2">
                           <Label>Registro (COREN/CREFITO)</Label>

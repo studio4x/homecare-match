@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, ArrowRight, Trash2, Building2, Home, Phone } from "lucide-react";
+import { Users, ArrowRight, Trash2, Building2, Home, Phone, Eye } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -33,6 +33,10 @@ interface Interaction {
     specialty?: string;
     role?: string;
     phone?: string;
+    bio?: string;
+    city?: string;
+    state?: string;
+    neighborhood?: string;
   };
 }
 
@@ -61,10 +65,17 @@ const InteractionHistory = ({
 }: InteractionHistoryProps) => {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Interaction['profile'] | null>(null);
+  const [viewProfileModalOpen, setViewProfileModalOpen] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<Interaction['profile'] | null>(null);
 
   const handleContactClick = (profile: Interaction['profile']) => {
     setSelectedContact(profile);
     setContactModalOpen(true);
+  };
+
+  const handleViewProfileClick = (profile: Interaction['profile']) => {
+    setSelectedProfile(profile);
+    setViewProfileModalOpen(true);
   };
 
   const getInitials = (name: string) =>
@@ -134,9 +145,14 @@ const InteractionHistory = ({
                     </div>
                   </div>
                   {viewerRole === 'professional' ? (
-                    <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2">
-                      Contato <Phone className="h-3 w-3" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => handleViewProfileClick(profile)} className="gap-1.5">
+                        <Eye className="h-4 w-4" /> Ver
+                      </Button>
+                      <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2">
+                        Contato <Phone className="h-3 w-3" />
+                      </Button>
+                    </div>
                   ) : (
                     <Button variant="ghost" size="sm" asChild>
                       <Link to={`/profissional/${profile.id}`}>
@@ -213,6 +229,53 @@ const InteractionHistory = ({
                 </a>
               </Button>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={viewProfileModalOpen} onOpenChange={setViewProfileModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-start gap-4">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={selectedProfile?.avatar_url} />
+                <AvatarFallback className="text-lg">{getInitials(selectedProfile?.full_name || '')}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <DialogTitle className="text-xl">{selectedProfile?.full_name}</DialogTitle>
+                <Badge variant={selectedProfile?.role === 'company' ? "secondary" : "outline"} className="capitalize flex items-center gap-1 text-xs mt-1">
+                  {selectedProfile?.role === 'company' ? (
+                    <>
+                      <Building2 className="h-3 w-3" />
+                      Empresa
+                    </>
+                  ) : (
+                    <>
+                      <Home className="h-3 w-3" />
+                      Família
+                    </>
+                  )}
+                </Badge>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            {(selectedProfile?.city || selectedProfile?.state) && (
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground mb-1">Localização</h4>
+                <p className="text-foreground">
+                  {selectedProfile.neighborhood ? `${selectedProfile.neighborhood}, ` : ''}{selectedProfile.city} - {selectedProfile.state}
+                </p>
+              </div>
+            )}
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground mb-1">
+                {selectedProfile?.role === 'company' ? 'Sobre a Empresa' : 'Descrição da Necessidade'}
+              </h4>
+              <p className="text-foreground whitespace-pre-wrap text-sm leading-relaxed">
+                {selectedProfile?.bio || "Nenhuma descrição fornecida."}
+              </p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

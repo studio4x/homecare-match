@@ -189,7 +189,7 @@ const Dashboard = () => {
   const fetchInteractions = async (userId: string, userRole: string) => {
     setLoadingInteractions(true);
     try {
-      const profileColumns = 'id, full_name, avatar_url, specialty, role, phone';
+      const profileColumns = 'id, full_name, avatar_url, specialty, role, phone, bio, city, state, neighborhood';
       let query;
   
       if (userRole === 'professional') {

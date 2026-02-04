@@ -27,9 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import VerificationQueue from "@/components/VerificationQueue";
-import UserManagement from "@/components/UserManagement";
-import PlanManagement from "@/components/PlanManagement";
+import VerificationQueue from "@/components/admin/VerificationQueue";
+import UserManagement from "@/components/admin/UserManagement";
+import PlanManagement from "@/components/admin/PlanManagement";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();

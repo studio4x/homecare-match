@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Mail, Phone, MapPin } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 const Footer = () => {
   return (
@@ -9,7 +10,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2">
-              <img src="/logo.png" alt="HomeCareMatch" className="h-12" />
+              <img src={logo} alt="HomeCareMatch" className="h-12" />
             </Link>
             <p className="text-sm text-muted-foreground">
               Conectando profissionais de saúde às melhores oportunidades em Home Care.

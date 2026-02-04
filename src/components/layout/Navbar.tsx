@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
+import logo from "@/assets/logo.png";
 
 const Navbar = () => {
   const location = useLocation();
@@ -45,7 +46,7 @@ const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <img src="/logo.png" alt="HomeCareMatch" className="h-12" />
+            <img src={logo} alt="HomeCareMatch" className="h-12" />
           </Link>
 
           {/* Desktop Navigation */}

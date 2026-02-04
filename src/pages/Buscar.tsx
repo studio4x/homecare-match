@@ -108,14 +108,18 @@ const Buscar = () => {
   };
 
   const specialties = [
-    { value: "enfermeiro", label: "Enfermeiro(a)" },
-    { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
-    { value: "fisioterapeuta", label: "Fisioterapeuta" },
+    { value: "assistente-social", label: "Assistente Social" },
     { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
+    { value: "dentista", label: "Dentista" },
+    { value: "enfermeiro", label: "Enfermeiro(a)" },
+    { value: "farmaceutico", label: "Farmacêutico(a)" },
+    { value: "fisioterapeuta", label: "Fisioterapeuta" },
     { value: "fonoaudiologo", label: "Fonoaudiólogo(a)" },
-    { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
+    { value: "medico-clinico", label: "Médico(a) - Clínico Geral / Geriatra" },
     { value: "nutricionista", label: "Nutricionista" },
     { value: "psicologo", label: "Psicólogo(a)" },
+    { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
+    { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
   ];
 
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];

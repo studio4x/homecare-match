@@ -342,6 +342,9 @@ const Dashboard = () => {
       phone: "WhatsApp",
       specialty: "Especialidade",
       registration: "Registro",
+      neighborhood: "Bairro",
+      city: "Cidade",
+      state: "Estado",
       experience: "Formações",
       bio: "Biografia Profissional",
     };
@@ -677,6 +680,20 @@ const Dashboard = () => {
 
                   {isProfessional ? (
                     <>
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <div className="grid gap-2">
+                          <Label>Bairro *</Label>
+                          <Input value={profile.neighborhood} onChange={e => setProfile({...profile, neighborhood: e.target.value})} disabled={!isEditing} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Cidade *</Label>
+                          <Input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value})} disabled={!isEditing} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Estado (UF) *</Label>
+                          <Input value={profile.state} onChange={e => setProfile({...profile, state: e.target.value})} disabled={!isEditing} maxLength={2} />
+                        </div>
+                      </div>
                       <div className="grid gap-2">
                         <Label>Formações *</Label>
                         <Textarea value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Cursos, especializações e histórico acadêmico..." />

@@ -27,6 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import VerificationQueue from "@/components/VerificationQueue";
+import UserManagement from "@/components/UserManagement";
+import PlanManagement from "@/components/PlanManagement";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -217,7 +220,7 @@ const Admin = () => {
             <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive"><LogOut className="h-4 w-4" /> Sair</Button>
           </div>
 
-          <Tabs defaultValue="settings" className="space-y-6">
+          <Tabs defaultValue="verifications" className="space-y-6">
             <TabsList className="bg-card border w-full justify-start md:w-auto">
               <TabsTrigger value="verifications">Verificações</TabsTrigger>
               <TabsTrigger value="users">Usuários</TabsTrigger>
@@ -226,13 +229,13 @@ const Admin = () => {
             </TabsList>
 
             <TabsContent value="verifications">
-              {/* Conteúdo de Verificações aqui */}
+              <VerificationQueue />
             </TabsContent>
             <TabsContent value="users">
-              {/* Conteúdo de Usuários aqui */}
+              <UserManagement />
             </TabsContent>
             <TabsContent value="plans">
-              {/* Conteúdo de Planos aqui */}
+              <PlanManagement />
             </TabsContent>
 
             <TabsContent value="settings">

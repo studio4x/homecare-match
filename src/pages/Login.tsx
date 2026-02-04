@@ -7,11 +7,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useSettings } from '../providers/SettingsProvider';
+
+const logoUrl = "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
 
 const Login = () => {
   const { session, loading: authLoading } = useAuth();
-  const { logoUrl, loading: settingsLoading } = useSettings();
   const location = useLocation();
   const navigate = useNavigate();
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -44,6 +44,7 @@ const Login = () => {
           console.error("[Login] Erro fatal no redirecionamento:", error);
           navigate('/dashboard', { replace: true });
         } finally {
+          // Timeout de segurança para garantir que o loader suma caso o navigate demore
           setTimeout(() => setIsRedirecting(false), 2000);
         }
       };
@@ -70,9 +71,7 @@ const Login = () => {
       <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center py-12 px-4 bg-secondary/20">
         <div className="w-full max-w-md space-y-8 rounded-2xl border border-border bg-card p-8 shadow-card">
           <div className="text-center">
-            {!settingsLoading && logoUrl && (
-              <img src={logoUrl} alt="HomeCareMatch" className="mx-auto h-24" />
-            )}
+            <img src={logoUrl} alt="HomeCareMatch" className="mx-auto h-24" />
             <h2 className="mt-6 text-3xl font-bold tracking-tight text-foreground">
               Portal de Acesso
             </h2>

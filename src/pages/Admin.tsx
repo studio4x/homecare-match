@@ -57,7 +57,7 @@ const Admin = () => {
   const footerLogoInputRef = useRef<HTMLInputElement>(null);
 
   const googleFonts = [
-    "Inter", "Roboto", "Lato", "Poppins", "Open Sans", "Montserrat", "Nunito"
+    "Inter", "Roboto", "Lato", "Poppins", "Open Sans", "Montserrat", "Nunito", "Pacifico"
   ];
 
   useEffect(() => {

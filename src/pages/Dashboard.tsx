@@ -305,6 +305,32 @@ const Dashboard = () => {
     }
   };
 
+  // --- Phone Formatting Logic ---
+  const formatPhoneNumber = (value: string) => {
+    // Remove tudo que não for dígito
+    const numbers = value.replace(/\D/g, '');
+    
+    // Limita a 11 dígitos
+    const limited = numbers.slice(0, 11);
+
+    // Aplica a máscara (XX) XXXXX-XXXX
+    if (limited.length <= 2) {
+      return limited.replace(/(\d{0,2})/, '($1');
+    } else if (limited.length <= 6) {
+      return limited.replace(/(\d{2})(\d{0,4})/, '($1) $2');
+    } else if (limited.length <= 10) {
+      return limited.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+    } else {
+      return limited.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setProfile(prev => ({ ...prev, phone: formatted }));
+  };
+  // -----------------------------
+
   const handleCepBlur = async () => {
     const cep = profile.address_zip.replace(/\D/g, '');
     if (cep.length !== 8) return;
@@ -451,6 +477,16 @@ const Dashboard = () => {
 
   const handleSave = async () => {
     if (!user) return;
+
+    // --- Phone Validation ---
+    const cleanPhone = profile.phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      toast.error("Número de WhatsApp inválido.", {
+        description: "O número deve conter o DDD e ter no mínimo 10 dígitos.",
+      });
+      return;
+    }
+    // -----------------------
 
     const { isComplete, missingFields } = getProfileCompleteness();
     if (isProfessional && !isComplete) {
@@ -809,7 +845,13 @@ const Dashboard = () => {
                     </div>
                     <div className="grid gap-2">
                       <Label>WhatsApp (com DDD) {isProfessional && "*"}</Label>
-                      <Input value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} disabled={!isEditing} placeholder="11999999999" />
+                      <Input 
+                        value={profile.phone} 
+                        onChange={handlePhoneChange}
+                        disabled={!isEditing} 
+                        placeholder="(11) 99999-9999" 
+                        maxLength={15}
+                      />
                     </div>
                     {isCompany && (
                       <>

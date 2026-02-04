@@ -38,8 +38,6 @@ const authSchema = z.object({
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
 }).superRefine((data, ctx) => {
-  // Validações manuais baseadas no contexto (serão tratadas no onSubmit também, 
-  // mas aqui garantimos a integridade básica)
   if (data.confirmPassword !== undefined && data.password !== data.confirmPassword) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -75,7 +73,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
     handleSubmit,
     formState: { errors },
     reset,
-    trigger
   } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
     defaultValues: {
@@ -126,10 +123,11 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
       } else {
         // Lógica de Login
         if (loginMethod === "password") {
-          const { error } = await supabase.auth.signInWithPassword({
+          const { data: signInData, error } = await supabase.auth.signInWithPassword({
             email: data.email,
             password: data.password!,
           });
+
           if (error) {
             if (error.message.includes("Email not confirmed")) {
               toast.error("Verifique seu e-mail para continuar.", {
@@ -141,22 +139,36 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
             }
             throw error;
           }
+          
           toast.success("Bem-vindo de volta!");
-          onSuccess?.();
+          
+          if (onSuccess) {
+            onSuccess();
+          } else {
+            // Verifica se é admin para redirecionar corretamente
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('is_admin, role')
+              .eq('id', signInData.user.id)
+              .maybeSingle();
+
+            if (profile?.is_admin || profile?.role === 'admin') {
+              navigate('/admin');
+            } else {
+              navigate('/dashboard');
+            }
+          }
         } else {
           // Lógica Magic Link (Sem senha)
           const { error } = await supabase.auth.signInWithOtp({
             email: data.email,
             options: {
-              shouldCreateUser: false, // IMPORTANTE: Não cria conta se não existir
+              shouldCreateUser: false,
               emailRedirectTo: window.location.origin + "/dashboard",
             },
           });
 
           if (error) {
-            // Verifica se o erro é de usuário não encontrado
-            // O Supabase pode retornar mensagens diferentes dependendo da configuração,
-            // mas geralmente 'Signups not allowed' ou erro genérico com shouldCreateUser: false
             if (error.message.includes("Signups not allowed") || error.message.includes("not found")) {
               setShowUserNotFoundModal(true);
               return;
@@ -168,11 +180,10 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         }
       }
     } catch (error: any) {
-      // Tratamento específico para quando o shouldCreateUser: false falha silenciosamente ou com erro genérico
       if (mode === "login" && loginMethod === "magic_link" && error.status === 400) {
-         // Em alguns casos o Supabase retorna 400 se o user não existe com shouldCreateUser: false
          setShowUserNotFoundModal(true);
       } else {
+        console.error("Auth error:", error);
         toast.error(translateAuthError(error.message));
       }
     } finally {
@@ -362,8 +373,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
             <Button 
               onClick={() => {
                 setShowUserNotFoundModal(false);
-                // Se estiver no login genérico, muda para register
-                // Se for página de login, pode redirecionar para cadastro específico se preferir
                 if (window.location.pathname.includes('login')) {
                   navigate('/cadastro-empresa');
                 } else {

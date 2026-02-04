@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -15,15 +15,22 @@ import {
   ArrowLeft,
   Calendar,
   Share2,
-  Star
+  Star,
+  Loader2,
+  Lock
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 const Perfil = () => {
   const { id } = useParams();
+  const { session, user } = useAuth();
+  const navigate = useNavigate();
+  
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isContacting, setIsContacting] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -31,7 +38,7 @@ const Perfil = () => {
 
   const fetchProfile = async () => {
     setLoading(true);
-    // Only select safe public fields - never use .select("*") for security
+    // Only select safe public fields
     const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, phone";
     
     const { data, error } = await supabase
@@ -47,6 +54,54 @@ const Perfil = () => {
       setProfile(data);
     }
     setLoading(false);
+  };
+
+  const handleContact = async () => {
+    if (!session || !user) {
+      toast.info("Você precisa estar logado para entrar em contato.");
+      navigate("/login");
+      return;
+    }
+
+    if (user.id === profile.id) {
+      toast.error("Você não pode entrar em contato com você mesmo.");
+      return;
+    }
+
+    if (!profile.phone) {
+      toast.info("Este profissional ainda não cadastrou um telefone de contato.");
+      return;
+    }
+
+    setIsContacting(true);
+
+    try {
+      // 1. Registrar a interação no banco de dados
+      const { error } = await supabase.from('interactions').insert({
+        sender_id: user.id,
+        professional_id: profile.id
+      });
+
+      if (error) {
+        console.error("Erro ao registrar interação:", error);
+        // Não impedimos o contato se falhar o log, mas avisamos no console
+      }
+
+      // 2. Abrir o WhatsApp
+      const msg = encodeURIComponent(`Olá ${profile.full_name}, vi seu perfil no HomeCareMatch e gostaria de conversar sobre uma oportunidade.`);
+      window.open(`https://wa.me/55${profile.phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
+      
+      toast.success("Redirecionando para o WhatsApp...");
+    } catch (error) {
+      toast.error("Erro ao processar contato.");
+    } finally {
+      setIsContacting(false);
+    }
+  };
+
+  const shareProfile = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success("Link do perfil copiado!");
   };
 
   if (loading) return (
@@ -71,20 +126,6 @@ const Perfil = () => {
   const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase();
   const isPremium = profile.subscription_tier === 'yearly';
   
-  const handleContact = () => {
-    if (profile.phone) {
-      const msg = encodeURIComponent(`Olá ${profile.full_name}, vi seu perfil no HomeCareMatch e gostaria de conversar sobre uma oportunidade.`);
-      window.open(`https://wa.me/55${profile.phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
-    } else {
-      toast.info("Este profissional ainda não cadastrou um telefone de contato.");
-    }
-  };
-
-  const shareProfile = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast.success("Link do perfil copiado!");
-  };
-
   return (
     <Layout>
       <div className="bg-secondary/20 py-8">
@@ -172,10 +213,26 @@ const Perfil = () => {
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card sticky top-24">
                 <h3 className="font-semibold text-lg mb-4 text-center">Interessado?</h3>
                 <div className="space-y-3">
-                  <Button onClick={handleContact} className="w-full h-12 gap-2 text-lg bg-success hover:bg-success/90">
-                    <MessageSquare className="h-5 w-5" />
-                    Contatar via WhatsApp
+                  <Button 
+                    onClick={handleContact} 
+                    disabled={isContacting}
+                    className="w-full h-12 gap-2 text-lg bg-primary hover:bg-primary/90"
+                  >
+                    {isContacting ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <MessageSquare className="h-5 w-5" />
+                    )}
+                    Entrar em Contato
                   </Button>
+                  
+                  {!session && (
+                    <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+                      <Lock className="h-3 w-3" />
+                      Login necessário para visualizar contato
+                    </p>
+                  )}
+
                   <Button onClick={shareProfile} variant="outline" className="w-full gap-2">
                     <Share2 className="h-4 w-4" />
                     Compartilhar Perfil

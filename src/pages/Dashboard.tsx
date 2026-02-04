@@ -802,7 +802,7 @@ const Dashboard = () => {
                   <div className="flex items-center gap-3">
                     <h3 className="text-xl font-semibold">Meus Dados</h3>
                     {!isProfessional && (
-                      <Badge variant={isCompany ? "secondary" : "outline"} className="capitalize flex items-center gap-1.5">
+                      <Badge variant={isCompany ? "secondary" : "outline"} className="capitalize flex items-center gap-1.5 whitespace-nowrap">
                         {isCompany ? (
                           <>
                             <Building2 className="h-3 w-3" />
@@ -897,7 +897,8 @@ const Dashboard = () => {
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione sua especialidade" />
                             </SelectTrigger>
-                            <SelectContent>
+                            {/* ADICIONADO: max-height para evitar overflow no mobile */}
+                            <SelectContent className="max-h-[40vh] overflow-y-auto">
                               {specialties.map((s) => (
                                 <SelectItem key={s.value} value={s.value}>
                                   {s.label}
@@ -1081,9 +1082,10 @@ const Dashboard = () => {
                     </div>
                   )}
                   {isEditing && (
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" onClick={() => { setIsEditing(false); fetchProfileAndInteractions(); }}>Cancelar</Button>
-                      <Button onClick={handleSave} disabled={isSaving}>
+                    // MODIFICADO: Container de botões responsivo e fixo no final
+                    <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 mt-6 border-t border-border sticky bottom-0 bg-card z-10 pb-2 sm:static sm:pb-0">
+                      <Button variant="ghost" onClick={() => { setIsEditing(false); fetchProfileAndInteractions(); }} className="w-full sm:w-auto h-12 sm:h-10">Cancelar</Button>
+                      <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm shadow-md">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         Salvar Alterações
                       </Button>

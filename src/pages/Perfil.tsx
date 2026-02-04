@@ -186,9 +186,10 @@ const Perfil = () => {
                         {profile.full_name}
                         {isPremium && <Star className="h-6 w-6 text-gold fill-current" />}
                       </h1>
+                      {/* Badge responsivo: whitespace-nowrap para não quebrar feio, e text-sm no mobile */}
                       {profile.is_verified && (
                         <Badge className={cn(
-                          "border-none text-white",
+                          "border-none text-white whitespace-nowrap",
                           isPremium ? "bg-gold" : "bg-success"
                         )}>
                           {isPremium ? "Verificado Premium" : "Verificado"}

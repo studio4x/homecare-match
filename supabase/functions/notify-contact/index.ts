@@ -11,53 +11,75 @@ const corsHeaders = {
 const DEFAULT_SITE_URL = "https://homecarematch.lovable.app";
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
+  console.log("[notify-contact] Função iniciada.");
+
+  if (req.method === 'OPTIONS') {
+    console.log("[notify-contact] Recebida requisição OPTIONS.");
+    return new Response(null, { headers: corsHeaders });
+  }
 
   try {
     const SITE_URL = Deno.env.get('SITE_URL') || DEFAULT_SITE_URL;
+    console.log(`[notify-contact] URL do site configurada para: ${SITE_URL}`);
 
     // Validar SMTP
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASS');
     if (!smtpHost || !smtpUser || !smtpPass) {
-      console.error("[notify-contact] Erro: Secrets do SMTP não configuradas!");
+      console.error("[notify-contact] Erro crítico: Secrets do SMTP não configuradas!");
       throw new Error("SMTP configuration missing");
     }
+    console.log("[notify-contact] Configurações SMTP encontradas.");
 
     // Validar o chamador da função
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) return new Response('Unauthorized', { status: 401, headers: corsHeaders })
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("[notify-contact] Erro de autenticação: Cabeçalho de autorização ausente.");
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+    }
     
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-    const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''))
-    if (authError || !caller) return new Response('Invalid token', { status: 401, headers: corsHeaders })
-
-    const { professional_id, sender_id } = await req.json()
-    if (!professional_id || !sender_id) {
-      return new Response('IDs do profissional e do remetente são obrigatórios', { status: 400, headers: corsHeaders })
+    );
+    const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
+    if (authError || !caller) {
+      console.error("[notify-contact] Erro de autenticação: Token inválido.", authError);
+      return new Response('Invalid token', { status: 401, headers: corsHeaders });
     }
+    console.log(`[notify-contact] Chamador validado: ${caller.id}`);
+
+    const { professional_id, sender_id } = await req.json();
+    if (!professional_id || !sender_id) {
+      console.error("[notify-contact] Erro de payload: IDs ausentes.", { professional_id, sender_id });
+      return new Response('IDs do profissional e do remetente são obrigatórios', { status: 400, headers: corsHeaders });
+    }
+    console.log(`[notify-contact] IDs recebidos: professional=${professional_id}, sender=${sender_id}`);
 
     // Buscar dados do profissional (destinatário)
     const { data: professional, error: profError } = await supabaseAdmin
       .from('profiles')
       .select('full_name, email')
       .eq('id', professional_id)
-      .single()
-    if (profError || !professional) throw new Error(`Profissional não encontrado: ${professional_id}`)
+      .single();
+    if (profError || !professional) {
+      console.error(`[notify-contact] Erro ao buscar profissional ${professional_id}:`, profError);
+      throw new Error(`Profissional não encontrado: ${professional_id}`);
+    }
+    console.log(`[notify-contact] Destinatário encontrado: ${professional.full_name} (${professional.email})`);
 
     // Buscar dados do remetente (empresa/família)
     const { data: sender, error: senderError } = await supabaseAdmin
       .from('profiles')
       .select('full_name, role, city, state, bio')
       .eq('id', sender_id)
-      .single()
-    if (senderError || !sender) throw new Error(`Remetente não encontrado: ${sender_id}`)
-
-    console.log(`[notify-contact] Notificando ${professional.email} sobre contato de ${sender.full_name}`);
+      .single();
+    if (senderError || !sender) {
+      console.error(`[notify-contact] Erro ao buscar remetente ${sender_id}:`, senderError);
+      throw new Error(`Remetente não encontrado: ${sender_id}`);
+    }
+    console.log(`[notify-contact] Remetente encontrado: ${sender.full_name}`);
 
     const transporter = createTransport({
       host: smtpHost,
@@ -65,11 +87,12 @@ serve(async (req) => {
       secure: parseInt(Deno.env.get('SMTP_PORT') || "587") === 465,
       auth: { user: smtpUser, pass: smtpPass },
     });
+    console.log("[notify-contact] Transportador de e-mail configurado.");
 
     const senderRoleText = sender.role === 'company' ? 'a empresa' : 'a família';
     const senderProfileLink = `${SITE_URL}/recruiter/${sender_id}`;
 
-    await transporter.sendMail({
+    const mailOptions = {
       from: `"HomeCareMatch" <${smtpUser}>`,
       to: professional.email,
       subject: `🎉 Boa notícia! Você recebeu um novo contato!`,
@@ -89,13 +112,17 @@ serve(async (req) => {
           </div>
         </div>
       `,
-    });
+    };
+
+    console.log(`[notify-contact] Tentando enviar e-mail para ${professional.email}...`);
+    await transporter.sendMail(mailOptions);
+    console.log("[notify-contact] E-mail enviado com sucesso!");
 
     return new Response(JSON.stringify({ success: true }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    });
   } catch (error) {
-    console.error("[notify-contact] Erro crítico:", error.message)
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
+    console.error("[notify-contact] Erro crítico na execução da função:", error);
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 })

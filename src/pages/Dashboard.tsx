@@ -34,6 +34,7 @@ import {
   Home,
   Search,
   Users,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -74,6 +75,7 @@ const Dashboard = () => {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
   
   const idDocRef = useRef<HTMLInputElement>(null);
   const profDocRef = useRef<HTMLInputElement>(null);
@@ -103,6 +105,10 @@ const Dashboard = () => {
     hourly_rate: null as number | null,
     availability: [] as string[],
     patient_profiles: [] as string[],
+    address_zip: "",
+    address_street: "",
+    address_number: "",
+    address_complement: "",
   });
 
   const [interactions, setInteractions] = useState<any[]>([]);
@@ -234,6 +240,10 @@ const Dashboard = () => {
           hourly_rate: data.hourly_rate || null,
           availability: data.availability || [],
           patient_profiles: data.patient_profiles || [],
+          address_zip: data.address_zip || "",
+          address_street: data.address_street || "",
+          address_number: data.address_number || "",
+          address_complement: data.address_complement || "",
         };
         setProfile(userProfile);
         
@@ -292,6 +302,35 @@ const Dashboard = () => {
       console.error("[Dashboard] Erro ao buscar interações:", error);
     } finally {
       setLoadingInteractions(false);
+    }
+  };
+
+  const handleCepBlur = async () => {
+    const cep = profile.address_zip.replace(/\D/g, '');
+    if (cep.length !== 8) return;
+
+    setIsLoadingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+
+      if (!data.erro) {
+        setProfile(prev => ({
+          ...prev,
+          address_street: data.logradouro,
+          neighborhood: data.bairro,
+          city: data.localidade,
+          state: data.uf
+        }));
+        toast.success("Endereço encontrado!");
+      } else {
+        toast.error("CEP não encontrado.");
+      }
+    } catch (error) {
+      console.error("Erro ao buscar CEP:", error);
+      toast.error("Erro ao buscar endereço.");
+    } finally {
+      setIsLoadingCep(false);
     }
   };
 
@@ -438,6 +477,10 @@ const Dashboard = () => {
         hourly_rate: profile.hourly_rate,
         availability: profile.availability,
         patient_profiles: profile.patient_profiles,
+        address_zip: profile.address_zip,
+        address_street: profile.address_street,
+        address_number: profile.address_number,
+        address_complement: profile.address_complement,
       }).eq("id", user.id);
 
       if (error) throw error;
@@ -906,23 +949,70 @@ const Dashboard = () => {
                     </>
                   ) : (
                     <div className="space-y-6">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div className="grid gap-2">
-                          <Label>Cidade</Label>
-                          <Input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value})} disabled={!isEditing} />
+                      <div className="bg-secondary/20 p-4 rounded-xl space-y-4 border border-border/50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          <h4 className="font-semibold text-sm">Local do Atendimento</h4>
                         </div>
+                        
                         <div className="grid gap-2">
-                          <Label>Estado (UF)</Label>
-                          <Input value={profile.state} onChange={e => setProfile({...profile, state: e.target.value})} disabled={!isEditing} maxLength={2} />
+                          <Label>CEP</Label>
+                          <div className="flex gap-2">
+                            <Input 
+                              value={profile.address_zip} 
+                              onChange={e => setProfile({...profile, address_zip: e.target.value})} 
+                              onBlur={handleCepBlur}
+                              disabled={!isEditing || isLoadingCep} 
+                              placeholder="00000-000"
+                              maxLength={9}
+                            />
+                            {isLoadingCep && <div className="flex items-center"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div className="grid gap-2 md:col-span-2">
+                            <Label>Rua</Label>
+                            <Input value={profile.address_street} onChange={e => setProfile({...profile, address_street: e.target.value})} disabled={!isEditing} />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Número</Label>
+                            <Input value={profile.address_number} onChange={e => setProfile({...profile, address_number: e.target.value})} disabled={!isEditing} />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label>Complemento</Label>
+                            <Input value={profile.address_complement} onChange={e => setProfile({...profile, address_complement: e.target.value})} disabled={!isEditing} />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Bairro</Label>
+                            <Input value={profile.neighborhood} onChange={e => setProfile({...profile, neighborhood: e.target.value})} disabled={!isEditing} />
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="grid gap-2">
+                            <Label>Cidade</Label>
+                            <Input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value})} disabled={!isEditing} />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Estado (UF)</Label>
+                            <Input value={profile.state} onChange={e => setProfile({...profile, state: e.target.value})} disabled={!isEditing} maxLength={2} />
+                          </div>
                         </div>
                       </div>
+
                       <div className="grid gap-2">
-                        <Label>Bairro</Label>
-                        <Input value={profile.neighborhood} onChange={e => setProfile({...profile, neighborhood: e.target.value})} disabled={!isEditing} />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>{profile.role === 'company' ? 'Sobre a Empresa' : 'Descrição da Necessidade'}</Label>
-                        <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder={profile.role === 'company' ? 'Descreva brevemente sua empresa...' : 'Descreva a necessidade do paciente, o local do atendimento, etc...'} />
+                        <Label>{profile.role === 'company' ? 'Sobre a Empresa' : 'Descrição da Necessidade / Paciente'}</Label>
+                        <Textarea 
+                          value={profile.bio} 
+                          onChange={e => setProfile({...profile, bio: e.target.value})} 
+                          disabled={!isEditing} 
+                          className="min-h-[120px]" 
+                          placeholder={profile.role === 'company' ? 'Descreva brevemente sua empresa...' : 'Descreva a necessidade do paciente (idade, condição, cuidados necessários)...'} 
+                        />
                       </div>
                     </div>
                   )}

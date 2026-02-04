@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { 
   Select,
@@ -22,13 +21,7 @@ import {
   Loader2,
   LogOut,
   Lock,
-  ThumbsUp,
-  ThumbsDown,
-  Edit2,
-  Plus,
   ShieldAlert,
-  Trash2,
-  Calendar,
   CheckCircle2,
   Settings,
   Palette,
@@ -37,14 +30,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +39,9 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { differenceInDays, addDays } from "date-fns";
+import VerificationQueue from "@/components/admin/VerificationQueue";
+import UserManagement from "@/components/admin/UserManagement";
+import PlanManagement from "@/components/admin/PlanManagement";
 
 const Admin = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -388,16 +375,6 @@ const Admin = () => {
     }
   };
 
-  const getTrialStatus = (user: any) => {
-    if (user.subscription_tier !== 'free_trial' || !user.trial_started_at) return null;
-    
-    const startDate = new Date(user.trial_started_at);
-    const endDate = addDays(startDate, 30);
-    const daysRemaining = differenceInDays(endDate, new Date());
-    
-    return daysRemaining;
-  };
-
   if (authLoading || loading) {
     return <Layout><div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></Layout>;
   }
@@ -451,178 +428,33 @@ const Admin = () => {
             </TabsList>
 
             <TabsContent value="verifications">
-              <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
-                <Table>
-                  <TableHeader><TableRow><TableHead>Profissional</TableHead><TableHead>Documentos</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader>
-                  <TableBody>
-                    {pendingProfiles.length > 0 ? pendingProfiles.map(p => (
-                      <TableRow key={p.id}>
-                        <TableCell>
-                          <div className="font-medium">{p.full_name}</div>
-                          <div className="text-xs text-muted-foreground">{p.email}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            {p.id_document_url && <Button variant="outline" size="sm" asChild className="h-7 text-xs"><a href={p.id_document_url} target="_blank" rel="noreferrer">RG/CNH</a></Button>}
-                            {p.prof_registration_url && <Button variant="outline" size="sm" asChild className="h-7 text-xs"><a href={p.prof_registration_url} target="_blank" rel="noreferrer">Registro</a></Button>}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
-                          <Button variant="ghost" size="sm" className="text-success" onClick={() => { setSelectedProfile(p); setApproveModalOpen(true); }}><ThumbsUp className="h-4 w-4 mr-1" />Aprovar</Button>
-                        </TableCell>
-                      </TableRow>
-                    )) : <TableRow><TableCell colSpan={3} className="h-32 text-center text-muted-foreground">Nenhuma solicitação pendente.</TableCell></TableRow>}
-                  </TableBody>
-                </Table>
-              </div>
+              <VerificationQueue 
+                profiles={pendingProfiles}
+                onApprove={(p) => { setSelectedProfile(p); setApproveModalOpen(true); }}
+                onReject={(p) => { setSelectedProfile(p); setRejectionModalOpen(true); }}
+              />
             </TabsContent>
             
             <TabsContent value="users">
-              <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>E-mail</TableHead>
-                      <TableHead>Função</TableHead>
-                      <TableHead>Plano / Status</TableHead>
-                      <TableHead>Verificado</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allUsers.map(u => {
-                      const daysLeft = getTrialStatus(u);
-                      return (
-                        <TableRow key={u.id}>
-                          <TableCell className="font-medium">{u.full_name || "Sem nome"}</TableCell>
-                          <TableCell>{u.email}</TableCell>
-                          <TableCell>
-                            {isUpdatingRole === u.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Select 
-                                defaultValue={u.role} 
-                                onValueChange={(value) => handleUpdateRole(u.id, value)}
-                                disabled={u.email === MASTER_ADMIN_EMAIL}
-                              >
-                                <SelectTrigger className="w-[140px] h-8 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="professional">Profissional</SelectItem>
-                                  <SelectItem value="company">Empresa</SelectItem>
-                                  <SelectItem value="family">Família</SelectItem>
-                                  <SelectItem 
-                                    value="admin" 
-                                    disabled={u.email !== MASTER_ADMIN_EMAIL}
-                                  >
-                                    Admin
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              {isUpdatingPlan === u.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Select 
-                                  defaultValue={u.subscription_tier || 'monthly'} 
-                                  onValueChange={(value) => handleUpdatePlan(u.id, value)}
-                                  disabled={u.role !== 'professional'}
-                                >
-                                  <SelectTrigger className="w-[140px] h-8 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="free_trial">Teste Grátis</SelectItem>
-                                    {plans.map(plan => (
-                                      <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                              {daysLeft !== null && (
-                                <div className={`text-[10px] font-medium flex items-center gap-1 ${daysLeft <= 0 ? 'text-destructive' : 'text-primary'}`}>
-                                  <Calendar className="h-3 w-3" />
-                                  {daysLeft <= 0 ? 'Expirado' : `${daysLeft} dias restantes`}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{u.is_verified ? <Badge className="bg-success">Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
-                          <TableCell className="text-right">
-                            {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="text-destructive hover:bg-destructive/10"
-                                onClick={() => {
-                                  setUserToDelete(u);
-                                  setDeleteModalOpen(true);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+              <UserManagement 
+                users={allUsers}
+                plans={plans}
+                updatingRole={isUpdatingRole}
+                updatingPlan={isUpdatingPlan}
+                onUpdateRole={handleUpdateRole}
+                onUpdatePlan={handleUpdatePlan}
+                onDelete={(u) => { setUserToDelete(u); setDeleteModalOpen(true); }}
+                currentUser={user}
+                masterAdminEmail={MASTER_ADMIN_EMAIL}
+              />
             </TabsContent>
 
             <TabsContent value="plans">
-              <div className="mb-4 flex justify-end">
-                <Button onClick={() => { setSelectedPlan({ id: '', name: '', price: '', period: 'mês', features: '' }); setPlanModalOpen(true); }} className="gap-2">
-                  <Plus className="h-4 w-4" /> Novo Plano
-                </Button>
-              </div>
-              <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Preço</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Teste Grátis (Sistema)</div>
-                        <div className="text-xs text-muted-foreground text-primary">Plano Padrão de Cadastro</div>
-                      </TableCell>
-                      <TableCell>R$ 0,00/30 dias</TableCell>
-                      <TableCell><Badge variant="outline">Automático</Badge></TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-xs text-muted-foreground px-2">Gerido pelo sistema</span>
-                      </TableCell>
-                    </TableRow>
-                    {plans.length > 0 ? plans.map(p => (
-                      <TableRow key={p.id}>
-                        <TableCell>
-                          <div className="font-medium">{p.name}</div>
-                          <div className="text-xs text-muted-foreground">{p.id}</div>
-                        </TableCell>
-                        <TableCell>{p.price}/{p.period}</TableCell>
-                        <TableCell>{p.popular && <Badge variant="secondary" className="bg-primary/10 text-primary">Popular</Badge>}</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => { setSelectedPlan({ ...p, features: Array.isArray(p.features) ? p.features.join('\n') : '' }); setPlanModalOpen(true); }}>
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    )) : null}
-                  </TableBody>
-                </Table>
-              </div>
+              <PlanManagement 
+                plans={plans}
+                onNew={() => { setSelectedPlan({ id: '', name: '', price: '', period: 'mês', features: '' }); setPlanModalOpen(true); }}
+                onEdit={(p) => { setSelectedPlan({ ...p, features: Array.isArray(p.features) ? p.features.join('\n') : '' }); setPlanModalOpen(true); }}
+              />
             </TabsContent>
 
             <TabsContent value="settings">

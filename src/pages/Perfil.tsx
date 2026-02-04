@@ -21,7 +21,9 @@ import {
   UserCheck,
   X,
   Users,
-  LayoutGrid
+  LayoutGrid,
+  DollarSign,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -32,6 +34,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
 const Perfil = () => {
   const { id } = useParams();
@@ -42,6 +45,21 @@ const Perfil = () => {
   const [loading, setLoading] = useState(true);
   const [isContacting, setIsContacting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [viewerRole, setViewerRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchViewerRole = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        setViewerRole(data?.role || null);
+      }
+    };
+    fetchViewerRole();
+  }, [user]);
 
   useEffect(() => {
     fetchProfile();
@@ -49,8 +67,7 @@ const Perfil = () => {
 
   const fetchProfile = async () => {
     setLoading(true);
-    // Only select safe public fields
-    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, phone";
+    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, phone, hourly_rate, availability, patient_profiles";
     
     const { data, error } = await supabase
       .from("profiles")
@@ -82,7 +99,6 @@ const Perfil = () => {
     setIsContacting(true);
 
     try {
-      // 1. Registrar a interação no banco de dados
       const { error } = await supabase.from('interactions').insert({
         sender_id: user.id,
         professional_id: profile.id
@@ -90,7 +106,6 @@ const Perfil = () => {
 
       if (error) throw error;
 
-      // 2. Abrir o modal de sucesso
       setShowSuccessModal(true);
       
     } catch (error) {
@@ -206,6 +221,55 @@ const Perfil = () => {
                   <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
                     {profile.experience || "Informações de experiência não detalhadas."}
                   </p>
+                </div>
+
+                <Separator className="my-10" />
+
+                <div>
+                  <h3 className="text-lg font-semibold mb-6">Detalhes do Atendimento</h3>
+                  <div className="grid gap-8 md:grid-cols-2">
+                    <div>
+                      <h4 className="font-semibold flex items-center gap-2 mb-3">
+                        <Clock className="h-5 w-5 text-primary" />
+                        Disponibilidade
+                      </h4>
+                      {profile.availability?.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {profile.availability.map((item: string) => (
+                            <Badge key={item} variant="secondary">{item}</Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Não informado.</p>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold flex items-center gap-2 mb-3">
+                        <Users className="h-5 w-5 text-primary" />
+                        Perfis de Pacientes
+                      </h4>
+                      {profile.patient_profiles?.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {profile.patient_profiles.map((item: string) => (
+                            <Badge key={item} variant="secondary">{item}</Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Não informado.</p>
+                      )}
+                    </div>
+                    {viewerRole === 'family' && profile.hourly_rate && (
+                      <div className="md:col-span-2">
+                        <h4 className="font-semibold flex items-center gap-2 mb-3">
+                          <DollarSign className="h-5 w-5 text-primary" />
+                          Valor por Hora
+                        </h4>
+                        <p className="text-2xl font-bold text-foreground">
+                          R$ {Number(profile.hourly_rate).toFixed(2).replace('.', ',')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

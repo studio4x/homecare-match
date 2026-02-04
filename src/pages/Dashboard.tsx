@@ -33,6 +33,8 @@ import {
   Building2,
   Home,
   Search,
+  DollarSign,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -55,6 +57,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 
 const Dashboard = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -96,7 +100,10 @@ const Dashboard = () => {
     trial_started_at: null as string | null,
     role: "professional",
     company_name: "",
-    cnpj: ""
+    cnpj: "",
+    hourly_rate: null as number | null,
+    availability: [] as string[],
+    patient_profiles: [] as string[],
   });
 
   const [interactions, setInteractions] = useState<any[]>([]);
@@ -117,6 +124,24 @@ const Dashboard = () => {
     { value: "psicologo", label: "Psicólogo(a)" },
     { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
     { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
+  ];
+
+  const availabilityOptions = [
+    "Período da Manhã",
+    "Período da Tarde",
+    "Período da Noite",
+    "Dia Integral (Diurno)",
+    "Plantão 12h (Noturno)",
+    "Finais de Semana",
+  ];
+
+  const patientProfileOptions = [
+    "Idosos",
+    "Pediátrico",
+    "Pós-cirúrgico",
+    "Doenças Crônicas",
+    "Cuidados Paliativos",
+    "Reabilitação Neurológica",
   ];
 
   const getProfileCompleteness = () => {
@@ -206,7 +231,10 @@ const Dashboard = () => {
           trial_started_at: data.trial_started_at,
           role: data.role || "professional",
           company_name: data.company_name || "",
-          cnpj: data.cnpj || ""
+          cnpj: data.cnpj || "",
+          hourly_rate: data.hourly_rate || null,
+          availability: data.availability || [],
+          patient_profiles: data.patient_profiles || [],
         };
         setProfile(userProfile);
         
@@ -407,7 +435,10 @@ const Dashboard = () => {
         specialty: profile.specialty,
         registration: profile.registration,
         company_name: profile.company_name,
-        cnpj: profile.cnpj
+        cnpj: profile.cnpj,
+        hourly_rate: profile.hourly_rate,
+        availability: profile.availability,
+        patient_profiles: profile.patient_profiles,
       }).eq("id", user.id);
 
       if (error) throw error;
@@ -485,6 +516,19 @@ const Dashboard = () => {
       progress,
       isExpired: daysRemaining <= 0
     };
+  };
+
+  const handleCheckboxChange = (
+    field: 'availability' | 'patient_profiles',
+    value: string
+  ) => {
+    setProfile((prev) => {
+      const currentValues = prev[field] || [];
+      const newValues = currentValues.includes(value)
+        ? currentValues.filter((item) => item !== value)
+        : [...currentValues, value];
+      return { ...prev, [field]: newValues };
+    });
   };
 
   if (authLoading || isLoadingProfile) {
@@ -797,6 +841,68 @@ const Dashboard = () => {
                           )}
                         </div>
                         <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Conte um pouco sobre sua trajetória..." />
+                      </div>
+                      <Separator />
+                      <div className="space-y-6">
+                        <div>
+                          <h4 className="font-semibold mb-2 text-foreground">Detalhes do Atendimento</h4>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Essas informações ajudam as famílias e empresas a entenderem melhor seu perfil.
+                          </p>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Valor por Hora de Atendimento (R$)</Label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              type="number"
+                              value={profile.hourly_rate || ""}
+                              onChange={(e) => setProfile({ ...profile, hourly_rate: e.target.value ? parseFloat(e.target.value) : null })}
+                              disabled={!isEditing}
+                              className="pl-10"
+                              placeholder="Ex: 80.00"
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground italic">
+                            Este valor será visível apenas para o perfil "Família".
+                          </p>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Disponibilidade</Label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {availabilityOptions.map((option) => (
+                              <div key={option} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`avail-${option}`}
+                                  checked={profile.availability.includes(option)}
+                                  onCheckedChange={() => handleCheckboxChange('availability', option)}
+                                  disabled={!isEditing}
+                                />
+                                <Label htmlFor={`avail-${option}`} className="text-sm font-normal">
+                                  {option}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Perfis de Pacientes Atendidos</Label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {patientProfileOptions.map((option) => (
+                              <div key={option} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`patient-${option}`}
+                                  checked={profile.patient_profiles.includes(option)}
+                                  onCheckedChange={() => handleCheckboxChange('patient_profiles', option)}
+                                  disabled={!isEditing}
+                                />
+                                <Label htmlFor={`patient-${option}`} className="text-sm font-normal">
+                                  {option}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </>
                   ) : (

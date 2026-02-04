@@ -17,11 +17,21 @@ import {
   Share2,
   Star,
   Loader2,
-  Lock
+  Lock,
+  UserCheck,
+  X,
+  Users,
+  LayoutGrid
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 const Perfil = () => {
   const { id } = useParams();
@@ -31,6 +41,7 @@ const Perfil = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isContacting, setIsContacting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -68,11 +79,6 @@ const Perfil = () => {
       return;
     }
 
-    if (!profile.phone) {
-      toast.info("Este profissional ainda não cadastrou um telefone de contato.");
-      return;
-    }
-
     setIsContacting(true);
 
     try {
@@ -82,18 +88,14 @@ const Perfil = () => {
         professional_id: profile.id
       });
 
-      if (error) {
-        console.error("Erro ao registrar interação:", error);
-        // Não impedimos o contato se falhar o log, mas avisamos no console
-      }
+      if (error) throw error;
 
-      // 2. Abrir o WhatsApp
-      const msg = encodeURIComponent(`Olá ${profile.full_name}, vi seu perfil no HomeCareMatch e gostaria de conversar sobre uma oportunidade.`);
-      window.open(`https://wa.me/55${profile.phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
+      // 2. Abrir o modal de sucesso
+      setShowSuccessModal(true);
       
-      toast.success("Redirecionando para o WhatsApp...");
     } catch (error) {
-      toast.error("Erro ao processar contato.");
+      toast.error("Erro ao adicionar profissional aos contatos.");
+      console.error("Erro ao registrar interação:", error);
     } finally {
       setIsContacting(false);
     }
@@ -211,7 +213,10 @@ const Perfil = () => {
             {/* Sidebar de Ações */}
             <div className="space-y-6">
               <div className="rounded-2xl border border-border bg-card p-6 shadow-card sticky top-24">
-                <h3 className="font-semibold text-lg mb-4 text-center">Interessado?</h3>
+                <h3 className="font-semibold text-lg mb-2 text-center">Interessado?</h3>
+                <p className="text-xs text-muted-foreground text-center mb-4">
+                  Ao clicar, o profissional será salvo em sua lista de contatos no seu painel, onde você poderá ver o WhatsApp e iniciar a conversa.
+                </p>
                 <div className="space-y-3">
                   <Button 
                     onClick={handleContact} 
@@ -223,7 +228,7 @@ const Perfil = () => {
                     ) : (
                       <MessageSquare className="h-5 w-5" />
                     )}
-                    Entrar em Contato
+                    Adicionar aos Contatos
                   </Button>
                   
                   {!session && (
@@ -250,6 +255,56 @@ const Perfil = () => {
           </div>
         </div>
       </div>
+
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl animate-scale-in">
+          <div className="relative bg-card p-12 md:p-16 flex flex-col items-center text-center space-y-8">
+            <button 
+              onClick={() => setShowSuccessModal(false)}
+              className="absolute right-6 top-6 p-2 rounded-full hover:bg-secondary transition-colors"
+            >
+              <X className="h-6 w-6 text-muted-foreground" />
+            </button>
+
+            <div className="h-24 w-24 rounded-full bg-success/10 flex items-center justify-center animate-bounce">
+              <UserCheck className="h-12 w-12 text-success" />
+            </div>
+
+            <div className="space-y-4">
+              <DialogTitle className="text-4xl font-bold tracking-tight text-foreground">
+                Profissional Adicionado!
+              </DialogTitle>
+              <DialogDescription className="text-xl text-muted-foreground leading-relaxed max-w-lg mx-auto">
+                {profile?.full_name} foi salvo na sua lista de contatos. Você pode ver os detalhes e iniciar a conversa a partir do seu painel.
+              </DialogDescription>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+              <Button 
+                size="lg" 
+                variant="outline"
+                className="w-full h-14 text-lg font-semibold shadow-lg gap-2"
+                asChild
+              >
+                <Link to="/buscar">
+                  <Users className="h-5 w-5" />
+                  Buscar Outros
+                </Link>
+              </Button>
+              <Button 
+                size="lg" 
+                className="w-full h-14 text-lg font-semibold shadow-lg gap-2"
+                asChild
+              >
+                <Link to="/dashboard">
+                  <LayoutGrid className="h-5 w-5" />
+                  Ir para o Painel
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

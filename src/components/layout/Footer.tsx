@@ -14,9 +14,9 @@ const Footer = () => {
   return (
     <footer className="border-t border-border bg-card">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid gap-8 md:grid-cols-4">
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
           {/* Brand */}
-          <div className="space-y-4">
+          <div className="space-y-4 lg:col-span-1">
             <Link to="/" className="flex items-center gap-2">
               <img 
                 src={logoUrl} 
@@ -58,12 +58,29 @@ const Footer = () => {
             <ul className="space-y-2">
               <li>
                 <Link to="/empresas" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Como Funciona
+                  Soluções
                 </Link>
               </li>
               <li>
                 <Link to="/buscar" className="text-sm text-muted-foreground transition-colors hover:text-primary">
                   Buscar Profissionais
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+           {/* Para Famílias */}
+           <div className="space-y-4">
+            <h4 className="font-semibold text-foreground">Para Famílias</h4>
+            <ul className="space-y-2">
+              <li>
+                <Link to="/familias" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Encontrar Cuidador
+                </Link>
+              </li>
+              <li>
+                <Link to="/cadastro-empresa" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Cadastrar Grátis
                 </Link>
               </li>
             </ul>

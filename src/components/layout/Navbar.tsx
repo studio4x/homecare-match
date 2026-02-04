@@ -79,6 +79,14 @@ const Navbar = () => {
             >
               Para Empresas
             </Link>
+            <Link
+              to="/familias"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive("/familias") ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              Para Famílias
+            </Link>
             {canSeeSearch && (
               <Link
                 to="/buscar"
@@ -153,6 +161,15 @@ const Navbar = () => {
                 }`}
               >
                 Para Empresas
+              </Link>
+              <Link
+                to="/familias"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`text-sm font-medium ${
+                  isActive("/familias") ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                Para Famílias
               </Link>
               {canSeeSearch && (
                 <Link

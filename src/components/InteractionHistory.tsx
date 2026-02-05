@@ -249,8 +249,8 @@ const InteractionHistory = ({
                   href={`https://wa.me/${selectedContact.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
                     viewerRole === 'professional'
                       ? (selectedContact?.role === 'company' 
-                          ? `Olá! Sou da HomeCare Match. Vi que a empresa ${selectedContact.full_name} demonstrou interesse no meu perfil. Podemos conversar sobre oportunidades?`
-                          : `Olá! Sou da HomeCare Match. Vi que a família ${selectedContact.full_name} demonstrou interesse no meu perfil. Podemos conversar sobre o serviço?`)
+                          ? `Sou um profissional cadastrado na HomeCare Match. Vi que a sua empresa ${selectedContact.full_name} demonstrou interesse no meu perfil. Podemos conversar sobre oportunidades?`
+                          : `Sou um profissional cadastrado na HomeCare Match. Vi que a sua família demonstrou interesse no meu perfil. Podemos conversar sobre oportunidades?`)
                       : `Olá, ${selectedContact.full_name}! Vi seu perfil na HomeCare Match e gostaria de conversar sobre seus serviços. Podemos combinar os detalhes?`
                   )}`} 
                   target="_blank" 

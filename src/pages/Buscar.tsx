@@ -26,7 +26,7 @@ import AccessRestricted from "@/components/AccessRestricted";
 const MIN_RESULTS_TO_SHOW = 1;
 
 const Buscar = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { data: config, isLoading: isLoadingConfig } = useSiteConfig();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [professionals, setProfessionals] = useState<any[]>([]);
@@ -44,10 +44,9 @@ const Buscar = () => {
 
   const [showFilters, setShowFilters] = useState(false);
 
-  const { session } = useAuth();
   const isLoggedOut = !session;
 
-  // Aviso para deslogados
+  // Acesso restrito para deslogados
   if (isLoggedOut) {
     return (
       <Layout>

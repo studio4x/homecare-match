@@ -93,6 +93,28 @@ const CoursesTab = () => {
     return "Cole aqui o link externo do recurso";
   };
 
+  // Helper: extrai a duração do vídeo (em minutos) a partir do arquivo enviado
+  const getVideoDurationMinutes = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      const url = URL.createObjectURL(file);
+      video.src = url;
+
+      video.onloadedmetadata = () => {
+        const seconds = video.duration;
+        URL.revokeObjectURL(url);
+        const minutes = isFinite(seconds) ? Math.max(1, Math.round(seconds / 60)) : 0;
+        resolve(minutes);
+      };
+
+      video.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(0);
+      };
+    });
+  };
+
   const fetchCourses = async () => {
     setIsLoading(true);
     try {
@@ -324,8 +346,17 @@ const CoursesTab = () => {
       const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
 
-      // Preenche o campo visual com o caminho do arquivo (para ficar claro que foi enviado)
-      const updatedLesson = { ...lesson, resource_url: path, storage_path: path, mime_type: file.type };
+      // Preenche o caminho do arquivo no campo visual
+      let updatedLesson = { ...lesson, resource_url: path, storage_path: path, mime_type: file.type };
+
+      // Se for vídeo, extrai a duração automaticamente
+      if (lesson.type === "video") {
+        const minutes = await getVideoDurationMinutes(file);
+        if (minutes > 0) {
+          updatedLesson = { ...updatedLesson, duration_minutes: minutes };
+        }
+      }
+
       const nextLessons = [...mod.lessons];
       nextLessons[selectedLessonIdx] = updatedLesson;
       const nextModules = [...modules];

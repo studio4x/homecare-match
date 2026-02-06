@@ -17,6 +17,7 @@ import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Hea
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
 
@@ -41,6 +42,9 @@ const Buscar = () => {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+
+  const { session } = useAuth();
+  const isLoggedOut = !session;
 
   useEffect(() => {
     const checkRole = async () => {
@@ -199,156 +203,186 @@ const Buscar = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-secondary/20 py-8">
-        <div className="container mx-auto px-4">
-          <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Buscar Profissionais</h1>
-              <p className="mt-2 text-muted-foreground flex items-center gap-2">
-                {userRole === 'company' ? <Building2 className="h-4 w-4" /> : <Home className="h-4 w-4" />}
-                Painel de Recrutamento para {userRole === 'company' ? 'Empresa' : 'Família'}
+      {/* Modal de bloqueio para deslogados */}
+      {isLoggedOut && (
+        <Dialog open>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5 text-destructive" />
+                Acesso Restrito
+              </DialogTitle>
+              <DialogDescription className="pt-2">
+                Somente Empresas de Home Care e Famílias podem acessar a busca de profissionais.
+                Faça seu cadastro para continuar.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+              <Button asChild className="gap-2">
+                <Link to="/empresas">
+                  <Building2 className="h-4 w-4" />
+                  Sou Empresa
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="gap-2">
+                <Link to="/familias">
+                  <Home className="h-4 w-4" />
+                  Sou Família
+                </Link>
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <div className="container mx-auto px-4">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Buscar Profissionais</h1>
+            <p className="mt-2 text-muted-foreground flex items-center gap-2">
+              {userRole === 'company' ? <Building2 className="h-4 w-4" /> : <Home className="h-4 w-4" />}
+              Painel de Recrutamento para {userRole === 'company' ? 'Empresa' : 'Família'}
+            </p>
+          </div>
+        </div>
+
+        <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-card">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end">
+            <div className="flex-1">
+              <Label htmlFor="search" className="sr-only">Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="search"
+                  placeholder="Nome ou experiência..."
+                  className="pl-10"
+                  value={filters.search}
+                  onChange={(e) => setFilters({...filters, search: e.target.value})}
+                />
+              </div>
+            </div>
+            <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="gap-2">
+              <Filter className="h-4 w-4" /> Filtros
+            </Button>
+            <Button className="gap-2" onClick={fetchProfessionals}>
+              <Search className="h-4 w-4" /> Buscar
+            </Button>
+          </div>
+
+          {showFilters && (
+            <div className="mt-6 animate-fade-in border-t border-border pt-6">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-2">
+                  <Label>Especialidade</Label>
+                  <Select value={filters.specialty} onValueChange={(v) => setFilters({...filters, specialty: v})}>
+                    <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+                    <SelectContent>{specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Estado (UF)</Label>
+                  <Select value={filters.state} onValueChange={(v) => setFilters({...filters, state: v})}>
+                    <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                    <SelectContent>{states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Cidade</Label>
+                  <Input placeholder="Ex: São Paulo" value={filters.city} onChange={(e) => setFilters({...filters, city: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Bairro</Label>
+                  <Input placeholder="Digite o bairro..." value={filters.neighborhood} onChange={(e) => setFilters({...filters, neighborhood: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Disponibilidade</Label>
+                  <Select value={filters.availability} onValueChange={(v) => setFilters({...filters, availability: v})}>
+                    <SelectTrigger><SelectValue placeholder="Qualquer" /></SelectTrigger>
+                    <SelectContent>{availabilityOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Perfil do Paciente</Label>
+                  <Select value={filters.patient_profile} onValueChange={(v) => setFilters({...filters, patient_profile: v})}>
+                    <SelectTrigger><SelectValue placeholder="Qualquer" /></SelectTrigger>
+                    <SelectContent>{patientProfileOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                {userRole === 'family' && (
+                  <div className="grid gap-2 lg:col-span-2">
+                    <Label>Valor Máximo por Hora (R$)</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        placeholder="Ex: 100.00"
+                        className="pl-10"
+                        value={filters.max_hourly_rate}
+                        onChange={(e) => setFilters({...filters, max_hourly_rate: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {loading || isLoadingConfig ? (
+            Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
+          ) : showConcierge ? (
+            // Componente Concierge (Ativado quando há poucos resultados ou Kill Switch ATIVO)
+            <div className="col-span-full py-16 text-center animate-fade-in bg-card border border-border rounded-2xl shadow-card p-8">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 animate-pulse">
+                <Headset className="h-10 w-10 text-primary" />
+                <div className="absolute -top-1 -right-1">
+                  <Sparkles className="h-6 w-6 text-yellow-500 fill-yellow-500" />
+                </div>
+              </div>
+              
+              <h3 className="text-2xl font-bold text-foreground mb-3">Busca Personalizada (Concierge)</h3>
+              
+              <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
+                Para garantir a melhor experiência, nossa equipe realiza uma seleção manual dos melhores profissionais para o seu perfil. 
+                <br/><br/>
+                Temos profissionais disponíveis que correspondem aos seus critérios, mas que estão passando por nossa verificação de qualidade rigorosa neste momento.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
+                  <a 
+                    href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                  >
+                    Solicitar Profissionais Agora
+                    <ArrowRight className="h-5 w-5" />
+                  </a>
+                </Button>
+              </div>
+              
+              <p className="mt-6 text-sm text-muted-foreground">
+                Serviço gratuito para {userRole === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
               </p>
             </div>
-          </div>
-
-          <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-card">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end">
-              <div className="flex-1">
-                <Label htmlFor="search" className="sr-only">Buscar</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="search"
-                    placeholder="Nome ou experiência..."
-                    className="pl-10"
-                    value={filters.search}
-                    onChange={(e) => setFilters({...filters, search: e.target.value})}
-                  />
-                </div>
-              </div>
-              <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="gap-2">
-                <Filter className="h-4 w-4" /> Filtros
-              </Button>
-              <Button className="gap-2" onClick={fetchProfessionals}>
-                <Search className="h-4 w-4" /> Buscar
-              </Button>
-            </div>
-
-            {showFilters && (
-              <div className="mt-6 animate-fade-in border-t border-border pt-6">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <div className="grid gap-2">
-                    <Label>Especialidade</Label>
-                    <Select value={filters.specialty} onValueChange={(v) => setFilters({...filters, specialty: v})}>
-                      <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
-                      <SelectContent>{specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Estado (UF)</Label>
-                    <Select value={filters.state} onValueChange={(v) => setFilters({...filters, state: v})}>
-                      <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                      <SelectContent>{states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Cidade</Label>
-                    <Input placeholder="Ex: São Paulo" value={filters.city} onChange={(e) => setFilters({...filters, city: e.target.value})} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Bairro</Label>
-                    <Input placeholder="Digite o bairro..." value={filters.neighborhood} onChange={(e) => setFilters({...filters, neighborhood: e.target.value})} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Disponibilidade</Label>
-                    <Select value={filters.availability} onValueChange={(v) => setFilters({...filters, availability: v})}>
-                      <SelectTrigger><SelectValue placeholder="Qualquer" /></SelectTrigger>
-                      <SelectContent>{availabilityOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Perfil do Paciente</Label>
-                    <Select value={filters.patient_profile} onValueChange={(v) => setFilters({...filters, patient_profile: v})}>
-                      <SelectTrigger><SelectValue placeholder="Qualquer" /></SelectTrigger>
-                      <SelectContent>{patientProfileOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
-                  {userRole === 'family' && (
-                    <div className="grid gap-2 lg:col-span-2">
-                      <Label>Valor Máximo por Hora (R$)</Label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          type="number"
-                          placeholder="Ex: 100.00"
-                          className="pl-10"
-                          value={filters.max_hourly_rate}
-                          onChange={(e) => setFilters({...filters, max_hourly_rate: e.target.value})}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {loading || isLoadingConfig ? (
-              Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
-            ) : showConcierge ? (
-              // Componente Concierge (Ativado quando há poucos resultados ou Kill Switch ATIVO)
-              <div className="col-span-full py-16 text-center animate-fade-in bg-card border border-border rounded-2xl shadow-card p-8">
-                <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 animate-pulse">
-                  <Headset className="h-10 w-10 text-primary" />
-                  <div className="absolute -top-1 -right-1">
-                    <Sparkles className="h-6 w-6 text-yellow-500 fill-yellow-500" />
-                  </div>
-                </div>
-                
-                <h3 className="text-2xl font-bold text-foreground mb-3">Busca Personalizada (Concierge)</h3>
-                
-                <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
-                  Para garantir a melhor experiência, nossa equipe realiza uma seleção manual dos melhores profissionais para o seu perfil. 
-                  <br/><br/>
-                  Temos profissionais disponíveis que correspondem aos seus critérios, mas que estão passando por nossa verificação de qualidade rigorosa neste momento.
-                </p>
-
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
-                    <a 
-                      href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                    >
-                      Solicitar Profissionais Agora
-                      <ArrowRight className="h-5 w-5" />
-                    </a>
-                  </Button>
-                </div>
-                
-                <p className="mt-6 text-sm text-muted-foreground">
-                  Serviço gratuito para {userRole === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
-                </p>
-              </div>
-            ) : (
-              // Lista normal de profissionais (Só aparece se tiver >= MIN_RESULTS_TO_SHOW e Switch ON)
-              professionals.map((professional) => (
-                <ProfessionalCard
-                  key={professional.id}
-                  id={professional.id}
-                  name={professional.full_name}
-                  photo={professional.avatar_url}
-                  specialty={specialties.find(s => s.value === professional.specialty)?.label || professional.specialty}
-                  registration={professional.registration}
-                  location={`${professional.neighborhood || ""}, ${professional.city || ""} - ${professional.state || ""}`}
-                  experience={professional.experience}
-                  isVerified={professional.is_verified}
-                  subscriptionTier={professional.subscription_tier}
-                />
-              ))
-            )}
-          </div>
+          ) : (
+            // Lista normal de profissionais (Só aparece se tiver >= MIN_RESULTS_TO_SHOW e Switch ON)
+            professionals.map((professional) => (
+              <ProfessionalCard
+                key={professional.id}
+                id={professional.id}
+                name={professional.full_name}
+                photo={professional.avatar_url}
+                specialty={specialties.find(s => s.value === professional.specialty)?.label || professional.specialty}
+                registration={professional.registration}
+                location={`${professional.neighborhood || ""}, ${professional.city || ""} - ${professional.state || ""}`}
+                experience={professional.experience}
+                isVerified={professional.is_verified}
+                subscriptionTier={professional.subscription_tier}
+              />
+            ))
+          )}
         </div>
       </div>
     </Layout>

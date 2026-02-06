@@ -186,7 +186,6 @@ const CourseDetail = () => {
       setOpenViewer(prev => ({ ...prev, [lesson.id]: false }));
       return;
     }
-    // Need storage_path to generate signed URL
     if (!lesson.storage_path) {
       toast.error("Este conteúdo ainda não foi enviado para visualização interna.");
       return;
@@ -198,6 +197,33 @@ const CourseDetail = () => {
     }
     setViewerUrls(prev => ({ ...prev, [lesson.id]: data.signedUrl }));
     setOpenViewer(prev => ({ ...prev, [lesson.id]: true }));
+  };
+
+  const downloadPdf = async (lesson: Lesson) => {
+    if (!lesson.storage_path) {
+      toast.error("PDF não disponível para download.");
+      return;
+    }
+    const { data, error } = await supabase.storage
+      .from(PRIVATE_BUCKET)
+      .createSignedUrl(lesson.storage_path, 600); // válido por 10 minutos
+
+    if (error || !data?.signedUrl) {
+      toast.error("Falha ao gerar link de download.");
+      return;
+    }
+
+    const res = await fetch(data.signedUrl);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(course?.slug || "curso")}-${lesson.id}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success("Download iniciado!");
   };
 
   const toggleLessonCompleted = async (lessonId: string, value: boolean) => {
@@ -320,7 +346,9 @@ const CourseDetail = () => {
                         <div key={l.id} className="flex items-center justify-between border rounded-lg p-3">
                           <div className="flex flex-col">
                             <span className="font-medium">{l.title}</span>
-                            <span className="text-xs text-muted-foreground capitalize">{l.type}{l.duration_minutes ? ` • ${l.duration_minutes} min` : ""}</span>
+                            <span className="text-xs text-muted-foreground capitalize">
+                              {l.type}{l.duration_minutes ? ` • ${l.duration_minutes} min` : ""}
+                            </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <Button
@@ -330,6 +358,15 @@ const CourseDetail = () => {
                             >
                               {openViewer[l.id] ? "Fechar" : "Abrir"}
                             </Button>
+                            {(l.type === "pdf" || l.mime_type === "application/pdf") && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => downloadPdf(l)}
+                              >
+                                Baixar PDF
+                              </Button>
+                            )}
                             <Button
                               variant={completed ? "default" : "outline"}
                               size="sm"
@@ -343,7 +380,7 @@ const CourseDetail = () => {
                           </div>
                           {openViewer[l.id] && viewerUrls[l.id] ? (
                             <div className="mt-3 w-full">
-                              { (l.type === "video" || (l.mime_type || "").startsWith("video/")) ? (
+                              {(l.type === "video" || (l.mime_type || "").startsWith("video/")) ? (
                                 <video
                                   controls
                                   playsInline

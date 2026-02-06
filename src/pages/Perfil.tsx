@@ -203,6 +203,16 @@ const Perfil = () => {
                             </TooltipContent>
                           </Tooltip>
                         )}
+                        {profile.is_verified && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <ShieldCheck className="h-5 w-5 text-success" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Perfil Verificado
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </h1>
                       {/* Badge responsivo: whitespace-nowrap para não quebrar feio, e text-sm no mobile */}
                       {profile.is_verified && (

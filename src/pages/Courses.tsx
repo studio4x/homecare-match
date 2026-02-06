@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import AccessRestricted from "@/components/AccessRestricted";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
 
@@ -200,7 +201,13 @@ const Courses = () => {
             {courses.map((c) => (
               <Card key={c.slug} className="overflow-hidden">
                 {c.hero_asset_url ? (
-                  <img src={c.hero_asset_url} alt={c.title} className="w-full h-40 object-cover" />
+                  <AspectRatio ratio={4/3} className="w-full bg-muted">
+                    <img
+                      src={c.hero_asset_url}
+                      alt={c.title}
+                      className="h-full w-full object-cover rounded-md"
+                    />
+                  </AspectRatio>
                 ) : null}
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">

@@ -340,7 +340,15 @@ const CourseDetail = () => {
       <div className="container mx-auto px-4 py-8 space-y-6">
         <div className="flex flex-col md:flex-row gap-6">
           {course.hero_asset_url ? (
-            <img src={course.hero_asset_url} alt={course.title} className="w-full md:w-1/3 h-48 object-cover rounded-lg border" />
+            <div className="w-full md:w-1/3">
+              <AspectRatio ratio={4/3} className="rounded-lg border bg-muted">
+                <img
+                  src={course.hero_asset_url}
+                  alt={course.title}
+                  className="h-full w-full object-cover rounded-lg"
+                />
+              </AspectRatio>
+            </div>
           ) : null}
           <div className="flex-1 space-y-3">
             <h1 className="text-3xl font-bold">{course.title}</h1>

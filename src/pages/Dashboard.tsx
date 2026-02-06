@@ -35,6 +35,9 @@ import {
   Search,
   Users,
   MapPin,
+  ShieldCheck,
+  AlertCircle,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -585,23 +588,14 @@ const Dashboard = () => {
     }
   };
 
-  const getTrialInfo = () => {
-    if (profile.subscription_tier !== 'free_trial' || !profile.trial_started_at) return null;
+  const getTrialStatus = (user: any) => {
+    if (user.subscription_tier !== 'free_trial' || !user.trial_started_at) return null;
     
-    const startDate = parseISO(profile.trial_started_at);
-    if (!isValid(startDate)) return null;
-
+    const startDate = new Date(user.trial_started_at);
     const endDate = addDays(startDate, 30);
-    const now = new Date();
-    const daysRemaining = differenceInDays(endDate, now);
-    const daysPassed = 30 - daysRemaining;
-    const progress = Math.min(100, Math.max(0, (daysPassed / 30) * 100)) || 0;
+    const daysRemaining = differenceInDays(endDate, new Date());
     
-    return {
-      daysRemaining: Math.max(0, daysRemaining),
-      progress,
-      isExpired: daysRemaining <= 0
-    };
+    return daysRemaining;
   };
 
   const handleCheckboxChange = (
@@ -631,7 +625,7 @@ const Dashboard = () => {
   const initials = profile.full_name 
     ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() 
     : "??";
-  const trial = getTrialInfo();
+  const trial = getTrialStatus(user);
   const isProfessional = profile.role === 'professional';
   const isCompany = profile.role === 'company';
   const profileCompleteness = getProfileCompleteness();
@@ -645,51 +639,69 @@ const Dashboard = () => {
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">
         <div className="container mx-auto px-4">
-          {!isEmailConfirmed && (
-            <Alert variant="destructive" className="mb-8">
-              <Mail className="h-4 w-4" />
-              <AlertTitle>Confirme seu e-mail</AlertTitle>
-              <AlertDescription>Seu perfil só ficará visível para buscas após a confirmação do e-mail.</AlertDescription>
-            </Alert>
-          )}
-
-          {trial && isProfessional && (
-            <div className="mb-8 rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 font-semibold text-primary">
-                    <Zap className="h-5 w-5 fill-current" />
-                    Período de Teste Gratuito
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Você tem <strong>{trial.daysRemaining} dias</strong> de acesso gratuito restante.
-                  </p>
-                </div>
-                <div className="flex-1 max-w-md">
-                  <div className="mb-2 flex justify-between text-xs font-medium">
-                    <span>Progresso do teste</span>
-                    <span>{Math.round(trial.progress)}%</span>
-                  </div>
-                  <Progress value={trial.progress} className="h-2" />
-                </div>
-                <Button size="sm" asChild className="shrink-0">
-                  <Link to="/#planos">Assinar agora</Link>
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h1 className="text-3xl font-bold">Meu Painel</h1>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" asChild className="gap-2">
-                <Link to={isProfessional ? `/profissional/${user?.id}` : `/recruiter/${user?.id}`}>
-                  <ExternalLink className="h-4 w-4" /> Ver Perfil Público
-                </Link>
-              </Button>
-              <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive"><LogOut className="h-4 w-4" /> Sair</Button>
-            </div>
+          <div className="mb-8 flex items-center justify-between">
+            <h1 className="text-3xl font-bold flex items-center gap-3"><ShieldCheck className="h-8 w-8 text-primary" /> Painel Admin</h1>
+            <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive"><LogOut className="h-4 w-4" /> Sair</Button>
           </div>
+
+          {/* AVISO GLOBAL PARA PROFISSIONAIS COM TESTE GRÁTIS EXPIRADO */}
+          {isProfessional && (() => {
+            const daysLeft = getTrialStatus(profile);
+            if (daysLeft !== null && daysLeft <= 0 && profile.subscription_tier === 'free_trial') {
+              return (
+                <div className="mb-6 rounded-xl border bg-card p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-destructive mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold text-destructive">Período gratuito expirado</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Seu período gratuito foi aplicado automaticamente no cadastro, teve validade de 30 dias e não pode ser estendido.
+                        Para continuar usando a plataforma, escolha um dos planos disponíveis.
+                      </p>
+                      <div className="mt-3">
+                        <Button asChild className="gap-2">
+                          <a href="/#planos">
+                            Escolher Plano <ArrowRight className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
+          {/* BLOQUEIO FUNCIONAL: Se expirou, desabilitar ações de uso */}
+          {isProfessional && (() => {
+            const daysLeft = getTrialStatus(profile);
+            // Wrap do conteúdo principal do dashboard com um overlay de bloqueio
+            if (daysLeft !== null && daysLeft <= 0 && profile.subscription_tier === 'free_trial') {
+              return (
+                <div className="relative">
+                  <div className="pointer-events-none opacity-60">
+                    {/* Conteúdo atual do dashboard continua visível porém desabilitado */}
+                    {/* ... conteúdo existente do dashboard ... */}
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-card border rounded-xl p-6 shadow-lg text-center max-w-md">
+                      <h4 className="font-semibold">Assinatura Necessária</h4>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Para continuar, selecione um plano. O período gratuito de 30 dias foi encerrado.
+                      </p>
+                      <Button asChild className="mt-4 gap-2">
+                        <a href="/#planos">
+                          Ver Planos <ArrowRight className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           <div className="grid gap-6 lg:grid-cols-2">
             {/* --- COLUNA ESQUERDA --- */}

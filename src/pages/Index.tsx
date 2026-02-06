@@ -101,11 +101,12 @@ const Index = () => {
     name: "Plano Gratuito",
     price: "R$ 0,00",
     period: "mês",
-    description: "Ideal para começar sem custo.",
+    description: "Aplicado automaticamente no cadastro do profissional. Válido por 30 dias e não pode ser estendido.",
     features: [
       "Perfil básico",
       "Visibilidade limitada",
       "Suporte por email",
+      "Ao término de 30 dias, selecione um dos outros planos."
     ],
     popular: false,
   };

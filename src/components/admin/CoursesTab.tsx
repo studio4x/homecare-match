@@ -316,7 +316,9 @@ const CoursesTab = () => {
     try {
       const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
-      const updatedLesson = { ...lesson, storage_path: path, mime_type: file.type };
+
+      // Preenche o campo visual com o caminho do arquivo (para ficar claro que foi enviado)
+      const updatedLesson = { ...lesson, resource_url: path, storage_path: path, mime_type: file.type };
       const nextLessons = [...mod.lessons];
       nextLessons[selectedLessonIdx] = updatedLesson;
       const nextModules = [...modules];
@@ -348,7 +350,7 @@ const CoursesTab = () => {
     if (!selectedCourse) return;
     setIsSavingContent(true);
     try {
-      // Garante que a estrutura do banco está atualizada (colunas storage_path/mime_type)
+      // Garante estrutura atualizada
       await supabase.functions.invoke('academy-migrate', {
         body: { action: 'create_tables' }
       });
@@ -366,22 +368,17 @@ const CoursesTab = () => {
         if (modErr) throw modErr;
       }
 
-      // Upsert aulas - só inclui campos quando existirem
+      // Upsert aulas — enviar apenas colunas já existentes e seguras
       const lessonPayloads = modules.flatMap((m) =>
-        m.lessons.map((l) => {
-          const payload: Record<string, any> = {
-            id: l.id,
-            module_id: m.id,
-            title: l.title,
-            type: l.type,
-            duration_minutes: l.duration_minutes ?? 0,
-            position: l.position ?? 1,
-          };
-          if (l.resource_url) payload.resource_url = l.resource_url;
-          if (l.storage_path) payload.storage_path = l.storage_path;
-          if (l.mime_type) payload.mime_type = l.mime_type;
-          return payload;
-        })
+        m.lessons.map((l) => ({
+          id: l.id,
+          module_id: m.id,
+          title: l.title,
+          type: l.type,
+          duration_minutes: l.duration_minutes ?? 0,
+          resource_url: l.resource_url || "",  // usamos o caminho do arquivo aqui
+          position: l.position ?? 1,
+        }))
       );
 
       if (lessonPayloads.length > 0) {

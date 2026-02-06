@@ -186,11 +186,13 @@ const CourseDetail = () => {
       setOpenViewer(prev => ({ ...prev, [lesson.id]: false }));
       return;
     }
-    if (!lesson.storage_path) {
+    // Fallback: se não tiver storage_path, usa resource_url (quando for um caminho interno)
+    const storagePath = lesson.storage_path || ((lesson.resource_url && !lesson.resource_url.startsWith("http")) ? lesson.resource_url : "");
+    if (!storagePath) {
       toast.error("Este conteúdo ainda não foi enviado para visualização interna.");
       return;
     }
-    const { data, error } = await supabase.storage.from(PRIVATE_BUCKET).createSignedUrl(lesson.storage_path, 3600);
+    const { data, error } = await supabase.storage.from(PRIVATE_BUCKET).createSignedUrl(storagePath, 3600);
     if (error || !data?.signedUrl) {
       toast.error("Não foi possível abrir o conteúdo.");
       return;
@@ -200,13 +202,15 @@ const CourseDetail = () => {
   };
 
   const downloadPdf = async (lesson: Lesson) => {
-    if (!lesson.storage_path) {
+    // Fallback do caminho
+    const storagePath = lesson.storage_path || ((lesson.resource_url && !lesson.resource_url.startsWith("http")) ? lesson.resource_url : "");
+    if (!storagePath) {
       toast.error("PDF não disponível para download.");
       return;
     }
     const { data, error } = await supabase.storage
       .from(PRIVATE_BUCKET)
-      .createSignedUrl(lesson.storage_path, 600); // válido por 10 minutos
+      .createSignedUrl(storagePath, 600);
 
     if (error || !data?.signedUrl) {
       toast.error("Falha ao gerar link de download.");

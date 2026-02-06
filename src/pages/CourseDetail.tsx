@@ -65,6 +65,8 @@ const CourseDetail = () => {
   const [viewerUrls, setViewerUrls] = useState<Record<string, string>>({});
   const [openViewer, setOpenViewer] = useState<Record<string, boolean>>({});
   const [isEnrolling, setIsEnrolling] = useState(false);
+  const [videoEndedMap, setVideoEndedMap] = useState<Record<string, boolean>>({});
+  const [pdfOpenedMap, setPdfOpenedMap] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const loadCourse = async () => {
@@ -222,6 +224,10 @@ const CourseDetail = () => {
     }
     setViewerUrls(prev => ({ ...prev, [lesson.id]: data.signedUrl }));
     setOpenViewer(prev => ({ ...prev, [lesson.id]: true }));
+    // Se for PDF, marcar que foi aberto (permite concluir)
+    if (lesson.type === "pdf" || lesson.mime_type === "application/pdf") {
+      setPdfOpenedMap(prev => ({ ...prev, [lesson.id]: true }));
+    }
   };
 
   const downloadPdf = async (lesson: Lesson) => {
@@ -397,6 +403,7 @@ const CourseDetail = () => {
                                     playsInline
                                     src={viewerUrls[l.id]}
                                     className="w-full h-full rounded-lg object-contain"
+                                    onEnded={() => setVideoEndedMap(prev => ({ ...prev, [l.id]: true }))}
                                   />
                                 </AspectRatio>
                               ) : (l.type === "pdf" || l.mime_type === "application/pdf") ? (
@@ -431,16 +438,24 @@ const CourseDetail = () => {
                                 Baixar PDF
                               </Button>
                             )}
-                            <Button
-                              variant={completed ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => toggleLessonCompleted(l.id, !completed)}
-                              disabled={savingProgress}
-                              className={completed ? "bg-success hover:bg-success/90 text-white" : ""}
-                            >
-                              {completed ? <Check className="h-4 w-4 mr-1" /> : null}
-                              {completed ? "Concluída" : "Concluir"}
-                            </Button>
+                            {(() => {
+                              const isVideo = l.type === "video" || (l.mime_type || "").startsWith("video/");
+                              const isPdf = l.type === "pdf" || l.mime_type === "application/pdf";
+                              const canComplete = isVideo ? !!videoEndedMap[l.id] : isPdf ? !!pdfOpenedMap[l.id] : true;
+                              const disableComplete = savingProgress || (!completed && !canComplete);
+                              return (
+                                <Button
+                                  variant={completed ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => toggleLessonCompleted(l.id, !completed)}
+                                  disabled={disableComplete}
+                                  className={completed ? "bg-success hover:bg-success/90 text-white" : ""}
+                                >
+                                  {completed ? <Check className="h-4 w-4 mr-1" /> : null}
+                                  {completed ? "Concluída" : "Concluir"}
+                                </Button>
+                              );
+                            })()}
                           </div>
                         </div>
                       );

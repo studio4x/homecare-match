@@ -13,12 +13,13 @@ import {
 } from "@/components/ui/select";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
-import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users } from "lucide-react";
+import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Link } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
+import { Badge } from "@/components/ui/badge";
 
 // Configuração do limite mínimo para exibir a lista
 const MIN_RESULTS_TO_SHOW = 1;
@@ -212,6 +213,21 @@ const Buscar = () => {
               {userRole === 'company' ? <Building2 className="h-4 w-4" /> : userRole === 'family' ? <Home className="h-4 w-4" /> : <Users className="h-4 w-4" />}
               {userRole === 'company' ? 'Painel de Recrutamento para Empresa' : userRole === 'family' ? 'Painel de Recrutamento para Família' : 'Painel do Profissional'}
             </p>
+          </div>
+
+          {/* Legenda discreta no topo direito */}
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
+              <Star className="h-3 w-3 text-amber-500 fill-current" />
+              <span className="leading-none">Destaque Premium</span>
+            </div>
+            <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
+              <ShieldCheck className="h-3 w-3 text-success" />
+              <span className="leading-none">Perfil Verificado</span>
+            </div>
+            <Badge variant="secondary" className="text-[10px]">
+              Embaixador
+            </Badge>
           </div>
         </div>
 

@@ -15,7 +15,7 @@ const Layout = ({ children }: LayoutProps) => {
       <FaviconUpdater />
       <ScrollToTop />
       <Navbar />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 py-8 md:py-12">{children}</main>
       <Footer />
       <AppVersion />
     </div>

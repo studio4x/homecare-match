@@ -1089,6 +1089,92 @@ const Dashboard = () => {
                         </>
                       )}
 
+                      {/* Sobre (Família/Empresa) */}
+                      {!isProfessional && (
+                        <div className="grid gap-2 mt-6">
+                          <Label>{isCompany ? "Sobre a Empresa" : "Sobre a Família"}</Label>
+                          <Textarea
+                            value={profile.bio || ""}
+                            onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                            disabled={!isEditing}
+                            className="min-h-[120px]"
+                            placeholder={isCompany ? "Conte sobre a empresa, histórico, especialidades e diferenciais..." : "Conte sobre a família e necessidades do paciente..."}
+                          />
+                        </div>
+                      )}
+
+                      {/* Endereço (Família/Empresa) */}
+                      {!isProfessional && (
+                        <div className="grid gap-4 md:grid-cols-3 mt-6">
+                          <div className="grid gap-2">
+                            <Label>CEP</Label>
+                            <Input
+                              value={profile.address_zip || ""}
+                              onChange={(e) => setProfile({ ...profile, address_zip: e.target.value })}
+                              onBlur={handleCepBlur}
+                              disabled={!isEditing}
+                              placeholder="Ex: 01001-000"
+                              maxLength={9}
+                            />
+                          </div>
+                          <div className="grid gap-2 md:col-span-2">
+                            <Label>Rua</Label>
+                            <Input
+                              value={profile.address_street || ""}
+                              onChange={(e) => setProfile({ ...profile, address_street: e.target.value })}
+                              disabled={!isEditing}
+                              placeholder="Ex: Av. Paulista"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Número</Label>
+                            <Input
+                              value={profile.address_number || ""}
+                              onChange={(e) => setProfile({ ...profile, address_number: e.target.value })}
+                              disabled={!isEditing}
+                              placeholder="Ex: 1000"
+                            />
+                          </div>
+                          <div className="grid gap-2 md:col-span-2">
+                            <Label>Complemento</Label>
+                            <Input
+                              value={profile.address_complement || ""}
+                              onChange={(e) => setProfile({ ...profile, address_complement: e.target.value })}
+                              disabled={!isEditing}
+                              placeholder="Apto, Bloco, Referência..."
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Bairro</Label>
+                            <Input
+                              value={profile.neighborhood || ""}
+                              onChange={(e) => setProfile({ ...profile, neighborhood: e.target.value })}
+                              disabled={!isEditing}
+                              placeholder="Ex: Bela Vista"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Cidade</Label>
+                            <Input
+                              value={profile.city || ""}
+                              onChange={(e) => setProfile({ ...profile, city: e.target.value })}
+                              disabled={!isEditing}
+                              placeholder="Ex: São Paulo"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>Estado (UF)</Label>
+                            <Input
+                              value={profile.state || ""}
+                              onChange={(e) => setProfile({ ...profile, state: e.target.value })}
+                              disabled={!isEditing}
+                              maxLength={2}
+                              placeholder="Ex: SP"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       {isProfessional && (
                         <>
                           <div className="grid gap-2">

@@ -63,16 +63,59 @@ const CourseDetail = () => {
     const loadCourse = async () => {
       setLoading(true);
       try {
-        const { data: file } = await supabase.storage.from("uploads").download(STORAGE_COURSES);
-        if (file) {
-          const text = await file.text();
-          const parsed = JSON.parse(text);
-          const list: Course[] = Array.isArray(parsed) ? parsed : [];
-          const found = list.find((c) => c.slug === slug);
-          setCourse(found || null);
-        } else {
-          setCourse(null);
+        // curso
+        const { data: courseData, error: courseErr } = await supabase
+          .from("academy_courses")
+          .select("*")
+          .eq("slug", slug)
+          .single();
+        if (courseErr) throw courseErr;
+
+        // módulos
+        const { data: mods, error: modErr } = await supabase
+          .from("academy_modules")
+          .select("*")
+          .eq("course_slug", slug)
+          .order("position", { ascending: true });
+        if (modErr) throw modErr;
+
+        // aulas por módulo
+        const modulesWithLessons = [];
+        for (const m of mods || []) {
+          const { data: lessons, error: lessonErr } = await supabase
+            .from("academy_lessons")
+            .select("*")
+            .eq("module_id", m.id)
+            .order("position", { ascending: true });
+          if (lessonErr) throw lessonErr;
+          modulesWithLessons.push({
+            id: m.id,
+            title: m.title,
+            description: m.description || "",
+            position: m.position || 1,
+            lessons: (lessons || []).map((l) => ({
+              id: l.id,
+              title: l.title,
+              type: l.type,
+              duration_minutes: l.duration_minutes || 0,
+              resource_url: l.resource_url || "",
+              position: l.position || 1,
+            })),
+          });
         }
+
+        setCourse({
+          slug: courseData.slug,
+          title: courseData.title,
+          description: courseData.description,
+          level: courseData.level,
+          duration_minutes: courseData.duration_minutes,
+          is_active: courseData.is_active,
+          hero_asset_url: courseData.hero_asset_url,
+          content_url: courseData.content_url,
+          created_at: courseData.created_at,
+          modules: modulesWithLessons,
+        });
       } catch (e) {
         console.warn("[CourseDetail] Falha ao carregar curso:", e);
         setCourse(null);
@@ -85,26 +128,36 @@ const CourseDetail = () => {
 
   useEffect(() => {
     const loadEnrollment = async () => {
-      if (!user) return;
+      if (!user || !slug) return;
       try {
-        const path = `academy/enrollments/${user.id}.json`;
-        const { data: file } = await supabase.storage.from("uploads").download(path);
-        if (file) {
-          const text = await file.text();
-          const parsed = JSON.parse(text);
-          setEnrollData({
-            enrolledSlugs: Array.isArray(parsed.enrolledSlugs) ? parsed.enrolledSlugs : [],
-            progress: parsed.progress || {},
-          });
-        } else {
-          setEnrollData({ enrolledSlugs: [], progress: {} });
-        }
+        const { data: enrolls } = await supabase
+          .from("academy_enrollments")
+          .select("course_slug")
+          .eq("user_id", user.id)
+          .eq("course_slug", slug);
+        const isEnr = !!(enrolls && enrolls.length > 0);
+
+        const { data: prog } = await supabase
+          .from("academy_progress")
+          .select("lesson_id,status")
+          .eq("user_id", user.id)
+          .eq("course_slug", slug);
+
+        const progressMap = {} as Record<string, "completed" | "in-progress">;
+        (prog || []).forEach((p: any) => {
+          progressMap[p.lesson_id] = p.status as "completed" | "in-progress";
+        });
+
+        setEnrollData({
+          enrolledSlugs: isEnr ? [slug] : [],
+          progress: { [slug]: progressMap },
+        });
       } catch {
         setEnrollData({ enrolledSlugs: [], progress: {} });
       }
     };
     loadEnrollment();
-  }, [user]);
+  }, [user, slug]);
 
   const isEnrolled = useMemo(() => {
     if (!course || !user) return false;
@@ -129,18 +182,34 @@ const CourseDetail = () => {
     }
     setSavingProgress(true);
     try {
-      const path = `academy/enrollments/${user.id}.json`;
-      const prog: Record<string, "completed" | "in-progress"> = enrollData.progress[course.slug] || {};
-      const nextProg: Record<string, "completed" | "in-progress"> = { ...prog, [lessonId]: value ? "completed" : "in-progress" };
-      const nextProgress: Record<string, Record<string, "completed" | "in-progress">> = { ...enrollData.progress, [course.slug]: nextProg };
-      const nextData: EnrollmentData = {
+      // verifica se existe
+      const { data: existing } = await supabase
+        .from("academy_progress")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("course_slug", course.slug)
+        .eq("lesson_id", lessonId)
+        .maybeSingle();
+
+      if (existing?.id) {
+        const { error: updErr } = await supabase
+          .from("academy_progress")
+          .update({ status: value ? "completed" : "in-progress", updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+        if (updErr) throw updErr;
+      } else {
+        const { error: insErr } = await supabase
+          .from("academy_progress")
+          .insert({ user_id: user.id, course_slug: course.slug, lesson_id: lessonId, status: value ? "completed" : "in-progress" });
+        if (insErr) throw insErr;
+      }
+
+      const nextProg = { ...(enrollData.progress[course.slug] || {}) };
+      nextProg[lessonId] = value ? "completed" : "in-progress";
+      setEnrollData({
         enrolledSlugs: Array.from(new Set([...(enrollData.enrolledSlugs || []), course.slug])),
-        progress: nextProgress,
-      };
-      const blob = new Blob([JSON.stringify(nextData, null, 2)], { type: "application/json" });
-      const { error } = await supabase.storage.from("uploads").upload(path, blob, { upsert: true });
-      if (error) throw error;
-      setEnrollData(nextData);
+        progress: { ...enrollData.progress, [course.slug]: nextProg },
+      });
     } catch (e) {
       console.error("[CourseDetail] Progress save error:", e);
       toast.error("Falha ao salvar progresso.");

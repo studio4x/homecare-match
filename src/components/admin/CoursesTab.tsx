@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Edit2, Image as ImageIcon } from "lucide-react";
+import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
@@ -24,6 +24,7 @@ interface Lesson {
   duration_minutes?: number;
   resource_url?: string;
   position?: number;
+  module_id: string;
 }
 
 interface Module {
@@ -31,6 +32,7 @@ interface Module {
   title: string;
   description?: string;
   position?: number;
+  course_slug: string;
   lessons: Lesson[];
 }
 
@@ -44,10 +46,8 @@ interface Course {
   hero_asset_url?: string;
   content_url?: string;
   created_at?: string;
-  modules?: Module[];
 }
 
-const STORAGE_PATH = "academy/courses.json";
 const HERO_DIR = "academy/hero";
 const MATERIALS_DIR = "academy/materials";
 
@@ -58,10 +58,13 @@ const CoursesTab = () => {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [openDialog, setOpenDialog] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+
   const [openContentDialog, setOpenContentDialog] = useState<boolean>(false);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [isSavingContent, setIsSavingContent] = useState<boolean>(false);
+  const [isUploadingMaterial, setIsUploadingMaterial] = useState<boolean>(false);
   const [selectedModuleIdx, setSelectedModuleIdx] = useState<number | null>(null);
   const [selectedLessonIdx, setSelectedLessonIdx] = useState<number | null>(null);
-  const [isUploadingMaterial, setIsUploadingMaterial] = useState<boolean>(false);
 
   const heroRef = useRef<HTMLInputElement>(null);
   const materialRef = useRef<HTMLInputElement>(null);
@@ -69,14 +72,12 @@ const CoursesTab = () => {
   const fetchCourses = async () => {
     setIsLoading(true);
     try {
-      const { data: file, error } = await supabase.storage.from("uploads").download(STORAGE_PATH);
-      if (error || !file) {
-        setCourses([]);
-        return;
-      }
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      setCourses(Array.isArray(parsed) ? parsed : []);
+      const { data, error } = await supabase
+        .from("academy_courses")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setCourses(data || []);
     } catch (e) {
       console.warn("[CoursesTab] Falha ao carregar cursos:", e);
       setCourses([]);
@@ -99,13 +100,12 @@ const CoursesTab = () => {
       is_active: true,
       hero_asset_url: "",
       content_url: "",
-      modules: [],
     });
     setOpenDialog(true);
   };
 
   const handleEditCourse = (c: Course) => {
-    setSelectedCourse({ ...c, modules: c.modules || [] });
+    setSelectedCourse({ ...c });
     setOpenDialog(true);
   };
 
@@ -135,12 +135,6 @@ const CoursesTab = () => {
     }
   };
 
-  const saveCoursesJSON = async (list: Course[]) => {
-    const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
-    const { error } = await supabase.storage.from("uploads").upload(STORAGE_PATH, blob, { upsert: true });
-    if (error) throw error;
-  };
-
   const handleSaveCourse = async () => {
     if (!selectedCourse) return;
 
@@ -151,21 +145,15 @@ const CoursesTab = () => {
 
     setIsSaving(true);
     try {
-      const updated: Course = {
+      const payload: Course = {
         ...selectedCourse,
         created_at: selectedCourse.created_at || new Date().toISOString(),
       };
-      const existingIndex = courses.findIndex((c) => c.slug === updated.slug);
-      let nextList = [...courses];
-      if (existingIndex >= 0) {
-        nextList[existingIndex] = updated;
-      } else {
-        nextList.push(updated);
-      }
-      await saveCoursesJSON(nextList);
-      setCourses(nextList);
-      setOpenDialog(false);
+      const { error } = await supabase.from("academy_courses").upsert(payload);
+      if (error) throw error;
       toast.success("Curso salvo!");
+      setOpenDialog(false);
+      fetchCourses();
     } catch (e) {
       console.error("[CoursesTab] Save error:", e);
       toast.error("Falha ao salvar curso.");
@@ -174,75 +162,120 @@ const CoursesTab = () => {
     }
   };
 
-  // Add content management helpers
-  const ensureIds = () => {
-    if (!selectedCourse) return;
-    const withIds = {
-      ...selectedCourse,
-      modules: (selectedCourse.modules || []).map((m, mi) => ({
-        id: m.id || crypto.randomUUID(),
-        position: m.position ?? mi + 1,
-        title: m.title,
-        description: m.description,
-        lessons: (m.lessons || []).map((l, li) => ({
-          id: l.id || crypto.randomUUID(),
-          position: l.position ?? li + 1,
-          title: l.title,
-          type: l.type || "link",
-          duration_minutes: l.duration_minutes,
-          resource_url: l.resource_url
-        }))
-      }))
-    };
-    setSelectedCourse(withIds);
+  const loadContent = async (course: Course) => {
+    try {
+      const { data: mods, error: modErr } = await supabase
+        .from("academy_modules")
+        .select("*")
+        .eq("course_slug", course.slug)
+        .order("position", { ascending: true });
+      if (modErr) throw modErr;
+
+      const modulesWithLessons: Module[] = [];
+      for (const m of mods || []) {
+        const { data: lessons, error: lessonErr } = await supabase
+          .from("academy_lessons")
+          .select("*")
+          .eq("module_id", m.id)
+          .order("position", { ascending: true });
+        if (lessonErr) throw lessonErr;
+        modulesWithLessons.push({
+          id: m.id,
+          title: m.title,
+          description: m.description || "",
+          position: m.position || 1,
+          course_slug: m.course_slug,
+          lessons: (lessons || []).map((l) => ({
+            id: l.id,
+            title: l.title,
+            type: (l.type as Lesson["type"]) || "link",
+            duration_minutes: l.duration_minutes || 0,
+            resource_url: l.resource_url || "",
+            position: l.position || 1,
+            module_id: l.module_id,
+          })),
+        });
+      }
+      setModules(modulesWithLessons);
+    } catch (e) {
+      console.error("[CoursesTab] Load content error:", e);
+      setModules([]);
+    }
   };
 
-  const handleOpenContent = (c: Course) => {
-    setSelectedCourse({ ...c, modules: c.modules || [] });
+  const handleOpenContent = async (c: Course) => {
+    setSelectedCourse(c);
+    await loadContent(c);
     setOpenContentDialog(true);
   };
 
   const addModule = () => {
     if (!selectedCourse) return;
-    const nextModules = [...(selectedCourse.modules || []), { id: crypto.randomUUID(), title: "Novo Módulo", description: "", position: (selectedCourse.modules?.length || 0) + 1, lessons: [] }];
-    setSelectedCourse({ ...selectedCourse, modules: nextModules });
+    const newModule: Module = {
+      id: crypto.randomUUID(),
+      title: "Novo Módulo",
+      description: "",
+      position: (modules.length || 0) + 1,
+      course_slug: selectedCourse.slug,
+      lessons: [],
+    };
+    setModules((prev) => [...prev, newModule]);
   };
 
-  const removeModule = (idx: number) => {
-    if (!selectedCourse) return;
-    const nextModules = (selectedCourse.modules || []).filter((_, i) => i !== idx);
-    setSelectedCourse({ ...selectedCourse, modules: nextModules });
+  const removeModule = async (idx: number) => {
+    const mod = modules[idx];
+    setModules((prev) => prev.filter((_, i) => i !== idx));
+    // Se existir no banco, remover
+    if (mod?.id) {
+      const { error } = await supabase.from("academy_modules").delete().eq("id", mod.id);
+      if (error) {
+        console.error("[CoursesTab] Delete module error:", error);
+        toast.error("Falha ao remover módulo no banco.");
+      }
+    }
   };
 
   const addLesson = (moduleIdx: number) => {
-    if (!selectedCourse) return;
-    const mods = [...(selectedCourse.modules || [])];
-    const mod = mods[moduleIdx];
+    const mod = modules[moduleIdx];
     if (!mod) return;
-    const newLesson: Lesson = { id: crypto.randomUUID(), title: "Nova Aula", type: "link", position: (mod.lessons?.length || 0) + 1 };
-    const nextLessons: Lesson[] = [...(mod.lessons || []), newLesson];
-    mods[moduleIdx] = { ...mod, lessons: nextLessons };
-    setSelectedCourse({ ...selectedCourse, modules: mods });
+    const newLesson: Lesson = {
+      id: crypto.randomUUID(),
+      title: "Nova Aula",
+      type: "link",
+      duration_minutes: 0,
+      resource_url: "",
+      position: (mod.lessons.length || 0) + 1,
+      module_id: mod.id,
+    };
+    const nextLessons = [...mod.lessons, newLesson];
+    const nextModules = [...modules];
+    nextModules[moduleIdx] = { ...mod, lessons: nextLessons };
+    setModules(nextModules);
   };
 
-  const removeLesson = (moduleIdx: number, lessonIdx: number) => {
-    if (!selectedCourse) return;
-    const mods = [...(selectedCourse.modules || [])];
-    const mod = mods[moduleIdx];
-    if (!mod) return;
-    const nextLessons = (mod.lessons || []).filter((_, i) => i !== lessonIdx);
-    mods[moduleIdx] = { ...mod, lessons: nextLessons };
-    setSelectedCourse({ ...selectedCourse, modules: mods });
+  const removeLesson = async (moduleIdx: number, lessonIdx: number) => {
+    const mod = modules[moduleIdx];
+    const lesson = mod?.lessons[lessonIdx];
+    if (!mod || !lesson) return;
+    const nextLessons = mod.lessons.filter((_, i) => i !== lessonIdx);
+    const nextModules = [...modules];
+    nextModules[moduleIdx] = { ...mod, lessons: nextLessons };
+    setModules(nextModules);
+    // Se existir no banco, remover
+    if (lesson?.id) {
+      const { error } = await supabase.from("academy_lessons").delete().eq("id", lesson.id);
+      if (error) {
+        console.error("[CoursesTab] Delete lesson error:", error);
+        toast.error("Falha ao remover aula no banco.");
+      }
+    }
   };
 
   const handleUploadMaterial = async (file: File) => {
-    if (selectedModuleIdx === null || selectedLessonIdx === null || !selectedCourse) return;
-    const moduleIdx = selectedModuleIdx;
-    const lessonIdx = selectedLessonIdx;
-    const mods = [...(selectedCourse.modules || [])];
-    const mod = mods[moduleIdx];
-    const lesson = mod?.lessons?.[lessonIdx];
-    if (!mod || !lesson) return;
+    if (selectedModuleIdx === null || selectedLessonIdx === null) return;
+    const mod = modules[selectedModuleIdx];
+    const lesson = mod?.lessons[selectedLessonIdx];
+    if (!mod || !lesson || !selectedCourse) return;
 
     setIsUploadingMaterial(true);
     const ext = file.name.split(".").pop();
@@ -255,12 +288,12 @@ const CoursesTab = () => {
       const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(path);
       const publicUrl = publicData.publicUrl;
 
-      // Update lesson resource URL
       const updatedLesson = { ...lesson, resource_url: publicUrl };
-      const nextLessons = [...(mod.lessons || [])];
-      nextLessons[lessonIdx] = updatedLesson;
-      mods[moduleIdx] = { ...mod, lessons: nextLessons };
-      setSelectedCourse({ ...selectedCourse, modules: mods });
+      const nextLessons = [...mod.lessons];
+      nextLessons[selectedLessonIdx] = updatedLesson;
+      const nextModules = [...modules];
+      nextModules[selectedModuleIdx] = { ...mod, lessons: nextLessons };
+      setModules(nextModules);
 
       toast.success("Material enviado com sucesso!");
     } catch (e) {
@@ -270,52 +303,52 @@ const CoursesTab = () => {
       setIsUploadingMaterial(false);
       setSelectedModuleIdx(null);
       setSelectedLessonIdx(null);
+      if (materialRef.current) materialRef.current.value = "";
     }
   };
 
   const handleSaveContent = async () => {
     if (!selectedCourse) return;
-    setIsSaving(true);
+    setIsSavingContent(true);
     try {
-      ensureIds();
-      const existingIndex = courses.findIndex((c) => c.slug === selectedCourse.slug);
-      const nextList = [...courses];
-      if (existingIndex >= 0) {
-        nextList[existingIndex] = selectedCourse;
-      } else {
-        nextList.push(selectedCourse);
+      // Upsert módulos
+      const modPayloads = modules.map((m) => ({
+        id: m.id,
+        course_slug: m.course_slug,
+        title: m.title,
+        description: m.description,
+        position: m.position ?? 1,
+      }));
+      if (modPayloads.length > 0) {
+        const { error: modErr } = await supabase.from("academy_modules").upsert(modPayloads, { onConflict: "id" });
+        if (modErr) throw modErr;
       }
-      await saveCoursesJSON(nextList);
-      setCourses(nextList);
+
+      // Upsert aulas
+      const lessonPayloads = modules.flatMap((m) =>
+        m.lessons.map((l) => ({
+          id: l.id,
+          module_id: m.id,
+          title: l.title,
+          type: l.type,
+          duration_minutes: l.duration_minutes ?? 0,
+          resource_url: l.resource_url || "",
+          position: l.position ?? 1,
+        }))
+      );
+      if (lessonPayloads.length > 0) {
+        const { error: lessonErr } = await supabase.from("academy_lessons").upsert(lessonPayloads, { onConflict: "id" });
+        if (lessonErr) throw lessonErr;
+      }
+
+      toast.success("Conteúdo salvo no banco!");
       setOpenContentDialog(false);
-      toast.success("Conteúdo do curso salvo!");
     } catch (e) {
       console.error("[CoursesTab] Save content error:", e);
       toast.error("Falha ao salvar conteúdo.");
     } finally {
-      setIsSaving(false);
+      setIsSavingContent(false);
     }
-  };
-
-  const handleMigrateToDB = async () => {
-    toast.info("Iniciando migração...");
-    // Cria tabelas com RLS
-    const createRes = await supabase.functions.invoke('academy-migrate', {
-      body: { action: 'create_tables' }
-    });
-    if (createRes.error) {
-      toast.error("Erro ao criar tabelas.");
-      return;
-    }
-    // Migra cursos do Storage para o banco
-    const migrateRes = await supabase.functions.invoke('academy-migrate', {
-      body: { action: 'migrate_from_storage' }
-    });
-    if (migrateRes.error) {
-      toast.error("Erro ao migrar dados.");
-      return;
-    }
-    toast.success("Migração concluída com sucesso!");
   };
 
   return (
@@ -323,14 +356,9 @@ const CoursesTab = () => {
       <Card>
         <CardHeader className="flex items-center justify-between">
           <CardTitle>Cursos de Capacitação</CardTitle>
-          <div className="flex items-center gap-2">
-            <Button onClick={handleNewCourse} className="gap-2">
-              <Plus className="h-4 w-4" /> Novo Curso
-            </Button>
-            <Button variant="outline" onClick={handleMigrateToDB}>
-              Migrar para Banco (RLS)
-            </Button>
-          </div>
+          <Button onClick={handleNewCourse} className="gap-2">
+            <Plus className="h-4 w-4" /> Novo Curso
+          </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -360,12 +388,14 @@ const CoursesTab = () => {
                       <Badge className={c.is_active ? "bg-success" : "bg-muted text-muted-foreground"}>{c.is_active ? "Ativo" : "Inativo"}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleEditCourse(c)}>
-                        <Edit2 className="h-4 w-4" /> Editar
-                      </Button>
-                      <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleOpenContent(c)}>
-                        <Edit2 className="h-4 w-4" /> Gerenciar Conteúdo
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleOpenContent(c)}>
+                          <Edit2 className="h-4 w-4" /> Conteúdo
+                        </Button>
+                        <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleEditCourse(c)}>
+                          <Edit2 className="h-4 w-4" /> Editar
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -502,26 +532,26 @@ const CoursesTab = () => {
                 <Button size="sm" onClick={addModule} className="gap-2">
                   <Plus className="h-4 w-4" /> Adicionar Módulo
                 </Button>
-                <Button size="sm" variant="outline" onClick={handleSaveContent} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                <Button size="sm" variant="outline" onClick={handleSaveContent} disabled={isSavingContent}>
+                  {isSavingContent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Salvar Conteúdo
                 </Button>
               </div>
 
-              {(selectedCourse.modules || []).length > 0 ? (
+              {modules.length > 0 ? (
                 <div className="space-y-4">
-                  {(selectedCourse.modules || []).map((m, mi) => (
-                    <div key={m.id || mi} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-center justify-between">
+                  {modules.map((m, mi) => (
+                    <div key={m.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
                         <div className="grid md:grid-cols-2 gap-3 w-full">
                           <div className="space-y-2">
                             <Label>Título do Módulo</Label>
                             <Input
                               value={m.title}
                               onChange={(e) => {
-                                const mods = [...(selectedCourse.modules || [])];
-                                mods[mi] = { ...m, title: e.target.value };
-                                setSelectedCourse({ ...selectedCourse, modules: mods });
+                                const next = [...modules];
+                                next[mi] = { ...m, title: e.target.value };
+                                setModules(next);
                               }}
                             />
                           </div>
@@ -530,15 +560,15 @@ const CoursesTab = () => {
                             <Input
                               value={m.description || ""}
                               onChange={(e) => {
-                                const mods = [...(selectedCourse.modules || [])];
-                                mods[mi] = { ...m, description: e.target.value };
-                                setSelectedCourse({ ...selectedCourse, modules: mods });
+                                const next = [...modules];
+                                next[mi] = { ...m, description: e.target.value };
+                                setModules(next);
                               }}
                             />
                           </div>
                         </div>
                         <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeModule(mi)}>
-                          Remover
+                          <Trash2 className="h-4 w-4" /> Remover
                         </Button>
                       </div>
 
@@ -549,20 +579,20 @@ const CoursesTab = () => {
                         </Button>
                       </div>
 
-                      {(m.lessons || []).length > 0 ? (
+                      {m.lessons.length > 0 ? (
                         <div className="space-y-3">
-                          {(m.lessons || []).map((l, li) => (
-                            <div key={l.id || li} className="grid md:grid-cols-4 gap-3 p-3 border rounded-md">
+                          {m.lessons.map((l, li) => (
+                            <div key={l.id} className="grid md:grid-cols-4 gap-3 p-3 border rounded-md">
                               <div className="space-y-2">
                                 <Label>Título</Label>
                                 <Input
                                   value={l.title}
                                   onChange={(e) => {
-                                    const mods = [...(selectedCourse.modules || [])];
-                                    const lessons = [...(m.lessons || [])];
+                                    const next = [...modules];
+                                    const lessons = [...m.lessons];
                                     lessons[li] = { ...l, title: e.target.value };
-                                    mods[mi] = { ...m, lessons };
-                                    setSelectedCourse({ ...selectedCourse, modules: mods });
+                                    next[mi] = { ...m, lessons };
+                                    setModules(next);
                                   }}
                                 />
                               </div>
@@ -571,11 +601,11 @@ const CoursesTab = () => {
                                 <Select
                                   value={l.type}
                                   onValueChange={(v) => {
-                                    const mods = [...(selectedCourse.modules || [])];
-                                    const lessons = [...(m.lessons || [])];
+                                    const next = [...modules];
+                                    const lessons = [...m.lessons];
                                     lessons[li] = { ...l, type: v as Lesson["type"] };
-                                    mods[mi] = { ...m, lessons };
-                                    setSelectedCourse({ ...selectedCourse, modules: mods });
+                                    next[mi] = { ...m, lessons };
+                                    setModules(next);
                                   }}
                                 >
                                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -591,11 +621,11 @@ const CoursesTab = () => {
                                 <Input
                                   value={l.resource_url || ""}
                                   onChange={(e) => {
-                                    const mods = [...(selectedCourse.modules || [])];
-                                    const lessons = [...(m.lessons || [])];
+                                    const next = [...modules];
+                                    const lessons = [...m.lessons];
                                     lessons[li] = { ...l, resource_url: e.target.value };
-                                    mods[mi] = { ...m, lessons };
-                                    setSelectedCourse({ ...selectedCourse, modules: mods });
+                                    next[mi] = { ...m, lessons };
+                                    setModules(next);
                                   }}
                                   placeholder="Link do vídeo/PDF"
                                 />
@@ -621,7 +651,6 @@ const CoursesTab = () => {
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
                                       if (file) handleUploadMaterial(file);
-                                      if (materialRef.current) materialRef.current.value = "";
                                     }}
                                   />
                                 </div>
@@ -632,16 +661,16 @@ const CoursesTab = () => {
                                   type="number"
                                   value={l.duration_minutes || 0}
                                   onChange={(e) => {
-                                    const mods = [...(selectedCourse.modules || [])];
-                                    const lessons = [...(m.lessons || [])];
+                                    const next = [...modules];
+                                    const lessons = [...m.lessons];
                                     lessons[li] = { ...l, duration_minutes: parseInt(e.target.value || "0", 10) };
-                                    mods[mi] = { ...m, lessons };
-                                    setSelectedCourse({ ...selectedCourse, modules: mods });
+                                    next[mi] = { ...m, lessons };
+                                    setModules(next);
                                   }}
                                 />
                                 <div className="flex justify-end">
                                   <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeLesson(mi, li)}>
-                                    Remover Aula
+                                    <Trash2 className="h-4 w-4" /> Remover Aula
                                   </Button>
                                 </div>
                               </div>

@@ -61,14 +61,13 @@ const Courses = () => {
     const loadCourses = async () => {
       setLoading(true);
       try {
-        const { data: file } = await supabase.storage.from("uploads").download(STORAGE_PATH);
-        if (file) {
-          const text = await file.text();
-          const parsed = JSON.parse(text);
-          setCourses(Array.isArray(parsed) ? parsed.filter((c) => c.is_active !== false) : []);
-        } else {
-          setCourses([]);
-        }
+        const { data, error } = await supabase
+          .from("academy_courses")
+          .select("*")
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        setCourses(data || []);
       } catch (e) {
         console.warn("[Courses] Falha ao carregar cursos:", e);
         setCourses([]);
@@ -83,18 +82,15 @@ const Courses = () => {
     const loadEnrollment = async () => {
       if (!user) return;
       try {
-        const path = `academy/enrollments/${user.id}.json`;
-        const { data: file } = await supabase.storage.from("uploads").download(path);
-        if (file) {
-          const text = await file.text();
-          const parsed = JSON.parse(text);
-          setEnrollments({
-            enrolledSlugs: Array.isArray(parsed.enrolledSlugs) ? parsed.enrolledSlugs : [],
-            progress: parsed.progress || {},
-          });
-        } else {
-          setEnrollments({ enrolledSlugs: [], progress: {} });
-        }
+        const { data, error } = await supabase
+          .from("academy_enrollments")
+          .select("course_slug")
+          .eq("user_id", user.id);
+        if (error) throw error;
+        setEnrollments({
+          enrolledSlugs: (data || []).map((d: any) => d.course_slug),
+          progress: {},
+        });
       } catch {
         setEnrollments({ enrolledSlugs: [], progress: {} });
       }
@@ -111,15 +107,14 @@ const Courses = () => {
     }
     setLoadingEnroll(true);
     try {
-      const path = `academy/enrollments/${user.id}.json`;
-      const next: EnrollmentData = {
-        enrolledSlugs: Array.from(new Set([...(enrollments.enrolledSlugs || []), slug])),
-        progress: enrollments.progress || {},
-      };
-      const blob = new Blob([JSON.stringify(next, null, 2)], { type: "application/json" });
-      const { error } = await supabase.storage.from("uploads").upload(path, blob, { upsert: true });
+      const { error } = await supabase
+        .from("academy_enrollments")
+        .upsert({ user_id: user.id, course_slug: slug }, { onConflict: "user_id,course_slug" });
       if (error) throw error;
-      setEnrollments(next);
+      setEnrollments((prev) => ({
+        enrolledSlugs: Array.from(new Set([...(prev.enrolledSlugs || []), slug])),
+        progress: prev.progress || {},
+      }));
       toast.success("Inscrição realizada!");
     } catch (e) {
       console.error("[Courses] Enroll error:", e);

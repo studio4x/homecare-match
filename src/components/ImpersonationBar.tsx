@@ -9,16 +9,20 @@ const ImpersonationBar: React.FC = () => {
   const { signOut, user } = useAuth();
   const [show, setShow] = useState(false);
   const [adminEmail, setAdminEmail] = useState<string | null>(null);
+  const [adminReturnLink, setAdminReturnLink] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const flag = localStorage.getItem("impersonatingAdmin");
       const email = localStorage.getItem("impersonatorEmail");
+      const returnLink = localStorage.getItem("adminReturnLink");
       setShow(flag === "true");
       setAdminEmail(email);
+      setAdminReturnLink(returnLink);
     } catch {
       setShow(false);
       setAdminEmail(null);
+      setAdminReturnLink(null);
     }
   }, []);
 
@@ -39,12 +43,14 @@ const ImpersonationBar: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={async () => {
+              const link = adminReturnLink;
               try {
                 localStorage.removeItem("impersonatingAdmin");
                 localStorage.removeItem("impersonatorEmail");
+                localStorage.removeItem("adminReturnLink");
               } catch {}
               await signOut();
-              window.location.href = "/admin";
+              window.location.href = link || "/admin";
             }}
           >
             Voltar ao Admin

@@ -345,6 +345,7 @@ const Admin = () => {
   const handleImpersonate = async (targetId: string) => {
     setIsImpersonating(targetId);
     try {
+      // Gera link para entrar como o usuário alvo
       const { data, error } = await supabase.functions.invoke("impersonate-login", {
         body: { targetUserId: targetId }
       });
@@ -353,11 +354,27 @@ const Admin = () => {
         setIsImpersonating(null);
         return;
       }
+
+      // Gera e guarda o link de retorno para o próprio admin (login automático ao voltar)
+      try {
+        const { data: adminLink } = await supabase.functions.invoke("impersonate-login", {
+          body: { targetUserId: user?.id }
+        });
+        if (adminLink?.action_link) {
+          localStorage.setItem("adminReturnLink", adminLink.action_link);
+        }
+      } catch (e) {
+        console.warn("[Admin] Falha ao gerar link de retorno do admin:", e);
+      }
+
       toast.info("Entrando como o usuário...");
+
+      // Marca modo impersonação para exibir barra de retorno
       try {
         localStorage.setItem("impersonatingAdmin", "true");
         if (user?.email) localStorage.setItem("impersonatorEmail", user.email);
       } catch {}
+
       window.location.href = data.action_link;
     } catch (e) {
       console.error("[Admin] Impersonate error:", e);

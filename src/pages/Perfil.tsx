@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 const Perfil = () => {
   const { id } = useParams();
@@ -317,27 +316,13 @@ const Perfil = () => {
                       <Loader2 className="h-4 w-4 animate-spin" /> Carregando cursos...
                     </div>
                   ) : completedCourses.length > 0 ? (
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-3">
                       {completedCourses.map((c) => (
-                        <div key={c.slug} className="rounded-lg border bg-card overflow-hidden">
-                          {c.hero_asset_url ? (
-                            <div className="relative">
-                              <AspectRatio ratio={4/3} className="bg-muted">
-                                <img
-                                  src={c.hero_asset_url}
-                                  alt={c.title}
-                                  className="h-full w-full object-cover"
-                                />
-                              </AspectRatio>
-                              <Badge className="absolute left-2 top-2 bg-success">Concluído</Badge>
-                            </div>
-                          ) : null}
-                          <div className="p-4 space-y-2">
-                            <h4 className="font-semibold truncate">{c.title}</h4>
-                            <p className="text-xs text-muted-foreground">
-                              Carga horária: {formatMinutes(c.workload_minutes)}
-                            </p>
-                          </div>
+                        <div key={c.slug} className="border rounded-lg p-3 bg-card">
+                          <h4 className="font-semibold">{c.title}</h4>
+                          <p className="text-xs text-muted-foreground">
+                            Carga horária: {formatMinutes(c.workload_minutes)}
+                          </p>
                         </div>
                       ))}
                     </div>

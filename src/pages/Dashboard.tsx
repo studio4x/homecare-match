@@ -890,7 +890,6 @@ const Dashboard = () => {
                     <div className="grid gap-2">
                       <Label>E-mail</Label>
                       <Input value={profile.email} disabled />
-                      <p className="text-[10px] text-muted-foreground">Gerenciado pela sua conta; para alterar, use as opções de conta.</p>
                     </div>
                   </div>
 

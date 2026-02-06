@@ -64,6 +64,7 @@ const CourseDetail = () => {
   const [savingProgress, setSavingProgress] = useState(false);
   const [viewerUrls, setViewerUrls] = useState<Record<string, string>>({});
   const [openViewer, setOpenViewer] = useState<Record<string, boolean>>({});
+  const [isEnrolling, setIsEnrolling] = useState(false);
 
   useEffect(() => {
     const loadCourse = async () => {
@@ -169,6 +170,27 @@ const CourseDetail = () => {
     if (!course || !user) return false;
     return enrollData.enrolledSlugs.includes(course.slug);
   }, [course, user, enrollData]);
+
+  const enroll = async () => {
+    if (!user || !course) return;
+    setIsEnrolling(true);
+    try {
+      const { error } = await supabase
+        .from("academy_enrollments")
+        .upsert({ user_id: user.id, course_slug: course.slug }, { onConflict: "user_id,course_slug" });
+      if (error) throw error;
+      setEnrollData((prev) => ({
+        enrolledSlugs: Array.from(new Set([...(prev.enrolledSlugs || []), course.slug])),
+        progress: prev.progress || {},
+      }));
+      toast.success("Inscrição realizada!");
+    } catch (e) {
+      console.error("[CourseDetail] Enroll error:", e);
+      toast.error("Falha ao inscrever.");
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
 
   const totalLessons = useMemo(() => {
     if (!course?.modules) return 0;
@@ -328,6 +350,14 @@ const CourseDetail = () => {
               </div>
               <Progress value={progressPct} />
             </div>
+            {!isEnrolled && (
+              <div className="pt-2">
+                <Button onClick={enroll} disabled={isEnrolling}>
+                  {isEnrolling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Inscrever-se
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

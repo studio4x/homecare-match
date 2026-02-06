@@ -15,6 +15,16 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
 
@@ -71,6 +81,7 @@ const CoursesTab = () => {
   const [selectedLessonIdx, setSelectedLessonIdx] = useState<number | null>(null);
   const [originalModules, setOriginalModules] = useState<Module[]>([]);
   const [isContentDirty, setIsContentDirty] = useState<boolean>(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false);
 
   const heroRef = useRef<HTMLInputElement>(null);
   const materialRef = useRef<HTMLInputElement>(null);
@@ -324,12 +335,13 @@ const CoursesTab = () => {
     }
   };
 
-  // Controla fechamento do diálogo com lembrete
-  const handleContentDialogChange = (open: boolean) => {
-    if (!open && isContentDirty) {
-      toast.warning("Você fechou a edição sem salvar. Suas alterações não foram aplicadas.");
+  // Tenta fechar: se houver alterações, pede confirmação
+  const attemptCloseContentDialog = () => {
+    if (isContentDirty) {
+      setShowCloseConfirm(true);
+    } else {
+      setOpenContentDialog(false);
     }
-    setOpenContentDialog(open);
   };
 
   const handleSaveContent = async () => {
@@ -571,8 +583,22 @@ const CoursesTab = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={openContentDialog} onOpenChange={setOpenContentDialog}>
-        <DialogContent className="sm:max-w-3xl" onInteractOutside={() => handleContentDialogChange(false)}>
+      <Dialog open={openContentDialog} onOpenChange={(open) => {
+        if (!open) {
+          attemptCloseContentDialog();
+        } else {
+          setOpenContentDialog(true);
+        }
+      }}>
+        <DialogContent
+          className="sm:max-w-3xl"
+          onInteractOutside={(e) => {
+            if (isContentDirty) {
+              e.preventDefault();
+              setShowCloseConfirm(true);
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Gerenciar Conteúdo: {selectedCourse?.title}</DialogTitle>
           </DialogHeader>
@@ -738,12 +764,37 @@ const CoursesTab = () => {
               )}
 
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => handleContentDialogChange(false)}>Fechar</Button>
+                <Button variant="ghost" onClick={attemptCloseContentDialog}>Fechar</Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação de saída sem salvar */}
+      <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sair sem salvar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem alterações não salvas. Deseja descartar e fechar a edição?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setModules(originalModules);
+                setIsContentDirty(false);
+                setOpenContentDialog(false);
+                setShowCloseConfirm(false);
+              }}
+            >
+              Descartar alterações
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 const Perfil = () => {
   const { id } = useParams();
@@ -49,6 +50,8 @@ const Perfil = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
   const [referralStats, setReferralStats] = useState<{ count: number; currentTier?: any; nextTier?: any } | null>(null);
+  const [completedCourses, setCompletedCourses] = useState<Array<{ slug: string; title: string; hero_asset_url: string | null; workload_minutes: number }>>([]);
+  const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchViewerRole = async () => {
@@ -77,6 +80,28 @@ const Perfil = () => {
       if (data) setReferralStats(data as any);
     };
     fetchStats();
+  }, [id]);
+
+  useEffect(() => {
+    const fetchCompleted = async () => {
+      if (!id) return;
+      setLoadingCourses(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('public-profile-courses', {
+          body: { userId: id }
+        });
+        if (!error && data?.courses) {
+          setCompletedCourses(data.courses);
+        } else {
+          setCompletedCourses([]);
+        }
+      } catch {
+        setCompletedCourses([]);
+      } finally {
+        setLoadingCourses(false);
+      }
+    };
+    fetchCompleted();
   }, [id]);
 
   const fetchProfile = async () => {
@@ -138,6 +163,15 @@ const Perfil = () => {
   const shareProfile = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success("Link do perfil copiado!");
+  };
+
+  const formatMinutes = (min: number) => {
+    if (!min || min <= 0) return "—";
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}min`;
+    if (h > 0) return `${h}h`;
+    return `${m}min`;
   };
 
   if (loading) return (
@@ -270,6 +304,48 @@ const Perfil = () => {
                   <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
                     {profile.experience || "Informações de experiência não detalhadas."}
                   </p>
+                </div>
+
+                {/* Cursos concluídos */}
+                <div className="mt-10">
+                  <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                    <LayoutGrid className="h-5 w-5 text-primary" />
+                    Cursos Concluídos
+                  </h3>
+                  {loadingCourses ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Carregando cursos...
+                    </div>
+                  ) : completedCourses.length > 0 ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {completedCourses.map((c) => (
+                        <div key={c.slug} className="rounded-lg border bg-card overflow-hidden">
+                          {c.hero_asset_url ? (
+                            <div className="relative">
+                              <AspectRatio ratio={4/3} className="bg-muted">
+                                <img
+                                  src={c.hero_asset_url}
+                                  alt={c.title}
+                                  className="h-full w-full object-cover"
+                                />
+                              </AspectRatio>
+                              <Badge className="absolute left-2 top-2 bg-success">Concluído</Badge>
+                            </div>
+                          ) : null}
+                          <div className="p-4 space-y-2">
+                            <h4 className="font-semibold truncate">{c.title}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              Carga horária: {formatMinutes(c.workload_minutes)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Este profissional ainda não concluiu cursos ou optou por não exibi-los.
+                    </p>
+                  )}
                 </div>
 
                 <Separator className="my-10" />

@@ -188,18 +188,6 @@ const Perfil = () => {
                         {initials}
                       </AvatarFallback>
                     </Avatar>
-                    {isPremium && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="absolute -bottom-2 -right-2 bg-gold p-1.5 rounded-full ring-4 ring-background shadow-md">
-                            <Star className="h-5 w-5 text-white fill-current" />
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Destaque Premium (Plano Anual)
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
                   </div>
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3">
@@ -208,7 +196,7 @@ const Perfil = () => {
                         {isPremium && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Star className="h-6 w-6 text-gold fill-current" />
+                              <Star className="h-5 w-5 text-amber-500 fill-current" />
                             </TooltipTrigger>
                             <TooltipContent>
                               Destaque Premium (Plano Anual)

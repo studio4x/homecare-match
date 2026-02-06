@@ -21,6 +21,8 @@ interface Lesson {
   duration_minutes?: number;
   resource_url?: string;
   position?: number;
+  storage_path?: string;
+  mime_type?: string;
 }
 
 interface Module {
@@ -50,6 +52,7 @@ interface EnrollmentData {
 }
 
 const STORAGE_COURSES = "academy/courses.json";
+const PRIVATE_BUCKET = "academy-private";
 
 const CourseDetail = () => {
   const { slug } = useParams();
@@ -58,6 +61,8 @@ const CourseDetail = () => {
   const [loading, setLoading] = useState(true);
   const [enrollData, setEnrollData] = useState<EnrollmentData>({ enrolledSlugs: [], progress: {} });
   const [savingProgress, setSavingProgress] = useState(false);
+  const [viewerUrls, setViewerUrls] = useState<Record<string, string>>({});
+  const [openViewer, setOpenViewer] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const loadCourse = async () => {
@@ -174,6 +179,26 @@ const CourseDetail = () => {
     const map = enrollData.progress[course.slug] || {};
     return Object.values(map).filter((s) => s === "completed").length;
   }, [course, user, enrollData]);
+
+  const toggleLessonViewer = async (lesson: Lesson) => {
+    const isOpen = !!openViewer[lesson.id];
+    if (isOpen) {
+      setOpenViewer(prev => ({ ...prev, [lesson.id]: false }));
+      return;
+    }
+    // Need storage_path to generate signed URL
+    if (!lesson.storage_path) {
+      toast.error("Este conteúdo ainda não foi enviado para visualização interna.");
+      return;
+    }
+    const { data, error } = await supabase.storage.from(PRIVATE_BUCKET).createSignedUrl(lesson.storage_path, 3600);
+    if (error || !data?.signedUrl) {
+      toast.error("Não foi possível abrir o conteúdo.");
+      return;
+    }
+    setViewerUrls(prev => ({ ...prev, [lesson.id]: data.signedUrl }));
+    setOpenViewer(prev => ({ ...prev, [lesson.id]: true }));
+  };
 
   const toggleLessonCompleted = async (lessonId: string, value: boolean) => {
     if (!user || !course) {
@@ -298,11 +323,13 @@ const CourseDetail = () => {
                             <span className="text-xs text-muted-foreground capitalize">{l.type}{l.duration_minutes ? ` • ${l.duration_minutes} min` : ""}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            {l.resource_url ? (
-                              <Button asChild variant="outline" size="sm">
-                                <a href={l.resource_url} target="_blank" rel="noreferrer">Abrir</a>
-                              </Button>
-                            ) : null}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => toggleLessonViewer(l)}
+                            >
+                              {openViewer[l.id] ? "Fechar" : "Abrir"}
+                            </Button>
                             <Button
                               variant={completed ? "default" : "outline"}
                               size="sm"
@@ -314,6 +341,28 @@ const CourseDetail = () => {
                               {completed ? "Concluída" : "Concluir"}
                             </Button>
                           </div>
+                          {openViewer[l.id] && viewerUrls[l.id] ? (
+                            <div className="mt-3 w-full">
+                              { (l.type === "video" || (l.mime_type || "").startsWith("video/")) ? (
+                                <video
+                                  controls
+                                  playsInline
+                                  src={viewerUrls[l.id]}
+                                  className="w-full rounded-lg border"
+                                />
+                              ) : (l.type === "pdf" || l.mime_type === "application/pdf") ? (
+                                <iframe
+                                  src={`${viewerUrls[l.id]}#toolbar=1&navpanes=0`}
+                                  className="w-full h-[70vh] rounded-lg border"
+                                  title={l.title}
+                                />
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  Tipo de conteúdo não suportado para visualização interna.
+                                </p>
+                              )}
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })}

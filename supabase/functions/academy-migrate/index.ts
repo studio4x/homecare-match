@@ -94,6 +94,10 @@ serve(async (req) => {
         position INTEGER DEFAULT 1
       );
 
+      -- Ensure lesson storage fields exist
+      ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS storage_path TEXT;
+      ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS mime_type TEXT;
+
       CREATE TABLE IF NOT EXISTS public.academy_enrollments (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,

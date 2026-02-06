@@ -26,6 +26,8 @@ interface Lesson {
   resource_url?: string;
   position?: number;
   module_id: string;
+  storage_path?: string;
+  mime_type?: string;
 }
 
 interface Module {
@@ -50,7 +52,8 @@ interface Course {
 }
 
 const HERO_DIR = "academy/hero";
-const MATERIALS_DIR = "academy/materials";
+const MATERIALS_DIR = "materials";
+const PRIVATE_BUCKET = "academy-private";
 
 const CoursesTab = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -279,17 +282,15 @@ const CoursesTab = () => {
     if (!mod || !lesson || !selectedCourse) return;
 
     setIsUploadingMaterial(true);
-    const ext = file.name.split(".").pop();
-    const fileName = `${lesson.id}_${Date.now()}.${ext}`;
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    const safeExt = ext || (file.type.startsWith("video/") ? "mp4" : file.type === "application/pdf" ? "pdf" : "bin");
+    const fileName = `${lesson.id}.${safeExt}`;
     const path = `${MATERIALS_DIR}/${selectedCourse.slug}/${mod.id}/${fileName}`;
 
     try {
-      const { error: uploadError } = await supabase.storage.from("uploads").upload(path, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
-      const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(path);
-      const publicUrl = publicData.publicUrl;
-
-      const updatedLesson = { ...lesson, resource_url: publicUrl };
+      const updatedLesson = { ...lesson, storage_path: path, mime_type: file.type };
       const nextLessons = [...mod.lessons];
       nextLessons[selectedLessonIdx] = updatedLesson;
       const nextModules = [...modules];
@@ -325,7 +326,7 @@ const CoursesTab = () => {
         if (modErr) throw modErr;
       }
 
-      // Upsert aulas
+      // Upsert aulas, incluindo storage_path e mime_type
       const lessonPayloads = modules.flatMap((m) =>
         m.lessons.map((l) => ({
           id: l.id,
@@ -334,6 +335,8 @@ const CoursesTab = () => {
           type: l.type,
           duration_minutes: l.duration_minutes ?? 0,
           resource_url: l.resource_url || "",
+          storage_path: l.storage_path || null,
+          mime_type: l.mime_type || null,
           position: l.position ?? 1,
         }))
       );
@@ -357,9 +360,25 @@ const CoursesTab = () => {
       <Card>
         <CardHeader className="flex items-center justify-between">
           <CardTitle>Cursos de Capacitação</CardTitle>
-          <Button onClick={handleNewCourse} className="gap-2">
-            <Plus className="h-4 w-4" /> Novo Curso
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={handleNewCourse} className="gap-2">
+              <Plus className="h-4 w-4" /> Novo Curso
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                toast.info("Configurando storage seguro...");
+                const { error } = await supabase.functions.invoke("academy-storage-setup", { body: { action: "setup" } });
+                if (error) {
+                  toast.error("Erro ao configurar storage.");
+                } else {
+                  toast.success("Storage privado configurado!");
+                }
+              }}
+            >
+              Configurar Storage Seguro
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (

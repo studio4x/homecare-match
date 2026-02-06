@@ -188,11 +188,16 @@ const InteractionHistory = ({
                       </Button>
                     </div>
                   ) : (
-                    <Button variant="ghost" size="sm" asChild className="ml-auto">
-                      <Link to={`/profissional/${profile.id}`}>
-                        Ver Perfil <ArrowRight className="h-3 w-3 ml-2" />
-                      </Link>
-                    </Button>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Button variant="ghost" size="sm" asChild className="gap-1.5 h-8">
+                        <Link to={`/profissional/${profile.id}`}>
+                          <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Ver</span>
+                        </Link>
+                      </Button>
+                      <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
+                        <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))
@@ -244,7 +249,10 @@ const InteractionHistory = ({
           <DialogHeader>
             <DialogTitle>Informações de Contato</DialogTitle>
             <DialogDescription>
-              Entre em contato com {selectedContact?.full_name} para discutir oportunidades.
+              {viewerRole === 'professional' 
+                ? `Entre em contato com ${selectedContact?.full_name} para discutir oportunidades.`
+                : `Entre em contato com ${selectedContact?.full_name} para contratar seus serviços.`
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">

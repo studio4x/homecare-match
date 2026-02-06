@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const { session } = useAuth();
@@ -57,37 +59,58 @@ const Index = () => {
     },
   ];
 
-  const plans = [
-    {
-      id: "monthly",
-      name: "Plano Mensal",
-      price: "R$ 49,90",
-      period: "mês",
-      description: "Acesso total à plataforma",
-      features: [
-        "Perfil profissional completo",
-        "Visibilidade para todas as empresas",
-        "Link direto para seu WhatsApp",
-        "Suporte por email",
-      ],
+  // Tipagem dos planos do banco
+  interface DbPlan {
+    id: string;
+    name: string;
+    price: string;
+    period: string;
+    description?: string;
+    features?: string[];
+    popular?: boolean;
+    savings?: string;
+  }
+
+  // Busca planos do Admin automaticamente
+  const { data: remotePlans } = useQuery({
+    queryKey: ["plans"],
+    queryFn: async (): Promise<DbPlan[]> => {
+      const { data, error } = await supabase
+        .from("plans")
+        .select("*")
+        .order("price", { ascending: true });
+      if (error) throw error;
+      // Normaliza features para array
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        period: p.period,
+        description: p.description ?? "",
+        features: Array.isArray(p.features) ? p.features : [],
+        popular: !!p.popular,
+        savings: p.savings ?? undefined,
+      }));
     },
-    {
-      id: "yearly",
-      name: "Plano Anual",
-      price: "R$ 39,90",
-      period: "mês",
-      description: "O melhor custo-benefício",
-      features: [
-        "Tudo do plano Mensal",
-        "Destaque no topo das buscas",
-        "Selo dourado de verificação",
-        "Suporte prioritário",
-        "Economia de R$ 120/ano",
-      ],
-      popular: true,
-      savings: "Economize R$ 120/ano",
-    },
-  ];
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Plano Gratuito fixo
+  const freePlan: DbPlan = {
+    id: "free",
+    name: "Plano Gratuito",
+    price: "R$ 0,00",
+    period: "mês",
+    description: "Ideal para começar sem custo.",
+    features: [
+      "Perfil básico",
+      "Visibilidade limitada",
+      "Suporte por email",
+    ],
+    popular: false,
+  };
+
+  const allPlans: DbPlan[] = [freePlan, ...(remotePlans || [])];
 
   return (
     <Layout>
@@ -184,10 +207,17 @@ const Index = () => {
           </div>
 
           <div className="mx-auto grid max-w-3xl gap-8 md:grid-cols-2">
-            {plans.map((plan, index) => (
-              <PricingCard 
-                key={index} 
-                {...plan} 
+            {allPlans.map((plan, index) => (
+              <PricingCard
+                key={plan.id || index}
+                id={plan.id}
+                name={plan.name}
+                price={plan.price}
+                period={plan.period}
+                description={plan.description ?? ""}
+                features={plan.features ?? []}
+                popular={plan.popular}
+                savings={plan.savings}
                 onSubscribe={handleSubscribe}
               />
             ))}

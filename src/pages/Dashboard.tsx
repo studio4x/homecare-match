@@ -655,7 +655,7 @@ const Dashboard = () => {
         <div className="container mx-auto px-4">
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h1 className="text-3xl font-bold flex items-center gap-3">
-              {isProfessional ? "Dashboard do Profissional" : isCompany ? "Dashboard da Empresa" : "Dashboard da Família"}
+              Dashboard
               <Badge variant={isProfessional ? "secondary" : "outline"} className="capitalize">
                 {isProfessional ? "Profissional" : isCompany ? "Empresa" : "Família"}
               </Badge>

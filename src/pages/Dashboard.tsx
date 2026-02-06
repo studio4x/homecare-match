@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 
 const Dashboard = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -79,6 +80,8 @@ const Dashboard = () => {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
+  // NEW: controla abrir/fechar seção Meus Dados no mobile
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   
   const idDocRef = useRef<HTMLInputElement>(null);
   const profDocRef = useRef<HTMLInputElement>(null);
@@ -201,6 +204,15 @@ const Dashboard = () => {
       }
     }
   }, [isLoadingProfile]);
+
+  useEffect(() => {
+    // Em telas desktop, manter sempre aberto
+    const media = window.matchMedia("(min-width: 768px)");
+    const updateOpen = () => setIsDetailsOpen(media.matches ? true : false);
+    updateOpen();
+    media.addEventListener("change", updateOpen);
+    return () => media.removeEventListener("change", updateOpen);
+  }, []);
 
   const fetchProfileAndInteractions = async () => {
     if (!user?.id) return;
@@ -811,235 +823,264 @@ const Dashboard = () => {
 
             {/* --- COLUNA DIREITA --- */}
             <div className="space-y-8">
-              <div className="rounded-2xl border bg-card p-6 shadow-card">
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-xl font-semibold">Meus Dados</h3>
-                    {!isProfessional && (
-                      <Badge variant={isCompany ? "secondary" : "outline"} className="capitalize flex items-center gap-1.5 whitespace-nowrap">
-                        {isCompany ? (
-                          <>
-                            <Building2 className="h-3 w-3" />
-                            Empresa
-                          </>
-                        ) : (
-                          <>
-                            <Home className="h-3 w-3" />
-                            Família
-                          </>
-                        )}
-                      </Badge>
-                    )}
-                  </div>
-                  {!isEditing ? (
-                    <Button onClick={() => setIsEditing(true)}>Editar Perfil</Button>
-                  ) : null}
-                </div>
-                
-                {isProfessional && !profileCompleteness.isComplete && (
-                  <Alert className="mb-6 border-primary/20 bg-primary/5">
-                    <Info className="h-4 w-4 text-primary" />
-                    <AlertTitle className="text-primary">Complete seu Perfil</AlertTitle>
-                    <AlertDescription className="text-xs text-muted-foreground">
-                      Para que seu perfil seja visível nas buscas, todos os campos abaixo são obrigatórios.
-                      <div className="mt-3">
-                        <Progress value={profileCompleteness.progress} className="h-2" />
-                        <p className="mt-2 text-[10px]">
-                          Pendente: {profileCompleteness.missingFields.join(", ")}
-                        </p>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <Avatar className={cn("h-20 w-20 ring-4 ring-border", isProfessional && !profile.avatar_url && "ring-destructive")}>
-                        <AvatarImage src={profile.avatar_url} />
-                        <AvatarFallback className="text-xl">{initials}</AvatarFallback>
-                      </Avatar>
-                      {isProfessional && !profile.avatar_url && (
-                        <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive border-2 border-card" />
+              {/* Toggle container para Meus Dados */}
+              <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                <div className="rounded-2xl border bg-card p-6 shadow-card">
+                  <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-semibold">Meus Dados</h3>
+                      {!isProfessional && (
+                        <Badge variant={isCompany ? "secondary" : "outline"} className="capitalize flex items-center gap-1.5 whitespace-nowrap">
+                          {isCompany ? (
+                            <>
+                              <Building2 className="h-3 w-3" />
+                              Empresa
+                            </>
+                          ) : (
+                            <>
+                              <Home className="h-3 w-3" />
+                              Família
+                            </>
+                          )}
+                        </Badge>
                       )}
                     </div>
-                    {isEditing && (
-                      <div className="flex flex-col gap-2">
-                        <Button variant="outline" size="sm" onClick={() => avatarRef.current?.click()}>Alterar Foto *</Button>
-                        <p className="text-[10px] text-muted-foreground">JPG ou PNG, máx. 2MB</p>
-                        <input type="file" ref={avatarRef} onChange={(e) => handleFileUpload(e, 'avatar')} className="hidden" accept="image/*" />
-                      </div>
+                    {!isEditing ? (
+                      <Button
+                        onClick={() => {
+                          setIsEditing(true);
+                          // Se for mobile (md abaixo), abrir a seção ao clicar em Editar
+                          if (window.innerWidth < 768) setIsDetailsOpen(true);
+                        }}
+                      >
+                        Editar Perfil
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  <CollapsibleContent className="space-y-6 data-[state=closed]:hidden">
+                    {isProfessional && !profileCompleteness.isComplete && (
+                      <Alert className="mb-6 border-primary/20 bg-primary/5">
+                        <Info className="h-4 w-4 text-primary" />
+                        <AlertTitle className="text-primary">Complete seu Perfil</AlertTitle>
+                        <AlertDescription className="text-xs text-muted-foreground">
+                          Para que seu perfil seja visível nas buscas, todos os campos abaixo são obrigatórios.
+                          <div className="mt-3">
+                            <Progress value={profileCompleteness.progress} className="h-2" />
+                            <p className="mt-2 text-[10px]">
+                              Pendente: {profileCompleteness.missingFields.join(", ")}
+                            </p>
+                          </div>
+                        </AlertDescription>
+                      </Alert>
                     )}
-                  </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label>{isProfessional ? "Nome Completo *" : (isCompany ? "Razão Social / Nome do Responsável" : "Nome do Responsável")}</Label>
-                      <Input value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} disabled={!isEditing} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>WhatsApp (com DDD) *</Label>
-                      <Input 
-                        value={profile.phone} 
-                        onChange={handlePhoneChange}
-                        disabled={!isEditing} 
-                        placeholder="(11) 99999-9999" 
-                        maxLength={15}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>E-mail</Label>
-                      <Input value={profile.email} disabled />
-                    </div>
-                  </div>
-
-                  {isCompany && (
-                    <>
-                      <div className="grid gap-2">
-                        <Label>Nome Fantasia</Label>
-                        <Input value={profile.company_name} onChange={e => setProfile({...profile, company_name: e.target.value})} disabled={!isEditing} />
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>CNPJ</Label>
-                        <Input value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} disabled={!isEditing} />
-                      </div>
-                    </>
-                  )}
-                  {isProfessional && (
-                    <>
-                      <div className="grid gap-2">
-                        <Label>Especialidade *</Label>
-                        <Select
-                          value={profile.specialty}
-                          onValueChange={(value) => setProfile({ ...profile, specialty: value })}
-                          disabled={!isEditing}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione sua especialidade" />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[40vh] overflow-y-auto">
-                            {specialties.map((s) => (
-                              <SelectItem key={s.value} value={s.value}>
-                                {s.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Registro (COREN/CREFITO) *</Label>
-                        <Input value={profile.registration} onChange={e => setProfile({...profile, registration: e.target.value})} disabled={!isEditing} />
-                      </div>
-                    </>
-                  )}
-                  {isProfessional && (
-                    <>
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <div className="grid gap-2">
-                          <Label>Bairro *</Label>
-                          <Input value={profile.neighborhood} onChange={e => setProfile({...profile, neighborhood: e.target.value})} disabled={!isEditing} />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Cidade *</Label>
-                          <Input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value})} disabled={!isEditing} />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Estado (UF) *</Label>
-                          <Input value={profile.state} onChange={e => setProfile({...profile, state: e.target.value})} disabled={!isEditing} maxLength={2} />
-                        </div>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label>Formações *</Label>
-                        <Textarea value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Cursos, especializações e histórico acadêmico..." />
-                      </div>
-                      <div className="grid gap-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Biografia Profissional *</Label>
-                          {isEditing && (
-                            <Button type="button" variant="outline" size="sm" className="h-7 gap-1 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={handleGenerateBio} disabled={isGeneratingBio}>
-                              {isGeneratingBio ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
-                              Gerar com IA
-                            </Button>
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <Avatar className={cn("h-20 w-20 ring-4 ring-border", isProfessional && !profile.avatar_url && "ring-destructive")}>
+                            <AvatarImage src={profile.avatar_url} />
+                            <AvatarFallback className="text-xl">{initials}</AvatarFallback>
+                          </Avatar>
+                          {isProfessional && !profile.avatar_url && (
+                            <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive border-2 border-card" />
                           )}
                         </div>
-                        <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Conte um pouco sobre sua trajetória..." />
+                        {isEditing && (
+                          <div className="flex flex-col gap-2">
+                            <Button variant="outline" size="sm" onClick={() => avatarRef.current?.click()}>Alterar Foto *</Button>
+                            <p className="text-[10px] text-muted-foreground">JPG ou PNG, máx. 2MB</p>
+                            <input type="file" ref={avatarRef} onChange={(e) => handleFileUpload(e, 'avatar')} className="hidden" accept="image/*" />
+                          </div>
+                        )}
                       </div>
-                      <Separator />
-                      <div className="space-y-6">
-                        <div>
-                          <h4 className="font-semibold mb-2 text-foreground">Detalhes do Atendimento</h4>
-                          <p className="text-xs text-muted-foreground mb-4">
-                            Essas informações ajudam as famílias e empresas a entenderem melhor seu perfil.
-                          </p>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-2">
+                          <Label>{isProfessional ? "Nome Completo *" : (isCompany ? "Razão Social / Nome do Responsável" : "Nome do Responsável")}</Label>
+                          <Input value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} disabled={!isEditing} />
                         </div>
                         <div className="grid gap-2">
-                          <Label>Valor por Hora de Atendimento (R$)</Label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                            <Input
-                              type="number"
-                              value={profile.hourly_rate || ""}
-                              onChange={(e) => setProfile({ ...profile, hourly_rate: e.target.value ? parseFloat(e.target.value) : null })}
+                          <Label>WhatsApp (com DDD) *</Label>
+                          <Input 
+                            value={profile.phone} 
+                            onChange={handlePhoneChange}
+                            disabled={!isEditing} 
+                            placeholder="(11) 99999-9999" 
+                            maxLength={15}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>E-mail</Label>
+                          <Input value={profile.email} disabled />
+                        </div>
+                      </div>
+
+                      {isCompany && (
+                        <>
+                          <div className="grid gap-2">
+                            <Label>Nome Fantasia</Label>
+                            <Input value={profile.company_name} onChange={e => setProfile({...profile, company_name: e.target.value})} disabled={!isEditing} />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label>CNPJ</Label>
+                            <Input value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} disabled={!isEditing} />
+                          </div>
+                        </>
+                      )}
+
+                      {isProfessional && (
+                        <>
+                          <div className="grid gap-2">
+                            <Label>Especialidade *</Label>
+                            <Select
+                              value={profile.specialty}
+                              onValueChange={(value) => setProfile({ ...profile, specialty: value })}
                               disabled={!isEditing}
-                              className="pl-9"
-                              placeholder="Ex: 80.00"
-                            />
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione sua especialidade" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[40vh] overflow-y-auto">
+                                {specialties.map((s) => (
+                                  <SelectItem key={s.value} value={s.value}>
+                                    {s.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                          <p className="text-[10px] text-muted-foreground italic">
-                            Este valor será visível apenas para o perfil "Família".
-                          </p>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Disponibilidade</Label>
-                          <div className="grid grid-cols-2 gap-3">
-                            {availabilityOptions.map((option) => (
-                              <div key={option} className="flex items-center gap-2">
-                                <Checkbox
-                                  id={`avail-${option}`}
-                                  checked={profile.availability.includes(option)}
-                                  onCheckedChange={() => handleCheckboxChange('availability', option)}
+                          <div className="grid gap-2">
+                            <Label>Registro (COREN/CREFITO) *</Label>
+                            <Input value={profile.registration} onChange={e => setProfile({...profile, registration: e.target.value})} disabled={!isEditing} />
+                          </div>
+
+                          <div className="grid gap-4 md:grid-cols-3">
+                            <div className="grid gap-2">
+                              <Label>Bairro *</Label>
+                              <Input value={profile.neighborhood} onChange={e => setProfile({...profile, neighborhood: e.target.value})} disabled={!isEditing} />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label>Cidade *</Label>
+                              <Input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value})} disabled={!isEditing} />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label>Estado (UF) *</Label>
+                              <Input value={profile.state} onChange={e => setProfile({...profile, state: e.target.value})} disabled={!isEditing} maxLength={2} />
+                            </div>
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label>Formações *</Label>
+                            <Textarea value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Cursos, especializações e histórico acadêmico..." />
+                          </div>
+
+                          <div className="grid gap-2">
+                            <div className="flex items-center justify-between">
+                              <Label>Biografia Profissional *</Label>
+                              {isEditing && (
+                                <Button type="button" variant="outline" size="sm" className="h-7 gap-1 text-[10px] bg-primary/5 hover:bg-primary/10 border-primary/20" onClick={handleGenerateBio} disabled={isGeneratingBio}>
+                                  {isGeneratingBio ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
+                                  Gerar com IA
+                                </Button>
+                              )}
+                            </div>
+                            <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Conte um pouco sobre sua trajetória..." />
+                          </div>
+
+                          <Separator />
+
+                          <div className="space-y-6">
+                            <div>
+                              <h4 className="font-semibold mb-2 text-foreground">Detalhes do Atendimento</h4>
+                              <p className="text-xs text-muted-foreground mb-4">
+                                Essas informações ajudam as famílias e empresas a entenderem melhor seu perfil.
+                              </p>
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label>Valor por Hora de Atendimento (R$)</Label>
+                              <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                                <Input
+                                  type="number"
+                                  value={profile.hourly_rate || ""}
+                                  onChange={(e) => setProfile({ ...profile, hourly_rate: e.target.value ? parseFloat(e.target.value) : null })}
                                   disabled={!isEditing}
+                                  className="pl-9"
+                                  placeholder="Ex: 80.00"
                                 />
-                                <Label htmlFor={`avail-${option}`} className="text-sm font-normal">
-                                  {option}
-                                </Label>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Perfis de Pacientes Atendidos</Label>
-                          <div className="grid grid-cols-2 gap-3">
-                            {patientProfileOptions.map((option) => (
-                              <div key={option} className="flex items-center gap-2">
-                                <Checkbox
-                                  id={`patient-${option}`}
-                                  checked={profile.patient_profiles.includes(option)}
-                                  onCheckedChange={() => handleCheckboxChange('patient_profiles', option)}
-                                  disabled={!isEditing}
-                                />
-                                <Label htmlFor={`patient-${option}`} className="text-sm font-normal">
-                                  {option}
-                                </Label>
+                              <p className="text-[10px] text-muted-foreground italic">
+                                Este valor será visível apenas para o perfil "Família".
+                              </p>
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label>Disponibilidade</Label>
+                              <div className="grid grid-cols-2 gap-3">
+                                {availabilityOptions.map((option) => (
+                                  <div key={option} className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`avail-${option}`}
+                                      checked={profile.availability.includes(option)}
+                                      onCheckedChange={() => handleCheckboxChange('availability', option)}
+                                      disabled={!isEditing}
+                                    />
+                                    <Label htmlFor={`avail-${option}`} className="text-sm font-normal">
+                                      {option}
+                                    </Label>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label>Perfis de Pacientes Atendidos</Label>
+                              <div className="grid grid-cols-2 gap-3">
+                                {patientProfileOptions.map((option) => (
+                                  <div key={option} className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`patient-${option}`}
+                                      checked={profile.patient_profiles.includes(option)}
+                                      onCheckedChange={() => handleCheckboxChange('patient_profiles', option)}
+                                      disabled={!isEditing}
+                                    />
+                                    <Label htmlFor={`patient-${option}`} className="text-sm font-normal">
+                                      {option}
+                                    </Label>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
+                        </>
+                      )}
+
+                      {isEditing && (
+                        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 mt-6 border-t border-border sticky bottom-0 bg-card z-10 pb-2 sm:static sm:pb-0">
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              setIsEditing(false);
+                              // Em mobile, colapsar ao cancelar
+                              if (window.innerWidth < 768) setIsDetailsOpen(false);
+                              fetchProfileAndInteractions();
+                            }}
+                            className="w-full sm:w-auto h-12 sm:h-10"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm shadow-md">
+                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Salvar Alterações
+                          </Button>
                         </div>
-                      </div>
-                    </>
-                  )}
-                  {isEditing && (
-                    // MODIFICADO: Container de botões responsivo e fixo no final
-                    <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 mt-6 border-t border-border sticky bottom-0 bg-card z-10 pb-2 sm:static sm:pb-0">
-                      <Button variant="ghost" onClick={() => { setIsEditing(false); fetchProfileAndInteractions(); }} className="w-full sm:w-auto h-12 sm:h-10">Cancelar</Button>
-                      <Button onClick={handleSave} disabled={isSaving} className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm shadow-md">
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        Salvar Alterações
-                      </Button>
+                      )}
                     </div>
-                  )}
+                  </CollapsibleContent>
                 </div>
-              </div>
+              </Collapsible>
 
               <div className="flex justify-end pt-4">
                 <Button variant="ghost" size="sm" className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/5 text-xs h-8 px-2" onClick={() => setDeleteAccountModalOpen(true)}>

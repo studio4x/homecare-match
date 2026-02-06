@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
 
@@ -347,14 +348,43 @@ const CourseDetail = () => {
                       const status = (enrollData.progress[course.slug] || {})[l.id];
                       const completed = status === "completed";
                       return (
-                        <div key={l.id} className="flex items-center justify-between border rounded-lg p-3">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{l.title}</span>
-                            <span className="text-xs text-muted-foreground capitalize">
+                        <div key={l.id} className="border rounded-lg p-4 space-y-4">
+                          {/* Título da aula no topo */}
+                          <div>
+                            <h4 className="font-medium">{l.title}</h4>
+                            <p className="text-xs text-muted-foreground capitalize">
                               {l.type}{l.duration_minutes ? ` • ${l.duration_minutes} min` : ""}
-                            </span>
+                            </p>
                           </div>
-                          <div className="flex items-center gap-2">
+
+                          {/* Viewer central com tamanho ajustado */}
+                          {openViewer[l.id] && viewerUrls[l.id] ? (
+                            <div className="w-full">
+                              {(l.type === "video" || (l.mime_type || "").startsWith("video/")) ? (
+                                <AspectRatio ratio={16 / 9} className="rounded-lg border bg-black/5">
+                                  <video
+                                    controls
+                                    playsInline
+                                    src={viewerUrls[l.id]}
+                                    className="w-full h-full rounded-lg object-contain"
+                                  />
+                                </AspectRatio>
+                              ) : (l.type === "pdf" || l.mime_type === "application/pdf") ? (
+                                <iframe
+                                  src={`${viewerUrls[l.id]}#toolbar=1&navpanes=0`}
+                                  className="w-full h-[70vh] rounded-lg border"
+                                  title={l.title}
+                                />
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  Tipo de conteúdo não suportado para visualização interna.
+                                </p>
+                              )}
+                            </div>
+                          ) : null}
+
+                          {/* Botões na base */}
+                          <div className="flex flex-wrap items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
@@ -382,28 +412,6 @@ const CourseDetail = () => {
                               {completed ? "Concluída" : "Concluir"}
                             </Button>
                           </div>
-                          {openViewer[l.id] && viewerUrls[l.id] ? (
-                            <div className="mt-3 w-full">
-                              {(l.type === "video" || (l.mime_type || "").startsWith("video/")) ? (
-                                <video
-                                  controls
-                                  playsInline
-                                  src={viewerUrls[l.id]}
-                                  className="w-full rounded-lg border"
-                                />
-                              ) : (l.type === "pdf" || l.mime_type === "application/pdf") ? (
-                                <iframe
-                                  src={`${viewerUrls[l.id]}#toolbar=1&navpanes=0`}
-                                  className="w-full h-[70vh] rounded-lg border"
-                                  title={l.title}
-                                />
-                              ) : (
-                                <p className="text-sm text-muted-foreground">
-                                  Tipo de conteúdo não suportado para visualização interna.
-                                </p>
-                              )}
-                            </div>
-                          ) : null}
                         </div>
                       );
                     })}

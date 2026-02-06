@@ -112,7 +112,41 @@ const Index = () => {
     popular: false,
   };
 
-  const allPlans: DbPlan[] = [freePlan, ...(remotePlans || [])];
+  // Fallback quando não houver planos cadastrados no Admin
+  const defaultPlans: DbPlan[] = [
+    {
+      id: "monthly",
+      name: "Plano Mensal",
+      price: "R$ 49,90",
+      period: "mês",
+      description: "Acesso total à plataforma",
+      features: [
+        "Perfil profissional completo",
+        "Visibilidade para todas as empresas",
+        "Link direto para seu WhatsApp",
+        "Suporte por email",
+      ],
+      popular: false,
+    },
+    {
+      id: "yearly",
+      name: "Plano Anual",
+      price: "R$ 39,90",
+      period: "mês",
+      description: "O melhor custo-benefício",
+      features: [
+        "Tudo do plano Mensal",
+        "Destaque no topo das buscas",
+        "Selo dourado de verificação",
+        "Suporte prioritário",
+        "Economia de R$ 120/ano",
+      ],
+      popular: true,
+      savings: "Economize R$ 120/ano",
+    },
+  ];
+
+  const allPlans: DbPlan[] = [freePlan, ...((remotePlans && remotePlans.length > 0) ? remotePlans : defaultPlans)];
 
   return (
     <Layout>

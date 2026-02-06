@@ -35,7 +35,7 @@ const PricingCard = ({
       )}
     >
       {popular && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+        <div className="mb-2 flex justify-center">
           <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">
             Mais Popular
           </span>

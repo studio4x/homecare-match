@@ -18,6 +18,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 const Index = () => {
   const { session } = useAuth();
@@ -207,13 +208,11 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Mobile carousel */}
-          <div className="md:hidden">
-            <div className="relative">
-              {/* Track */}
-              <div id="plans-carousel" className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mx-4 px-4">
-                {allPlans.map((plan) => (
-                  <div key={plan.id} className="snap-start shrink-0 w-[85%]">
+          <Carousel className="w-full">
+            <CarouselContent>
+              {allPlans.map((plan) => (
+                <CarouselItem key={plan.id} className="basis-full md:basis-1/2 lg:basis-1/3">
+                  <div className="p-2">
                     <PricingCard
                       id={plan.id}
                       name={plan.name}
@@ -226,56 +225,14 @@ const Index = () => {
                       onSubscribe={handleSubscribe}
                     />
                   </div>
-                ))}
-              </div>
-
-              {/* Nav arrows */}
-              <div className="absolute inset-y-0 left-0 flex items-center">
-                <button
-                  aria-label="Anterior"
-                  className="h-9 w-9 rounded-full bg-card shadow ring-1 ring-border flex items-center justify-center hover:bg-secondary transition"
-                  onClick={() => {
-                    const el = document.getElementById("plans-carousel");
-                    if (!el) return;
-                    el.scrollBy({ left: -el.clientWidth * 0.9, behavior: "smooth" });
-                  }}
-                >
-                  ‹
-                </button>
-              </div>
-              <div className="absolute inset-y-0 right-0 flex items-center">
-                <button
-                  aria-label="Próximo"
-                  className="h-9 w-9 rounded-full bg-card shadow ring-1 ring-border flex items-center justify-center hover:bg-secondary transition"
-                  onClick={() => {
-                    const el = document.getElementById("plans-carousel");
-                    if (!el) return;
-                    el.scrollBy({ left: el.clientWidth * 0.9, behavior: "smooth" });
-                  }}
-                >
-                  ›
-                </button>
-              </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <div className="mt-6 flex items-center justify-center gap-4">
+              <CarouselPrevious className="relative" />
+              <CarouselNext className="relative" />
             </div>
-          </div>
-
-          {/* Desktop grid: 3 colunas */}
-          <div className="hidden md:grid md:grid-cols-3 gap-8">
-            {allPlans.map((plan) => (
-              <PricingCard
-                key={plan.id}
-                id={plan.id}
-                name={plan.name}
-                price={plan.price}
-                period={plan.period}
-                description={plan.description ?? ""}
-                features={plan.features ?? []}
-                popular={plan.popular}
-                savings={plan.savings}
-                onSubscribe={handleSubscribe}
-              />
-            ))}
-          </div>
+          </Carousel>
         </div>
       </section>
     </Layout>

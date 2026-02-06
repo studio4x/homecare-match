@@ -168,7 +168,34 @@ const Buscar = () => {
 
   // Número do WhatsApp dinâmico
   const whatsappNumber = config?.whatsapp_number?.replace(/\D/g, '') || "5511999999999";
-  const conciergeMessage = `Olá, sou ${userRole === 'company' ? 'uma empresa' : 'uma família'} buscando profissionais no HomeCare Match e gostaria de ajuda da equipe de concierge.`;
+
+  // Texto formatado (com quebras de linha) para o WhatsApp do Concierge
+  const roleLabel = userRole === 'company' ? 'Empresa' : 'Família';
+  const requestedSpecialtyLabel = filters.specialty
+    ? (specialties.find(s => s.value === filters.specialty)?.label || filters.specialty)
+    : '';
+
+  const conciergeLines: string[] = [
+    'Olá!',
+    '',
+    `Sou uma *${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match.`,
+  ];
+
+  const criteriaLines: string[] = [];
+  if (requestedSpecialtyLabel) criteriaLines.push(`• Especialidade: ${requestedSpecialtyLabel}`);
+  if (filters.state || filters.city || filters.neighborhood) {
+    criteriaLines.push(`• Local: ${[filters.neighborhood, filters.city, filters.state].filter(Boolean).join(', ')}`);
+  }
+  if (filters.availability) criteriaLines.push(`• Disponibilidade: ${filters.availability}`);
+  if (filters.patient_profile) criteriaLines.push(`• Perfil do paciente: ${filters.patient_profile}`);
+  if (filters.search) criteriaLines.push(`• Busca: ${filters.search}`);
+  if (userRole === 'family' && filters.max_hourly_rate) criteriaLines.push(`• Valor máx/h: R$ ${filters.max_hourly_rate}`);
+
+  if (criteriaLines.length > 0) {
+    conciergeLines.push('', '*Preferências:*', ...criteriaLines);
+  }
+
+  const conciergeMessage = conciergeLines.join('\n');
 
   return (
     <Layout>

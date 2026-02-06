@@ -16,8 +16,8 @@ const Footer = () => {
       <div className="container mx-auto px-4 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
           {/* Brand */}
-          <div className="space-y-4 lg:col-span-1">
-            <Link to="/" className="flex items-center gap-2">
+          <div className="space-y-4 lg:col-span-1 flex flex-col items-center text-center md:items-start md:text-left">
+            <Link to="/" className="flex w-full items-center justify-center gap-2 md:justify-start">
               <img 
                 src={logoUrl} 
                 alt="HomeCare Match" 
@@ -25,7 +25,7 @@ const Footer = () => {
                 className="object-contain" 
               />
             </Link>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground text-center md:text-left">
               Conectando profissionais de saúde às melhores oportunidades em Home Care.
             </p>
           </div>

@@ -100,6 +100,26 @@ const InteractionHistory = ({
       .slice(0, 2)
       .toUpperCase() || "??";
 
+  const getWhatsappMessage = (contact: Interaction['profile']) => {
+    if (viewerRole === 'professional') {
+      // Profissional falando com empresa/família
+      return [
+        'Olá.',
+        '',
+        'Vi que você teve interesse no meu perfil na HomeCare Match.',
+        'Podemos conversar?',
+      ].join('\n');
+    }
+
+    // Empresa/Família falando com profissional (caso exista esse fluxo no futuro)
+    return [
+      `Olá, ${contact.full_name}.`,
+      '',
+      'Vi seu perfil na HomeCare Match e gostaria de conversar.',
+      'Podemos falar?',
+    ].join('\n');
+  };
+
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   return (
@@ -237,7 +257,11 @@ const InteractionHistory = ({
             </div>
             {selectedContact?.phone && (
               <Button asChild className="w-full gap-2 bg-green-600 hover:bg-green-700">
-                <a href={`https://wa.me/${selectedContact.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={`https://wa.me/${selectedContact.phone.replace(/\D/g, '')}?text=${encodeURIComponent(getWhatsappMessage(selectedContact))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   <WhatsAppIcon className="h-4 w-4" />
                   Iniciar Conversa
                 </a>

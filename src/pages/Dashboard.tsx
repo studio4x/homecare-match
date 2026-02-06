@@ -65,6 +65,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import CourseSummaryList, { CourseSummary } from "@/components/CourseSummaryList";
 
 const Dashboard = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -158,6 +159,10 @@ const Dashboard = () => {
     "Reabilitação Neurológica",
   ];
 
+  const [myCoursesStarted, setMyCoursesStarted] = useState<CourseSummary[]>([]);
+  const [myCoursesCompleted, setMyCoursesCompleted] = useState<CourseSummary[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+
   const getProfileCompleteness = () => {
     if (profile.role !== 'professional') {
       return { progress: 100, missingFields: [], isComplete: true };
@@ -215,6 +220,91 @@ const Dashboard = () => {
     media.addEventListener("change", updateOpen);
     return () => media.removeEventListener("change", updateOpen);
   }, []);
+
+  useEffect(() => {
+    if (!authLoading && session && user && profile.role === 'professional') {
+      loadMyCourses();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, session, user, profile.role]);
+
+  const loadMyCourses = async () => {
+    if (!user) return;
+    setLoadingCourses(true);
+    try {
+      // Inscrições do usuário
+      const { data: enrolls, error: enrErr } = await supabase
+        .from("academy_enrollments")
+        .select("course_slug")
+        .eq("user_id", user.id);
+      if (enrErr) throw enrErr;
+
+      const slugs = (enrolls || []).map((e: any) => e.course_slug);
+      const started: CourseSummary[] = [];
+      const completed: CourseSummary[] = [];
+
+      for (const slug of slugs) {
+        // Dados do curso
+        const { data: courseData, error: courseErr } = await supabase
+          .from("academy_courses")
+          .select("slug,title,hero_asset_url")
+          .eq("slug", slug)
+          .maybeSingle();
+        if (courseErr || !courseData) continue;
+
+        // IDs dos módulos
+        const { data: mods, error: modErr } = await supabase
+          .from("academy_modules")
+          .select("id")
+          .eq("course_slug", slug);
+        if (modErr) throw modErr;
+        const moduleIds = (mods || []).map((m: any) => m.id);
+
+        // Total de aulas do curso
+        let totalLessons = 0;
+        if (moduleIds.length > 0) {
+          const { count: lessonsCount, error: lessonsErr } = await supabase
+            .from("academy_lessons")
+            .select("id", { count: "exact", head: true })
+            .in("module_id", moduleIds);
+          if (lessonsErr) throw lessonsErr;
+          totalLessons = lessonsCount || 0;
+        }
+
+        // Aulas concluídas pelo usuário no curso
+        const { count: completedCount, error: progErr } = await supabase
+          .from("academy_progress")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("course_slug", slug)
+          .eq("status", "completed");
+        if (progErr) throw progErr;
+
+        const progressPct = totalLessons > 0 ? Math.round(((completedCount || 0) / totalLessons) * 100) : 0;
+        const item: CourseSummary = {
+          slug: courseData.slug,
+          title: courseData.title,
+          hero: courseData.hero_asset_url || "",
+          progressPct,
+        };
+
+        if (totalLessons > 0 && (completedCount || 0) >= totalLessons) {
+          completed.push(item);
+        } else {
+          started.push(item);
+        }
+      }
+
+      setMyCoursesStarted(started);
+      setMyCoursesCompleted(completed);
+    } catch (e) {
+      console.error("[Dashboard] Erro ao carregar cursos:", e);
+      setMyCoursesStarted([]);
+      setMyCoursesCompleted([]);
+    } finally {
+      setLoadingCourses(false);
+    }
+  };
 
   const fetchProfileAndInteractions = async () => {
     if (!user?.id) return;
@@ -868,14 +958,26 @@ const Dashboard = () => {
                       <BookOpen className="h-4 w-4 text-primary" />
                       Cursos de Capacitação
                     </h3>
-                    <Badge variant="secondary" className="capitalize">Exclusivo</Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Acesse trilhas e conteúdos para aprimorar seu atendimento.
-                  </p>
-                  <div className="flex justify-end">
-                    <Button asChild>
-                      <Link to="/cursos">Acessar</Link>
+
+                  <div className="space-y-6">
+                    <CourseSummaryList
+                      title="Iniciados"
+                      items={myCoursesStarted}
+                      perPage={3}
+                      loading={loadingCourses}
+                    />
+                    <CourseSummaryList
+                      title="Concluídos"
+                      items={myCoursesCompleted}
+                      perPage={3}
+                      loading={loadingCourses}
+                    />
+                  </div>
+
+                  <div className="flex justify-end mt-4">
+                    <Button asChild variant="outline" size="sm">
+                      <Link to="/cursos">Acessar catálogo</Link>
                     </Button>
                   </div>
                 </div>

@@ -83,6 +83,7 @@ const Admin = () => {
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
   const [isUpdatingPlan, setIsUpdatingPlan] = useState<string | null>(null);
+  const [isUpdatingReferralTier, setIsUpdatingReferralTier] = useState<string | null>(null);
 
   const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br";
 
@@ -271,6 +272,32 @@ const Admin = () => {
     }
   };
 
+  const handleUpdateReferralTier = async (profileId: string, value: string) => {
+    setIsUpdatingReferralTier(profileId);
+    try {
+      if (value === 'auto') {
+        const { error } = await supabase.functions.invoke('referral-override', {
+          body: { action: 'clear', userId: profileId }
+        });
+        if (error) throw error;
+        toast.success("Nível de indicação definido como automático.");
+      } else {
+        const idx = parseInt(value, 10);
+        const tier = referralTiers[idx];
+        const { error } = await supabase.functions.invoke('referral-override', {
+          body: { action: 'set', userId: profileId, tier }
+        });
+        if (error) throw error;
+        toast.success("Nível de indicação atualizado!");
+      }
+    } catch (err: any) {
+      console.error("[Admin] Erro referral tier:", err);
+      toast.error("Erro ao atualizar nível de indicação.");
+    } finally {
+      setIsUpdatingReferralTier(null);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
     setIsDeletingUser(true);
@@ -412,6 +439,7 @@ const Admin = () => {
                       <TableHead>E-mail</TableHead>
                       <TableHead>Função</TableHead>
                       <TableHead>Plano / Status</TableHead>
+                      <TableHead>Nível de Indicação</TableHead>
                       <TableHead>Verificado</TableHead>
                       <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
@@ -477,6 +505,28 @@ const Admin = () => {
                                 </div>
                               )}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            {isUpdatingReferralTier === u.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Select 
+                                defaultValue="auto"
+                                onValueChange={(value) => handleUpdateReferralTier(u.id, value)}
+                              >
+                                <SelectTrigger className="w-[180px] h-8 text-xs">
+                                  <SelectValue placeholder="Auto (contagem)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="auto">Auto (contagem)</SelectItem>
+                                  {referralTiers.map((t, idx) => (
+                                    <SelectItem key={`${t.badge_label}-${idx}`} value={String(idx)}>
+                                      {t.badge_label || t.name} (≥{t.threshold})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
                           </TableCell>
                           <TableCell>{u.is_verified ? <Badge className="bg-success">Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
                           <TableCell className="text-right">

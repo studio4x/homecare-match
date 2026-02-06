@@ -56,15 +56,40 @@ serve(async (req) => {
     }
   }
 
+  // Checa override manual
   let currentTier = null;
   let nextTier = null;
-  if (tiers && tiers.length > 0) {
+  const { data: overrideFile } = await supabaseAdmin.storage.from("uploads").download(`referrals/overrides/${referrerId}.json`);
+  if (overrideFile) {
+    try {
+      const overrideText = await overrideFile.text();
+      const overrideTier = JSON.parse(overrideText);
+      if (overrideTier && overrideTier.badge_label) {
+        currentTier = overrideTier;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!currentTier && tiers && tiers.length > 0) {
     const sorted = [...tiers].sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
     for (const t of sorted) {
       if (count >= t.threshold) {
         currentTier = t;
       } else if (!nextTier) {
         nextTier = t;
+      }
+    }
+  }
+
+  // Se houver currentTier e ainda existir um próximo baseado na contagem, calcula
+  if (!nextTier && tiers && tiers.length > 0) {
+    const sorted = [...tiers].sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
+    for (const t of sorted) {
+      if (count < t.threshold) {
+        nextTier = t;
+        break;
       }
     }
   }

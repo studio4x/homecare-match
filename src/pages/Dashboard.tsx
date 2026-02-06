@@ -610,7 +610,11 @@ const Dashboard = () => {
     const endDate = addDays(startDate, 30);
     const daysRemaining = differenceInDays(endDate, new Date());
     
-    return daysRemaining;
+    return {
+      daysRemaining,
+      progress: Math.round((daysRemaining / 30) * 100),
+      isExpired: daysRemaining <= 0
+    };
   };
 
   const handleCheckboxChange = (
@@ -674,7 +678,7 @@ const Dashboard = () => {
           {/* AVISO GLOBAL PARA PROFISSIONAIS COM TESTE GRÁTIS EXPIRADO */}
           {isProfessional && (() => {
             const daysLeft = getTrialStatus(profile);
-            if (daysLeft !== null && daysLeft <= 0 && profile.subscription_tier === 'free_trial') {
+            if (daysLeft !== null && daysLeft.isExpired && profile.subscription_tier === 'free_trial') {
               return (
                 <div className="mb-6 rounded-xl border bg-card p-4 shadow-sm">
                   <div className="flex items-start gap-3">
@@ -704,7 +708,7 @@ const Dashboard = () => {
           {isProfessional && (() => {
             const daysLeft = getTrialStatus(profile);
             // Wrap do conteúdo principal do dashboard com um overlay de bloqueio
-            if (daysLeft !== null && daysLeft <= 0 && profile.subscription_tier === 'free_trial') {
+            if (daysLeft !== null && daysLeft.isExpired && profile.subscription_tier === 'free_trial') {
               return (
                 <div className="relative">
                   <div className="pointer-events-none opacity-60">
@@ -801,9 +805,21 @@ const Dashboard = () => {
                       </Badge>
                     </div>
                     {profile.subscription_tier === 'free_trial' && (
-                      <p className="text-[10px] text-muted-foreground mt-2 italic">
-                        * Após 30 dias, seu perfil deixará de aparecer no topo das buscas.
-                      </p>
+                      <>
+                        <div className="mt-4">
+                          <div className="mb-2 flex justify-between text-xs font-medium">
+                            <span>Dias restantes</span>
+                            <span>{trial?.daysRemaining ?? 0} dias</span>
+                          </div>
+                          <Progress value={trial?.progress ?? 0} className="h-2" />
+                          {trial?.isExpired && (
+                            <p className="mt-2 text-[10px] text-destructive">Período gratuito expirado</p>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-2 italic">
+                          * Após 30 dias, seu perfil deixará de aparecer no topo das buscas.
+                        </p>
+                      </>
                     )}
                   </div>
 

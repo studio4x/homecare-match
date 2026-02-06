@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import Layout from "@/components/layout/Layout";
 import InteractionHistory from "@/components/InteractionHistory";
+import ReferralLinkCard from "@/components/ReferralLinkCard";
 import {
   CheckCircle2,
   Clock,
@@ -835,6 +836,7 @@ const Dashboard = () => {
 
             {/* --- COLUNA DIREITA --- */}
             <div className="space-y-8">
+              {isProfessional ? <ReferralLinkCard /> : null}
               {/* Toggle container para Meus Dados */}
               <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <div className="rounded-2xl border bg-card p-6 shadow-card">

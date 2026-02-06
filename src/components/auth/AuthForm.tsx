@@ -109,7 +109,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
     setLoading(true);
     try {
       if (mode === "register") {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email: data.email,
           password: data.password!,
           options: {
@@ -119,7 +119,22 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           }
         });
         if (error) throw error;
-        
+
+        // Registro de indicação (se houver ?ref=)
+        const referrerId = new URLSearchParams(window.location.search).get("ref");
+        if (referrerId && signUpData?.user?.id) {
+          try {
+            await supabase.functions.invoke('record-referral', {
+              body: {
+                referrerId,
+                newUserId: signUpData.user.id,
+              }
+            });
+          } catch (invokeErr) {
+            console.warn("[AuthForm] Falha ao registrar indicação:", invokeErr);
+          }
+        }
+
         setShowSuccessRegisterModal(true);
         setMode("login");
         reset();

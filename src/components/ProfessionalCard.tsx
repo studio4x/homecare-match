@@ -1,4 +1,4 @@
-import { MapPin, Briefcase, Award, Star } from "lucide-react";
+import { MapPin, Briefcase, Award, Star, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,7 @@ const ProfessionalCard = ({
           <div className="flex items-center gap-1">
             <h3 className="font-semibold text-foreground line-clamp-1">{name}</h3>
             {isPremium && <Star className="h-4 w-4 text-gold fill-gold" />}
+            {isVerified && <ShieldCheck className="h-4 w-4 text-success" />}
           </div>
           <Badge variant="secondary" className="mt-1">
             {specialty}

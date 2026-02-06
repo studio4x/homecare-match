@@ -76,7 +76,8 @@ const CoursesTab = () => {
   const [openContentDialog, setOpenContentDialog] = useState<boolean>(false);
   const [modules, setModules] = useState<Module[]>([]);
   const [isSavingContent, setIsSavingContent] = useState<boolean>(false);
-  const [isUploadingMaterial, setIsUploadingMaterial] = useState<boolean>(false);
+  const [uploadingLessonId, setUploadingLessonId] = useState<string | null>(null);
+  const MAX_FILE_SIZE_MB = 50; // limite para evitar erro de tamanho do Supabase Storage
   const [selectedModuleIdx, setSelectedModuleIdx] = useState<number | null>(null);
   const [selectedLessonIdx, setSelectedLessonIdx] = useState<number | null>(null);
   const [originalModules, setOriginalModules] = useState<Module[]>([]);
@@ -336,7 +337,16 @@ const CoursesTab = () => {
     const lesson = mod?.lessons[selectedLessonIdx];
     if (!mod || !lesson || !selectedCourse) return;
 
-    setIsUploadingMaterial(true);
+    setUploadingLessonId(lesson.id);
+
+    // Validação de tamanho do arquivo
+    const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast.error(`Arquivo muito grande (${Math.round(file.size / 1024 / 1024)}MB). Limite: ${MAX_FILE_SIZE_MB}MB. Compacte o vídeo antes de enviar.`);
+      setUploadingLessonId(null);
+      return;
+    }
+
     const ext = (file.name.split(".").pop() || "").toLowerCase();
     const safeExt = ext || (file.type.startsWith("video/") ? "mp4" : file.type === "application/pdf" ? "pdf" : "bin");
     const fileName = `${lesson.id}.${safeExt}`;
@@ -368,7 +378,7 @@ const CoursesTab = () => {
       console.error("[CoursesTab] Upload material error:", e);
       toast.error("Falha ao enviar material.");
     } finally {
-      setIsUploadingMaterial(false);
+      setUploadingLessonId(null);
       setSelectedModuleIdx(null);
       setSelectedLessonIdx(null);
       if (materialRef.current) materialRef.current.value = "";
@@ -758,9 +768,9 @@ const CoursesTab = () => {
                                       setSelectedLessonIdx(li);
                                       materialRef.current?.click();
                                     }}
-                                    disabled={isUploadingMaterial || l.type === "link"}
+                                    disabled={(uploadingLessonId === l.id) || l.type === "link"}
                                   >
-                                    {isUploadingMaterial ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                    {uploadingLessonId === l.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                                     Enviar Arquivo
                                   </Button>
                                   <input

@@ -348,6 +348,11 @@ const CoursesTab = () => {
     if (!selectedCourse) return;
     setIsSavingContent(true);
     try {
+      // Garante que a estrutura do banco está atualizada (colunas storage_path/mime_type)
+      await supabase.functions.invoke('academy-migrate', {
+        body: { action: 'create_tables' }
+      });
+
       // Upsert módulos
       const modPayloads = modules.map((m) => ({
         id: m.id,
@@ -361,20 +366,24 @@ const CoursesTab = () => {
         if (modErr) throw modErr;
       }
 
-      // Upsert aulas, incluindo storage_path e mime_type
+      // Upsert aulas - só inclui campos quando existirem
       const lessonPayloads = modules.flatMap((m) =>
-        m.lessons.map((l) => ({
-          id: l.id,
-          module_id: m.id,
-          title: l.title,
-          type: l.type,
-          duration_minutes: l.duration_minutes ?? 0,
-          resource_url: l.resource_url || "",
-          storage_path: l.storage_path || null,
-          mime_type: l.mime_type || null,
-          position: l.position ?? 1,
-        }))
+        m.lessons.map((l) => {
+          const payload: Record<string, any> = {
+            id: l.id,
+            module_id: m.id,
+            title: l.title,
+            type: l.type,
+            duration_minutes: l.duration_minutes ?? 0,
+            position: l.position ?? 1,
+          };
+          if (l.resource_url) payload.resource_url = l.resource_url;
+          if (l.storage_path) payload.storage_path = l.storage_path;
+          if (l.mime_type) payload.mime_type = l.mime_type;
+          return payload;
+        })
       );
+
       if (lessonPayloads.length > 0) {
         const { error: lessonErr } = await supabase.from("academy_lessons").upsert(lessonPayloads, { onConflict: "id" });
         if (lessonErr) throw lessonErr;

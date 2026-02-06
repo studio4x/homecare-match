@@ -653,9 +653,21 @@ const Dashboard = () => {
     <Layout>
       <div className="min-h-screen bg-secondary/20 py-8">
         <div className="container mx-auto px-4">
-          <div className="mb-8 flex items-center justify-between">
-            <h1 className="text-3xl font-bold flex items-center gap-3"><ShieldCheck className="h-8 w-8 text-primary" /> Painel Admin</h1>
-            <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive"><LogOut className="h-4 w-4" /> Sair</Button>
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+              {isProfessional ? "Dashboard do Profissional" : isCompany ? "Dashboard da Empresa" : "Dashboard da Família"}
+              <Badge variant={isProfessional ? "secondary" : "outline"} className="capitalize">
+                {isProfessional ? "Profissional" : isCompany ? "Empresa" : "Família"}
+              </Badge>
+            </h1>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild className="gap-2">
+                <Link to={isProfessional ? `/profissional/${user?.id}` : `/recruiter/${user?.id}`}>
+                  <ExternalLink className="h-4 w-4" /> Ver Perfil Público
+                </Link>
+              </Button>
+              <Button variant="ghost" onClick={signOut} className="gap-2 hover:text-destructive"><LogOut className="h-4 w-4" /> Sair</Button>
+            </div>
           </div>
 
           {/* AVISO GLOBAL PARA PROFISSIONAIS COM TESTE GRÁTIS EXPIRADO */}

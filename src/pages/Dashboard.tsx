@@ -39,6 +39,7 @@ import {
   ShieldCheck,
   AlertCircle,
   ArrowRight,
+  BookOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -860,6 +861,25 @@ const Dashboard = () => {
 
             {/* --- COLUNA DIREITA --- */}
             <div className="space-y-8">
+              {isProfessional ? (
+                <div className="rounded-2xl border bg-card p-6 shadow-card">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <BookOpen className="h-4 w-4 text-primary" />
+                      Cursos de Capacitação
+                    </h3>
+                    <Badge variant="secondary" className="capitalize">Exclusivo</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Acesse trilhas e conteúdos para aprimorar seu atendimento.
+                  </p>
+                  <div className="flex justify-end">
+                    <Button asChild>
+                      <Link to="/cursos">Acessar</Link>
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
               {isProfessional ? <ReferralLinkCard /> : null}
               {/* Toggle container para Meus Dados */}
               <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>

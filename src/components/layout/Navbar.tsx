@@ -97,14 +97,6 @@ const Navbar = () => {
                 Buscar Profissionais
               </Link>
             )}
-            <Link
-              to="/cursos"
-              className={`text-sm font-medium transition-colors hover:text-primary ${
-                isActive("/cursos") ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
-              Cursos
-            </Link>
           </div>
 
           {/* Desktop CTA */}
@@ -190,15 +182,6 @@ const Navbar = () => {
                   Buscar Profissionais
                 </Link>
               )}
-              <Link
-                to="/cursos"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`text-sm font-medium ${
-                  isActive("/cursos") ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                Cursos
-              </Link>
               <div className="flex flex-col gap-2 pt-2 border-t border-border mt-2">
                 {session ? (
                   <Button variant="outline" asChild className="justify-start gap-3 h-12">

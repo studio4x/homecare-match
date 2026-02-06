@@ -161,6 +161,7 @@ const Perfil = () => {
 
   const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase();
   const isPremium = profile.subscription_tier === 'yearly';
+  const specialtyLabel = (profile.specialty || '').replace(/-/g, ' ');
   
   return (
     <Layout>
@@ -239,7 +240,7 @@ const Perfil = () => {
                       )}
                     </div>
                     <p className="mt-2 text-xl text-muted-foreground font-medium uppercase tracking-tight">
-                      {profile.specialty}
+                      {specialtyLabel}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">

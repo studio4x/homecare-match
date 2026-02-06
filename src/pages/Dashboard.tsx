@@ -610,11 +610,20 @@ const Dashboard = () => {
     const endDate = addDays(startDate, 30);
     const daysRemaining = differenceInDays(endDate, new Date());
     
-    return {
-      daysRemaining,
-      progress: Math.round((daysRemaining / 30) * 100),
-      isExpired: daysRemaining <= 0
-    };
+    return daysRemaining;
+  };
+
+  // ADDED: cálculo detalhado de trial com base no perfil (dias e progresso)
+  const getTrialInfo = () => {
+    if (profile.subscription_tier !== 'free_trial' || !profile.trial_started_at) return null;
+    const start = parseISO(profile.trial_started_at as string);
+    const startDate = isValid(start) ? start : new Date(profile.trial_started_at as string);
+    const endDate = addDays(startDate, 30);
+    const rawDaysRemaining = differenceInDays(endDate, new Date());
+    const daysRemaining = Math.max(0, rawDaysRemaining);
+    const daysPassed = Math.max(0, 30 - daysRemaining);
+    const progress = Math.min(100, Math.max(0, (daysPassed / 30) * 100));
+    return { daysRemaining, progress, isExpired: daysRemaining <= 0 };
   };
 
   const handleCheckboxChange = (
@@ -644,7 +653,7 @@ const Dashboard = () => {
   const initials = profile.full_name 
     ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() 
     : "??";
-  const trial = getTrialStatus(user);
+  const trialInfo = getTrialInfo();
   const isProfessional = profile.role === 'professional';
   const isCompany = profile.role === 'company';
   const profileCompleteness = getProfileCompleteness();
@@ -678,7 +687,7 @@ const Dashboard = () => {
           {/* AVISO GLOBAL PARA PROFISSIONAIS COM TESTE GRÁTIS EXPIRADO */}
           {isProfessional && (() => {
             const daysLeft = getTrialStatus(profile);
-            if (daysLeft !== null && daysLeft.isExpired && profile.subscription_tier === 'free_trial') {
+            if (daysLeft !== null && daysLeft <= 0 && profile.subscription_tier === 'free_trial') {
               return (
                 <div className="mb-6 rounded-xl border bg-card p-4 shadow-sm">
                   <div className="flex items-start gap-3">
@@ -707,8 +716,7 @@ const Dashboard = () => {
           {/* BLOQUEIO FUNCIONAL: Se expirou, desabilitar ações de uso */}
           {isProfessional && (() => {
             const daysLeft = getTrialStatus(profile);
-            // Wrap do conteúdo principal do dashboard com um overlay de bloqueio
-            if (daysLeft !== null && daysLeft.isExpired && profile.subscription_tier === 'free_trial') {
+            if (daysLeft !== null && daysLeft <= 0 && profile.subscription_tier === 'free_trial') {
               return (
                 <div className="relative">
                   <div className="pointer-events-none opacity-60">
@@ -809,10 +817,10 @@ const Dashboard = () => {
                         <div className="mt-4">
                           <div className="mb-2 flex justify-between text-xs font-medium">
                             <span>Dias restantes</span>
-                            <span>{trial?.daysRemaining ?? 0} dias</span>
+                            <span>{trialInfo?.daysRemaining ?? 0} dias</span>
                           </div>
-                          <Progress value={trial?.progress ?? 0} className="h-2" />
-                          {trial?.isExpired && (
+                          <Progress value={trialInfo?.progress ?? 0} className="h-2" />
+                          {trialInfo?.isExpired && (
                             <p className="mt-2 text-[10px] text-destructive">Período gratuito expirado</p>
                           )}
                         </div>

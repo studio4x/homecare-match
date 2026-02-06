@@ -25,6 +25,7 @@ import {
   DollarSign,
   Clock,
 } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -35,6 +36,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const Perfil = () => {
   const { id } = useParams();
@@ -46,7 +48,7 @@ const Perfil = () => {
   const [isContacting, setIsContacting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
-  const [referralStats, setReferralStats] = useState<{ count: number; currentTier?: any } | null>(null);
+  const [referralStats, setReferralStats] = useState<{ count: number; currentTier?: any; nextTier?: any } | null>(null);
 
   useEffect(() => {
     const fetchViewerRole = async () => {
@@ -187,16 +189,32 @@ const Perfil = () => {
                       </AvatarFallback>
                     </Avatar>
                     {isPremium && (
-                      <div className="absolute -bottom-2 -right-2 bg-gold p-1.5 rounded-full ring-4 ring-background shadow-md">
-                        <Star className="h-5 w-5 text-white fill-current" />
-                      </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="absolute -bottom-2 -right-2 bg-gold p-1.5 rounded-full ring-4 ring-background shadow-md">
+                            <Star className="h-5 w-5 text-white fill-current" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Destaque Premium (Plano Anual)
+                        </TooltipContent>
+                      </Tooltip>
                     )}
                   </div>
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3">
                       <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
                         {profile.full_name}
-                        {isPremium && <Star className="h-6 w-6 text-gold fill-current" />}
+                        {isPremium && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Star className="h-6 w-6 text-gold fill-current" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Destaque Premium (Plano Anual)
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </h1>
                       {/* Badge responsivo: whitespace-nowrap para não quebrar feio, e text-sm no mobile */}
                       {profile.is_verified && (
@@ -207,10 +225,19 @@ const Perfil = () => {
                           {isPremium ? "Verificado Premium" : "Verificado"}
                         </Badge>
                       )}
+                      {/* Embaixador badge com tooltip */}
                       {referralStats && (
-                        <Badge variant="secondary" className="ml-2 whitespace-nowrap">
-                          {referralStats.currentTier?.badge_label || "Embaixador"} • {referralStats.count}
-                        </Badge>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="secondary" className="ml-2 whitespace-nowrap">
+                              {referralStats.currentTier?.badge_label || "Embaixador"} • {referralStats.count}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Programa de Indicação: {referralStats.currentTier?.badge_label || "Embaixador"} • Indicações: {referralStats.count}
+                            {referralStats.nextTier ? ` • Próximo selo: ${referralStats.nextTier.badge_label} em ${referralStats.nextTier.threshold}` : ""}
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                     <p className="mt-2 text-xl text-muted-foreground font-medium uppercase tracking-tight">
@@ -336,6 +363,31 @@ const Perfil = () => {
                     <Calendar className="h-4 w-4" />
                     <span>Membro desde {new Date(profile.updated_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Legenda de ícones e selos */}
+              <div className="rounded-2xl border bg-card p-4 shadow-card">
+                <h4 className="font-semibold mb-3">Legenda</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Star className="h-4 w-4 text-gold fill-current" />
+                    <span className="text-sm text-muted-foreground">Destaque Premium (Plano Anual)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-success" />
+                    <span className="text-sm text-muted-foreground">Perfil Verificado</span>
+                  </div>
+                  {referralStats && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="whitespace-nowrap">
+                        {referralStats.currentTier?.badge_label || "Embaixador"}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        Programa de Indicação • {referralStats.count} indicação{referralStats.count === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

@@ -11,7 +11,6 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import AccessRestricted from "@/components/AccessRestricted";
-import { ShieldAlert } from "lucide-react";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
 
@@ -50,8 +49,6 @@ interface EnrollmentData {
   progress: Record<string, Record<string, "completed" | "in-progress">>;
 }
 
-const STORAGE_PATH = "academy/courses.json";
-
 const Courses = () => {
   const { user, session } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -59,46 +56,30 @@ const Courses = () => {
   const [loading, setLoading] = useState(true);
   const [loadingEnroll, setLoadingEnroll] = useState(false);
   const [userRole, setUserRole] = useState<string>("guest");
+  const [roleLoading, setRoleLoading] = useState<boolean>(true);
 
+  // Carrega papel do usuário
   useEffect(() => {
-    if (user) {
-      (async () => {
-        const { data } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-        setUserRole(data?.role || "professional");
-      })();
-    } else {
-      setUserRole("guest");
-    }
+    const loadRole = async () => {
+      try {
+        if (user) {
+          const { data } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+          setUserRole(data?.role || "professional");
+        } else {
+          setUserRole("guest");
+        }
+      } finally {
+        setRoleLoading(false);
+      }
+    };
+    loadRole();
   }, [user]);
 
-  // Acesso restrito para não-profissionais
-  if (!session) {
-    return (
-      <Layout>
-        <AccessRestricted
-          description="Os cursos de capacitação são exclusivos para Profissionais."
-          primaryAction={{ label: "Entrar", to: "/login" }}
-          secondaryAction={{ label: "Assinar Agora", to: "/login#auth-sign-up" }}
-        />
-      </Layout>
-    );
-  }
-
-  if (session && userRole !== "professional") {
-    return (
-      <Layout>
-        <AccessRestricted
-          description="Os cursos de capacitação são exclusivos para Profissionais."
-          primaryAction={{ label: "Ir para Meu Painel", to: "/dashboard" }}
-        />
-      </Layout>
-    );
-  }
-
+  // Carrega cursos ativos
   useEffect(() => {
     const loadCourses = async () => {
       setLoading(true);
@@ -120,6 +101,7 @@ const Courses = () => {
     loadCourses();
   }, []);
 
+  // Carrega inscrições do usuário
   useEffect(() => {
     const loadEnrollment = async () => {
       if (!user) return;
@@ -165,6 +147,44 @@ const Courses = () => {
       setLoadingEnroll(false);
     }
   };
+
+  // Estado de carregamento do papel (evita decisões antes de saber se é profissional)
+  if (roleLoading) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-12">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" /> Carregando...
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Acesso restrito para deslogados
+  if (!session) {
+    return (
+      <Layout>
+        <AccessRestricted
+          description="Os cursos de capacitação são exclusivos para Profissionais."
+          primaryAction={{ label: "Entrar", to: "/login" }}
+          secondaryAction={{ label: "Assinar Agora", to: "/login#auth-sign-up" }}
+        />
+      </Layout>
+    );
+  }
+
+  // Acesso restrito para papéis que não são profissionais
+  if (session && userRole !== "professional") {
+    return (
+      <Layout>
+        <AccessRestricted
+          description="Os cursos de capacitação são exclusivos para Profissionais."
+          primaryAction={{ label: "Ir para Meu Painel", to: "/dashboard" }}
+        />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

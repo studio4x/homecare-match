@@ -346,7 +346,7 @@ const Admin = () => {
     setIsImpersonating(targetId);
     try {
       const { data, error } = await supabase.functions.invoke("impersonate-login", {
-        body: { targetUserId: targetId, redirectTo: `${window.location.origin}/dashboard` }
+        body: { targetUserId: targetId }
       });
       if (error || !data?.action_link) {
         toast.error("Não foi possível gerar o acesso.");
@@ -354,7 +354,6 @@ const Admin = () => {
         return;
       }
       toast.info("Entrando como o usuário...");
-      // Marca modo impersonação para exibir barra de retorno
       try {
         localStorage.setItem("impersonatingAdmin", "true");
         if (user?.email) localStorage.setItem("impersonatorEmail", user.email);

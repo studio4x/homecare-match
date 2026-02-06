@@ -83,14 +83,13 @@ serve(async (req) => {
 
   const redirectTo = body?.redirectTo || null;
 
-  // Gera magic link para login do usuário alvo
+  // Gera link de recuperação (login direto) para o usuário alvo
   const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-    type: "magiclink",
-    email: targetProfile.email,
-    options: redirectTo ? { redirectTo } : undefined,
+    type: "recovery",
+    email: targetProfile.email
   });
 
-  if (linkErr || !linkData?.action_link) {
+  if (linkErr || !linkData) {
     console.error("[impersonate-login] Failed to generate link", linkErr);
     return new Response(JSON.stringify({ error: "Failed to generate link" }), {
       status: 500,
@@ -98,8 +97,17 @@ serve(async (req) => {
     });
   }
 
+  const action_link = (linkData as any).action_link || (linkData as any).properties?.action_link;
+  if (!action_link) {
+    console.error("[impersonate-login] No action_link in response", { linkData });
+    return new Response(JSON.stringify({ error: "No action_link provided" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   console.log("[impersonate-login] Link generated");
-  return new Response(JSON.stringify({ action_link: linkData.action_link }), {
+  return new Response(JSON.stringify({ action_link }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

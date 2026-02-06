@@ -7,23 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ensureTables = async (admin: any) => {
-  // Cria tabela referral_tiers se não existir
-  const createTiers = await admin.rpc("exec_sql", {
-    q: `
-    CREATE TABLE IF NOT EXISTS public.referral_tiers (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      threshold INTEGER NOT NULL,
-      badge_label TEXT NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `,
-  });
-
-  // Ignora resposta; apenas garante a existência
-};
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -50,7 +33,7 @@ serve(async (req) => {
     });
   }
 
-  // Verifica se é admin
+  // Verifica admin
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("is_admin, role")
@@ -66,8 +49,6 @@ serve(async (req) => {
     });
   }
 
-  await ensureTables(supabaseAdmin);
-
   let body: any = {};
   try {
     body = await req.json();
@@ -75,22 +56,26 @@ serve(async (req) => {
     // sem body, assume get
   }
   const action = body?.action || "get";
+  const path = "referrals/tiers.json";
 
   if (action === "get") {
-    const { data: tiers, error } = await supabaseAdmin
-      .from("referral_tiers")
-      .select("*")
-      .order("threshold", { ascending: true });
-
-    if (error) {
-      console.error("[referral-config] get error", error);
-      return new Response(JSON.stringify({ error: "get_failed" }), {
-        status: 500,
+    // Tenta baixar tiers do Storage
+    const { data: file, error } = await supabaseAdmin.storage.from("uploads").download(path);
+    if (error || !file) {
+      console.warn("[referral-config] no tiers file, returning empty list");
+      return new Response(JSON.stringify({ tiers: [] }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    return new Response(JSON.stringify({ tiers: tiers || [] }), {
+    const text = await file.text();
+    let tiers = [];
+    try {
+      tiers = JSON.parse(text);
+    } catch (e) {
+      console.error("[referral-config] invalid JSON in tiers file", e);
+    }
+    return new Response(JSON.stringify({ tiers }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -98,28 +83,15 @@ serve(async (req) => {
 
   if (action === "set") {
     const tiers = Array.isArray(body?.tiers) ? body.tiers : [];
-    // Estratégia simples: limpa e re-insere
-    const { error: delError } = await supabaseAdmin.from("referral_tiers").delete().neq("id", -1);
-    if (delError) {
-      console.error("[referral-config] delete error", delError);
+    const blob = new Blob([JSON.stringify(tiers)], { type: "application/json" });
+    const { error: uploadError } = await supabaseAdmin.storage.from("uploads").upload(path, blob, { upsert: true });
+    if (uploadError) {
+      console.error("[referral-config] upload error", uploadError);
+      return new Response(JSON.stringify({ error: "set_failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-    if (tiers.length > 0) {
-      const { error: insError } = await supabaseAdmin.from("referral_tiers").insert(
-        tiers.map((t: any) => ({
-          name: t.name,
-          threshold: parseInt(t.threshold, 10),
-          badge_label: t.badge_label,
-        }))
-      );
-      if (insError) {
-        console.error("[referral-config] insert error", insError);
-        return new Response(JSON.stringify({ error: "set_failed" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

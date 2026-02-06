@@ -7,30 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ensureTables = async (admin: any) => {
-  const createReferrals = await admin.rpc("exec_sql", {
-    q: `
-    CREATE TABLE IF NOT EXISTS public.referrals (
-      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-      referrer_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-      referred_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `,
-  });
-  const createTiers = await admin.rpc("exec_sql", {
-    q: `
-    CREATE TABLE IF NOT EXISTS public.referral_tiers (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      threshold INTEGER NOT NULL,
-      badge_label TEXT NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `,
-  });
-};
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -57,32 +33,34 @@ serve(async (req) => {
     });
   }
 
-  await ensureTables(supabaseAdmin);
-
-  const { data: countData, error: countErr } = await supabaseAdmin
-    .from("referrals")
-    .select("id", { count: "exact", head: true })
-    .eq("referrer_id", referrerId);
-
-  if (countErr) {
-    console.error("[referral-stats] count error", countErr);
-    return new Response(JSON.stringify({ error: "count_failed" }), {
+  // Lista arquivos de referrals/referrerId para contar indicações
+  const { data: files, error: listError } = await supabaseAdmin.storage.from("uploads").list(`referrals/${referrerId}`, { limit: 1000 });
+  if (listError) {
+    console.error("[referral-stats] list error", listError);
+    return new Response(JSON.stringify({ error: "list_failed" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  const count = (files || []).length;
 
-  const { data: tiers } = await supabaseAdmin
-    .from("referral_tiers")
-    .select("*")
-    .order("threshold", { ascending: true });
-
-  const count = countData?.length !== undefined ? countData.length : (countData || 0);
+  // Carrega tiers
+  let tiers: any[] = [];
+  const { data: tiersFile } = await supabaseAdmin.storage.from("uploads").download("referrals/tiers.json");
+  if (tiersFile) {
+    try {
+      const text = await tiersFile.text();
+      tiers = JSON.parse(text);
+    } catch (e) {
+      console.warn("[referral-stats] tiers.json invalid", e);
+    }
+  }
 
   let currentTier = null;
   let nextTier = null;
   if (tiers && tiers.length > 0) {
-    for (const t of tiers) {
+    const sorted = [...tiers].sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
+    for (const t of sorted) {
       if (count >= t.threshold) {
         currentTier = t;
       } else if (!nextTier) {

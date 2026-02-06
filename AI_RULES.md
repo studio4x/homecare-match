@@ -48,3 +48,7 @@ This document outlines the technical standards and architectural guidelines for 
 - **TypeScript**: No `any` types. Define interfaces for all component props.
 - **Naming**: Use PascalCase for components and camelCase for variables/functions.
 - **Errors**: Don't swallow errors; allow them to bubble up or use the established toast system to inform the user.
+
+### 8. Alterações por agentes de IA
+- O agente de IA NUNCA deve apagar funcionalidades já implementadas, a não ser por solicitação expressa.
+- Ao inserir uma nova funcionalidade ou alterar alguma existente por solicitação expressa, o agente deve se limitar a incluir e alterar somente o que for solicitado.

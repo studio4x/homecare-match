@@ -20,6 +20,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { Link } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { Badge } from "@/components/ui/badge";
+import AccessRestricted from "@/components/AccessRestricted";
 
 // Configuração do limite mínimo para exibir a lista
 const MIN_RESULTS_TO_SHOW = 1;
@@ -45,6 +46,19 @@ const Buscar = () => {
 
   const { session } = useAuth();
   const isLoggedOut = !session;
+
+  // Aviso para deslogados
+  if (isLoggedOut) {
+    return (
+      <Layout>
+        <AccessRestricted
+          description="A busca de profissionais é uma ferramenta exclusiva para Empresas de Home Care e Famílias em busca de atendimento."
+          primaryAction={{ label: "Entrar", to: "/login" }}
+          secondaryAction={{ label: "Assinar Agora", to: "/login#auth-sign-up" }}
+        />
+      </Layout>
+    );
+  }
 
   useEffect(() => {
     const checkRole = async () => {

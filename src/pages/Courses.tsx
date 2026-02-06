@@ -58,6 +58,7 @@ const Courses = () => {
   const [loadingEnroll, setLoadingEnroll] = useState(false);
   const [userRole, setUserRole] = useState<string>("guest");
   const [roleLoading, setRoleLoading] = useState<boolean>(true);
+  const [completedSlugs, setCompletedSlugs] = useState<string[]>([]);
 
   // Carrega papel do usuário
   useEffect(() => {
@@ -123,7 +124,49 @@ const Courses = () => {
     loadEnrollment();
   }, [user]);
 
+  // Checa conclusão dos cursos do usuário (100% aulas concluídas)
+  useEffect(() => {
+    const checkCompletion = async () => {
+      if (!user || courses.length === 0) {
+        setCompletedSlugs([]);
+        return;
+      }
+      try {
+        const results = await Promise.all(
+          courses.map(async (c) => {
+            const { data: mods } = await supabase
+              .from("academy_modules")
+              .select("id")
+              .eq("course_slug", c.slug);
+            const moduleIds = (mods || []).map((m: any) => m.id);
+            if (moduleIds.length === 0) return { slug: c.slug, completed: false };
+
+            const { count: totalLessons } = await supabase
+              .from("academy_lessons")
+              .select("id", { count: "exact", head: true })
+              .in("module_id", moduleIds);
+
+            const { count: done } = await supabase
+              .from("academy_progress")
+              .select("id", { count: "exact", head: true })
+              .eq("user_id", user.id)
+              .eq("course_slug", c.slug)
+              .eq("status", "completed");
+
+            const completed = (totalLessons || 0) > 0 && (done || 0) >= (totalLessons || 0);
+            return { slug: c.slug, completed };
+          })
+        );
+        setCompletedSlugs(results.filter(r => r.completed).map(r => r.slug));
+      } catch {
+        setCompletedSlugs([]);
+      }
+    };
+    checkCompletion();
+  }, [user, courses]);
+
   const isEnrolled = (slug: string) => enrollments.enrolledSlugs.includes(slug);
+  const isCompleted = (slug: string) => completedSlugs.includes(slug);
 
   const enroll = async (slug: string) => {
     if (!user) {
@@ -201,7 +244,10 @@ const Courses = () => {
             {courses.map((c) => (
               <Card key={c.slug} className="overflow-hidden">
                 {c.hero_asset_url ? (
-                  <AspectRatio ratio={4/3} className="w-full bg-muted">
+                  <AspectRatio ratio={4/3} className="relative w-full bg-muted">
+                    {isCompleted(c.slug) ? (
+                      <Badge className="absolute left-2 top-2 bg-success">Concluído</Badge>
+                    ) : null}
                     <img
                       src={c.hero_asset_url}
                       alt={c.title}
@@ -225,7 +271,7 @@ const Courses = () => {
                       </Button>
                       {isEnrolled(c.slug) ? (
                         <Button asChild size="sm">
-                          <Link to={`/cursos/${c.slug}`}>Continuar</Link>
+                          <Link to={`/cursos/${c.slug}`}>{isCompleted(c.slug) ? "Rever Curso" : "Continuar"}</Link>
                         </Button>
                       ) : (
                         <Button size="sm" onClick={() => enroll(c.slug)} disabled={loadingEnroll}>

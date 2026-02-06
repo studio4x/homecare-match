@@ -355,6 +355,7 @@ const CourseDetail = () => {
             <div className="flex items-center gap-3">
               <Badge variant="secondary" className="capitalize">{course.level || "iniciante"}</Badge>
               {course.duration_minutes ? <span className="text-sm text-muted-foreground">{course.duration_minutes} min</span> : null}
+              {progressPct === 100 ? <Badge className="bg-success">Concluído</Badge> : null}
             </div>
             <p className="text-muted-foreground">{course.description}</p>
             <div className="space-y-2">

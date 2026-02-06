@@ -69,6 +69,8 @@ const CoursesTab = () => {
   const [isUploadingMaterial, setIsUploadingMaterial] = useState<boolean>(false);
   const [selectedModuleIdx, setSelectedModuleIdx] = useState<number | null>(null);
   const [selectedLessonIdx, setSelectedLessonIdx] = useState<number | null>(null);
+  const [originalModules, setOriginalModules] = useState<Module[]>([]);
+  const [isContentDirty, setIsContentDirty] = useState<boolean>(false);
 
   const heroRef = useRef<HTMLInputElement>(null);
   const materialRef = useRef<HTMLInputElement>(null);
@@ -197,15 +199,28 @@ const CoursesTab = () => {
             resource_url: l.resource_url || "",
             position: l.position || 1,
             module_id: l.module_id,
+            storage_path: l.storage_path || undefined,
+            mime_type: l.mime_type || undefined,
           })),
         });
       }
       setModules(modulesWithLessons);
+      setOriginalModules(modulesWithLessons);
+      setIsContentDirty(false);
     } catch (e) {
       console.error("[CoursesTab] Load content error:", e);
       setModules([]);
+      setOriginalModules([]);
+      setIsContentDirty(false);
     }
   };
+
+  // Detecta se houve alterações não salvas
+  useEffect(() => {
+    const current = JSON.stringify(modules);
+    const baseline = JSON.stringify(originalModules);
+    setIsContentDirty(current !== baseline);
+  }, [modules, originalModules]);
 
   const handleOpenContent = async (c: Course) => {
     setSelectedCourse(c);
@@ -309,6 +324,14 @@ const CoursesTab = () => {
     }
   };
 
+  // Controla fechamento do diálogo com lembrete
+  const handleContentDialogChange = (open: boolean) => {
+    if (!open && isContentDirty) {
+      toast.warning("Você fechou a edição sem salvar. Suas alterações não foram aplicadas.");
+    }
+    setOpenContentDialog(open);
+  };
+
   const handleSaveContent = async () => {
     if (!selectedCourse) return;
     setIsSavingContent(true);
@@ -346,6 +369,8 @@ const CoursesTab = () => {
       }
 
       toast.success("Conteúdo salvo no banco!");
+      setOriginalModules(modules);
+      setIsContentDirty(false);
       setOpenContentDialog(false);
     } catch (e) {
       console.error("[CoursesTab] Save content error:", e);
@@ -547,7 +572,7 @@ const CoursesTab = () => {
       </Dialog>
 
       <Dialog open={openContentDialog} onOpenChange={setOpenContentDialog}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-3xl" onInteractOutside={() => handleContentDialogChange(false)}>
           <DialogHeader>
             <DialogTitle>Gerenciar Conteúdo: {selectedCourse?.title}</DialogTitle>
           </DialogHeader>
@@ -713,7 +738,7 @@ const CoursesTab = () => {
               )}
 
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={() => setOpenContentDialog(false)}>Fechar</Button>
+                <Button variant="ghost" onClick={() => handleContentDialogChange(false)}>Fechar</Button>
               </div>
             </div>
           )}

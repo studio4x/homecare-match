@@ -95,6 +95,7 @@ const Dashboard = () => {
     bio: "",
     avatar_url: "",
     phone: "",
+    email: "",
     subscription_tier: "free_trial",
     is_verified: false,
     verification_sent: false,
@@ -230,6 +231,7 @@ const Dashboard = () => {
           bio: data.bio || "",
           avatar_url: data.avatar_url || "",
           phone: data.phone || "",
+          email: data.email || "",
           subscription_tier: data.subscription_tier || "free_trial",
           is_verified: data.is_verified || false,
           verification_sent: data.verification_sent || false,
@@ -885,49 +887,53 @@ const Dashboard = () => {
                         maxLength={15}
                       />
                     </div>
-                    {isCompany && (
-                      <>
-                        <div className="grid gap-2">
-                          <Label>Nome Fantasia</Label>
-                          <Input value={profile.company_name} onChange={e => setProfile({...profile, company_name: e.target.value})} disabled={!isEditing} />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>CNPJ</Label>
-                          <Input value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} disabled={!isEditing} />
-                        </div>
-                      </>
-                    )}
-                    {isProfessional && (
-                      <>
-                        <div className="grid gap-2">
-                          <Label>Especialidade *</Label>
-                          <Select
-                            value={profile.specialty}
-                            onValueChange={(value) => setProfile({ ...profile, specialty: value })}
-                            disabled={!isEditing}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione sua especialidade" />
-                            </SelectTrigger>
-                            {/* ADICIONADO: max-height para evitar overflow no mobile */}
-                            <SelectContent className="max-h-[40vh] overflow-y-auto">
-                              {specialties.map((s) => (
-                                <SelectItem key={s.value} value={s.value}>
-                                  {s.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Registro (COREN/CREFITO) *</Label>
-                          <Input value={profile.registration} onChange={e => setProfile({...profile, registration: e.target.value})} disabled={!isEditing} />
-                        </div>
-                      </>
-                    )}
+                    <div className="grid gap-2">
+                      <Label>E-mail</Label>
+                      <Input value={profile.email} disabled />
+                      <p className="text-[10px] text-muted-foreground">Gerenciado pela sua conta; para alterar, use as opções de conta.</p>
+                    </div>
                   </div>
 
-                  {isProfessional ? (
+                  {isCompany && (
+                    <>
+                      <div className="grid gap-2">
+                        <Label>Nome Fantasia</Label>
+                        <Input value={profile.company_name} onChange={e => setProfile({...profile, company_name: e.target.value})} disabled={!isEditing} />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>CNPJ</Label>
+                        <Input value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} disabled={!isEditing} />
+                      </div>
+                    </>
+                  )}
+                  {isProfessional && (
+                    <>
+                      <div className="grid gap-2">
+                        <Label>Especialidade *</Label>
+                        <Select
+                          value={profile.specialty}
+                          onValueChange={(value) => setProfile({ ...profile, specialty: value })}
+                          disabled={!isEditing}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione sua especialidade" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[40vh] overflow-y-auto">
+                            {specialties.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>
+                                {s.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Registro (COREN/CREFITO) *</Label>
+                        <Input value={profile.registration} onChange={e => setProfile({...profile, registration: e.target.value})} disabled={!isEditing} />
+                      </div>
+                    </>
+                  )}
+                  {isProfessional && (
                     <>
                       <div className="grid gap-4 md:grid-cols-3">
                         <div className="grid gap-2">
@@ -1022,76 +1028,6 @@ const Dashboard = () => {
                         </div>
                       </div>
                     </>
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="bg-secondary/20 p-4 rounded-xl space-y-4 border border-border/50">
-                        <div className="flex items-center gap-2 mb-2">
-                          <MapPin className="h-4 w-4 text-primary" />
-                          <h4 className="font-semibold text-sm">
-                            {profile.role === 'company' ? "Endereço da empresa" : "Local do Atendimento"}
-                          </h4>
-                        </div>
-                        
-                        <div className="grid gap-2">
-                          <Label>CEP</Label>
-                          <div className="flex gap-2">
-                            <Input 
-                              value={profile.address_zip} 
-                              onChange={e => setProfile({...profile, address_zip: e.target.value})} 
-                              onBlur={handleCepBlur}
-                              disabled={!isEditing || isLoadingCep} 
-                              placeholder="00000-000"
-                              maxLength={9}
-                            />
-                            {isLoadingCep && <div className="flex items-center"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>}
-                          </div>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-3">
-                          <div className="grid gap-2 md:col-span-2">
-                            <Label>Rua</Label>
-                            <Input value={profile.address_street} onChange={e => setProfile({...profile, address_street: e.target.value})} disabled={!isEditing} />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label>Número</Label>
-                            <Input value={profile.address_number} onChange={e => setProfile({...profile, address_number: e.target.value})} disabled={!isEditing} />
-                          </div>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="grid gap-2">
-                            <Label>Complemento</Label>
-                            <Input value={profile.address_complement} onChange={e => setProfile({...profile, address_complement: e.target.value})} disabled={!isEditing} />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label>Bairro</Label>
-                            <Input value={profile.neighborhood} onChange={e => setProfile({...profile, neighborhood: e.target.value})} disabled={!isEditing} />
-                          </div>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="grid gap-2">
-                            <Label>Cidade</Label>
-                            <Input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value})} disabled={!isEditing} />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label>Estado (UF)</Label>
-                            <Input value={profile.state} onChange={e => setProfile({...profile, state: e.target.value})} disabled={!isEditing} maxLength={2} />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-2">
-                        <Label>{profile.role === 'company' ? 'Sobre a Empresa' : 'Descrição da Necessidade / Paciente'}</Label>
-                        <Textarea 
-                          value={profile.bio} 
-                          onChange={e => setProfile({...profile, bio: e.target.value})} 
-                          disabled={!isEditing} 
-                          className="min-h-[120px]" 
-                          placeholder={profile.role === 'company' ? 'Descreva brevemente sua empresa...' : 'Descreva a necessidade do paciente (idade, condição, cuidados necessários)...'} 
-                        />
-                      </div>
-                    </div>
                   )}
                   {isEditing && (
                     // MODIFICADO: Container de botões responsivo e fixo no final

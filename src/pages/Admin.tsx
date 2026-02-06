@@ -54,6 +54,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { differenceInDays, addDays } from "date-fns";
 import SiteConfigTab from "@/components/admin/SiteConfigTab";
+import CoursesTab from "@/components/admin/CoursesTab";
 import { translateAuthError } from "@/lib/error-utils";
 
 const Admin = () => {
@@ -399,6 +400,7 @@ const Admin = () => {
               <TabsTrigger value="users">Usuários ({allUsers.length})</TabsTrigger>
               <TabsTrigger value="plans">Planos ({plans.length})</TabsTrigger>
               <TabsTrigger value="referrals" className="gap-2"><Award className="h-4 w-4" /> Indicações</TabsTrigger>
+              <TabsTrigger value="courses">Cursos</TabsTrigger>
               <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
             </TabsList>
 
@@ -659,6 +661,10 @@ const Admin = () => {
                   </Button>
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="courses">
+              <CoursesTab />
             </TabsContent>
 
             <TabsContent value="settings">

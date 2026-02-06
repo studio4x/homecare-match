@@ -189,6 +189,12 @@ const Perfil = () => {
                         {initials}
                       </AvatarFallback>
                     </Avatar>
+                    {/* Ícone de verificado sobre o avatar */}
+                    {profile.is_verified && (
+                      <div className="absolute -bottom-2 -right-2 bg-success p-1.5 rounded-full ring-4 ring-background shadow-md">
+                        <ShieldCheck className="h-5 w-5 text-white" />
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3">

@@ -208,11 +208,17 @@ const Index = () => {
             </p>
           </div>
 
+          {/* Dica no mobile para o carrossel */}
+          <p className="md:hidden text-center text-xs text-muted-foreground mb-4">
+            Dica: arraste para o lado para ver todos os planos.
+          </p>
+
+          {/* Novo: carrossel responsivo com 1/2/3 colunas e setas */}
           <Carousel className="w-full">
-            <CarouselContent>
+            <CarouselContent className="items-stretch">
               {allPlans.map((plan) => (
                 <CarouselItem key={plan.id} className="basis-full md:basis-1/2 lg:basis-1/3">
-                  <div className="p-2">
+                  <div className="p-2 h-full">
                     <PricingCard
                       id={plan.id}
                       name={plan.name}

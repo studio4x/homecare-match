@@ -30,7 +30,7 @@ const PricingCard = ({
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-2xl border bg-card p-6 shadow-card transition-all duration-300 hover:shadow-card-hover",
+        "relative flex h-full flex-col rounded-2xl border bg-card p-6 shadow-card transition-all duration-300 hover:shadow-card-hover",
         popular && "border-primary shadow-card-hover ring-2 ring-primary/20"
       )}
     >

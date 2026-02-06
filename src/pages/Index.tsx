@@ -89,12 +89,6 @@ const Index = () => {
     },
   ];
 
-  const stats = [
-    { value: "2.500+", label: "Profissionais Ativos" },
-    { value: "180+", label: "Empresas Parceiras" },
-    { value: "100%", label: "Foco em Home Care" },
-  ];
-
   return (
     <Layout>
       <section className="gradient-hero relative overflow-hidden py-20 lg:py-28">
@@ -136,17 +130,19 @@ const Index = () => {
               </Button>
             </div>
 
-            <div className="animate-slide-up mt-16 grid grid-cols-3 gap-8" style={{ animationDelay: "0.3s" }}>
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <div className="text-2xl font-bold text-foreground md:text-3xl">
-                    {stat.value}
-                  </div>
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
+            <div className="animate-slide-up mt-16 grid grid-cols-1 sm:grid-cols-3 gap-8" style={{ animationDelay: "0.3s" }}>
+              <div className="flex items-center justify-center gap-3 text-center">
+                <Shield className="h-5 w-5 text-primary" />
+                <span className="text-sm text-muted-foreground">Perfis verificados</span>
+              </div>
+              <div className="flex items-center justify-center gap-3 text-center">
+                <Award className="h-5 w-5 text-success" />
+                <span className="text-sm text-muted-foreground">Parcerias com empresas líderes</span>
+              </div>
+              <div className="flex items-center justify-center gap-3 text-center">
+                <Heart className="h-5 w-5 text-primary" />
+                <span className="text-sm text-muted-foreground">Foco total em Home Care</span>
+              </div>
             </div>
           </div>
         </div>

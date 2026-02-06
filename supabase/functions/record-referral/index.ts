@@ -39,11 +39,22 @@ serve(async (req) => {
   const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
+  // Ensure table exists
+  await supabase.rpc("exec_sql", {
+    q: `
+    CREATE TABLE IF NOT EXISTS public.referrals (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      referrer_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+      referred_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `,
+  });
+
   try {
-    // Armazena a indicação como uma interação simples (vínculo) entre quem indicou e o novo usuário
-    const { error } = await supabase.from("interactions").insert({
-      sender_id: newUserId,
-      professional_id: referrerId,
+    const { error } = await supabase.from("referrals").insert({
+      referrer_id: referrerId,
+      referred_user_id: newUserId,
     });
 
     if (error) {

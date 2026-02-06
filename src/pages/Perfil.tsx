@@ -46,6 +46,7 @@ const Perfil = () => {
   const [isContacting, setIsContacting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
+  const [referralStats, setReferralStats] = useState<{ count: number; currentTier?: any } | null>(null);
 
   useEffect(() => {
     const fetchViewerRole = async () => {
@@ -63,6 +64,17 @@ const Perfil = () => {
 
   useEffect(() => {
     fetchProfile();
+  }, [id]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!id) return;
+      const { data } = await supabase.functions.invoke('referral-stats', {
+        body: { referrerId: id }
+      });
+      if (data) setReferralStats(data as any);
+    };
+    fetchStats();
   }, [id]);
 
   const fetchProfile = async () => {
@@ -193,6 +205,11 @@ const Perfil = () => {
                           isPremium ? "bg-gold" : "bg-success"
                         )}>
                           {isPremium ? "Verificado Premium" : "Verificado"}
+                        </Badge>
+                      )}
+                      {referralStats && (
+                        <Badge variant="secondary" className="ml-2 whitespace-nowrap">
+                          {referralStats.currentTier?.badge_label || "Embaixador"} • {referralStats.count}
                         </Badge>
                       )}
                     </div>

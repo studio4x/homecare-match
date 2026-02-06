@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   Settings
 } from "lucide-react";
+import { Award } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { 
@@ -64,6 +65,8 @@ const Admin = () => {
   const [pendingProfiles, setPendingProfiles] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
+  const [referralTiers, setReferralTiers] = useState<any[]>([]);
+  const [isLoadingTiers, setIsLoadingTiers] = useState(false);
   
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -135,8 +138,17 @@ const Admin = () => {
       setPendingProfiles(pendingRes.data || []);
       setAllUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
+      
+      // fetch referral tiers via edge function
+      setIsLoadingTiers(true);
+      const { data: tiersData } = await supabase.functions.invoke('referral-config', {
+        body: { action: 'get' }
+      });
+      setReferralTiers(tiersData?.tiers || []);
+      setIsLoadingTiers(false);
     } catch (error) {
       console.error("[Admin] Erro fetch:", error);
+      setIsLoadingTiers(false);
     }
   };
 
@@ -359,6 +371,7 @@ const Admin = () => {
               <TabsTrigger value="verifications">Verificações ({pendingProfiles.length})</TabsTrigger>
               <TabsTrigger value="users">Usuários ({allUsers.length})</TabsTrigger>
               <TabsTrigger value="plans">Planos ({plans.length})</TabsTrigger>
+              <TabsTrigger value="referrals" className="gap-2"><Award className="h-4 w-4" /> Indicações</TabsTrigger>
               <TabsTrigger value="settings" className="gap-2"><Settings className="h-4 w-4" /> Configurações</TabsTrigger>
             </TabsList>
 
@@ -534,6 +547,67 @@ const Admin = () => {
                     )) : null}
                   </TableBody>
                 </Table>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="referrals">
+              <div className="rounded-xl border bg-card shadow-sm p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <Award className="h-5 w-5 text-primary" />
+                    Tiers de Embaixador
+                  </h2>
+                  <Button onClick={() => setReferralTiers(prev => [...prev, { name: '', threshold: 1, badge_label: '' }])} className="gap-2">
+                    <Plus className="h-4 w-4" /> Novo Tier
+                  </Button>
+                </div>
+                {isLoadingTiers ? (
+                  <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</div>
+                ) : referralTiers.length > 0 ? (
+                  <div className="space-y-3">
+                    {referralTiers.map((t, idx) => (
+                      <div key={idx} className="grid md:grid-cols-3 gap-3 p-4 border rounded-lg">
+                        <div className="grid gap-2">
+                          <Label>Nome</Label>
+                          <Input value={t.name} onChange={e => {
+                            const v = e.target.value;
+                            setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, name: v } : x));
+                          }} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Quantidade (threshold)</Label>
+                          <Input type="number" value={t.threshold} onChange={e => {
+                            const v = parseInt(e.target.value || '0', 10);
+                            setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, threshold: v } : x));
+                          }} />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Rótulo do Selo</Label>
+                          <Input value={t.badge_label} onChange={e => {
+                            const v = e.target.value;
+                            setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, badge_label: v } : x));
+                          }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground">Nenhum tier configurado ainda.</div>
+                )}
+                <div className="flex justify-end">
+                  <Button onClick={async () => {
+                    const { error } = await supabase.functions.invoke('referral-config', {
+                      body: { action: 'set', tiers: referralTiers }
+                    });
+                    if (error) {
+                      toast.error("Erro ao salvar tiers.");
+                    } else {
+                      toast.success("Tiers salvos!");
+                    }
+                  }}>
+                    Salvar Tiers
+                  </Button>
+                </div>
               </div>
             </TabsContent>
 

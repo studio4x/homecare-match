@@ -46,12 +46,12 @@ const Buscar = () => {
 
   const isLoggedOut = !session;
 
-  // Acesso restrito para deslogados
+  // Retorno antecipado para deslogados (evita tela em branco)
   if (isLoggedOut) {
     return (
       <Layout>
         <AccessRestricted
-          description="A busca de profissionais é uma ferramenta exclusiva para Empresas de Home Care e Famílias em busca de atendimento."
+          description="A busca de profissionais é exclusiva para Empresas de Home Care e Famílias em busca de atendimento."
           primaryAction={{ label: "Entrar", to: "/login" }}
           secondaryAction={{ label: "Assinar Agora", to: "/login#auth-sign-up" }}
         />

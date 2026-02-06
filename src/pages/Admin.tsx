@@ -32,8 +32,8 @@ import {
   CheckCircle2,
   Settings
 } from "lucide-react";
-import { LogIn } from "lucide-react";
 import { Award } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { 
@@ -346,7 +346,7 @@ const Admin = () => {
     setIsImpersonating(targetId);
     try {
       const { data, error } = await supabase.functions.invoke("impersonate-login", {
-        body: { targetUserId: targetId }
+        body: { targetUserId: targetId, redirectTo: `${window.location.origin}/dashboard` }
       });
       if (error || !data?.action_link) {
         toast.error("Não foi possível gerar o acesso.");
@@ -354,7 +354,11 @@ const Admin = () => {
         return;
       }
       toast.info("Entrando como o usuário...");
-      // Redireciona para o magic link para assumir a sessão do usuário
+      // Marca modo impersonação para exibir barra de retorno
+      try {
+        localStorage.setItem("impersonatingAdmin", "true");
+        if (user?.email) localStorage.setItem("impersonatorEmail", user.email);
+      } catch {}
       window.location.href = data.action_link;
     } catch (e) {
       console.error("[Admin] Impersonate error:", e);

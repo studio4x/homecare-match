@@ -81,11 +81,13 @@ serve(async (req) => {
     });
   }
 
+  const redirectTo = body?.redirectTo || null;
+
   // Gera magic link para login do usuário alvo
   const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
     type: "magiclink",
     email: targetProfile.email,
-    // redirectTo pode usar a Site URL configurada no Supabase; omitimos para usar padrão do projeto
+    options: redirectTo ? { redirectTo } : undefined,
   });
 
   if (linkErr || !linkData?.action_link) {

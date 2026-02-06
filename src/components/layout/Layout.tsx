@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import Navbar from "./Navbar";
+import ImpersonationBar from "../ImpersonationBar";
 import Footer from "./Footer";
 import AppVersion from "./AppVersion";
 import FaviconUpdater from "./FaviconUpdater";
@@ -15,6 +16,7 @@ const Layout = ({ children }: LayoutProps) => {
       <FaviconUpdater />
       <ScrollToTop />
       <Navbar />
+      <ImpersonationBar />
       <main className="flex-1 py-8 md:py-12">{children}</main>
       <Footer />
       <AppVersion />

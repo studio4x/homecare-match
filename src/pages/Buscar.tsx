@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
-import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, X } from "lucide-react";
+import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -167,7 +167,7 @@ const Buscar = () => {
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
   
   // Lógica do Concierge
-  const showConcierge = !loading && (isLoggedOut || professionals.length < MIN_RESULTS_TO_SHOW);
+  const showConcierge = !loading && (isLoggedOut || userRole === 'professional' || professionals.length < MIN_RESULTS_TO_SHOW);
 
   // Número do WhatsApp dinâmico
   const whatsappNumber = config?.whatsapp_number?.replace(/\D/g, '') || "5511999999999";
@@ -202,15 +202,15 @@ const Buscar = () => {
 
   return (
     <Layout>
-      {/* Em vez de modal, renderizamos um painel estilo concierge abaixo */}
+      {/* Conteúdo da página com cabeçalho e filtros permanece */}
 
       <div className="container mx-auto px-4">
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Buscar Profissionais</h1>
             <p className="mt-2 text-muted-foreground flex items-center gap-2">
-              {userRole === 'company' ? <Building2 className="h-4 w-4" /> : <Home className="h-4 w-4" />}
-              Painel de Recrutamento para {userRole === 'company' ? 'Empresa' : 'Família'}
+              {userRole === 'company' ? <Building2 className="h-4 w-4" /> : userRole === 'family' ? <Home className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+              {userRole === 'company' ? 'Painel de Recrutamento para Empresa' : userRole === 'family' ? 'Painel de Recrutamento para Família' : 'Painel do Profissional'}
             </p>
           </div>
         </div>
@@ -301,13 +301,13 @@ const Buscar = () => {
           {loading || isLoadingConfig ? (
             Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
           ) : showConcierge ? (
-            // Concierge Panel (para poucos resultados ou deslogado)
+            // Concierge Panel (para poucos resultados, deslogados ou profissionais)
             <div className="col-span-full py-16 text-center animate-fade-in bg-card border border-border rounded-2xl shadow-card p-8">
               <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
                 <Headset className="h-10 w-10 text-primary" />
                 <Sparkles className="absolute -top-1 -right-1 h-6 w-6 text-yellow-500 fill-yellow-500" />
               </div>
-              
+
               {isLoggedOut ? (
                 <>
                   <h3 className="text-2xl font-bold text-foreground mb-3">Acesso Restrito</h3>
@@ -326,6 +326,21 @@ const Buscar = () => {
                       <Link to="/familias">
                         <Home className="h-5 w-5" />
                         Sou Família
+                      </Link>
+                    </Button>
+                  </div>
+                </>
+              ) : userRole === 'professional' ? (
+                <>
+                  <h3 className="text-2xl font-bold text-foreground mb-3">Acesso Restrito</h3>
+                  <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
+                    A busca de profissionais é exclusiva para <strong>Empresas de Home Care</strong> e <strong>Famílias</strong>.
+                  </p>
+                  <div className="flex items-center justify-center">
+                    <Button asChild className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform">
+                      <Link to="/dashboard">
+                        Ir para Meu Painel
+                        <ArrowRight className="h-5 w-5" />
                       </Link>
                     </Button>
                   </div>

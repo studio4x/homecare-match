@@ -15,6 +15,8 @@ import Admin from "./pages/Admin";
 import CadastroEmpresaFamilia from "./pages/CadastroEmpresaFamilia";
 import RecruiterProfile from "./pages/RecruiterProfile";
 import NotFound from "./pages/NotFound";
+import Courses from "./pages/Courses";
+import CourseDetail from "./pages/CourseDetail";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +38,8 @@ const App = () => (
             <Route path="/profissional/:id" element={<Perfil />} />
             <Route path="/cadastro-empresa" element={<CadastroEmpresaFamilia />} />
             <Route path="/recruiter/:id" element={<RecruiterProfile />} />
+            <Route path="/cursos" element={<Courses />} />
+            <Route path="/cursos/:slug" element={<CourseDetail />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

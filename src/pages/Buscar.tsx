@@ -17,7 +17,6 @@ import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Hea
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Link } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
 
@@ -65,7 +64,7 @@ const Buscar = () => {
 
   useEffect(() => {
     // Só busca se tiver o papel definido E a configuração do site já tiver sido carregada
-    if (userRole && userRole !== 'professional' && !isLoadingConfig) {
+    if (userRole && userRole !== 'professional' && !isLoadingConfig && !isLoggedOut) {
       fetchProfessionals();
     }
   }, [userRole, isLoadingConfig, config]);
@@ -168,7 +167,7 @@ const Buscar = () => {
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
   
   // Lógica do Concierge
-  const showConcierge = !loading && professionals.length < MIN_RESULTS_TO_SHOW;
+  const showConcierge = !loading && (isLoggedOut || professionals.length < MIN_RESULTS_TO_SHOW);
 
   // Número do WhatsApp dinâmico
   const whatsappNumber = config?.whatsapp_number?.replace(/\D/g, '') || "5511999999999";
@@ -203,37 +202,7 @@ const Buscar = () => {
 
   return (
     <Layout>
-      {/* Modal de bloqueio para deslogados */}
-      {isLoggedOut && (
-        <Dialog open>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5 text-destructive" />
-                Acesso Restrito
-              </DialogTitle>
-              <DialogDescription className="pt-2">
-                Somente Empresas de Home Care e Famílias podem acessar a busca de profissionais.
-                Faça seu cadastro para continuar.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
-              <Button asChild className="gap-2">
-                <Link to="/empresas">
-                  <Building2 className="h-4 w-4" />
-                  Sou Empresa
-                </Link>
-              </Button>
-              <Button variant="outline" asChild className="gap-2">
-                <Link to="/familias">
-                  <Home className="h-4 w-4" />
-                  Sou Família
-                </Link>
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Em vez de modal, renderizamos um painel estilo concierge abaixo */}
 
       <div className="container mx-auto px-4">
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -332,42 +301,62 @@ const Buscar = () => {
           {loading || isLoadingConfig ? (
             Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
           ) : showConcierge ? (
-            // Componente Concierge (Ativado quando há poucos resultados ou Kill Switch ATIVO)
+            // Concierge Panel (para poucos resultados ou deslogado)
             <div className="col-span-full py-16 text-center animate-fade-in bg-card border border-border rounded-2xl shadow-card p-8">
-              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 animate-pulse">
+              <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
                 <Headset className="h-10 w-10 text-primary" />
-                <div className="absolute -top-1 -right-1">
-                  <Sparkles className="h-6 w-6 text-yellow-500 fill-yellow-500" />
-                </div>
+                <Sparkles className="absolute -top-1 -right-1 h-6 w-6 text-yellow-500 fill-yellow-500" />
               </div>
               
-              <h3 className="text-2xl font-bold text-foreground mb-3">Busca Personalizada (Concierge)</h3>
-              
-              <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
-                Para garantir a melhor experiência, nossa equipe realiza uma seleção manual dos melhores profissionais para o seu perfil. 
-                <br/><br/>
-                Temos profissionais disponíveis que correspondem aos seus critérios, mas que estão passando por nossa verificação de qualidade rigorosa neste momento.
-              </p>
-
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
-                  <a 
-                    href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                  >
-                    Solicitar Profissionais Agora
-                    <ArrowRight className="h-5 w-5" />
-                  </a>
-                </Button>
-              </div>
-              
-              <p className="mt-6 text-sm text-muted-foreground">
-                Serviço gratuito para {userRole === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
-              </p>
+              {isLoggedOut ? (
+                <>
+                  <h3 className="text-2xl font-bold text-foreground mb-3">Acesso Restrito</h3>
+                  <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
+                    Somente <strong>Empresas de Home Care</strong> e <strong>Famílias</strong> podem acessar a busca de profissionais.
+                    Faça seu cadastro para continuar.
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <Button asChild className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform">
+                      <Link to="/empresas">
+                        <Building2 className="h-5 w-5" />
+                        Sou Empresa
+                      </Link>
+                    </Button>
+                    <Button variant="outline" asChild className="gap-2 h-14 px-8 text-lg shadow-lg">
+                      <Link to="/familias">
+                        <Home className="h-5 w-5" />
+                        Sou Família
+                      </Link>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-2xl font-bold text-foreground mb-3">Busca Personalizada (Concierge)</h3>
+                  <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
+                    Para garantir a melhor experiência, nossa equipe realiza uma seleção manual dos melhores profissionais para o seu perfil. 
+                    <br/><br/>
+                    Temos profissionais disponíveis que correspondem aos seus critérios, mas que estão passando por nossa verificação de qualidade rigorosa neste momento.
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
+                      <a 
+                        href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                      >
+                        Solicitar Profissionais Agora
+                        <ArrowRight className="h-5 w-5" />
+                      </a>
+                    </Button>
+                  </div>
+                  <p className="mt-6 text-sm text-muted-foreground">
+                    Serviço gratuito para {userRole === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
-            // Lista normal de profissionais (Só aparece se tiver >= MIN_RESULTS_TO_SHOW e Switch ON)
             professionals.map((professional) => (
               <ProfessionalCard
                 key={professional.id}

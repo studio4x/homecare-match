@@ -86,6 +86,13 @@ const CoursesTab = () => {
   const heroRef = useRef<HTMLInputElement>(null);
   const materialRef = useRef<HTMLInputElement>(null);
 
+  // Placeholder dinâmico conforme tipo da aula
+  const getResourcePlaceholder = (type: Lesson["type"]) => {
+    if (type === "video") return "Link do vídeo (externo) ou será preenchido ao enviar arquivo";
+    if (type === "pdf") return "Link do PDF (externo) ou será preenchido ao enviar arquivo";
+    return "Cole aqui o link externo do recurso";
+  };
+
   const fetchCourses = async () => {
     setIsLoading(true);
     try {
@@ -661,10 +668,10 @@ const CoursesTab = () => {
                         </Button>
                       </div>
 
-                      {m.lessons.length > 0 ? (
+                      {(m.lessons || []).length > 0 ? (
                         <div className="space-y-3">
-                          {m.lessons.map((l, li) => (
-                            <div key={l.id} className="grid md:grid-cols-4 gap-3 p-3 border rounded-md">
+                          {(m.lessons || []).map((l, li) => (
+                            <div key={l.id || li} className="grid md:grid-cols-4 gap-3 p-3 border rounded-md">
                               <div className="space-y-2">
                                 <Label>Título</Label>
                                 <Input
@@ -699,7 +706,7 @@ const CoursesTab = () => {
                                 </Select>
                               </div>
                               <div className="space-y-2">
-                                <Label>URL do Recurso</Label>
+                                <Label>Recurso (Link/Arquivo)</Label>
                                 <Input
                                   value={l.resource_url || ""}
                                   onChange={(e) => {
@@ -709,7 +716,7 @@ const CoursesTab = () => {
                                     next[mi] = { ...m, lessons };
                                     setModules(next);
                                   }}
-                                  placeholder="Link do vídeo/PDF"
+                                  placeholder={getResourcePlaceholder(l.type)}
                                 />
                                 <div className="flex items-center gap-2 pt-1">
                                   <Button
@@ -720,7 +727,7 @@ const CoursesTab = () => {
                                       setSelectedLessonIdx(li);
                                       materialRef.current?.click();
                                     }}
-                                    disabled={isUploadingMaterial}
+                                    disabled={isUploadingMaterial || l.type === "link"}
                                   >
                                     {isUploadingMaterial ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                                     Enviar Arquivo
@@ -733,6 +740,7 @@ const CoursesTab = () => {
                                     onChange={(e) => {
                                       const file = e.target.files?.[0];
                                       if (file) handleUploadMaterial(file);
+                                      if (materialRef.current) materialRef.current.value = "";
                                     }}
                                   />
                                 </div>
@@ -752,7 +760,7 @@ const CoursesTab = () => {
                                 />
                                 <div className="flex justify-end">
                                   <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeLesson(mi, li)}>
-                                    <Trash2 className="h-4 w-4" /> Remover Aula
+                                    Remover Aula
                                   </Button>
                                 </div>
                               </div>

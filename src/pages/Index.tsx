@@ -207,10 +207,63 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="mx-auto grid max-w-3xl gap-8 md:grid-cols-2">
-            {allPlans.map((plan, index) => (
+          {/* Mobile carousel */}
+          <div className="md:hidden">
+            <div className="relative">
+              {/* Track */}
+              <div id="plans-carousel" className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mx-4 px-4">
+                {allPlans.map((plan) => (
+                  <div key={plan.id} className="snap-start shrink-0 w-[85%]">
+                    <PricingCard
+                      id={plan.id}
+                      name={plan.name}
+                      price={plan.price}
+                      period={plan.period}
+                      description={plan.description ?? ""}
+                      features={plan.features ?? []}
+                      popular={plan.popular}
+                      savings={plan.savings}
+                      onSubscribe={handleSubscribe}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Nav arrows */}
+              <div className="absolute inset-y-0 left-0 flex items-center">
+                <button
+                  aria-label="Anterior"
+                  className="h-9 w-9 rounded-full bg-card shadow ring-1 ring-border flex items-center justify-center hover:bg-secondary transition"
+                  onClick={() => {
+                    const el = document.getElementById("plans-carousel");
+                    if (!el) return;
+                    el.scrollBy({ left: -el.clientWidth * 0.9, behavior: "smooth" });
+                  }}
+                >
+                  ‹
+                </button>
+              </div>
+              <div className="absolute inset-y-0 right-0 flex items-center">
+                <button
+                  aria-label="Próximo"
+                  className="h-9 w-9 rounded-full bg-card shadow ring-1 ring-border flex items-center justify-center hover:bg-secondary transition"
+                  onClick={() => {
+                    const el = document.getElementById("plans-carousel");
+                    if (!el) return;
+                    el.scrollBy({ left: el.clientWidth * 0.9, behavior: "smooth" });
+                  }}
+                >
+                  ›
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop grid: 3 colunas */}
+          <div className="hidden md:grid md:grid-cols-3 gap-8">
+            {allPlans.map((plan) => (
               <PricingCard
-                key={plan.id || index}
+                key={plan.id}
                 id={plan.id}
                 name={plan.name}
                 price={plan.price}

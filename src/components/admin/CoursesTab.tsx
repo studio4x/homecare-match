@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2 } from "lucide-react";
+import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye } from "lucide-react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
@@ -394,6 +395,11 @@ const CoursesTab = () => {
                         </Button>
                         <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleEditCourse(c)}>
                           <Edit2 className="h-4 w-4" /> Editar
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/cursos/${c.slug}`} target="_blank" rel="noreferrer">
+                            <Eye className="h-4 w-4 mr-1" /> Visualizar
+                          </Link>
                         </Button>
                       </div>
                     </TableCell>

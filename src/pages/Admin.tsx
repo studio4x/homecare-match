@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   Settings
 } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { Award } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -85,6 +86,7 @@ const Admin = () => {
   const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
   const [isUpdatingPlan, setIsUpdatingPlan] = useState<string | null>(null);
   const [isUpdatingReferralTier, setIsUpdatingReferralTier] = useState<string | null>(null);
+  const [isImpersonating, setIsImpersonating] = useState<string | null>(null);
 
   const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br";
 
@@ -340,6 +342,28 @@ const Admin = () => {
     }
   };
 
+  const handleImpersonate = async (targetId: string) => {
+    setIsImpersonating(targetId);
+    try {
+      const { data, error } = await supabase.functions.invoke("impersonate-login", {
+        body: { targetUserId: targetId }
+      });
+      if (error || !data?.action_link) {
+        toast.error("Não foi possível gerar o acesso.");
+        setIsImpersonating(null);
+        return;
+      }
+      toast.info("Entrando como o usuário...");
+      // Redireciona para o magic link para assumir a sessão do usuário
+      window.location.href = data.action_link;
+    } catch (e) {
+      console.error("[Admin] Impersonate error:", e);
+      toast.error("Falha ao entrar como usuário.");
+    } finally {
+      setIsImpersonating(null);
+    }
+  };
+
   const getTrialStatus = (user: any) => {
     if (user.subscription_tier !== 'free_trial' || !user.trial_started_at) return null;
     
@@ -543,6 +567,22 @@ const Admin = () => {
                                 }}
                               >
                                 <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {u.id !== user?.id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-primary hover:bg-primary/10 ml-2"
+                                onClick={() => handleImpersonate(u.id)}
+                                disabled={isImpersonating === u.id}
+                              >
+                                {isImpersonating === u.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                                ) : (
+                                  <LogIn className="h-4 w-4 mr-1" />
+                                )}
+                                Entrar como
                               </Button>
                             )}
                           </TableCell>

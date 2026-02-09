@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -83,6 +83,23 @@ const InteractionHistory = ({
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [profileToReview, setProfileToReview] = useState<Interaction['profile'] | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
+  const [reviewedProfiles, setReviewedProfiles] = useState<string[]>([]);
+
+  // Carrega as avaliações feitas pelo usuário logado para saber quem ele já avaliou
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('reviews')
+        .select('subject_id')
+        .eq('reviewer_id', user.id);
+      
+      if (data) {
+        setReviewedProfiles(data.map((r: any) => r.subject_id));
+      }
+    };
+    fetchReviews();
+  }, [user, reviewModalOpen]); // Atualiza quando o modal fecha (após avaliar)
 
   const handleStatusUpdate = async (interactionId: string, currentStatus: string) => {
     setIsUpdatingStatus(interactionId);
@@ -105,7 +122,6 @@ const InteractionHistory = ({
       if (error) throw error;
       
       toast.success(newStatus === 'completed' ? "Atendimento concluído com sucesso!" : "Sua confirmação foi registrada.");
-      // Pequeno delay para o usuário ver o toast antes do reload
       setTimeout(() => window.location.reload(), 1000);
     } catch (err: any) {
       console.error(err);
@@ -146,6 +162,7 @@ const InteractionHistory = ({
     const status = interaction.status || 'pending';
     const isProf = viewerRole === 'professional';
     const interactionId = interaction.id!;
+    const hasReviewed = reviewedProfiles.includes(interaction.profile.id);
 
     // Caso: Atendimento Finalizado
     if (status === 'completed') {
@@ -154,14 +171,20 @@ const InteractionHistory = ({
           <Badge className="bg-success text-white hover:bg-success">
             <CheckCircle2 className="h-3 w-3 mr-1" /> Realizado
           </Badge>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => handleReviewClick(interaction.profile)} 
-            className="gap-1.5 h-8 border-yellow-500/50 text-yellow-600 hover:bg-yellow-50"
-          >
-            <Star className="h-4 w-4" /> <span className="text-xs">Avaliar</span>
-          </Button>
+          {hasReviewed ? (
+            <Button variant="ghost" size="sm" disabled className="gap-1.5 h-8 text-yellow-600 opacity-70">
+              <Star className="h-4 w-4 fill-yellow-600" /> <span className="text-xs">Avaliado</span>
+            </Button>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handleReviewClick(interaction.profile)} 
+              className="gap-1.5 h-8 border-yellow-500/50 text-yellow-600 hover:bg-yellow-50"
+            >
+              <Star className="h-4 w-4" /> <span className="text-xs">Avaliar</span>
+            </Button>
+          )}
         </div>
       );
     }
@@ -334,7 +357,16 @@ const InteractionHistory = ({
       <Dialog open={reviewModalOpen} onOpenChange={setReviewModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Avaliar Atendimento</DialogTitle><DialogDescription>Deixe sua opinião sobre o atendimento de <strong>{profileToReview?.full_name}</strong>.</DialogDescription></DialogHeader>
-          {user && profileToReview && <ReviewForm reviewerId={user.id} subjectId={profileToReview.id} onSuccess={() => setReviewModalOpen(false)} />}
+          {user && profileToReview && (
+            <ReviewForm 
+              reviewerId={user.id} 
+              subjectId={profileToReview.id} 
+              onSuccess={() => {
+                setReviewModalOpen(false);
+                setReviewedProfiles(prev => [...prev, profileToReview.id]); // Atualiza estado local imediatamente
+              }} 
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

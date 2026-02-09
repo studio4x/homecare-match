@@ -25,7 +25,7 @@ serve(async (req) => {
     `;
     await client.queryObject(addStatusSql);
 
-    // 2. Cria a política de UPDATE para interactions (CORREÇÃO DO PROBLEMA)
+    // 2. Garante permissão de UPDATE em interactions
     const updatePolicySql = `
       DO $$
       BEGIN
@@ -40,7 +40,7 @@ serve(async (req) => {
     `;
     await client.queryObject(updatePolicySql);
 
-    // 3. Cria a tabela de reviews (avaliações)
+    // 3. Tabela de Reviews
     const createReviewsSql = `
       CREATE TABLE IF NOT EXISTS public.reviews (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -52,16 +52,16 @@ serve(async (req) => {
         UNIQUE (reviewer_id, subject_id)
       );
 
-      -- Habilita RLS
       ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 
-      -- Políticas de segurança
       DO $$
       BEGIN
+        -- Qualquer um pode ler reviews
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_read_policy') THEN
           CREATE POLICY "reviews_read_policy" ON public.reviews FOR SELECT USING (true);
         END IF;
         
+        -- Apenas o autor pode criar
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_insert_policy') THEN
           CREATE POLICY "reviews_insert_policy" ON public.reviews 
           FOR INSERT TO authenticated 
@@ -72,8 +72,26 @@ serve(async (req) => {
     `;
     await client.queryObject(createReviewsSql);
 
+    // 4. CRUCIAL: Permitir ver nome/foto de quem fez review (Empresas/Famílias são privadas por padrão)
+    const visibilityPolicySql = `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'profiles' AND policyname = 'profiles_reviewer_visibility') THEN
+          CREATE POLICY "profiles_reviewer_visibility" ON public.profiles
+          FOR SELECT USING (
+            EXISTS (
+              SELECT 1 FROM public.reviews 
+              WHERE reviews.reviewer_id = profiles.id
+            )
+          );
+        END IF;
+      END
+      $$;
+    `;
+    await client.queryObject(visibilityPolicySql);
+
     await client.end();
-    return new Response(JSON.stringify({ ok: true, message: "Banco de dados atualizado com permissões de update!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Banco de dados atualizado e permissões de visibilidade aplicadas!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

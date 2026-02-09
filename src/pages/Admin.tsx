@@ -83,7 +83,6 @@ const Admin = () => {
         supabase.from("profiles").select("id, full_name, email, id_document_url, prof_registration_url").eq("verification_sent", true).eq("is_verified", false),
         supabase.from("profiles").select("id, full_name, email, role, subscription_tier, is_verified, trial_started_at, updated_at").order('updated_at', { ascending: false }),
         supabase.from("plans").select("*").order('price', { ascending: true }),
-        // CORRIGIDO: Nome da função RPC deve ser exato
         supabase.rpc('get_all_referrals_with_details')
       ]);
       

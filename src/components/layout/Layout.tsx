@@ -5,6 +5,7 @@ import Footer from "./Footer";
 import AppVersion from "./AppVersion";
 import FaviconUpdater from "./FaviconUpdater";
 import ScrollToTop from "../ScrollToTop";
+import MarketingScripts from "../MarketingScripts";
 
 interface LayoutProps {
   children: ReactNode;
@@ -17,6 +18,7 @@ const Layout = ({ children }: LayoutProps) => {
       <ScrollToTop />
       <Navbar />
       <ImpersonationBar />
+      <MarketingScripts />
       <main className="flex-1 py-8 md:py-12">{children}</main>
       <Footer />
       <AppVersion />

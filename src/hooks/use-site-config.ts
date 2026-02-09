@@ -10,6 +10,13 @@ export interface SiteConfig {
   favicon_url: string | null;
   whatsapp_number: string | null;
   enable_professional_list: boolean;
+  // Added marketing fields
+  ga_measurement_id?: string | null;
+  ga_enabled?: boolean;
+  gtm_container_id?: string | null;
+  gtm_enabled?: boolean;
+  fb_pixel_id?: string | null;
+  fb_pixel_enabled?: boolean;
 }
 
 export const useSiteConfig = () => {
@@ -34,6 +41,13 @@ export const useSiteConfig = () => {
           favicon_url: null,
           whatsapp_number: null,
           enable_professional_list: true,
+          // Defaults for marketing fields
+          ga_measurement_id: null,
+          ga_enabled: false,
+          gtm_container_id: null,
+          gtm_enabled: false,
+          fb_pixel_id: null,
+          fb_pixel_enabled: false,
         };
       }
 

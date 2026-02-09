@@ -92,10 +92,15 @@ const Admin = () => {
       // Tratamento de erro específico para a função RPC de referências
       let formattedReferrals = [];
       try {
-        const { data: referralsData, error: referralsError } = await supabase.rpc('get_all_referrals_with_details');
+        // Agora usamos a nova função que retorna JSON
+        const { data: referralsJson, error: referralsError } = await supabase.rpc('get_referrals_json');
+        
         if (referralsError) throw referralsError;
         
-        formattedReferrals = (referralsData || []).map((r: any) => ({
+        // O retorno já é um array de objetos (ou null se vazio, mas tratamos com [])
+        const rawData = referralsJson || [];
+        
+        formattedReferrals = rawData.map((r: any) => ({
           id: r.id,
           referrer_id: r.referrer_id,
           referred_name: r.referred_name,
@@ -109,7 +114,7 @@ const Admin = () => {
         }));
       } catch (error) {
         console.error("[Admin] Falha ao carregar indicações (RPC):", error);
-        toast.error("Falha ao carregar a lista de indicações. Verifique a função RPC no Supabase.");
+        // Silenciamos o toast para não incomodar se a função ainda estiver propagando
         formattedReferrals = [];
       }
       

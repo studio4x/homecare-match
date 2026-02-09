@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye, FileText } from "lucide-react";
+import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/ui/RichTextEditor";
@@ -218,7 +218,6 @@ const CoursesTab = () => {
   const handleSaveContent = async () => {
     setIsSavingContent(true);
     try {
-      // Migrar banco antes por precaução (adiciona a coluna content se não existir)
       await supabase.functions.invoke('academy-migrate', { body: { action: 'create_tables' } });
 
       for (const m of modules) {
@@ -245,13 +244,130 @@ const CoursesTab = () => {
     }
   };
 
+  const handleUploadHero = async (file: File) => {
+    if (!selectedCourse?.slug) {
+      toast.error("Defina o slug antes de enviar a capa.");
+      return;
+    }
+    setIsUploading(true);
+    const ext = file.name.split(".").pop();
+    const fileName = `${selectedCourse.slug}_${Date.now()}.${ext}`;
+    const path = `${HERO_DIR}/${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage.from("uploads").upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(path);
+      const publicUrl = publicData.publicUrl;
+      setSelectedCourse((prev) => prev ? { ...prev, hero_asset_url: publicUrl } : prev);
+      toast.success("Capa enviada com sucesso!");
+    } catch (e) {
+      console.error("[CoursesTab] Upload hero error:", e);
+      toast.error("Falha ao enviar a imagem de capa.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeModule = async (idx: number) => {
+    const mod = modules[idx];
+    setModules((prev) => prev.filter((_, i) => i !== idx));
+    if (mod?.id) {
+      const { error } = await supabase.from("academy_modules").delete().eq("id", mod.id);
+      if (error) {
+        console.error("[CoursesTab] Delete module error:", error);
+        toast.error("Falha ao remover módulo no banco.");
+      }
+    }
+  };
+
+  const removeLesson = async (moduleIdx: number, lessonIdx: number) => {
+    const mod = modules[moduleIdx];
+    const lesson = mod?.lessons[lessonIdx];
+    if (!mod || !lesson) return;
+    const nextLessons = mod.lessons.filter((_, i) => i !== lessonIdx);
+    const nextModules = [...modules];
+    nextModules[moduleIdx] = { ...mod, lessons: nextLessons };
+    setModules(nextModules);
+    if (lesson?.id) {
+      const { error } = await supabase.from("academy_lessons").delete().eq("id", lesson.id);
+      if (error) {
+        console.error("[CoursesTab] Delete lesson error:", error);
+        toast.error("Falha ao remover aula no banco.");
+      }
+    }
+  };
+
+  const handleUploadMaterial = async (file: File) => {
+    if (selectedModuleIdx === null || selectedLessonIdx === null) return;
+    const mod = modules[selectedModuleIdx];
+    const lesson = mod?.lessons[selectedLessonIdx];
+    if (!mod || !lesson || !selectedCourse) return;
+
+    setUploadingLessonId(lesson.id);
+
+    const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast.error(`Arquivo muito grande (${Math.round(file.size / 1024 / 1024)}MB). Limite: ${MAX_FILE_SIZE_MB}MB.`);
+      setUploadingLessonId(null);
+      return;
+    }
+
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    const safeExt = ext || (file.type.startsWith("video/") ? "mp4" : file.type === "application/pdf" ? "pdf" : "bin");
+    const fileName = `${lesson.id}.${safeExt}`;
+    const path = `${MATERIALS_DIR}/${selectedCourse.slug}/${mod.id}/${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+
+      const updatedLesson = { ...lesson, resource_url: path, storage_path: path, mime_type: file.type };
+
+      const nextLessons = [...mod.lessons];
+      nextLessons[selectedLessonIdx] = updatedLesson;
+      const nextModules = [...modules];
+      nextModules[selectedModuleIdx] = { ...mod, lessons: nextLessons };
+      setModules(nextModules);
+      toast.success("Material enviado!");
+    } catch (e) {
+      console.error("[CoursesTab] Upload material error:", e);
+      toast.error("Falha ao enviar material.");
+    } finally {
+      setUploadingLessonId(null);
+      setSelectedModuleIdx(null);
+      setSelectedLessonIdx(null);
+      if (materialRef.current) materialRef.current.value = "";
+    }
+  };
+
+  const attemptCloseContentDialog = () => {
+    if (isContentDirty) {
+      setShowCloseConfirm(true);
+    } else {
+      setOpenContentDialog(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* ... Cabeçalho e Tabela permanecem similares ... */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Cursos</CardTitle>
-          <Button onClick={handleNewCourse} className="gap-2"><Plus size={16} /> Novo Curso</Button>
+          <div className="flex gap-2">
+            <Button onClick={handleNewCourse} className="gap-2"><Plus size={16} /> Novo Curso</Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                toast.info("Configurando storage seguro...");
+                const { error } = await supabase.functions.invoke("academy-storage-setup", { body: { action: "setup" } });
+                if (error) toast.error("Erro ao configurar storage."); else toast.success("Storage privado configurado!");
+              }}
+            >
+              Configurar Storage Seguro
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -303,6 +419,20 @@ const CoursesTab = () => {
                   placeholder="Explique sobre o que é este curso..."
                 />
               </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Capa (imagem)</Label>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => heroRef.current?.click()} disabled={isUploading}>{isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />} Enviar Capa</Button>
+                    <input ref={heroRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadHero(file); }} />
+                  </div>
+                  {selectedCourse.hero_asset_url && <div className="mt-2 border rounded-md p-2 bg-secondary/20"><img src={selectedCourse.hero_asset_url} alt="Capa" className="max-h-24 object-contain mx-auto" /></div>}
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <div className="flex items-center justify-between rounded-lg border p-3"><span>Ativo</span><Switch checked={!!selectedCourse.is_active} onCheckedChange={(checked) => setSelectedCourse({ ...selectedCourse, is_active: checked })} /></div>
+                </div>
+              </div>
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setOpenDialog(false)}>Cancelar</Button>
                 <Button onClick={handleSaveCourse} disabled={isSaving}>Salvar</Button>
@@ -320,9 +450,12 @@ const CoursesTab = () => {
             <Button size="sm" onClick={addModule} className="gap-2"><Plus size={16} /> Novo Módulo</Button>
             {modules.map((m, mi) => (
               <div key={m.id} className="border rounded-lg p-4 space-y-4 bg-muted/20">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <Input className="max-w-xs font-semibold" value={m.title} onChange={e => { const next = [...modules]; next[mi].title = e.target.value; setModules(next); }} />
-                  <Button size="sm" variant="outline" onClick={() => addLesson(mi)}><Plus size={14} className="mr-1" /> Aula</Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => addLesson(mi)}><Plus size={14} className="mr-1" /> Aula</Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeModule(mi)}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
                 </div>
                 <div className="space-y-3">
                   {m.lessons.map((l, li) => (
@@ -330,12 +463,12 @@ const CoursesTab = () => {
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <div className="md:col-span-2">
                           <Label className="text-xs">Título da Aula</Label>
-                          <Input size={32} value={l.title} onChange={e => { const next = [...modules]; next[mi].lessons[li].title = e.target.value; setModules(next); }} />
+                          <Input value={l.title} onChange={e => { const next = [...modules]; next[mi].lessons[li].title = e.target.value; setModules(next); }} />
                         </div>
                         <div>
                           <Label className="text-xs">Tipo</Label>
                           <Select value={l.type} onValueChange={v => { const next = [...modules]; next[mi].lessons[li].type = v as any; setModules(next); }}>
-                            <SelectTrigger size="sm"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="video">Vídeo</SelectItem>
                               <SelectItem value="pdf">PDF</SelectItem>
@@ -364,8 +497,11 @@ const CoursesTab = () => {
                           <Input value={l.resource_url} onChange={e => { const next = [...modules]; next[mi].lessons[li].resource_url = e.target.value; setModules(next); }} placeholder="Link ou caminho do arquivo" />
                         </div>
                       )}
-                      <div className="flex justify-end">
-                        <Button variant="ghost" size="sm" className="text-destructive h-7" onClick={() => { const next = [...modules]; next[mi].lessons.splice(li, 1); setModules(next); }}>Remover Aula</Button>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" className="h-7" onClick={() => { setSelectedModuleIdx(mi); setSelectedLessonIdx(li); materialRef.current?.click(); }} disabled={(uploadingLessonId === l.id) || l.type === "link" || l.type === "text"}>
+                          {uploadingLessonId === l.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} Enviar Arquivo
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-destructive h-7" onClick={() => removeLesson(mi, li)}>Remover Aula</Button>
                       </div>
                     </div>
                   ))}
@@ -374,7 +510,7 @@ const CoursesTab = () => {
             ))}
           </div>
           <div className="p-4 border-t flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setOpenContentDialog(false)}>Fechar</Button>
+            <Button variant="ghost" onClick={attemptCloseContentDialog}>Fechar</Button>
             <Button onClick={handleSaveContent} disabled={isSavingContent}>
               {isSavingContent && <Loader2 size={16} className="mr-2 animate-spin" />}
               Salvar Tudo
@@ -382,6 +518,8 @@ const CoursesTab = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <input ref={materialRef} type="file" className="hidden" accept="video/*,application/pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadMaterial(file); }} />
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
@@ -393,6 +531,13 @@ const CoursesTab = () => {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive" onClick={handleDeleteCourse}>Excluir</AlertDialogAction>
           </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Sair sem salvar?</AlertDialogTitle><AlertDialogDescription>Você tem alterações não salvas.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Continuar Editando</AlertDialogCancel><AlertDialogAction onClick={() => { setModules(originalModules); setIsContentDirty(false); setOpenContentDialog(false); }}>Descartar</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

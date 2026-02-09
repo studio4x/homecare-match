@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Upload, Save, Image as ImageIcon, Phone, Eye, EyeOff, Database, RefreshCw } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Phone, Eye, EyeOff, Database, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -26,8 +26,6 @@ const SiteConfigTab = () => {
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
-  const footerLogoRef = useRef<HTMLInputElement>(null);
-  const faviconRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (config) {
@@ -171,7 +169,6 @@ const SiteConfigTab = () => {
         </CardContent>
       </Card>
 
-      {/* Seção de Manutenção */}
       <Card className="border-amber-200 bg-amber-50/50">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2 text-amber-800">
@@ -185,7 +182,7 @@ const SiteConfigTab = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-amber-900">Sincronizar Estrutura</p>
-              <p className="text-xs text-amber-800/70">Cria a coluna de "Status" nas interações e a tabela de "Avaliações".</p>
+              <p className="text-xs text-amber-800/70">Cria colunas de Status, Aulas e a tabela de Avaliações/Academy.</p>
             </div>
             <Button 
               variant="outline" 

@@ -18,14 +18,23 @@ serve(async (req) => {
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
-    // 1. Adiciona coluna de status na tabela de interações
+    console.log("[setup-reviews-table] Iniciando sincronização do banco...");
+
+    // 1. ACADEMY: Adiciona coluna de conteúdo rico nas aulas
+    const academySql = `
+      ALTER TABLE public.academy_lessons 
+      ADD COLUMN IF NOT EXISTS content TEXT;
+    `;
+    await client.queryObject(academySql);
+
+    // 2. INTERACTIONS: Adiciona coluna de status
     const addStatusSql = `
       ALTER TABLE public.interactions 
       ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
     `;
     await client.queryObject(addStatusSql);
 
-    // 2. Garante permissão de UPDATE em interactions
+    // 3. POLICIES: Garante permissão de UPDATE em interactions
     const updatePolicySql = `
       DO $$
       BEGIN
@@ -40,7 +49,7 @@ serve(async (req) => {
     `;
     await client.queryObject(updatePolicySql);
 
-    // 3. Tabela de Reviews
+    // 4. REVIEWS: Cria tabela de avaliações
     const createReviewsSql = `
       CREATE TABLE IF NOT EXISTS public.reviews (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -56,12 +65,10 @@ serve(async (req) => {
 
       DO $$
       BEGIN
-        -- Qualquer um pode ler reviews
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_read_policy') THEN
           CREATE POLICY "reviews_read_policy" ON public.reviews FOR SELECT USING (true);
         END IF;
         
-        -- Apenas o autor pode criar
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_insert_policy') THEN
           CREATE POLICY "reviews_insert_policy" ON public.reviews 
           FOR INSERT TO authenticated 
@@ -72,7 +79,7 @@ serve(async (req) => {
     `;
     await client.queryObject(createReviewsSql);
 
-    // 4. CRUCIAL: Permitir ver nome/foto de quem fez review (Empresas/Famílias são privadas por padrão)
+    // 5. VISIBILIDADE: Permitir ver perfis que fizeram reviews
     const visibilityPolicySql = `
       DO $$
       BEGIN
@@ -91,7 +98,7 @@ serve(async (req) => {
     await client.queryObject(visibilityPolicySql);
 
     await client.end();
-    return new Response(JSON.stringify({ ok: true, message: "Banco de dados atualizado e permissões de visibilidade aplicadas!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Banco de dados e Academy sincronizados com sucesso!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

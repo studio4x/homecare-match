@@ -29,7 +29,8 @@ import {
   ShieldAlert,
   FileCheck,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -115,14 +116,6 @@ const ProfilePage = () => {
     }
   };
 
-  const formatPhoneNumber = (value: string) => {
-    const numbers = value.replace(/\D/g, '').slice(0, 11);
-    if (numbers.length <= 2) return limited.replace(/(\d{0,2})/, '($1');
-    if (numbers.length <= 6) return numbers.replace(/(\d{2})(\d{0,4})/, '($1) $2');
-    if (numbers.length <= 10) return numbers.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
-    return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
-  };
-
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numbers = e.target.value.replace(/\D/g, '').slice(0, 11);
     let formatted = numbers;
@@ -132,6 +125,7 @@ const ProfilePage = () => {
   };
 
   const handleCepBlur = async () => {
+    if (!profile.address_zip) return;
     const cep = profile.address_zip.replace(/\D/g, '');
     if (cep.length !== 8) return;
     setIsLoadingCep(true);
@@ -300,11 +294,20 @@ const ProfilePage = () => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label>Nome Completo</Label>
-                  <Input value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} />
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={profile.full_name || ""} 
+                    onChange={e => setProfile({...profile, full_name: e.target.value})} 
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label>WhatsApp</Label>
-                  <Input value={profile.phone} onChange={handlePhoneChange} placeholder="(11) 99999-9999" />
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={profile.phone || ""} 
+                    onChange={handlePhoneChange} 
+                    placeholder="(11) 99999-9999" 
+                  />
                 </div>
               </div>
 
@@ -321,19 +324,31 @@ const ProfilePage = () => {
                   </div>
                   <div className="grid gap-2">
                     <Label>Registro (COREN/CREFITO)</Label>
-                    <Input value={profile.registration} onChange={e => setProfile({...profile, registration: e.target.value})} />
+                    <input 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={profile.registration || ""} 
+                      onChange={e => setProfile({...profile, registration: e.target.value})} 
+                    />
                   </div>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2">
                     <Label>{profile.role === 'company' ? "Razão Social" : "Nome do Responsável"}</Label>
-                    <Input value={profile.company_name} onChange={e => setProfile({...profile, company_name: e.target.value})} />
+                    <input 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={profile.company_name || ""} 
+                      onChange={e => setProfile({...profile, company_name: e.target.value})} 
+                    />
                   </div>
                   {profile.role === 'company' && (
                     <div className="grid gap-2">
                       <Label>CNPJ</Label>
-                      <Input value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} />
+                      <input 
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        value={profile.cnpj || ""} 
+                        onChange={e => setProfile({...profile, cnpj: e.target.value})} 
+                      />
                     </div>
                   )}
                 </div>
@@ -350,27 +365,49 @@ const ProfilePage = () => {
                 <div className="grid gap-2">
                   <Label>CEP</Label>
                   <div className="relative">
-                    <Input value={profile.address_zip} onChange={e => setProfile({...profile, address_zip: e.target.value})} onBlur={handleCepBlur} />
+                    <input 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={profile.address_zip || ""} 
+                      onChange={e => setProfile({...profile, address_zip: e.target.value})} 
+                      onBlur={handleCepBlur} 
+                    />
                     {isLoadingCep && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
                   </div>
                 </div>
                 <div className="grid gap-2 md:col-span-2">
                   <Label>Rua</Label>
-                  <Input value={profile.address_street} onChange={e => setProfile({...profile, address_street: e.target.value})} />
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={profile.address_street || ""} 
+                    onChange={e => setProfile({...profile, address_street: e.target.value})} 
+                  />
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
                   <Label>Bairro</Label>
-                  <Input value={profile.neighborhood} onChange={e => setProfile({...profile, neighborhood: e.target.value})} />
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={profile.neighborhood || ""} 
+                    onChange={e => setProfile({...profile, neighborhood: e.target.value})} 
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label>Cidade</Label>
-                  <Input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value})} />
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={profile.city || ""} 
+                    onChange={e => setProfile({...profile, city: e.target.value})} 
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label>Estado (UF)</Label>
-                  <Input value={profile.state} onChange={e => setProfile({...profile, state: e.target.value})} maxLength={2} />
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={profile.state || ""} 
+                    onChange={e => setProfile({...profile, state: e.target.value})} 
+                    maxLength={2} 
+                  />
                 </div>
               </div>
             </CardContent>
@@ -390,15 +427,15 @@ const ProfilePage = () => {
               <CardContent className="space-y-4">
                 <div className="grid gap-2">
                   <Label>Formações</Label>
-                  <Textarea value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} placeholder="Cursos e especializações..." />
+                  <Textarea value={profile.experience || ""} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} placeholder="Cursos e especializações..." />
                 </div>
                 <div className="grid gap-2">
                   <Label>Experiências Profissionais</Label>
-                  <Textarea value={profile.professional_experiences} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} placeholder="Locais onde trabalhou..." />
+                  <Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} placeholder="Locais onde trabalhou..." />
                 </div>
                 <div className="grid gap-2">
                   <Label>Biografia para o Perfil</Label>
-                  <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} />
+                  <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} />
                 </div>
               </CardContent>
             </Card>
@@ -410,7 +447,7 @@ const ProfilePage = () => {
                 <CardTitle>{profile.role === 'company' ? "Sobre a Empresa" : "Sobre a Família"}</CardTitle>
               </CardHeader>
               <CardContent>
-                <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} placeholder="Conte um pouco sobre suas necessidades..." />
+                <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} placeholder="Conte um pouco sobre suas necessidades..." />
               </CardContent>
             </Card>
           )}
@@ -472,7 +509,13 @@ const ProfilePage = () => {
               <CardContent className="space-y-6">
                 <div className="grid gap-2">
                   <Label>Valor/Hora (R$)</Label>
-                  <Input type="number" value={profile.hourly_rate || ""} onChange={e => setProfile({...profile, hourly_rate: e.target.value})} placeholder="0.00" />
+                  <input 
+                    type="number" 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={profile.hourly_rate || ""} 
+                    onChange={e => setProfile({...profile, hourly_rate: e.target.value})} 
+                    placeholder="0.00" 
+                  />
                   <p className="text-[10px] text-muted-foreground italic">Visível apenas para famílias.</p>
                 </div>
                 <Separator />

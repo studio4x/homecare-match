@@ -23,7 +23,8 @@ const ReferralLinkCard = () => {
 
   if (!user) return null;
 
-  const referralLink = `${window.location.origin}/login?ref=${user.id}`;
+  // Alterado: Agora aponta para /convite e não para /login
+  const referralLink = `${window.location.origin}/convite?ref=${user.id}`;
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -38,7 +39,6 @@ const ReferralLinkCard = () => {
       const { data, error } = await supabase.functions.invoke('referral-config', {
         body: { action: 'get' }
       });
-      // Fallback padrão se não houver tiers configurados no Admin
       const defaultTiers = [
         { name: "Promotor", threshold: 3, badge_label: "Promotor" },
         { name: "Colaborador", threshold: 5, badge_label: "Colaborador" },
@@ -95,7 +95,6 @@ const ReferralLinkCard = () => {
     
     setIsSubmitting(true);
     
-    // Limpa e formata o telefone para o padrão internacional (apenas números)
     const cleanPhone = referralPhone.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
       toast.error("Número de WhatsApp inválido. Inclua DDD.");
@@ -134,7 +133,6 @@ const ReferralLinkCard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Seção de Status e Benefícios */}
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Indique outros profissionais e ganhe destaque no topo das buscas!
@@ -164,7 +162,6 @@ const ReferralLinkCard = () => {
             )}
           </div>
 
-          {/* Seção de Compartilhamento */}
           <div className="space-y-3 border-t pt-4">
             <h4 className="font-semibold text-sm">1. Compartilhe seu Link</h4>
             <div className="rounded-lg border bg-secondary/20 p-3 text-xs break-words">
@@ -189,7 +186,6 @@ const ReferralLinkCard = () => {
             </div>
           </div>
 
-          {/* Seção de Indicação Direta */}
           <div className="space-y-3 border-t pt-4">
             <h4 className="font-semibold text-sm">2. Indique Diretamente</h4>
             <p className="text-xs text-muted-foreground">

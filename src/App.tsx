@@ -18,6 +18,7 @@ import RecruiterProfile from "./pages/RecruiterProfile";
 import NotFound from "./pages/NotFound";
 import Courses from "./pages/Courses";
 import CourseDetail from "./pages/CourseDetail";
+import ReferralLanding from "./pages/ReferralLanding";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -54,6 +55,7 @@ const App = () => (
               <Route path="/familias" element={<Familias />} />
               <Route path="/buscar" element={<Buscar />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/convite" element={<ReferralLanding />} />
               <Route path="/profissional/:id" element={<Perfil />} />
               <Route path="/cadastro-empresa" element={<CadastroEmpresaFamilia />} />
               <Route path="/recruiter/:id" element={<RecruiterProfile />} />

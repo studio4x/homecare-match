@@ -116,12 +116,18 @@ const OverviewPage = () => {
   const completeness = getProfileCompleteness();
   const trial = getTrialInfo();
   const isProfessional = profile?.role === 'professional';
+  const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Bem-vindo(a), {profile?.full_name?.split(' ')[0]}!</h1>
-        <p className="text-muted-foreground">Aqui está um resumo da sua conta hoje.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Olá, {firstName}!</h1>
+        <p className="text-muted-foreground max-w-2xl">
+          {isProfessional 
+            ? "Gerencie seu perfil profissional, acompanhe suas verificações e acesse conteúdos educativos para impulsionar sua carreira no Home Care."
+            : "Encontre os melhores profissionais para sua escala de atendimento, gerencie seus contatos salvos e acompanhe suas interações recentes."
+          }
+        </p>
       </div>
 
       {isProfessional && !completeness.isComplete && (

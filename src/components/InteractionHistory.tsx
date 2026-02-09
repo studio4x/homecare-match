@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, ArrowRight, Trash2, Building2, Home, Eye, Star, CheckCircle2, Loader2 } from "lucide-react";
+import { Users, ArrowRight, Trash2, Building2, Home, Eye, Star, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -92,7 +92,16 @@ const InteractionHistory = ({
         .update({ status: 'completed' })
         .eq('id', interactionId);
       
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("column \"status\" does not exist")) {
+           toast.error("Configuração pendente", {
+             description: "A funcionalidade de confirmação requer uma atualização no banco de dados. Por favor, solicite a sincronização ao administrador."
+           });
+           return;
+        }
+        throw error;
+      }
+      
       toast.success("Atendimento confirmado! Você já pode avaliar.");
       window.location.reload();
     } catch (err) {

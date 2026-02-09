@@ -25,6 +25,11 @@ import AccessRestricted from "@/components/AccessRestricted";
 // Configuração do limite mínimo para exibir a lista
 const MIN_RESULTS_TO_SHOW = 1;
 
+const getInitialSpecialtyFromUrl = () => {
+  const value = new URLSearchParams(window.location.search).get("specialty");
+  return value || "";
+};
+
 const Buscar = () => {
   const { user, session } = useAuth();
   const { data: config, isLoading: isLoadingConfig } = useSiteConfig();
@@ -32,7 +37,7 @@ const Buscar = () => {
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
-    specialty: "",
+    specialty: getInitialSpecialtyFromUrl(),
     city: "",
     neighborhood: "",
     state: "",

@@ -1,19 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ReferralsTab from "@/components/admin/ReferralsTab";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const ReferralsPage = () => {
-  const [referrals, setReferrals] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Usando a estratégia CLIENT-SIDE que implementamos para evitar erros RPC
+  const { data: referrals = [], isLoading } = useQuery({
+    queryKey: ['admin-referrals'],
+    queryFn: async () => {
       const { data: referralsData, error: referralsError } = await supabase
         .from('referrals')
         .select('*')
@@ -51,20 +50,29 @@ const ReferralsPage = () => {
           } : { full_name: 'Sistema', email: '' }
         }));
       }
-      setReferrals(formattedReferrals);
-    } catch (error) {
-      console.error("Erro ao carregar indicações:", error);
-      toast.error("Erro ao carregar lista de indicações.");
-    } finally {
-      setLoading(false);
+      return formattedReferrals;
     }
-  };
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const deleteMutation = useMutation({
+    mutationFn: async (referralId: string) => {
+      const { error } = await supabase
+        .from('referrals')
+        .delete()
+        .eq('id', referralId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Indicação excluída com sucesso.");
+      queryClient.invalidateQueries({ queryKey: ['admin-referrals'] });
+    },
+    onError: (error) => {
+      console.error("Erro ao excluir indicação:", error);
+      toast.error("Falha ao excluir indicação.");
+    }
+  });
 
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
+  if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
@@ -72,7 +80,11 @@ const ReferralsPage = () => {
         <h1 className="text-3xl font-bold tracking-tight">Indicações</h1>
         <p className="text-muted-foreground">Acompanhe o programa de "Indique e Ganhe".</p>
       </div>
-      <ReferralsTab referrals={referrals} refetchData={fetchData} />
+      <ReferralsTab 
+        referrals={referrals} 
+        onDelete={deleteMutation.mutate}
+        isDeleting={deleteMutation.isPending}
+      />
     </div>
   );
 };

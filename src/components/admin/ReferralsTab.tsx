@@ -46,15 +46,15 @@ interface Referral {
 
 interface ReferralsTabProps {
   referrals: Referral[];
-  refetchData: () => void;
+  onDelete: (id: string, options?: { onSuccess?: () => void }) => void;
+  isDeleting: boolean;
 }
 
-const ReferralsTab = ({ referrals, refetchData }: ReferralsTabProps) => {
+const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) => {
   const [referralTiers, setReferralTiers] = useState<any[]>([]);
   const [isLoadingTiers, setIsLoadingTiers] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [referralToDelete, setReferralToDelete] = useState<Referral | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchTiers = async () => {
@@ -97,30 +97,14 @@ const ReferralsTab = ({ referrals, refetchData }: ReferralsTabProps) => {
     }
   };
 
-  const handleDeleteReferral = async () => {
+  const handleDeleteReferral = () => {
     if (!referralToDelete) return;
-    setIsDeleting(true);
-    try {
-      // Ação de exclusão no banco de dados
-      const { error } = await supabase
-        .from('referrals')
-        .delete()
-        .eq('id', referralToDelete.id);
-
-      if (error) throw error;
-
-      toast.success("Indicação excluída com sucesso.");
-      setDeleteModalOpen(false);
-      setReferralToDelete(null);
-      
-      // Força o recarregamento dos dados
-      refetchData(); 
-    } catch (error) {
-      console.error("Erro ao excluir indicação:", error);
-      toast.error("Falha ao excluir indicação.");
-    } finally {
-      setIsDeleting(false);
-    }
+    onDelete(referralToDelete.id, {
+      onSuccess: () => {
+        setDeleteModalOpen(false);
+        setReferralToDelete(null);
+      }
+    });
   };
 
   const getWhatsappLink = (phone: string, name: string) => {

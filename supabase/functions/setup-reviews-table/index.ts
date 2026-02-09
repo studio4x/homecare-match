@@ -25,7 +25,22 @@ serve(async (req) => {
     `;
     await client.queryObject(addStatusSql);
 
-    // 2. Cria a tabela de reviews (avaliações)
+    // 2. Cria a política de UPDATE para interactions (CORREÇÃO DO PROBLEMA)
+    const updatePolicySql = `
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'interactions' AND policyname = 'interactions_update_policy') THEN
+          CREATE POLICY "interactions_update_policy" ON public.interactions
+          FOR UPDATE TO authenticated
+          USING ((auth.uid() = sender_id) OR (auth.uid() = professional_id))
+          WITH CHECK ((auth.uid() = sender_id) OR (auth.uid() = professional_id));
+        END IF;
+      END
+      $$;
+    `;
+    await client.queryObject(updatePolicySql);
+
+    // 3. Cria a tabela de reviews (avaliações)
     const createReviewsSql = `
       CREATE TABLE IF NOT EXISTS public.reviews (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -58,7 +73,7 @@ serve(async (req) => {
     await client.queryObject(createReviewsSql);
 
     await client.end();
-    return new Response(JSON.stringify({ ok: true, message: "Banco de dados atualizado com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Banco de dados atualizado com permissões de update!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

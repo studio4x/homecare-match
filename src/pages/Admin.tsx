@@ -147,8 +147,8 @@ const Admin = () => {
   const fetchData = async () => {
     try {
       const [pendingRes, usersRes, plansRes, referralsRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("verification_sent", true).eq("is_verified", false),
-        supabase.from("profiles").select("*").order('updated_at', { ascending: false }),
+        supabase.from("profiles").select("id, full_name, email, id_document_url, prof_registration_url").eq("verification_sent", true).eq("is_verified", false),
+        supabase.from("profiles").select("id, full_name, email, role, subscription_tier, is_verified, trial_started_at, updated_at").order('updated_at', { ascending: false }),
         supabase.from("plans").select("*").order('price', { ascending: true }),
         supabase.from("referrals").select(`
           *,

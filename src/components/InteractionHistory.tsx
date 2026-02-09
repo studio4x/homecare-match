@@ -188,11 +188,16 @@ const InteractionHistory = ({
                       </Button>
                     </div>
                   ) : (
-                    <Button variant="ghost" size="sm" asChild className="flex-shrink-0">
-                      <Link to={`/profissional/${profile.id}`}>
-                        Ver Perfil <ArrowRight className="h-3 w-3 ml-2" />
-                      </Link>
-                    </Button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button variant="ghost" size="sm" asChild className="h-8">
+                        <Link to={`/profissional/${profile.id}`}>
+                          <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
+                        </Link>
+                      </Button>
+                      <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
+                        <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </div>
               ))

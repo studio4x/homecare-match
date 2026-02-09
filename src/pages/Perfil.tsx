@@ -24,6 +24,8 @@ import {
   LayoutGrid,
   DollarSign,
   Clock,
+  GraduationCap,
+  Info,
 } from "lucide-react";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -289,14 +291,20 @@ const Perfil = () => {
                 </div>
 
                 <div className="mt-10">
-                  <h3 className="text-lg font-semibold border-b pb-2 mb-4">Sobre mim</h3>
+                  <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                    <Info className="h-5 w-5 text-primary" />
+                    Sobre mim
+                  </h3>
                   <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
                     {profile.bio || "Este profissional ainda não preencheu sua biografia."}
                   </p>
                 </div>
 
                 <div className="mt-10">
-                  <h3 className="text-lg font-semibold border-b pb-2 mb-4">Formações</h3>
+                  <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5 text-primary" />
+                    Formações
+                  </h3>
                   <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
                     {profile.experience || "Informações de formações não detalhadas."}
                   </p>

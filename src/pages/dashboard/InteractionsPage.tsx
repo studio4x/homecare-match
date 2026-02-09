@@ -36,16 +36,24 @@ const InteractionsPage = () => {
       const profileColumns = 'id, full_name, avatar_url, specialty, role, phone, bio, city, state, neighborhood';
       let query;
       if (userRole === 'professional') {
-        query = supabase.from('interactions').select(`created_at, sender:sender_id (${profileColumns})`).eq('professional_id', userId).order('created_at', { ascending: false });
+        query = supabase.from('interactions').select(`id, created_at, status, sender:sender_id (${profileColumns})`).eq('professional_id', userId).order('created_at', { ascending: false });
       } else {
-        query = supabase.from('interactions').select(`created_at, professional:professional_id (${profileColumns})`).eq('sender_id', userId).order('created_at', { ascending: false });
+        query = supabase.from('interactions').select(`id, created_at, status, professional:professional_id (${profileColumns})`).eq('sender_id', userId).order('created_at', { ascending: false });
       }
       const { data, error } = await query;
       if (error) throw error;
+      
       const unique = new Map();
       data.forEach(item => {
         const p = item.sender || item.professional;
-        if (p && !unique.has(p.id)) unique.set(p.id, { interacted_at: item.created_at, profile: p });
+        if (p && !unique.has(p.id)) {
+          unique.set(p.id, { 
+            id: item.id,
+            interacted_at: item.created_at, 
+            status: item.status,
+            profile: p 
+          });
+        }
       });
       setInteractions(Array.from(unique.values()));
     } catch (err) {

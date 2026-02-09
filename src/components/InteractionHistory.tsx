@@ -78,14 +78,11 @@ const InteractionHistory = ({
   const { user } = useAuth();
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Interaction['profile'] | null>(null);
-  const [viewProfileModalOpen, setViewProfileModalOpen] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<Interaction['profile'] | null>(null);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [profileToReview, setProfileToReview] = useState<Interaction['profile'] | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [reviewedProfiles, setReviewedProfiles] = useState<string[]>([]);
 
-  // Carrega as avaliações feitas pelo usuário logado para saber quem ele já avaliou
   useEffect(() => {
     const fetchReviews = async () => {
       if (!user) return;
@@ -99,7 +96,7 @@ const InteractionHistory = ({
       }
     };
     fetchReviews();
-  }, [user, reviewModalOpen]); // Atualiza quando o modal fecha (após avaliar)
+  }, [user, reviewModalOpen]);
 
   const handleStatusUpdate = async (interactionId: string, currentStatus: string) => {
     setIsUpdatingStatus(interactionId);
@@ -136,11 +133,6 @@ const InteractionHistory = ({
     setContactModalOpen(true);
   };
 
-  const handleViewProfileClick = (profile: Interaction['profile']) => {
-    setSelectedProfile(profile);
-    setViewProfileModalOpen(true);
-  };
-
   const handleReviewClick = (profile: Interaction['profile']) => {
     setProfileToReview(profile);
     setReviewModalOpen(true);
@@ -164,7 +156,6 @@ const InteractionHistory = ({
     const interactionId = interaction.id!;
     const hasReviewed = reviewedProfiles.includes(interaction.profile.id);
 
-    // Caso: Atendimento Finalizado
     if (status === 'completed') {
       return (
         <div className="flex items-center gap-2">
@@ -189,7 +180,6 @@ const InteractionHistory = ({
       );
     }
 
-    // Caso: Sou profissional e já confirmei
     if (isProf && status === 'professional_confirmed') {
       return (
         <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 h-8">
@@ -198,7 +188,6 @@ const InteractionHistory = ({
       );
     }
 
-    // Caso: Sou contratante e já confirmei
     if (!isProf && status === 'sender_confirmed') {
       return (
         <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 h-8">
@@ -207,7 +196,6 @@ const InteractionHistory = ({
       );
     }
 
-    // Caso: Outra parte confirmou e eu preciso confirmar
     const needsMyConfirmation = (isProf && status === 'sender_confirmed') || (!isProf && status === 'professional_confirmed');
     
     return (
@@ -280,17 +268,11 @@ const InteractionHistory = ({
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     {renderStatusButton(interaction)}
 
-                    {viewerRole === 'professional' ? (
-                      <Button variant="ghost" size="sm" onClick={() => handleViewProfileClick(interaction.profile)} className="gap-1.5 h-8">
-                        <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Ver</span>
-                      </Button>
-                    ) : (
-                      <Button variant="ghost" size="sm" asChild className="h-8">
-                        <Link to={`/profissional/${interaction.profile.id}`}>
-                          <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
-                        </Link>
-                      </Button>
-                    )}
+                    <Button variant="ghost" size="sm" asChild className="h-8">
+                      <Link to={viewerRole === 'professional' ? `/recruiter/${interaction.profile.id}` : `/profissional/${interaction.profile.id}`}>
+                        <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
+                      </Link>
+                    </Button>
                     
                     <Button variant="default" size="sm" onClick={() => handleContactClick(interaction.profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
                       <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
@@ -337,23 +319,6 @@ const InteractionHistory = ({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={viewProfileModalOpen} onOpenChange={setViewProfileModalOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <div className="flex items-start gap-4">
-              <Avatar className="h-16 w-16"><AvatarImage src={selectedProfile?.avatar_url} /><AvatarFallback className="text-lg">{getInitials(selectedProfile?.full_name || '')}</AvatarFallback></Avatar>
-              <div className="flex-1"><DialogTitle className="text-xl">{selectedProfile?.full_name}</DialogTitle>
-                <Badge variant={selectedProfile?.role === 'company' ? "secondary" : "outline"} className="capitalize flex items-center gap-1 text-xs mt-1">{selectedProfile?.role === 'company' ? "Empresa" : "Família"}</Badge>
-              </div>
-            </div>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            {(selectedProfile?.city || selectedProfile?.state) && (<div><h4 className="text-sm font-semibold text-muted-foreground mb-1">Localização</h4><p className="text-foreground">{selectedProfile.neighborhood ? `${selectedProfile.neighborhood}, ` : ''}{selectedProfile.city} - {selectedProfile.state}</p></div>)}
-            <div><h4 className="text-sm font-semibold text-muted-foreground mb-1">{selectedProfile?.role === 'company' ? 'Sobre a Empresa' : 'Descrição da Necessidade'}</h4><p className="text-foreground whitespace-pre-wrap text-sm leading-relaxed">{selectedProfile?.bio || "Nenhuma descrição fornecida."}</p></div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={reviewModalOpen} onOpenChange={setReviewModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader><DialogTitle>Avaliar Atendimento</DialogTitle><DialogDescription>Deixe sua opinião sobre o atendimento de <strong>{profileToReview?.full_name}</strong>.</DialogDescription></DialogHeader>
@@ -363,7 +328,7 @@ const InteractionHistory = ({
               subjectId={profileToReview.id} 
               onSuccess={() => {
                 setReviewModalOpen(false);
-                setReviewedProfiles(prev => [...prev, profileToReview.id]); // Atualiza estado local imediatamente
+                setReviewedProfiles(prev => [...prev, profileToReview.id]);
               }} 
             />
           )}

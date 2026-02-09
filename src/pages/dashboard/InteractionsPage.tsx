@@ -41,13 +41,12 @@ const InteractionsPage = () => {
   const fetchInteractions = async (userId: string, userRole: string) => {
     try {
       const profileFields = 'id, full_name, avatar_url, specialty, role, phone, bio, city, state, neighborhood';
-      
       const isProf = userRole === 'professional';
       const targetRelation = isProf ? 'interactions_sender_id_fkey' : 'interactions_professional_id_fkey';
       const myColumn = isProf ? 'professional_id' : 'sender_id';
 
-      // Consulta inicial com status
-      let { data, error }: { data: any[] | null; error: any } = await supabase
+      // Consulta principal buscando explicitamente a coluna status
+      const { data, error } = await supabase
         .from('interactions')
         .select(`
           id, 
@@ -58,48 +57,47 @@ const InteractionsPage = () => {
         .eq(myColumn, userId)
         .order('created_at', { ascending: false });
 
-      // Fallback caso a coluna status não exista
-      if (error && error.message.includes('column interactions.status does not exist')) {
-        console.warn("[InteractionsPage] Coluna 'status' ausente, tentando sem ela...");
-        const retry = await supabase
-          .from('interactions')
-          .select(`
-            id, 
-            created_at, 
-            profile:profiles!${targetRelation} (${profileFields})
-          `)
-          .eq(myColumn, userId)
-          .order('created_at', { ascending: false });
-        
-        data = retry.data;
-        error = retry.error;
-      }
-
-      if (error) throw error;
-
-      if (!data) {
-        setInteractions([]);
-        return;
-      }
-
-      const unique = new Map();
-      data.forEach((item: any) => {
-        const p = item.profile;
-        if (p && !unique.has(p.id)) {
-          unique.set(p.id, { 
-            id: item.id,
-            interacted_at: item.created_at, 
-            status: item.status || 'pending',
-            profile: p 
-          });
+      if (error) {
+        // Se o erro for de coluna inexistente, fazemos o fallback mas avisamos
+        if (error.message.includes('column interactions.status does not exist')) {
+           console.warn("[InteractionsPage] Banco de dados não sincronizado. Status indisponível.");
+           const { data: fallbackData } = await supabase
+             .from('interactions')
+             .select(`
+               id, 
+               created_at, 
+               profile:profiles!${targetRelation} (${profileFields})
+             `)
+             .eq(myColumn, userId)
+             .order('created_at', { ascending: false });
+           
+           processInteractions(fallbackData || []);
+           return;
         }
-      });
+        throw error;
+      }
 
-      setInteractions(Array.from(unique.values()));
+      processInteractions(data || []);
     } catch (err: any) {
       console.error("[InteractionsPage] Erro fatal:", err);
       toast.error("Erro ao carregar contatos.");
     }
+  };
+
+  const processInteractions = (data: any[]) => {
+    const unique = new Map();
+    data.forEach((item: any) => {
+      const p = item.profile;
+      if (p && !unique.has(p.id)) {
+        unique.set(p.id, { 
+          id: item.id,
+          interacted_at: item.created_at, 
+          status: item.status || 'pending',
+          profile: p 
+        });
+      }
+    });
+    setInteractions(Array.from(unique.values()));
   };
 
   const handleClear = async () => {

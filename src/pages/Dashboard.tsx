@@ -975,7 +975,7 @@ const Dashboard = () => {
                       loading={loadingCourses}
                     />
                     <CourseSummaryList
-                      title="Concluídos"
+                      title="Concluídos na Plataforma"
                       items={myCoursesCompleted}
                       perPage={3}
                       loading={loadingCourses}

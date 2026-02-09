@@ -105,7 +105,7 @@ const Perfil = () => {
 
   const fetchProfile = async () => {
     setLoading(true);
-    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, phone, hourly_rate, availability, patient_profiles";
+    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, professional_experiences, bio, subscription_tier, is_verified, role, updated_at, phone, hourly_rate, availability, patient_profiles";
     
     const { data, error } = await supabase
       .from("profiles")
@@ -296,12 +296,19 @@ const Perfil = () => {
                 </div>
 
                 <div className="mt-10">
+                  <h3 className="text-lg font-semibold border-b pb-2 mb-4">Formações</h3>
+                  <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                    {profile.experience || "Informações de formações não detalhadas."}
+                  </p>
+                </div>
+
+                <div className="mt-8">
                   <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
                     <Briefcase className="h-5 w-5 text-primary" />
-                    Experiência Profissional
+                    Experiências Profissionais
                   </h3>
                   <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {profile.experience || "Informações de experiência não detalhadas."}
+                    {profile.professional_experiences || "Informações de experiências profissionais não detalhadas."}
                   </p>
                 </div>
 

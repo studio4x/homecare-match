@@ -1,0 +1,540 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  Loader2, 
+  Save, 
+  Camera, 
+  RefreshCw, 
+  Sparkles, 
+  Trash2,
+  ShieldAlert,
+  FileCheck,
+  CheckCircle2,
+  ArrowRight
+} from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader
+} from "@/components/ui/dialog";
+
+const ProfilePage = () => {
+  const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingBio, setIsGeneratingBio] = useState(false);
+  const [isUploading, setIsUploading] = useState<string | null>(null);
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  const avatarRef = useRef<HTMLInputElement>(null);
+  const idDocRef = useRef<HTMLInputElement>(null);
+  const profDocRef = useRef<HTMLInputElement>(null);
+
+  const specialties = [
+    { value: "assistente-social", label: "Assistente Social" },
+    { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
+    { value: "dentista", label: "Dentista" },
+    { value: "enfermeiro", label: "Enfermeiro(a)" },
+    { value: "farmaceutico", label: "Farmacêutico(a)" },
+    { value: "fisioterapeuta", label: "Fisioterapeuta" },
+    { value: "fonoaudiologo", label: "Fonoaudiólogo(a)" },
+    { value: "medico-clinico", label: "Médico(a) - Clínico Geral / Geriatra" },
+    { value: "nutricionista", label: "Nutricionista" },
+    { value: "psicologo", label: "Psicólogo(a)" },
+    { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
+    { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
+  ];
+
+  const availabilityOptions = [
+    "Período da Manhã",
+    "Período da Tarde",
+    "Período da Noite",
+    "Dia Integral (Diurno)",
+    "Plantão 12h (Noturno)",
+    "Finais de Semana",
+  ];
+
+  const patientProfileOptions = [
+    "Idosos",
+    "Pediátrico",
+    "Pós-cirúrgico",
+    "Doenças Crônicas",
+    "Cuidados Paliativos",
+    "Reabilitação Neurológica",
+  ];
+
+  useEffect(() => {
+    fetchProfile();
+  }, [user]);
+
+  const fetchProfile = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      setProfile({
+        ...data,
+        availability: data.availability || [],
+        patient_profiles: data.patient_profiles || [],
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatPhoneNumber = (value: string) => {
+    const numbers = value.replace(/\D/g, '').slice(0, 11);
+    if (numbers.length <= 2) return limited.replace(/(\d{0,2})/, '($1');
+    if (numbers.length <= 6) return numbers.replace(/(\d{2})(\d{0,4})/, '($1) $2');
+    if (numbers.length <= 10) return numbers.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3');
+    return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numbers = e.target.value.replace(/\D/g, '').slice(0, 11);
+    let formatted = numbers;
+    if (numbers.length > 2) formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length > 7) formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    setProfile({ ...profile, phone: formatted });
+  };
+
+  const handleCepBlur = async () => {
+    const cep = profile.address_zip.replace(/\D/g, '');
+    if (cep.length !== 8) return;
+    setIsLoadingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      if (!data.erro) {
+        setProfile(prev => ({
+          ...prev,
+          address_street: data.logradouro,
+          neighborhood: data.bairro,
+          city: data.localidade,
+          state: data.uf
+        }));
+      }
+    } finally {
+      setIsLoadingCep(false);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'id_doc' | 'prof_doc') => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+    setIsUploading(type);
+    const fileExt = file.name.split('.').pop();
+    const bucket = type === 'avatar' ? 'avatars' : 'documents';
+    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+    try {
+      const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+      const updateData = type === 'avatar' ? { avatar_url: publicUrl } : 
+                        type === 'id_doc' ? { id_document_url: publicUrl } : 
+                        { prof_registration_url: publicUrl };
+      await supabase.from("profiles").update(updateData).eq("id", user.id);
+      setProfile(prev => ({ ...prev, ...updateData }));
+      toast.success("Arquivo carregado!");
+    } finally {
+      setIsUploading(null);
+    }
+  };
+
+  const handleGenerateBio = async () => {
+    if (!profile.full_name || !profile.specialty || !profile.experience) {
+      toast.error("Preencha nome, especialidade e formações primeiro.");
+      return;
+    }
+    setIsGeneratingBio(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-bio', {
+        body: {
+          name: profile.full_name,
+          specialty: profile.specialty,
+          experience: profile.experience,
+          professional_experiences: profile.professional_experiences || "",
+          city: profile.city || "",
+          state: profile.state || ""
+        }
+      });
+      if (data?.bio) {
+        setProfile(prev => ({ ...prev, bio: data.bio }));
+        toast.success("Biografia gerada!");
+      }
+    } finally {
+      setIsGeneratingBio(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    const cleanPhone = profile.phone.replace(/\D/g, "");
+    if (!profile.phone || cleanPhone.length < 10) {
+      toast.error("WhatsApp inválido. Inclua DDD.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.from("profiles").update({
+        full_name: profile.full_name,
+        phone: profile.phone,
+        bio: profile.bio,
+        experience: profile.experience,
+        professional_experiences: profile.professional_experiences,
+        city: profile.city,
+        state: profile.state,
+        neighborhood: profile.neighborhood,
+        specialty: profile.specialty,
+        registration: profile.registration,
+        company_name: profile.company_name,
+        cnpj: profile.cnpj,
+        hourly_rate: profile.hourly_rate,
+        availability: profile.availability,
+        patient_profiles: profile.patient_profiles,
+        address_zip: profile.address_zip,
+        address_street: profile.address_street,
+        address_number: profile.address_number,
+        address_complement: profile.address_complement,
+      }).eq("id", user.id);
+      if (error) throw error;
+      toast.success("Perfil salvo!");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCheckboxChange = (field: 'availability' | 'patient_profiles', value: string) => {
+    const current = profile[field] || [];
+    const updated = current.includes(value) ? current.filter((i: any) => i !== value) : [...current, value];
+    setProfile({ ...profile, [field]: updated });
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-user');
+      if (error) throw error;
+      await signOut();
+      toast.success("Conta excluída.");
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
+
+  const isProfessional = profile.role === 'professional';
+  const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight">Meus Dados</h1>
+        <p className="text-muted-foreground">Mantenha seu perfil atualizado para melhores resultados.</p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informações Básicas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Avatar className="h-24 w-24 ring-4 ring-border">
+                    <AvatarImage src={profile.avatar_url} />
+                    <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
+                  </Avatar>
+                  <Button 
+                    size="icon" 
+                    variant="secondary" 
+                    className="absolute -bottom-1 -right-1 rounded-full shadow-md"
+                    onClick={() => avatarRef.current?.click()}
+                    disabled={!!isUploading}
+                  >
+                    {isUploading === 'avatar' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  </Button>
+                  <input type="file" ref={avatarRef} className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'avatar')} />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-medium">Foto de Perfil</h4>
+                  <p className="text-xs text-muted-foreground">Recomendado: Quadrada, máx. 2MB.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label>Nome Completo</Label>
+                  <Input value={profile.full_name} onChange={e => setProfile({...profile, full_name: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>WhatsApp</Label>
+                  <Input value={profile.phone} onChange={handlePhoneChange} placeholder="(11) 99999-9999" />
+                </div>
+              </div>
+
+              {isProfessional ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label>Especialidade</Label>
+                    <Select value={profile.specialty} onValueChange={v => setProfile({...profile, specialty: v})}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Registro (COREN/CREFITO)</Label>
+                    <Input value={profile.registration} onChange={e => setProfile({...profile, registration: e.target.value})} />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label>{profile.role === 'company' ? "Razão Social" : "Nome do Responsável"}</Label>
+                    <Input value={profile.company_name} onChange={e => setProfile({...profile, company_name: e.target.value})} />
+                  </div>
+                  {profile.role === 'company' && (
+                    <div className="grid gap-2">
+                      <Label>CNPJ</Label>
+                      <Input value={profile.cnpj} onChange={e => setProfile({...profile, cnpj: e.target.value})} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Endereço e Localização</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-2">
+                  <Label>CEP</Label>
+                  <div className="relative">
+                    <Input value={profile.address_zip} onChange={e => setProfile({...profile, address_zip: e.target.value})} onBlur={handleCepBlur} />
+                    {isLoadingCep && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                  </div>
+                </div>
+                <div className="grid gap-2 md:col-span-2">
+                  <Label>Rua</Label>
+                  <Input value={profile.address_street} onChange={e => setProfile({...profile, address_street: e.target.value})} />
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-2">
+                  <Label>Bairro</Label>
+                  <Input value={profile.neighborhood} onChange={e => setProfile({...profile, neighborhood: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Cidade</Label>
+                  <Input value={profile.city} onChange={e => setProfile({...profile, city: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Estado (UF)</Label>
+                  <Input value={profile.state} onChange={e => setProfile({...profile, state: e.target.value})} maxLength={2} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {isProfessional && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Currículo e Biografia</CardTitle>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={handleGenerateBio} disabled={isGeneratingBio}>
+                    {isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
+                    Gerar com IA
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label>Formações</Label>
+                  <Textarea value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} placeholder="Cursos e especializações..." />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Experiências Profissionais</Label>
+                  <Textarea value={profile.professional_experiences} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} placeholder="Locais onde trabalhou..." />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Biografia para o Perfil</Label>
+                  <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!isProfessional && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{profile.role === 'company' ? "Sobre a Empresa" : "Sobre a Família"}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} placeholder="Conte um pouco sobre suas necessidades..." />
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => fetchProfile()}>Descartar</Button>
+            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Salvar Alterações
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          {isProfessional && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {profile.is_verified ? (
+                  <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center">
+                    <CheckCircle2 className="h-8 w-8 text-success mb-2" />
+                    <p className="text-sm font-semibold text-success">Perfil Verificado</p>
+                  </div>
+                ) : profile.verification_sent ? (
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
+                    <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
+                    <p className="text-sm font-semibold text-primary">Documentos em Análise</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase">RG ou CNH</Label>
+                      <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>
+                         {profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}
+                      </Button>
+                      <input type="file" ref={idDocRef} className="hidden" onChange={e => handleFileUpload(e, 'id_doc')} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase">Registro (COREN/etc)</Label>
+                      <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>
+                         {profile.prof_registration_url ? "✓ Registro enviado" : "Selecionar arquivo"}
+                      </Button>
+                      <input type="file" ref={profDocRef} className="hidden" onChange={e => handleFileUpload(e, 'prof_doc')} />
+                    </div>
+                    <Button variant="outline" className="w-full" disabled={!profile.id_document_url || !profile.prof_registration_url}>Solicitar Análise</Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {isProfessional && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Detalhes do Atendimento</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-2">
+                  <Label>Valor/Hora (R$)</Label>
+                  <Input type="number" value={profile.hourly_rate || ""} onChange={e => setProfile({...profile, hourly_rate: e.target.value})} placeholder="0.00" />
+                  <p className="text-[10px] text-muted-foreground italic">Visível apenas para famílias.</p>
+                </div>
+                <Separator />
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase">Disponibilidade</Label>
+                  <div className="grid gap-2">
+                    {availabilityOptions.map(opt => (
+                      <div key={opt} className="flex items-center gap-2">
+                        <Checkbox id={opt} checked={profile.availability.includes(opt)} onCheckedChange={() => handleCheckboxChange('availability', opt)} />
+                        <label htmlFor={opt} className="text-xs">{opt}</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase">Público-alvo</Label>
+                  <div className="grid gap-2">
+                    {patientProfileOptions.map(opt => (
+                      <div key={opt} className="flex items-center gap-2">
+                        <Checkbox id={opt} checked={profile.patient_profiles.includes(opt)} onCheckedChange={() => handleCheckboxChange('patient_profiles', opt)} />
+                        <label htmlFor={opt} className="text-xs">{opt}</label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className="border-destructive/20">
+            <CardHeader>
+              <CardTitle className="text-base text-destructive flex items-center gap-2"><Trash2 className="h-4 w-4" /> Zona de Perigo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/5 text-xs w-full justify-start" onClick={() => setDeleteAccountModalOpen(true)}>
+                Excluir minha conta permanentemente
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Dialog open={deleteAccountModalOpen} onOpenChange={setDeleteAccountModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Excluir Conta</DialogTitle>
+            <DialogDescription className="pt-2">
+              Esta ação é **permanente**. Todos os seus dados, documentos e histórico serão apagados. Deseja continuar?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="ghost" onClick={() => setDeleteAccountModalOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeletingAccount}>
+              {isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirmar Exclusão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default ProfilePage;

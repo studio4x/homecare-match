@@ -10,7 +10,6 @@ import AppErrorBoundary from "@/components/AppErrorBoundary";
 import Index from "./pages/Index";
 import Empresas from "./pages/Empresas";
 import Familias from "./pages/Familias";
-import Dashboard from "./pages/Dashboard";
 import Buscar from "./pages/Buscar";
 import Login from "./pages/Login";
 import Perfil from "./pages/Perfil";
@@ -20,13 +19,21 @@ import NotFound from "./pages/NotFound";
 import Courses from "./pages/Courses";
 import CourseDetail from "./pages/CourseDetail";
 
+// Dashboard Pages
+import UserLayout from "./components/layout/UserLayout";
+import OverviewPage from "./pages/dashboard/OverviewPage";
+import ProfilePage from "./pages/dashboard/ProfilePage";
+import InteractionsPage from "./pages/dashboard/InteractionsPage";
+import AcademyPage from "./pages/dashboard/AcademyPage";
+import ReferralsPage from "./pages/dashboard/ReferralsPage";
+
 // Admin Layout & Pages
 import AdminLayout from "./components/layout/AdminLayout";
 import VerificationsPage from "./pages/admin/VerificationsPage";
 import UsersPage from "./pages/admin/UsersPage";
 import PlansPage from "./pages/admin/PlansPage";
-import ReferralsPage from "./pages/admin/ReferralsPage";
-import CoursesPage from "./pages/admin/CoursesPage";
+import ReferralsAdminPage from "./pages/admin/ReferralsPage";
+import CoursesAdminPage from "./pages/admin/CoursesPage";
 import MarketingPage from "./pages/admin/MarketingPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 
@@ -45,7 +52,6 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/empresas" element={<Empresas />} />
               <Route path="/familias" element={<Familias />} />
-              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/buscar" element={<Buscar />} />
               <Route path="/login" element={<Login />} />
               <Route path="/profissional/:id" element={<Perfil />} />
@@ -54,14 +60,23 @@ const App = () => (
               <Route path="/cursos" element={<Courses />} />
               <Route path="/cursos/:slug" element={<CourseDetail />} />
 
+              {/* Novo Painel do Usuário (Aninhado) */}
+              <Route path="/dashboard" element={<UserLayout />}>
+                <Route index element={<OverviewPage />} />
+                <Route path="perfil" element={<ProfilePage />} />
+                <Route path="contatos" element={<InteractionsPage />} />
+                <Route path="cursos" element={<AcademyPage />} />
+                <Route path="indicacoes" element={<ReferralsPage />} />
+              </Route>
+
               {/* Área Administrativa (Aninhada) */}
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Navigate to="verificacoes" replace />} />
                 <Route path="verificacoes" element={<VerificationsPage />} />
                 <Route path="usuarios" element={<UsersPage />} />
                 <Route path="planos" element={<PlansPage />} />
-                <Route path="indicacoes" element={<ReferralsPage />} />
-                <Route path="cursos" element={<CoursesPage />} />
+                <Route path="indicacoes" element={<ReferralsAdminPage />} />
+                <Route path="cursos" element={<CoursesAdminPage />} />
                 <Route path="marketing" element={<MarketingPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />
               </Route>

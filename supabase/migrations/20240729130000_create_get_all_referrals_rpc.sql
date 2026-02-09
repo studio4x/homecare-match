@@ -13,8 +13,8 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  -- Primeiro, verifica se o chamador é um administrador.
-  IF NOT is_admin(auth.uid()) THEN
+  -- Usar a função de verificação de admin mais abrangente
+  IF NOT check_is_admin() THEN
     RAISE EXCEPTION 'Acesso negado: Apenas administradores podem executar esta função.';
   END IF;
 

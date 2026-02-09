@@ -112,7 +112,9 @@ const ReferralsTab = ({ referrals, refetchData }: ReferralsTabProps) => {
       toast.success("Indicação excluída com sucesso.");
       setDeleteModalOpen(false);
       setReferralToDelete(null);
-      refetchData(); // Recarrega a lista de indicações
+      
+      // Força o recarregamento dos dados
+      refetchData(); 
     } catch (error) {
       console.error("Erro ao excluir indicação:", error);
       toast.error("Falha ao excluir indicação.");

@@ -737,6 +737,19 @@ const Dashboard = () => {
     });
   };
 
+  const getTierLabel = (tier: string) => {
+    switch (tier) {
+      case 'free_trial':
+        return 'Teste Grátis';
+      case 'monthly':
+        return 'Mensal';
+      case 'yearly':
+        return 'Anual';
+      default:
+        return tier;
+    }
+  };
+
   if (authLoading || isLoadingProfile) {
     return (
       <Layout>
@@ -907,7 +920,7 @@ const Dashboard = () => {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-muted-foreground">Nível:</span>
                       <Badge variant="outline" className="capitalize">
-                        {profile.subscription_tier === 'free_trial' ? 'Teste Grátis' : profile.subscription_tier}
+                        {getTierLabel(profile.subscription_tier)}
                       </Badge>
                     </div>
                     {profile.subscription_tier === 'free_trial' && (

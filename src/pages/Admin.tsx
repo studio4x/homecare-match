@@ -91,6 +91,17 @@ const Admin = () => {
 
   const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br";
 
+  const getTierLabel = (tier: string) => {
+    switch (tier.toLowerCase()) {
+      case 'monthly':
+        return 'Mensal';
+      case 'yearly':
+        return 'Anual';
+      default:
+        return tier;
+    }
+  };
+
   useEffect(() => {
     const checkGlobalAdmin = async () => {
       try {
@@ -541,7 +552,7 @@ const Admin = () => {
                                   <SelectContent>
                                     <SelectItem value="free_trial">Teste Grátis</SelectItem>
                                     {plans.map(plan => (
-                                      <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
+                                      <SelectItem key={plan.id} value={plan.id}>{getTierLabel(plan.name)}</SelectItem>
                                     ))}
                                   </SelectContent>
                                 </Select>
@@ -647,7 +658,7 @@ const Admin = () => {
                     {plans.length > 0 ? plans.map(p => (
                       <TableRow key={p.id}>
                         <TableCell>
-                          <div className="font-medium">{p.name}</div>
+                          <div className="font-medium">{getTierLabel(p.name)}</div>
                           <div className="text-xs text-muted-foreground">{p.id}</div>
                         </TableCell>
                         <TableCell>{p.price}/{p.period}</TableCell>

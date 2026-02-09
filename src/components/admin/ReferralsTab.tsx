@@ -14,20 +14,46 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
 import { 
   Loader2,
   Plus,
-  Award
+  Award,
+  Trash2,
+  ShieldAlert
 } from "lucide-react";
 import { toast } from "sonner";
 
-interface ReferralsTabProps {
-  referrals: any[];
+interface Referral {
+  id: string;
+  referred_name: string;
+  referred_phone: string;
+  status: string;
+  created_at: string;
+  referrer: {
+    full_name: string;
+    email: string;
+  };
 }
 
-const ReferralsTab = ({ referrals }: ReferralsTabProps) => {
+interface ReferralsTabProps {
+  referrals: Referral[];
+  refetchData: () => void;
+}
+
+const ReferralsTab = ({ referrals, refetchData }: ReferralsTabProps) => {
   const [referralTiers, setReferralTiers] = useState<any[]>([]);
   const [isLoadingTiers, setIsLoadingTiers] = useState(true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [referralToDelete, setReferralToDelete] = useState<Referral | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const fetchTiers = async () => {
@@ -70,6 +96,29 @@ const ReferralsTab = ({ referrals }: ReferralsTabProps) => {
     }
   };
 
+  const handleDeleteReferral = async () => {
+    if (!referralToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('referrals')
+        .delete()
+        .eq('id', referralToDelete.id);
+
+      if (error) throw error;
+
+      toast.success("Indicação excluída com sucesso.");
+      setDeleteModalOpen(false);
+      setReferralToDelete(null);
+      refetchData(); // Recarrega a lista de indicações
+    } catch (error) {
+      console.error("Erro ao excluir indicação:", error);
+      toast.error("Falha ao excluir indicação.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <>
       <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
@@ -81,6 +130,7 @@ const ReferralsTab = ({ referrals }: ReferralsTabProps) => {
               <TableHead>Indicador</TableHead>
               <TableHead>Data</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -100,8 +150,18 @@ const ReferralsTab = ({ referrals }: ReferralsTabProps) => {
                 <TableCell>
                   <Badge variant="secondary" className="capitalize">{r.status}</Badge>
                 </TableCell>
+                <TableCell className="text-right">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-destructive hover:bg-destructive/10"
+                    onClick={() => { setReferralToDelete(r); setDeleteModalOpen(true); }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
-            )) : <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">Nenhuma indicação pendente.</TableCell></TableRow>}
+            )) : <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">Nenhuma indicação pendente.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
@@ -154,6 +214,32 @@ const ReferralsTab = ({ referrals }: ReferralsTabProps) => {
           </Button>
         </div>
       </div>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Excluir Indicação
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Você tem certeza que deseja excluir a indicação de <strong>{referralToDelete?.referred_name || referralToDelete?.referred_phone}</strong>?
+              <br/><br/>
+              Esta ação é irreversível e removerá o registro da indicação.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="ghost" onClick={() => setDeleteModalOpen(false)} disabled={isDeleting}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteReferral} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirmar Exclusão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

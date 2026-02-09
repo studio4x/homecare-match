@@ -13,6 +13,7 @@ const ReferralsPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Usando a estratégia CLIENT-SIDE que implementamos para evitar erros RPC
       const { data: referralsData, error: referralsError } = await supabase
         .from('referrals')
         .select('*')
@@ -71,7 +72,7 @@ const ReferralsPage = () => {
         <h1 className="text-3xl font-bold tracking-tight">Indicações</h1>
         <p className="text-muted-foreground">Acompanhe o programa de "Indique e Ganhe".</p>
       </div>
-      <ReferralsTab referrals={referrals} />
+      <ReferralsTab referrals={referrals} refetchData={fetchData} />
     </div>
   );
 };

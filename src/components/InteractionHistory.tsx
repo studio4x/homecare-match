@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, ArrowRight, Trash2, Building2, Home, Eye, Star, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
+import { Users, Eye, Star, CheckCircle2, Loader2, Clock, AlertCircle } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -84,29 +84,32 @@ const InteractionHistory = ({
   const [profileToReview, setProfileToReview] = useState<Interaction['profile'] | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
-  const handleStatusUpdate = async (interactionId: string) => {
+  const handleStatusUpdate = async (interactionId: string, currentStatus: string) => {
     setIsUpdatingStatus(interactionId);
+    
+    let newStatus = 'pending';
+    const isProf = viewerRole === 'professional';
+
+    if (isProf) {
+      newStatus = currentStatus === 'sender_confirmed' ? 'completed' : 'professional_confirmed';
+    } else {
+      newStatus = currentStatus === 'professional_confirmed' ? 'completed' : 'sender_confirmed';
+    }
+
     try {
       const { error } = await supabase
         .from('interactions')
-        .update({ status: 'completed' })
+        .update({ status: newStatus })
         .eq('id', interactionId);
       
-      if (error) {
-        if (error.message.includes("column \"status\" does not exist")) {
-           toast.error("Configuração pendente", {
-             description: "A funcionalidade de confirmação requer uma atualização no banco de dados. Por favor, solicite a sincronização ao administrador."
-           });
-           return;
-        }
-        throw error;
-      }
+      if (error) throw error;
       
-      toast.success("Atendimento confirmado! Você já pode avaliar.");
-      window.location.reload();
-    } catch (err) {
+      toast.success(newStatus === 'completed' ? "Atendimento concluído com sucesso!" : "Sua confirmação foi registrada.");
+      // Pequeno delay para o usuário ver o toast antes do reload
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao confirmar atendimento.");
+      toast.error("Erro ao atualizar status.");
     } finally {
       setIsUpdatingStatus(null);
     }
@@ -139,6 +142,76 @@ const InteractionHistory = ({
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
+  const renderStatusButton = (interaction: Interaction) => {
+    const status = interaction.status || 'pending';
+    const isProf = viewerRole === 'professional';
+    const interactionId = interaction.id!;
+
+    // Caso: Atendimento Finalizado
+    if (status === 'completed') {
+      return (
+        <div className="flex items-center gap-2">
+          <Badge className="bg-success text-white hover:bg-success">
+            <CheckCircle2 className="h-3 w-3 mr-1" /> Realizado
+          </Badge>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => handleReviewClick(interaction.profile)} 
+            className="gap-1.5 h-8 border-yellow-500/50 text-yellow-600 hover:bg-yellow-50"
+          >
+            <Star className="h-4 w-4" /> <span className="text-xs">Avaliar</span>
+          </Button>
+        </div>
+      );
+    }
+
+    // Caso: Sou profissional e já confirmei
+    if (isProf && status === 'professional_confirmed') {
+      return (
+        <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 h-8">
+          <Clock className="h-3 w-3 mr-1" /> Aguardando Contratante
+        </Badge>
+      );
+    }
+
+    // Caso: Sou contratante e já confirmei
+    if (!isProf && status === 'sender_confirmed') {
+      return (
+        <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 h-8">
+          <Clock className="h-3 w-3 mr-1" /> Aguardando Profissional
+        </Badge>
+      );
+    }
+
+    // Caso: Outra parte confirmou e eu preciso confirmar
+    const needsMyConfirmation = (isProf && status === 'sender_confirmed') || (!isProf && status === 'professional_confirmed');
+    
+    return (
+      <Button 
+        variant={needsMyConfirmation ? "default" : "outline"}
+        size="sm" 
+        onClick={() => handleStatusUpdate(interactionId, status)} 
+        disabled={isUpdatingStatus === interactionId}
+        className={cn(
+          "gap-1.5 h-8",
+          needsMyConfirmation ? "bg-primary" : "border-success/30 text-success hover:bg-success/5"
+        )}
+      >
+        {isUpdatingStatus === interactionId ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : needsMyConfirmation ? (
+          <AlertCircle className="h-3 w-3" />
+        ) : (
+          <CheckCircle2 className="h-3 w-3" />
+        )}
+        <span className="text-xs">
+          {needsMyConfirmation ? "Confirmar Atendimento" : "Atendimento Realizado"}
+        </span>
+      </Button>
+    );
+  };
+
   return (
     <>
       <Card className="shadow-card flex flex-col">
@@ -146,7 +219,7 @@ const InteractionHistory = ({
           <CardTitle>{title}</CardTitle>
           {totalItems > 0 && !loading && (
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-destructive" onClick={onClear}>
-              <Trash2 className="h-3 w-3 mr-1" />
+              <Users className="h-3 w-3 mr-1" />
               Limpar Lista
             </Button>
           )}
@@ -161,58 +234,42 @@ const InteractionHistory = ({
                 </div>
               ))
             ) : interactions.length > 0 ? (
-              interactions.map(({ id: interactionId, interacted_at, status, profile }) => (
-                <div key={profile.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg p-3 hover:bg-secondary/50 transition-colors border sm:border-0">
+              interactions.map((interaction) => (
+                <div key={interaction.profile.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg p-3 hover:bg-secondary/50 transition-colors border sm:border-0">
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <Avatar className="h-12 w-12 shrink-0">
-                      <AvatarImage src={profile.avatar_url} />
-                      <AvatarFallback>{getInitials(profile.full_name)}</AvatarFallback>
+                      <AvatarImage src={interaction.profile.avatar_url} />
+                      <AvatarFallback>{getInitials(interaction.profile.full_name)}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-foreground truncate max-w-[150px]">{profile.full_name}</p>
-                        {profile.role && profile.role !== 'professional' && (
-                          <Badge variant={profile.role === 'company' ? "secondary" : "outline"} className="capitalize flex items-center gap-1 text-xs whitespace-nowrap">
-                            {profile.role === 'company' ? <><Building2 className="h-3 w-3" /> Empresa</> : <><Home className="h-3 w-3" /> Família</>}
+                        <p className="font-semibold text-foreground truncate max-w-[150px]">{interaction.profile.full_name}</p>
+                        {interaction.profile.role && interaction.profile.role !== 'professional' && (
+                          <Badge variant={interaction.profile.role === 'company' ? "secondary" : "outline"} className="capitalize flex items-center gap-1 text-xs whitespace-nowrap">
+                            {interaction.profile.role === 'company' ? "Empresa" : "Família"}
                           </Badge>
                         )}
-                        {status === 'completed' && <Badge className="bg-success text-[10px] h-4">Realizado</Badge>}
                       </div>
-                      <p className="text-xs text-muted-foreground">Contato em: {new Date(interacted_at).toLocaleDateString('pt-BR')}</p>
+                      <p className="text-xs text-muted-foreground">Contato em: {new Date(interaction.interacted_at).toLocaleDateString('pt-BR')}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                    {status === 'completed' ? (
-                      <Button variant="outline" size="sm" onClick={() => handleReviewClick(profile)} className="gap-1.5 h-8 border-yellow-500/50 text-yellow-600 hover:bg-yellow-50">
-                        <Star className="h-4 w-4" /> <span className="text-xs">Avaliar</span>
-                      </Button>
-                    ) : (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => interactionId && handleStatusUpdate(interactionId)} 
-                        disabled={isUpdatingStatus === interactionId}
-                        className="gap-1.5 h-8 border-success/30 text-success hover:bg-success/5"
-                      >
-                        {isUpdatingStatus === interactionId ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-                        <span className="text-xs">Atendimento Realizado</span>
-                      </Button>
-                    )}
+                    {renderStatusButton(interaction)}
 
                     {viewerRole === 'professional' ? (
-                      <Button variant="ghost" size="sm" onClick={() => handleViewProfileClick(profile)} className="gap-1.5 h-8">
+                      <Button variant="ghost" size="sm" onClick={() => handleViewProfileClick(interaction.profile)} className="gap-1.5 h-8">
                         <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Ver</span>
                       </Button>
                     ) : (
                       <Button variant="ghost" size="sm" asChild className="h-8">
-                        <Link to={`/profissional/${profile.id}`}>
+                        <Link to={`/profissional/${interaction.profile.id}`}>
                           <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
                         </Link>
                       </Button>
                     )}
                     
-                    <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
+                    <Button variant="default" size="sm" onClick={() => handleContactClick(interaction.profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
                       <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
                     </Button>
                   </div>
@@ -244,7 +301,7 @@ const InteractionHistory = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Informações de Contato</DialogTitle>
-            <DialogDescription>{viewerRole === 'professional' ? `Entre em contato com ${selectedContact?.full_name}.` : `Entre em contato com ${selectedContact?.full_name}.`}</DialogDescription>
+            <DialogDescription>Entre em contato com {selectedContact?.full_name}.</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="flex items-center gap-3 rounded-lg border p-4"><WhatsAppIcon className="h-6 w-6 text-green-600" /><div><p className="text-sm text-muted-foreground">WhatsApp</p><p className="font-semibold">{selectedContact?.phone || "Não informado"}</p></div></div>
@@ -263,7 +320,7 @@ const InteractionHistory = ({
             <div className="flex items-start gap-4">
               <Avatar className="h-16 w-16"><AvatarImage src={selectedProfile?.avatar_url} /><AvatarFallback className="text-lg">{getInitials(selectedProfile?.full_name || '')}</AvatarFallback></Avatar>
               <div className="flex-1"><DialogTitle className="text-xl">{selectedProfile?.full_name}</DialogTitle>
-                <Badge variant={selectedProfile?.role === 'company' ? "secondary" : "outline"} className="capitalize flex items-center gap-1 text-xs mt-1">{selectedProfile?.role === 'company' ? <><Building2 className="h-3 w-3" /> Empresa</> : <><Home className="h-3 w-3" /> Família</>}</Badge>
+                <Badge variant={selectedProfile?.role === 'company' ? "secondary" : "outline"} className="capitalize flex items-center gap-1 text-xs mt-1">{selectedProfile?.role === 'company' ? "Empresa" : "Família"}</Badge>
               </div>
             </div>
           </DialogHeader>

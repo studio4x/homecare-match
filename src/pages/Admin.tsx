@@ -89,32 +89,51 @@ const Admin = () => {
       setAllUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
       
-      // Tratamento de erro específico para a função RPC de referências
-      let formattedReferrals = [];
+      // Nova estratégia: Query direta em vez de RPC para evitar erros de API
+      let formattedReferrals: any[] = [];
       try {
-        // Agora usamos a nova função que retorna JSON
-        const { data: referralsJson, error: referralsError } = await supabase.rpc('get_referrals_json');
-        
+        // 1. Buscar todas as indicações
+        const { data: referralsData, error: referralsError } = await supabase
+          .from('referrals')
+          .select('*')
+          .order('created_at', { ascending: false });
+
         if (referralsError) throw referralsError;
-        
-        // O retorno já é um array de objetos (ou null se vazio, mas tratamos com [])
-        const rawData = referralsJson || [];
-        
-        formattedReferrals = rawData.map((r: any) => ({
-          id: r.id,
-          referrer_id: r.referrer_id,
-          referred_name: r.referred_name,
-          referred_phone: r.referred_phone,
-          status: r.status,
-          created_at: r.created_at,
-          referrer: {
-            full_name: r.referrer_full_name,
-            email: r.referrer_email
+
+        if (referralsData && referralsData.length > 0) {
+          // 2. Coletar IDs únicos dos indicadores
+          const referrerIds = Array.from(new Set(referralsData.map((r: any) => r.referrer_id).filter(Boolean)));
+
+          // 3. Buscar perfis desses indicadores
+          let profilesMap = new Map();
+          if (referrerIds.length > 0) {
+            const { data: profilesData, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, full_name, email')
+              .in('id', referrerIds);
+            
+            if (!profilesError && profilesData) {
+              profilesData.forEach((p: any) => profilesMap.set(p.id, p));
+            }
           }
-        }));
+
+          // 4. Cruzar os dados localmente
+          formattedReferrals = referralsData.map((r: any) => ({
+            id: r.id,
+            referrer_id: r.referrer_id,
+            referred_name: r.referred_name,
+            referred_phone: r.referred_phone,
+            status: r.status,
+            created_at: r.created_at,
+            referrer: r.referrer_id ? {
+              full_name: profilesMap.get(r.referrer_id)?.full_name || 'Usuário não encontrado',
+              email: profilesMap.get(r.referrer_id)?.email || 'N/A'
+            } : { full_name: 'Sistema', email: '' }
+          }));
+        }
       } catch (error) {
-        console.error("[Admin] Falha ao carregar indicações (RPC):", error);
-        // Silenciamos o toast para não incomodar se a função ainda estiver propagando
+        console.error("[Admin] Falha ao carregar indicações (Query Direta):", error);
+        toast.error("Falha ao carregar a lista de indicações.");
         formattedReferrals = [];
       }
       

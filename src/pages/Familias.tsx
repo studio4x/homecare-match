@@ -214,9 +214,8 @@ const Familias = () => {
                 {!canUseSpecialtySearch && !isLoadingStats && (
                   <div className="mb-4 rounded-lg border border-border bg-secondary/30 p-3">
                     <p className="text-xs text-muted-foreground">
-                      Filtros por especialidade estarão disponíveis quando tivermos
-                      mais profissionais cadastrados. Por enquanto, use a busca
-                      geral.
+                      Para uma experiência completa, recomendamos usar a busca geral
+                      e explorar os filtros na próxima tela.
                     </p>
                   </div>
                 )}

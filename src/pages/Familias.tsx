@@ -52,9 +52,7 @@ const Familias = () => {
     { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
   ];
 
-  const { data: stats, isLoading: isLoadingStats } = useProfessionalStats(
-    featuredSpecialties.map((s) => s.value)
-  );
+  const { data: stats, isLoading: isLoadingStats } = useProfessionalStats();
 
   const canUseSpecialtySearch = (stats?.total ?? 0) >= 10;
 

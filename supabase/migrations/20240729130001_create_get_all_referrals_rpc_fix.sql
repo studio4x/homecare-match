@@ -28,3 +28,6 @@ AS $$
   ORDER BY
     r.created_at DESC;
 $$;
+
+-- Concede permissão de execução para o papel 'authenticated'
+GRANT EXECUTE ON FUNCTION public.get_all_referrals_with_details() TO authenticated;

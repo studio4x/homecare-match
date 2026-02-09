@@ -70,6 +70,7 @@ const Admin = () => {
   const [plans, setPlans] = useState<any[]>([]);
   const [referralTiers, setReferralTiers] = useState<any[]>([]);
   const [isLoadingTiers, setIsLoadingTiers] = useState(false);
+  const [referrals, setReferrals] = useState<any[]>([]);
   
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -145,15 +146,20 @@ const Admin = () => {
 
   const fetchData = async () => {
     try {
-      const [pendingRes, usersRes, plansRes] = await Promise.all([
+      const [pendingRes, usersRes, plansRes, referralsRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("verification_sent", true).eq("is_verified", false),
         supabase.from("profiles").select("*").order('updated_at', { ascending: false }),
-        supabase.from("plans").select("*").order('price', { ascending: true })
+        supabase.from("plans").select("*").order('price', { ascending: true }),
+        supabase.from("referrals").select(`
+          *,
+          referrer:referrer_id (full_name, email)
+        `).order('created_at', { ascending: false })
       ]);
       
       setPendingProfiles(pendingRes.data || []);
       setAllUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
+      setReferrals(referralsRes.data || []);
       
       // fetch referral tiers via edge function
       setIsLoadingTiers(true);
@@ -676,7 +682,40 @@ const Admin = () => {
             </TabsContent>
 
             <TabsContent value="referrals">
-              <div className="rounded-xl border bg-card shadow-sm p-6 space-y-4">
+              <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Indicado</TableHead>
+                      <TableHead>WhatsApp</TableHead>
+                      <TableHead>Indicador</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {referrals.length > 0 ? referrals.map(r => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.referred_name || 'Não informado'}</TableCell>
+                        <TableCell>
+                          <a href={`https://wa.me/${r.referred_phone}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                            {r.referred_phone}
+                          </a>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{r.referrer?.full_name || 'N/A'}</div>
+                          <div className="text-xs text-muted-foreground">{r.referrer?.email}</div>
+                        </TableCell>
+                        <TableCell>{new Date(r.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">{r.status}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    )) : <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">Nenhuma indicação pendente.</TableCell></TableRow>}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="rounded-xl border bg-card shadow-sm p-6 space-y-4 mt-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold flex items-center gap-2">
                     <Award className="h-5 w-5 text-primary" />

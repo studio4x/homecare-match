@@ -27,7 +27,8 @@ import {
   Plus,
   Award,
   Trash2,
-  ShieldAlert
+  ShieldAlert,
+  MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -100,6 +101,7 @@ const ReferralsTab = ({ referrals, refetchData }: ReferralsTabProps) => {
     if (!referralToDelete) return;
     setIsDeleting(true);
     try {
+      // Ação de exclusão no banco de dados
       const { error } = await supabase
         .from('referrals')
         .delete()
@@ -117,6 +119,12 @@ const ReferralsTab = ({ referrals, refetchData }: ReferralsTabProps) => {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const getWhatsappLink = (phone: string, name: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    const message = encodeURIComponent(`Olá ${name || 'profissional'}, sou da equipe HomeCare Match. Recebemos sua indicação e gostaríamos de te ajudar a se cadastrar na plataforma!`);
+    return `https://wa.me/${cleanPhone}?text=${message}`;
   };
 
   return (
@@ -150,11 +158,26 @@ const ReferralsTab = ({ referrals, refetchData }: ReferralsTabProps) => {
                 <TableCell>
                   <Badge variant="secondary" className="capitalize">{r.status}</Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right whitespace-nowrap">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-success hover:bg-success/10 mr-2 h-8 gap-1"
+                    asChild
+                  >
+                    <a 
+                      href={getWhatsappLink(r.referred_phone, r.referred_name || '')} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      WhatsApp
+                    </a>
+                  </Button>
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="text-destructive hover:bg-destructive/10"
+                    className="text-destructive hover:bg-destructive/10 h-8"
                     onClick={() => { setReferralToDelete(r); setDeleteModalOpen(true); }}
                   >
                     <Trash2 className="h-4 w-4" />

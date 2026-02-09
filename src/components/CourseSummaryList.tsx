@@ -61,19 +61,23 @@ const CourseSummaryList: React.FC<CourseSummaryListProps> = ({ title, items, per
           {paginated.map((c) => (
             <Card key={c.slug} className="overflow-hidden">
               <CardContent className="p-3 flex items-center gap-3">
-                {c.hero ? (
-                  <img src={c.hero} alt={c.title} className="h-14 w-20 object-cover rounded-md border" />
-                ) : (
-                  <div className="h-14 w-20 rounded-md border bg-secondary/50" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h5 className="font-medium truncate">{c.title}</h5>
-                    <span className="text-xs text-muted-foreground">{c.progressPct}%</span>
-                  </div>
-                  <Progress value={c.progressPct} />
+                {/* Imagem oculta no mobile (hidden), visível apenas em telas maiores (sm:block) */}
+                <div className="hidden sm:block shrink-0">
+                  {c.hero ? (
+                    <img src={c.hero} alt={c.title} className="h-14 w-20 object-cover rounded-md border" />
+                  ) : (
+                    <div className="h-14 w-20 rounded-md border bg-secondary/50" />
+                  )}
                 </div>
-                <Button asChild size="sm">
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <h5 className="font-medium truncate text-sm">{c.title}</h5>
+                    <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{c.progressPct}%</span>
+                  </div>
+                  <Progress value={c.progressPct} className="h-1.5" />
+                </div>
+                <Button asChild size="sm" className="h-8 text-xs">
                   <Link to={`/cursos/${c.slug}`}>Abrir</Link>
                 </Button>
               </CardContent>

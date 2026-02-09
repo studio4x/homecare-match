@@ -23,9 +23,15 @@ const AcademyPage = () => {
     setLoading(true);
     try {
       const { data: enrolls } = await supabase.from("academy_enrollments").select("course_slug").eq("user_id", user.id);
+      const { data: certs } = await supabase.from("certificates").select("id, course_slug").eq("user_id", user.id);
+      
+      const certMap = new Map();
+      (certs || []).forEach(c => certMap.set(c.course_slug, c.id));
+
       const slugs = (enrolls || []).map((e: any) => e.course_slug);
       const sArr = [];
       const cArr = [];
+      
       for (const slug of slugs) {
         const { data: courseData } = await supabase.from("academy_courses").select("slug,title,hero_asset_url").eq("slug", slug).maybeSingle();
         if (!courseData) continue;
@@ -38,7 +44,13 @@ const AcademyPage = () => {
         }
         const { count: done } = await supabase.from("academy_progress").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("course_slug", slug).eq("status", "completed");
         const progressPct = total > 0 ? Math.round(((done || 0) / total) * 100) : 0;
-        const item = { slug: courseData.slug, title: courseData.title, hero: courseData.hero_asset_url || "", progressPct };
+        const item = { 
+          slug: courseData.slug, 
+          title: courseData.title, 
+          hero: courseData.hero_asset_url || "", 
+          progressPct,
+          certificateId: certMap.get(slug) || null
+        };
         if (total > 0 && (done || 0) >= total) cArr.push(item); else sArr.push(item);
       }
       setStarted(sArr);

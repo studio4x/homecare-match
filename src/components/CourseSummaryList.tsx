@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Award } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export interface CourseSummary {
@@ -12,6 +12,7 @@ export interface CourseSummary {
   title: string;
   hero?: string;
   progressPct: number;
+  certificateId?: string | null;
 }
 
 interface CourseSummaryListProps {
@@ -37,23 +38,17 @@ const CourseSummaryList: React.FC<CourseSummaryListProps> = ({ title, items, per
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="font-semibold">{title}</h4>
-        {totalPages > 1 ? (
+        {totalPages > 1 && (
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={prevPage} disabled={page === 1}>
-              Anterior
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              Página {page} de {totalPages}
-            </span>
-            <Button variant="outline" size="sm" onClick={nextPage} disabled={page === totalPages}>
-              Próxima
-            </Button>
+            <Button variant="outline" size="sm" onClick={prevPage} disabled={page === 1}>Anterior</Button>
+            <span className="text-xs text-muted-foreground">Página {page} de {totalPages}</span>
+            <Button variant="outline" size="sm" onClick={nextPage} disabled={page === totalPages}>Próxima</Button>
           </div>
-        ) : null}
+        )}
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando cursos...</div>
+        <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</div>
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhum curso encontrado.</p>
       ) : (
@@ -61,7 +56,6 @@ const CourseSummaryList: React.FC<CourseSummaryListProps> = ({ title, items, per
           {paginated.map((c) => (
             <Card key={c.slug} className="overflow-hidden">
               <CardContent className="p-3 flex items-center gap-3">
-                {/* Imagem oculta no mobile (hidden), visível apenas em telas maiores (sm:block) */}
                 <div className="hidden sm:block shrink-0">
                   {c.hero ? (
                     <img src={c.hero} alt={c.title} className="h-14 w-20 object-cover rounded-md border" />
@@ -77,9 +71,17 @@ const CourseSummaryList: React.FC<CourseSummaryListProps> = ({ title, items, per
                   </div>
                   <Progress value={c.progressPct} className="h-1.5" />
                 </div>
-                <Button asChild size="sm" className="h-8 text-xs">
-                  <Link to={`/cursos/${c.slug}`}>Abrir</Link>
-                </Button>
+
+                <div className="flex gap-2">
+                  {c.certificateId && (
+                    <Button asChild size="sm" variant="outline" className="h-8 text-xs border-yellow-600/30 text-yellow-700 hover:bg-yellow-50">
+                      <Link to={`/certificado/${c.certificateId}`} target="_blank"><Award className="h-3 w-3 mr-1" /> Certificado</Link>
+                    </Button>
+                  )}
+                  <Button asChild size="sm" className="h-8 text-xs">
+                    <Link to={`/cursos/${c.slug}`}>{c.progressPct === 100 ? "Rever" : "Abrir"}</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}

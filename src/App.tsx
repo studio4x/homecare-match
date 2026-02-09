@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import Courses from "./pages/Courses";
 import CourseDetail from "./pages/CourseDetail";
 import ReferralLanding from "./pages/ReferralLanding";
+import CertificateView from "./pages/CertificateView";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="/recruiter/:id" element={<RecruiterProfile />} />
               <Route path="/cursos" element={<Courses />} />
               <Route path="/cursos/:slug" element={<CourseDetail />} />
+              <Route path="/certificado/:id" element={<CertificateView />} />
 
               {/* Novo Painel do Usuário (Aninhado) */}
               <Route path="/dashboard" element={<UserLayout />}>

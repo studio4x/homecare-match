@@ -79,31 +79,42 @@ const Admin = () => {
 
   const fetchData = async () => {
     try {
-      const [pendingRes, usersRes, plansRes, referralsRpc] = await Promise.all([
+      const [pendingRes, usersRes, plansRes] = await Promise.all([
         supabase.from("profiles").select("id, full_name, email, id_document_url, prof_registration_url").eq("verification_sent", true).eq("is_verified", false),
         supabase.from("profiles").select("id, full_name, email, role, subscription_tier, is_verified, trial_started_at, updated_at").order('updated_at', { ascending: false }),
         supabase.from("plans").select("*").order('price', { ascending: true }),
-        supabase.rpc('get_all_referrals_with_details')
       ]);
       
       setPendingProfiles(pendingRes.data || []);
       setAllUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
       
-      if (referralsRpc.error) throw referralsRpc.error;
-      const formattedReferrals = (referralsRpc.data || []).map((r: any) => ({
-        id: r.id,
-        referrer_id: r.referrer_id,
-        referred_name: r.referred_name,
-        referred_phone: r.referred_phone,
-        status: r.status,
-        created_at: r.created_at,
-        referrer: {
-          full_name: r.referrer_full_name,
-          email: r.referrer_email
-        }
-      }));
+      // Tratamento de erro específico para a função RPC de referências
+      let formattedReferrals = [];
+      try {
+        const { data: referralsData, error: referralsError } = await supabase.rpc('get_all_referrals_with_details');
+        if (referralsError) throw referralsError;
+        
+        formattedReferrals = (referralsData || []).map((r: any) => ({
+          id: r.id,
+          referrer_id: r.referrer_id,
+          referred_name: r.referred_name,
+          referred_phone: r.referred_phone,
+          status: r.status,
+          created_at: r.created_at,
+          referrer: {
+            full_name: r.referrer_full_name,
+            email: r.referrer_email
+          }
+        }));
+      } catch (error) {
+        console.error("[Admin] Falha ao carregar indicações (RPC):", error);
+        toast.error("Falha ao carregar a lista de indicações. Verifique a função RPC no Supabase.");
+        formattedReferrals = [];
+      }
+      
       setReferrals(formattedReferrals);
+
     } catch (error) {
       console.error("[Admin] Erro fetch:", error);
       toast.error("Falha ao carregar alguns dados do painel.");

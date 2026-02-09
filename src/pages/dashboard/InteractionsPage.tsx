@@ -19,7 +19,12 @@ const InteractionsPage = () => {
     const load = async () => {
       if (!user) return;
       try {
-        const { data: prof } = await supabase.from('profiles').select('id, role').eq('id', user.id).single();
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('id, role')
+          .eq('id', user.id)
+          .single();
+        
         setProfile(prof);
         if (prof) {
           await fetchInteractions(user.id, prof.role);
@@ -35,32 +40,55 @@ const InteractionsPage = () => {
 
   const fetchInteractions = async (userId: string, userRole: string) => {
     try {
-      const profileColumns = 'id, full_name, avatar_url, specialty, role, phone, bio, city, state, neighborhood';
+      const profileFields = 'id, full_name, avatar_url, specialty, role, phone, bio, city, state, neighborhood';
       
-      // Realizamos a busca inicial
-      const initialQuery = userRole === 'professional' 
-        ? supabase.from('interactions').select(`id, created_at, status, sender:sender_id (${profileColumns})`).eq('professional_id', userId).order('created_at', { ascending: false })
-        : supabase.from('interactions').select(`id, created_at, status, professional:professional_id (${profileColumns})`).eq('sender_id', userId).order('created_at', { ascending: false });
+      // Tentativa 1: Busca com Status
+      const isProf = userRole === 'professional';
+      const targetTable = isProf ? 'sender_id' : 'professional_id';
+      const myTable = isProf ? 'professional_id' : 'sender_id';
 
-      let { data, error } = await initialQuery;
+      const { data, error } = await supabase
+        .from('interactions')
+        .select(`
+          id, 
+          created_at, 
+          status,
+          profiles!interactions_${targetTable}_fkey (${profileFields})
+        `)
+        .eq(myTable, userId)
+        .order('created_at', { ascending: false });
 
-      // Fallback caso a coluna status não exista
-      if (error && error.message.includes('column "status" does not exist')) {
-        console.warn("[InteractionsPage] Coluna 'status' não encontrada, tentando sem ela...");
-        const retryQuery = userRole === 'professional'
-          ? supabase.from('interactions').select(`id, created_at, sender:sender_id (${profileColumns})`).eq('professional_id', userId).order('created_at', { ascending: false })
-          : supabase.from('interactions').select(`id, created_at, professional:professional_id (${profileColumns})`).eq('sender_id', userId).order('created_at', { ascending: false });
+      let finalData: any[] | null = data;
+
+      // Fallback: Se a consulta acima falhar (provavelmente por causa do nome da FKey ou coluna status)
+      if (error) {
+        console.warn("[InteractionsPage] Consulta principal falhou, tentando fallback simplificado...", error.message);
         
-        const { data: retryData, error: retryError } = await retryQuery;
-        data = retryData as any;
-        error = retryError;
+        // Tentativa 2: Busca simplificada sem especificar a FKey (deixa o PostgREST decidir)
+        const { data: retryData, error: retryError } = await supabase
+          .from('interactions')
+          .select(`
+            id, 
+            created_at, 
+            profiles (${profileFields})
+          `)
+          .eq(myTable, userId)
+          .order('created_at', { ascending: false });
+
+        if (retryError) throw retryError;
+        finalData = retryData;
       }
 
-      if (error) throw error;
-      
+      if (!finalData) {
+        setInteractions([]);
+        return;
+      }
+
       const unique = new Map();
-      (data || []).forEach((item: any) => {
-        const p = item.sender || item.professional;
+      finalData.forEach((item: any) => {
+        // O perfil pode vir em um array ou objeto dependendo da relação
+        const p = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+        
         if (p && !unique.has(p.id)) {
           unique.set(p.id, { 
             id: item.id,
@@ -70,10 +98,11 @@ const InteractionsPage = () => {
           });
         }
       });
+
       setInteractions(Array.from(unique.values()));
-    } catch (err) {
-      console.error("[InteractionsPage] Erro ao buscar interações:", err);
-      toast.error("Não foi possível carregar sua lista de contatos.");
+    } catch (err: any) {
+      console.error("[InteractionsPage] Erro fatal ao buscar interações:", err);
+      toast.error("Erro ao carregar contatos. Por favor, recarregue a página.");
     }
   };
 

@@ -763,7 +763,7 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-secondary/20 py-8">
+      <div className="min-h-screen bg-secondary/20 py-8 overflow-x-hidden">
         <div className="container mx-auto px-4">
           <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h1 className="text-3xl font-bold flex items-center gap-3">

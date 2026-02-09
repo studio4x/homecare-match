@@ -384,6 +384,11 @@ const CoursesTab = () => {
                   <TableCell className="font-medium">{c.title}</TableCell>
                   <TableCell><Badge variant="outline" className="capitalize">{c.level}</Badge></TableCell>
                   <TableCell className="text-right flex justify-end gap-2">
+                    <Button variant="outline" size="sm" asChild className="gap-2">
+                      <Link to={`/cursos/${c.slug}`} target="_blank">
+                        <Eye size={14} /> Ver
+                      </Link>
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => handleOpenContent(c)}>Conteúdo</Button>
                     <Button variant="ghost" size="sm" onClick={() => handleEditCourse(c)}><Edit2 size={16} /></Button>
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setCourseToDelete(c); setShowDeleteConfirm(true); }}><Trash2 size={16} /></Button>
@@ -505,9 +510,21 @@ const CoursesTab = () => {
                       </div>
                     </div>
                   ))}
+                  {/* Botão Nova Aula no final da lista do módulo */}
+                  <div className="flex justify-center pt-2">
+                    <Button size="sm" variant="ghost" className="w-full border-dashed border-2 text-muted-foreground hover:text-primary hover:border-primary" onClick={() => addLesson(mi)}>
+                      <Plus size={14} className="mr-1" /> Adicionar Aula ao Módulo
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
+            {/* Botão Novo Módulo no final da lista geral */}
+            <div className="pb-10">
+              <Button variant="outline" className="w-full border-dashed border-2 h-14 text-muted-foreground hover:text-primary hover:border-primary" onClick={addModule}>
+                <Plus size={18} className="mr-2" /> Novo Módulo
+              </Button>
+            </div>
           </div>
           <div className="p-4 border-t flex justify-end gap-2">
             <Button variant="ghost" onClick={attemptCloseContentDialog}>Fechar</Button>

@@ -77,38 +77,38 @@ const CoursesTab = () => {
   const [modules, setModules] = useState<Module[]>([]);
   const [isSavingContent, setIsSavingContent] = useState<boolean>(false);
   const [uploadingLessonId, setUploadingLessonId] = useState<string | null>(null);
-  const MAX_FILE_SIZE_MB = 50; // limite para evitar erro de tamanho do Supabase Storage
+  const MAX_FILE_SIZE_MB = 50; 
   const [selectedModuleIdx, setSelectedModuleIdx] = useState<number | null>(null);
   const [selectedLessonIdx, setSelectedLessonIdx] = useState<number | null>(null);
   const [originalModules, setOriginalModules] = useState<Module[]>([]);
   const [isContentDirty, setIsContentDirty] = useState<boolean>(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState<boolean>(false);
 
+  // Exclusão
+  const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+
   const heroRef = useRef<HTMLInputElement>(null);
   const materialRef = useRef<HTMLInputElement>(null);
 
-  // Placeholder dinâmico conforme tipo da aula
   const getResourcePlaceholder = (type: Lesson["type"]) => {
     if (type === "video") return "Link do vídeo (externo) ou será preenchido ao enviar arquivo";
     if (type === "pdf") return "Link do PDF (externo) ou será preenchido ao enviar arquivo";
     return "Cole aqui o link externo do recurso";
   };
 
-  // Helper: extrai a duração do vídeo (em minutos) a partir do arquivo enviado
   const getVideoDurationMinutes = (file: File): Promise<number> => {
     return new Promise((resolve) => {
       const video = document.createElement("video");
       video.preload = "metadata";
       const url = URL.createObjectURL(file);
       video.src = url;
-
       video.onloadedmetadata = () => {
         const seconds = video.duration;
         URL.revokeObjectURL(url);
         const minutes = isFinite(seconds) ? Math.max(1, Math.round(seconds / 60)) : 0;
         resolve(minutes);
       };
-
       video.onerror = () => {
         URL.revokeObjectURL(url);
         resolve(0);
@@ -156,6 +156,29 @@ const CoursesTab = () => {
     setOpenDialog(true);
   };
 
+  const handleDeleteCourse = async () => {
+    if (!courseToDelete) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("academy_courses")
+        .delete()
+        .eq("slug", courseToDelete.slug);
+      
+      if (error) throw error;
+      
+      toast.success("Curso removido permanentemente!");
+      setShowDeleteConfirm(false);
+      setCourseToDelete(null);
+      fetchCourses();
+    } catch (e) {
+      console.error("[CoursesTab] Erro ao deletar:", e);
+      toast.error("Falha ao remover curso.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleUploadHero = async (file: File) => {
     if (!selectedCourse?.slug) {
       toast.error("Defina o slug antes de enviar a capa.");
@@ -184,12 +207,10 @@ const CoursesTab = () => {
 
   const handleSaveCourse = async () => {
     if (!selectedCourse) return;
-
     if (!selectedCourse.slug || !selectedCourse.title) {
       toast.error("Preencha ao menos slug e título.");
       return;
     }
-
     setIsSaving(true);
     try {
       const payload: Course = {
@@ -256,7 +277,6 @@ const CoursesTab = () => {
     }
   };
 
-  // Detecta se houve alterações não salvas
   useEffect(() => {
     const current = JSON.stringify(modules);
     const baseline = JSON.stringify(originalModules);
@@ -285,7 +305,6 @@ const CoursesTab = () => {
   const removeModule = async (idx: number) => {
     const mod = modules[idx];
     setModules((prev) => prev.filter((_, i) => i !== idx));
-    // Se existir no banco, remover
     if (mod?.id) {
       const { error } = await supabase.from("academy_modules").delete().eq("id", mod.id);
       if (error) {
@@ -321,7 +340,6 @@ const CoursesTab = () => {
     const nextModules = [...modules];
     nextModules[moduleIdx] = { ...mod, lessons: nextLessons };
     setModules(nextModules);
-    // Se existir no banco, remover
     if (lesson?.id) {
       const { error } = await supabase.from("academy_lessons").delete().eq("id", lesson.id);
       if (error) {
@@ -339,10 +357,9 @@ const CoursesTab = () => {
 
     setUploadingLessonId(lesson.id);
 
-    // Validação de tamanho do arquivo
     const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
     if (file.size > maxBytes) {
-      toast.error(`Arquivo muito grande (${Math.round(file.size / 1024 / 1024)}MB). Limite: ${MAX_FILE_SIZE_MB}MB. Compacte o vídeo antes de enviar.`);
+      toast.error(`Arquivo muito grande (${Math.round(file.size / 1024 / 1024)}MB). Limite: ${MAX_FILE_SIZE_MB}MB.`);
       setUploadingLessonId(null);
       return;
     }
@@ -356,10 +373,8 @@ const CoursesTab = () => {
       const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
 
-      // Preenche o caminho do arquivo no campo visual
       let updatedLesson = { ...lesson, resource_url: path, storage_path: path, mime_type: file.type };
 
-      // Se for vídeo, extrai a duração automaticamente
       if (lesson.type === "video") {
         const minutes = await getVideoDurationMinutes(file);
         if (minutes > 0) {
@@ -372,8 +387,7 @@ const CoursesTab = () => {
       const nextModules = [...modules];
       nextModules[selectedModuleIdx] = { ...mod, lessons: nextLessons };
       setModules(nextModules);
-
-      toast.success("Material enviado com sucesso!");
+      toast.success("Material enviado!");
     } catch (e) {
       console.error("[CoursesTab] Upload material error:", e);
       toast.error("Falha ao enviar material.");
@@ -385,7 +399,6 @@ const CoursesTab = () => {
     }
   };
 
-  // Tenta fechar: se houver alterações, pede confirmação
   const attemptCloseContentDialog = () => {
     if (isContentDirty) {
       setShowCloseConfirm(true);
@@ -398,12 +411,8 @@ const CoursesTab = () => {
     if (!selectedCourse) return;
     setIsSavingContent(true);
     try {
-      // Garante estrutura atualizada
-      await supabase.functions.invoke('academy-migrate', {
-        body: { action: 'create_tables' }
-      });
+      await supabase.functions.invoke('academy-migrate', { body: { action: 'create_tables' } });
 
-      // Upsert módulos
       const modPayloads = modules.map((m) => ({
         id: m.id,
         course_slug: m.course_slug,
@@ -416,7 +425,6 @@ const CoursesTab = () => {
         if (modErr) throw modErr;
       }
 
-      // Upsert aulas — enviar apenas colunas já existentes e seguras
       const lessonPayloads = modules.flatMap((m) =>
         m.lessons.map((l) => ({
           id: l.id,
@@ -424,7 +432,7 @@ const CoursesTab = () => {
           title: l.title,
           type: l.type,
           duration_minutes: l.duration_minutes ?? 0,
-          resource_url: l.resource_url || "",  // usamos o caminho do arquivo aqui
+          resource_url: l.resource_url || "",
           position: l.position ?? 1,
         }))
       );
@@ -434,7 +442,7 @@ const CoursesTab = () => {
         if (lessonErr) throw lessonErr;
       }
 
-      toast.success("Conteúdo salvo no banco!");
+      toast.success("Conteúdo salvo!");
       setOriginalModules(modules);
       setIsContentDirty(false);
       setOpenContentDialog(false);
@@ -460,11 +468,7 @@ const CoursesTab = () => {
               onClick={async () => {
                 toast.info("Configurando storage seguro...");
                 const { error } = await supabase.functions.invoke("academy-storage-setup", { body: { action: "setup" } });
-                if (error) {
-                  toast.error("Erro ao configurar storage.");
-                } else {
-                  toast.success("Storage privado configurado!");
-                }
+                if (error) toast.error("Erro ao configurar storage."); else toast.success("Storage privado configurado!");
               }}
             >
               Configurar Storage Seguro
@@ -491,25 +495,18 @@ const CoursesTab = () => {
                   <TableRow key={c.slug}>
                     <TableCell className="font-medium">{c.title}</TableCell>
                     <TableCell className="text-muted-foreground">{c.slug}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="capitalize">{c.level || "iniciante"}</Badge>
-                    </TableCell>
+                    <TableCell><Badge variant="secondary" className="capitalize">{c.level || "iniciante"}</Badge></TableCell>
                     <TableCell>{c.duration_minutes ? `${c.duration_minutes} min` : "-"}</TableCell>
-                    <TableCell>
-                      <Badge className={c.is_active ? "bg-success" : "bg-muted text-muted-foreground"}>{c.is_active ? "Ativo" : "Inativo"}</Badge>
-                    </TableCell>
+                    <TableCell><Badge className={c.is_active ? "bg-success" : "bg-muted text-muted-foreground"}>{c.is_active ? "Ativo" : "Inativo"}</Badge></TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleOpenContent(c)}>
-                          <Edit2 className="h-4 w-4" /> Conteúdo
-                        </Button>
-                        <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleEditCourse(c)}>
-                          <Edit2 className="h-4 w-4" /> Editar
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenContent(c)}>Conteúdo</Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditCourse(c)}>Editar</Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => { setCourseToDelete(c); setShowDeleteConfirm(true); }}>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                         <Button variant="outline" size="sm" asChild>
-                          <Link to={`/cursos/${c.slug}`} target="_blank" rel="noreferrer">
-                            <Eye className="h-4 w-4 mr-1" /> Visualizar
-                          </Link>
+                          <Link to={`/cursos/${c.slug}`} target="_blank" rel="noreferrer"><Eye className="h-4 w-4 mr-1" /> Ver</Link>
                         </Button>
                       </div>
                     </TableCell>
@@ -525,149 +522,72 @@ const CoursesTab = () => {
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{selectedCourse ? (selectedCourse.created_at ? "Editar Curso" : "Novo Curso") : "Curso"}</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{selectedCourse ? (selectedCourse.created_at ? "Editar Curso" : "Novo Curso") : "Curso"}</DialogTitle></DialogHeader>
           {selectedCourse && (
             <div className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Slug (único)</Label>
-                  <Input
-                    value={selectedCourse.slug}
-                    onChange={(e) => setSelectedCourse({ ...selectedCourse, slug: e.target.value.trim() })}
-                    disabled={!!selectedCourse.created_at}
-                    placeholder="ex: cuidados-feridas-rapido"
-                  />
+                  <Input value={selectedCourse.slug} onChange={(e) => setSelectedCourse({ ...selectedCourse, slug: e.target.value.trim() })} disabled={!!selectedCourse.created_at} placeholder="ex: cuidados-feridas" />
                 </div>
                 <div className="space-y-2">
                   <Label>Título</Label>
-                  <Input
-                    value={selectedCourse.title}
-                    onChange={(e) => setSelectedCourse({ ...selectedCourse, title: e.target.value })}
-                    placeholder="Ex: Cuidados com Feridas - Rápido"
-                  />
+                  <Input value={selectedCourse.title} onChange={(e) => setSelectedCourse({ ...selectedCourse, title: e.target.value })} placeholder="Ex: Cuidados com Feridas" />
                 </div>
               </div>
-
               <div className="space-y-2">
                 <Label>Descrição</Label>
-                <Textarea
-                  value={selectedCourse.description || ""}
-                  onChange={(e) => setSelectedCourse({ ...selectedCourse, description: e.target.value })}
-                  rows={4}
-                />
+                <Textarea value={selectedCourse.description || ""} onChange={(e) => setSelectedCourse({ ...selectedCourse, description: e.target.value })} rows={4} />
               </div>
-
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Nível</Label>
-                  <Select
-                    value={selectedCourse.level || "iniciante"}
-                    onValueChange={(v) => setSelectedCourse({ ...selectedCourse, level: v as CourseLevel })}
-                  >
+                  <Select value={selectedCourse.level || "iniciante"} onValueChange={(v) => setSelectedCourse({ ...selectedCourse, level: v as CourseLevel })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="iniciante">Iniciante</SelectItem>
-                      <SelectItem value="intermediario">Intermediário</SelectItem>
-                      <SelectItem value="avancado">Avançado</SelectItem>
-                    </SelectContent>
+                    <SelectContent><SelectItem value="iniciante">Iniciante</SelectItem><SelectItem value="intermediario">Intermediário</SelectItem><SelectItem value="avancado">Avançado</SelectItem></SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Duração (min)</Label>
-                  <Input
-                    type="number"
-                    value={selectedCourse.duration_minutes || 0}
-                    onChange={(e) => setSelectedCourse({ ...selectedCourse, duration_minutes: parseInt(e.target.value || "0", 10) })}
-                  />
+                  <Input type="number" value={selectedCourse.duration_minutes || 0} onChange={(e) => setSelectedCourse({ ...selectedCourse, duration_minutes: parseInt(e.target.value || "0", 10) })} />
                 </div>
                 <div className="space-y-2">
                   <Label>Status</Label>
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <span>Ativo</span>
-                    <Switch
-                      checked={!!selectedCourse.is_active}
-                      onCheckedChange={(checked) => setSelectedCourse({ ...selectedCourse, is_active: checked })}
-                    />
-                  </div>
+                  <div className="flex items-center justify-between rounded-lg border p-3"><span>Ativo</span><Switch checked={!!selectedCourse.is_active} onCheckedChange={(checked) => setSelectedCourse({ ...selectedCourse, is_active: checked })} /></div>
                 </div>
               </div>
-
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Capa (imagem)</Label>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => heroRef.current?.click()} disabled={isUploading}>
-                      {isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />}
-                      Enviar Capa
-                    </Button>
-                    <input ref={heroRef} type="file" className="hidden" accept="image/*" onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleUploadHero(file);
-                    }} />
+                    <Button variant="outline" size="sm" onClick={() => heroRef.current?.click()} disabled={isUploading}>{isUploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ImageIcon className="h-4 w-4 mr-2" />} Enviar Capa</Button>
+                    <input ref={heroRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadHero(file); }} />
                   </div>
-                  {selectedCourse.hero_asset_url ? (
-                    <div className="mt-2 border rounded-md p-2 bg-secondary/20">
-                      <img src={selectedCourse.hero_asset_url} alt="Capa" className="max-h-24 object-contain mx-auto" />
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">Nenhuma imagem enviada.</p>
-                  )}
+                  {selectedCourse.hero_asset_url && <div className="mt-2 border rounded-md p-2 bg-secondary/20"><img src={selectedCourse.hero_asset_url} alt="Capa" className="max-h-24 object-contain mx-auto" /></div>}
                 </div>
                 <div className="space-y-2">
                   <Label>Conteúdo principal (URL)</Label>
-                  <Input
-                    value={selectedCourse.content_url || ""}
-                    onChange={(e) => setSelectedCourse({ ...selectedCourse, content_url: e.target.value })}
-                    placeholder="Link para vídeo/PDF"
-                  />
+                  <Input value={selectedCourse.content_url || ""} onChange={(e) => setSelectedCourse({ ...selectedCourse, content_url: e.target.value })} placeholder="Link para vídeo/PDF" />
                 </div>
               </div>
-
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="ghost" onClick={() => setOpenDialog(false)}>Cancelar</Button>
-                <Button onClick={handleSaveCourse} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Salvar Curso
-                </Button>
+                <Button onClick={handleSaveCourse} disabled={isSaving}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Salvar Curso</Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      <Dialog open={openContentDialog} onOpenChange={(open) => {
-        if (!open) {
-          attemptCloseContentDialog();
-        } else {
-          setOpenContentDialog(true);
-        }
-      }}>
-        <DialogContent
-          className="sm:max-w-3xl"
-          onInteractOutside={(e) => {
-            if (isContentDirty) {
-              e.preventDefault();
-              setShowCloseConfirm(true);
-            }
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Gerenciar Conteúdo: {selectedCourse?.title}</DialogTitle>
-          </DialogHeader>
+      <Dialog open={openContentDialog} onOpenChange={(open) => { if (!open) attemptCloseContentDialog(); else setOpenContentDialog(true); }}>
+        <DialogContent className="sm:max-w-3xl" onInteractOutside={(e) => { if (isContentDirty) { e.preventDefault(); setShowCloseConfirm(true); } }}>
+          <DialogHeader><DialogTitle>Gerenciar Conteúdo: {selectedCourse?.title}</DialogTitle></DialogHeader>
           {selectedCourse && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <Button size="sm" onClick={addModule} className="gap-2">
-                  <Plus className="h-4 w-4" /> Adicionar Módulo
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleSaveContent} disabled={isSavingContent}>
-                  {isSavingContent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Salvar Conteúdo
-                </Button>
+                <Button size="sm" onClick={addModule} className="gap-2"><Plus className="h-4 w-4" /> Adicionar Módulo</Button>
+                <Button size="sm" variant="outline" onClick={handleSaveContent} disabled={isSavingContent}>{isSavingContent ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Salvar Conteúdo</Button>
               </div>
-
               {modules.length > 0 ? (
                 <div className="space-y-4">
                   {modules.map((m, mi) => (
@@ -676,176 +596,72 @@ const CoursesTab = () => {
                         <div className="grid md:grid-cols-2 gap-3 w-full">
                           <div className="space-y-2">
                             <Label>Título do Módulo</Label>
-                            <Input
-                              value={m.title}
-                              onChange={(e) => {
-                                const next = [...modules];
-                                next[mi] = { ...m, title: e.target.value };
-                                setModules(next);
-                              }}
-                            />
+                            <Input value={m.title} onChange={(e) => { const next = [...modules]; next[mi] = { ...m, title: e.target.value }; setModules(next); }} />
                           </div>
                           <div className="space-y-2">
                             <Label>Descrição</Label>
-                            <Input
-                              value={m.description || ""}
-                              onChange={(e) => {
-                                const next = [...modules];
-                                next[mi] = { ...m, description: e.target.value };
-                                setModules(next);
-                              }}
-                            />
+                            <Input value={m.description || ""} onChange={(e) => { const next = [...modules]; next[mi] = { ...m, description: e.target.value }; setModules(next); }} />
                           </div>
                         </div>
-                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeModule(mi)}>
-                          <Trash2 className="h-4 w-4" /> Remover
-                        </Button>
+                        <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeModule(mi)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
-
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-semibold">Aulas</h4>
-                        <Button size="sm" onClick={() => addLesson(mi)} className="gap-2">
-                          <Plus className="h-4 w-4" /> Adicionar Aula
-                        </Button>
-                      </div>
-
+                      <div className="flex items-center justify-between"><h4 className="text-sm font-semibold">Aulas</h4><Button size="sm" onClick={() => addLesson(mi)} className="gap-2"><Plus className="h-4 w-4" /> Aula</Button></div>
                       {(m.lessons || []).length > 0 ? (
                         <div className="space-y-3">
-                          {(m.lessons || []).map((l, li) => (
+                          {m.lessons.map((l, li) => (
                             <div key={l.id || li} className="grid md:grid-cols-4 gap-3 p-3 border rounded-md">
-                              <div className="space-y-2">
-                                <Label>Título</Label>
-                                <Input
-                                  value={l.title}
-                                  onChange={(e) => {
-                                    const next = [...modules];
-                                    const lessons = [...m.lessons];
-                                    lessons[li] = { ...l, title: e.target.value };
-                                    next[mi] = { ...m, lessons };
-                                    setModules(next);
-                                  }}
-                                />
-                              </div>
+                              <div className="space-y-2"><Label>Título</Label><Input value={l.title} onChange={(e) => { const next = [...modules]; const lessons = [...m.lessons]; lessons[li] = { ...l, title: e.target.value }; next[mi] = { ...m, lessons }; setModules(next); }} /></div>
                               <div className="space-y-2">
                                 <Label>Tipo</Label>
-                                <Select
-                                  value={l.type}
-                                  onValueChange={(v) => {
-                                    const next = [...modules];
-                                    const lessons = [...m.lessons];
-                                    lessons[li] = { ...l, type: v as Lesson["type"] };
-                                    next[mi] = { ...m, lessons };
-                                    setModules(next);
-                                  }}
-                                >
+                                <Select value={l.type} onValueChange={(v) => { const next = [...modules]; const lessons = [...m.lessons]; lessons[li] = { ...l, type: v as Lesson["type"] }; next[mi] = { ...m, lessons }; setModules(next); }}>
                                   <SelectTrigger><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="video">Vídeo</SelectItem>
-                                    <SelectItem value="pdf">PDF</SelectItem>
-                                    <SelectItem value="link">Link</SelectItem>
-                                  </SelectContent>
+                                  <SelectContent><SelectItem value="video">Vídeo</SelectItem><SelectItem value="pdf">PDF</SelectItem><SelectItem value="link">Link</SelectItem></SelectContent>
                                 </Select>
                               </div>
                               <div className="space-y-2">
-                                <Label>Recurso (Link/Arquivo)</Label>
-                                <Input
-                                  value={l.resource_url || ""}
-                                  onChange={(e) => {
-                                    const next = [...modules];
-                                    const lessons = [...m.lessons];
-                                    lessons[li] = { ...l, resource_url: e.target.value };
-                                    next[mi] = { ...m, lessons };
-                                    setModules(next);
-                                  }}
-                                  placeholder={getResourcePlaceholder(l.type)}
-                                />
-                                <div className="flex items-center gap-2 pt-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedModuleIdx(mi);
-                                      setSelectedLessonIdx(li);
-                                      materialRef.current?.click();
-                                    }}
-                                    disabled={(uploadingLessonId === l.id) || l.type === "link"}
-                                  >
-                                    {uploadingLessonId === l.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                                    Enviar Arquivo
-                                  </Button>
-                                  <input
-                                    ref={materialRef}
-                                    type="file"
-                                    className="hidden"
-                                    accept="video/*,application/pdf"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) handleUploadMaterial(file);
-                                      if (materialRef.current) materialRef.current.value = "";
-                                    }}
-                                  />
-                                </div>
+                                <Label>Recurso</Label>
+                                <Input value={l.resource_url || ""} onChange={(e) => { const next = [...modules]; const lessons = [...m.lessons]; lessons[li] = { ...l, resource_url: e.target.value }; next[mi] = { ...m, lessons }; setModules(next); }} placeholder={getResourcePlaceholder(l.type)} />
+                                <Button variant="outline" size="sm" className="w-full mt-1" onClick={() => { setSelectedModuleIdx(mi); setSelectedLessonIdx(li); materialRef.current?.click(); }} disabled={(uploadingLessonId === l.id) || l.type === "link"}>
+                                  {uploadingLessonId === l.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} Enviar
+                                </Button>
+                                <input ref={materialRef} type="file" className="hidden" accept="video/*,application/pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadMaterial(file); }} />
                               </div>
-                              <div className="space-y-2">
-                                <Label>Duração (min)</Label>
-                                <Input
-                                  type="number"
-                                  value={l.duration_minutes || 0}
-                                  onChange={(e) => {
-                                    const next = [...modules];
-                                    const lessons = [...m.lessons];
-                                    lessons[li] = { ...l, duration_minutes: parseInt(e.target.value || "0", 10) };
-                                    next[mi] = { ...m, lessons };
-                                    setModules(next);
-                                  }}
-                                />
-                                <div className="flex justify-end">
-                                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeLesson(mi, li)}>
-                                    Remover Aula
-                                  </Button>
-                                </div>
-                              </div>
+                              <div className="space-y-2"><Label>Duração</Label><Input type="number" value={l.duration_minutes || 0} onChange={(e) => { const next = [...modules]; const lessons = [...m.lessons]; lessons[li] = { ...l, duration_minutes: parseInt(e.target.value || "0", 10) }; next[mi] = { ...m, lessons }; setModules(next); }} /><div className="flex justify-end"><Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeLesson(mi, li)}>Remover</Button></div></div>
                             </div>
                           ))}
                         </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">Nenhuma aula neste módulo.</p>
-                      )}
+                      ) : <p className="text-xs text-muted-foreground">Vazio.</p>}
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nenhum módulo adicionado ainda.</p>
-              )}
-
-              <div className="flex justify-end gap-2">
-                <Button variant="ghost" onClick={attemptCloseContentDialog}>Fechar</Button>
-              </div>
+              ) : <p className="text-sm text-muted-foreground">Sem módulos.</p>}
+              <div className="flex justify-end gap-2"><Button variant="ghost" onClick={attemptCloseContentDialog}>Fechar</Button></div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Confirmação de saída sem salvar */}
+      {/* Alertas */}
       <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
         <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Sair sem salvar?</AlertDialogTitle><AlertDialogDescription>Você tem alterações não salvas.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Continuar</AlertDialogCancel><AlertDialogAction onClick={() => { setModules(originalModules); setIsContentDirty(false); setOpenContentDialog(false); }}>Descartar</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Sair sem salvar?</AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive">Excluir curso permanentemente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem alterações não salvas. Deseja descartar e fechar a edição?
+              Esta ação não pode ser desfeita. O curso <strong>{courseToDelete?.title}</strong> e todos os registros de aulas, módulos e progresso dos alunos serão apagados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Continuar editando</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setModules(originalModules);
-                setIsContentDirty(false);
-                setOpenContentDialog(false);
-                setShowCloseConfirm(false);
-              }}
-            >
-              Descartar alterações
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleDeleteCourse} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirmar Exclusão
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

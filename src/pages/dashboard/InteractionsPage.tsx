@@ -21,9 +21,11 @@ const InteractionsPage = () => {
       try {
         const { data: prof } = await supabase.from('profiles').select('id, role').eq('id', user.id).single();
         setProfile(prof);
-        await fetchInteractions(user.id, prof.role);
+        if (prof) {
+          await fetchInteractions(user.id, prof.role);
+        }
       } catch (err) {
-        console.error(err);
+        console.error("[InteractionsPage] Erro ao carregar perfil:", err);
       } finally {
         setLoading(false);
       }
@@ -34,30 +36,44 @@ const InteractionsPage = () => {
   const fetchInteractions = async (userId: string, userRole: string) => {
     try {
       const profileColumns = 'id, full_name, avatar_url, specialty, role, phone, bio, city, state, neighborhood';
-      let query;
-      if (userRole === 'professional') {
-        query = supabase.from('interactions').select(`id, created_at, status, sender:sender_id (${profileColumns})`).eq('professional_id', userId).order('created_at', { ascending: false });
-      } else {
-        query = supabase.from('interactions').select(`id, created_at, status, professional:professional_id (${profileColumns})`).eq('sender_id', userId).order('created_at', { ascending: false });
+      
+      // Realizamos a busca inicial
+      const initialQuery = userRole === 'professional' 
+        ? supabase.from('interactions').select(`id, created_at, status, sender:sender_id (${profileColumns})`).eq('professional_id', userId).order('created_at', { ascending: false })
+        : supabase.from('interactions').select(`id, created_at, status, professional:professional_id (${profileColumns})`).eq('sender_id', userId).order('created_at', { ascending: false });
+
+      let { data, error } = await initialQuery;
+
+      // Fallback caso a coluna status não exista
+      if (error && error.message.includes('column "status" does not exist')) {
+        console.warn("[InteractionsPage] Coluna 'status' não encontrada, tentando sem ela...");
+        const retryQuery = userRole === 'professional'
+          ? supabase.from('interactions').select(`id, created_at, sender:sender_id (${profileColumns})`).eq('professional_id', userId).order('created_at', { ascending: false })
+          : supabase.from('interactions').select(`id, created_at, professional:professional_id (${profileColumns})`).eq('sender_id', userId).order('created_at', { ascending: false });
+        
+        const { data: retryData, error: retryError } = await retryQuery;
+        data = retryData as any;
+        error = retryError;
       }
-      const { data, error } = await query;
+
       if (error) throw error;
       
       const unique = new Map();
-      data.forEach(item => {
+      (data || []).forEach((item: any) => {
         const p = item.sender || item.professional;
         if (p && !unique.has(p.id)) {
           unique.set(p.id, { 
             id: item.id,
             interacted_at: item.created_at, 
-            status: item.status,
+            status: item.status || 'pending',
             profile: p 
           });
         }
       });
       setInteractions(Array.from(unique.values()));
     } catch (err) {
-      console.error(err);
+      console.error("[InteractionsPage] Erro ao buscar interações:", err);
+      toast.error("Não foi possível carregar sua lista de contatos.");
     }
   };
 
@@ -70,7 +86,7 @@ const InteractionsPage = () => {
       setInteractions([]);
       toast.success("Histórico limpo!");
     } catch (err) {
-      toast.error("Erro ao limpar.");
+      toast.error("Erro ao limpar histórico.");
     }
   };
 

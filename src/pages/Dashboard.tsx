@@ -98,6 +98,7 @@ const Dashboard = () => {
     state: "",
     neighborhood: "",
     experience: "",
+    professional_experiences: "",
     bio: "",
     avatar_url: "",
     phone: "",
@@ -310,9 +311,12 @@ const Dashboard = () => {
     if (!user?.id) return;
 
     try {
+      // Garante que a coluna existe (execute uma vez no carregamento do dashboard)
+      await supabase.functions.invoke('profiles-add-experiences');
+
       const { data, error } = await supabase
         .from("profiles")
-        .select("*, rejection_reason")
+        .select("*, rejection_reason, professional_experiences")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -332,6 +336,7 @@ const Dashboard = () => {
           state: data.state || "",
           neighborhood: data.neighborhood || "",
           experience: data.experience || "",
+          professional_experiences: data.professional_experiences || "",
           bio: data.bio || "",
           avatar_url: data.avatar_url || "",
           phone: data.phone || "",
@@ -565,6 +570,7 @@ const Dashboard = () => {
           name: profile.full_name,
           specialty: profile.specialty,
           experience: profile.experience,
+          professional_experiences: profile.professional_experiences || "",
           city: profile.city || "sua cidade",
           state: profile.state || ""
         }
@@ -620,6 +626,7 @@ const Dashboard = () => {
         phone: profile.phone,
         bio: profile.bio,
         experience: profile.experience,
+        professional_experiences: profile.professional_experiences,
         city: profile.city,
         state: profile.state,
         neighborhood: profile.neighborhood,
@@ -1219,6 +1226,17 @@ const Dashboard = () => {
                           <div className="grid gap-2">
                             <Label>Formações *</Label>
                             <Textarea value={profile.experience} onChange={e => setProfile({...profile, experience: e.target.value})} disabled={!isEditing} className="min-h-[120px]" placeholder="Cursos, especializações e histórico acadêmico..." />
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label>Experiências Profissionais</Label>
+                            <Textarea
+                              value={profile.professional_experiences || ""}
+                              onChange={(e) => setProfile({ ...profile, professional_experiences: e.target.value })}
+                              disabled={!isEditing}
+                              className="min-h-[120px]"
+                              placeholder="Experiências práticas, áreas de atuação, procedimentos realizados..."
+                            />
                           </div>
 
                           <div className="grid gap-2">

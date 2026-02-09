@@ -4,7 +4,7 @@ import React from 'react';
 
 const AppVersion = () => {
   // Versão atual do aplicativo
-  const version = "1.0.85";
+  const version = "1.0.86";
   const lastUpdate = new Date().toLocaleDateString('pt-BR');
 
   return (

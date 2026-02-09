@@ -324,7 +324,7 @@ const Perfil = () => {
                 <div className="mt-10">
                   <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
                     <LayoutGrid className="h-5 w-5 text-primary" />
-                    Cursos Concluídos
+                    Cursos Concluídos na Plataforma
                   </h3>
                   {loadingCourses ? (
                     <div className="flex items-center gap-2 text-muted-foreground">

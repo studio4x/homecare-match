@@ -146,20 +146,31 @@ const Admin = () => {
 
   const fetchData = async () => {
     try {
-      const [pendingRes, usersRes, plansRes, referralsRes] = await Promise.all([
+      const [pendingRes, usersRes, plansRes, referralsRpc] = await Promise.all([
         supabase.from("profiles").select("id, full_name, email, id_document_url, prof_registration_url").eq("verification_sent", true).eq("is_verified", false),
         supabase.from("profiles").select("id, full_name, email, role, subscription_tier, is_verified, trial_started_at, updated_at").order('updated_at', { ascending: false }),
         supabase.from("plans").select("*").order('price', { ascending: true }),
-        supabase.from("referrals").select(`
-          *,
-          referrer:referrer_id (full_name, email)
-        `).order('created_at', { ascending: false })
+        supabase.rpc('get_all_referrals_with_details')
       ]);
       
       setPendingProfiles(pendingRes.data || []);
       setAllUsers(usersRes.data || []);
       setPlans(plansRes.data || []);
-      setReferrals(referralsRes.data || []);
+      
+      if (referralsRpc.error) throw referralsRpc.error;
+      const formattedReferrals = (referralsRpc.data || []).map((r: any) => ({
+        id: r.id,
+        referrer_id: r.referrer_id,
+        referred_name: r.referred_name,
+        referred_phone: r.referred_phone,
+        status: r.status,
+        created_at: r.created_at,
+        referrer: {
+          full_name: r.referrer_full_name,
+          email: r.referrer_email
+        }
+      }));
+      setReferrals(formattedReferrals);
       
       // fetch referral tiers via edge function
       setIsLoadingTiers(true);
@@ -170,6 +181,7 @@ const Admin = () => {
       setIsLoadingTiers(false);
     } catch (error) {
       console.error("[Admin] Erro fetch:", error);
+      toast.error("Falha ao carregar dados das indicações.");
       setIsLoadingTiers(false);
     }
   };

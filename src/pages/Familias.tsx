@@ -226,36 +226,27 @@ const Familias = () => {
                     ? Array.from({ length: 6 }).map((_, i) => (
                         <Skeleton key={i} className="h-10 w-full" />
                       ))
-                    : featuredSpecialties.map((s) => {
-                        const count = stats?.bySpecialty?.[s.value] ?? 0;
-                        return (
-                          <Button
-                            key={s.value}
-                            variant="outline"
-                            className="w-full justify-between"
-                            disabled={!canUseSpecialtySearch}
-                            asChild={canUseSpecialtySearch}
-                          >
-                            {canUseSpecialtySearch ? (
-                              <Link to={`/buscar?specialty=${encodeURIComponent(s.value)}`}>
-                                <span className="text-left">{s.label}</span>
-                                <span className="flex items-center gap-2 text-muted-foreground">
-                                  <span className="text-xs">{count}</span>
-                                  <ArrowRight className="h-4 w-4" />
-                                </span>
-                              </Link>
-                            ) : (
-                              <div className="flex w-full items-center justify-between">
-                                <span className="text-left">{s.label}</span>
-                                <span className="flex items-center gap-2 text-muted-foreground">
-                                  <span className="text-xs">{count}</span>
-                                  <ArrowRight className="h-4 w-4" />
-                                </span>
-                              </div>
-                            )}
-                          </Button>
-                        );
-                      })}
+                    : featuredSpecialties.map((s) => (
+                        <Button
+                          key={s.value}
+                          variant="outline"
+                          className="w-full justify-between"
+                          disabled={!canUseSpecialtySearch}
+                          asChild={canUseSpecialtySearch}
+                        >
+                          {canUseSpecialtySearch ? (
+                            <Link to={`/buscar?specialty=${encodeURIComponent(s.value)}`}>
+                              <span className="text-left">{s.label}</span>
+                              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                            </Link>
+                          ) : (
+                            <div className="flex w-full items-center justify-between">
+                              <span className="text-left">{s.label}</span>
+                              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                          )}
+                        </Button>
+                      ))}
                 </div>
 
                 <Button

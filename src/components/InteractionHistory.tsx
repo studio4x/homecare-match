@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, ArrowRight, Trash2, Building2, Home, Eye } from "lucide-react";
+import { Users, ArrowRight, Trash2, Building2, Home, Eye, Star } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -23,6 +23,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import ReviewForm from "./ReviewForm";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 // Componente de Ícone do WhatsApp personalizado
 const WhatsAppIcon = ({ className, ...props }: React.ComponentProps<"svg">) => (
@@ -77,10 +79,13 @@ const InteractionHistory = ({
   onClear,
   viewerRole,
 }: InteractionHistoryProps) => {
+  const { user } = useAuth();
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<Interaction['profile'] | null>(null);
   const [viewProfileModalOpen, setViewProfileModalOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<Interaction['profile'] | null>(null);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [profileToReview, setProfileToReview] = useState<Interaction['profile'] | null>(null);
 
   const handleContactClick = (profile: Interaction['profile']) => {
     setSelectedContact(profile);
@@ -90,6 +95,11 @@ const InteractionHistory = ({
   const handleViewProfileClick = (profile: Interaction['profile']) => {
     setSelectedProfile(profile);
     setViewProfileModalOpen(true);
+  };
+
+  const handleReviewClick = (profile: Interaction['profile']) => {
+    setProfileToReview(profile);
+    setReviewModalOpen(true);
   };
 
   const getInitials = (name: string) =>
@@ -111,7 +121,7 @@ const InteractionHistory = ({
       ].join('\n');
     }
 
-    // Empresa/Família falando com profissional (caso exista esse fluxo no futuro)
+    // Empresa/Família falando com profissional
     return [
       `Olá, ${contact.full_name}.`,
       '',
@@ -148,8 +158,8 @@ const InteractionHistory = ({
               ))
             ) : interactions.length > 0 ? (
               interactions.map(({ interacted_at, profile }) => (
-                <div key={profile.id} className="flex items-center justify-between gap-4 rounded-lg p-3 hover:bg-secondary/50 transition-colors">
-                  <div className="flex items-center gap-4 flex-1 min-w-0 md:min-w-[180px]">
+                <div key={profile.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg p-3 hover:bg-secondary/50 transition-colors border sm:border-0">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
                     <Avatar className="h-12 w-12 shrink-0">
                       <AvatarImage src={profile.avatar_url} />
                       <AvatarFallback>{getInitials(profile.full_name)}</AvatarFallback>
@@ -178,27 +188,35 @@ const InteractionHistory = ({
                       </p>
                     </div>
                   </div>
-                  {viewerRole === 'professional' ? (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Button variant="ghost" size="sm" onClick={() => handleViewProfileClick(profile)} className="gap-1.5 h-8">
-                        <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Ver</span>
-                      </Button>
-                      <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
-                        <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Button variant="ghost" size="sm" asChild className="h-8">
-                        <Link to={`/profissional/${profile.id}`}>
-                          <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
-                        </Link>
-                      </Button>
-                      <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
-                        <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+                  
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    {/* Botão de Avaliar */}
+                    <Button variant="outline" size="sm" onClick={() => handleReviewClick(profile)} className="gap-1.5 h-8 border-yellow-500/50 text-yellow-600 hover:bg-yellow-50">
+                      <Star className="h-4 w-4" /> <span className="text-xs">Avaliar</span>
+                    </Button>
+
+                    {viewerRole === 'professional' ? (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => handleViewProfileClick(profile)} className="gap-1.5 h-8">
+                          <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Ver</span>
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
+                          <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button variant="ghost" size="sm" asChild className="h-8">
+                          <Link to={`/profissional/${profile.id}`}>
+                            <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
+                          </Link>
+                        </Button>
+                        <Button variant="default" size="sm" onClick={() => handleContactClick(profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
+                          <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (
@@ -323,6 +341,24 @@ const InteractionHistory = ({
               </p>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reviewModalOpen} onOpenChange={setReviewModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Avaliar Atendimento</DialogTitle>
+            <DialogDescription>
+              Deixe sua opinião sobre o atendimento de <strong>{profileToReview?.full_name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          {user && profileToReview && (
+            <ReviewForm 
+              reviewerId={user.id} 
+              subjectId={profileToReview.id} 
+              onSuccess={() => setReviewModalOpen(false)} 
+            />
+          )}
         </DialogContent>
       </Dialog>
     </>

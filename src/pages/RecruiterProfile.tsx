@@ -7,13 +7,15 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import ReviewList from "@/components/ReviewList";
 import { 
   MapPin, 
   ArrowLeft,
   Loader2,
   Building2,
   Home,
-  Info
+  Info,
+  MessageCircle
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,7 +82,7 @@ const RecruiterProfile = () => {
             </Link>
           </Button>
 
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto space-y-6">
             <div className="rounded-2xl border bg-card p-8 shadow-card">
               <div className="flex flex-col md:flex-row gap-6 items-start">
                 <Avatar className="h-24 w-24 ring-4 ring-background shadow-lg">
@@ -113,6 +115,14 @@ const RecruiterProfile = () => {
                   {profile.bio || "Nenhuma descrição fornecida."}
                 </p>
               </div>
+            </div>
+
+            <div className="rounded-2xl border bg-card p-8 shadow-card">
+              <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                <MessageCircle className="h-5 w-5 text-primary" />
+                Avaliações de Profissionais
+              </h3>
+              <ReviewList subjectId={profile.id} />
             </div>
           </div>
         </div>

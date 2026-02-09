@@ -7,6 +7,7 @@ import Layout from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import ReviewList from "@/components/ReviewList";
 import { 
   MapPin, 
   Award, 
@@ -26,8 +27,9 @@ import {
   Clock,
   GraduationCap,
   Info,
+  ShieldCheck,
+  MessageCircle
 } from "lucide-react";
-import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -250,7 +252,6 @@ const Perfil = () => {
                           </Tooltip>
                         )}
                       </h1>
-                      {/* Badge responsivo: whitespace-nowrap para não quebrar feio, e text-sm no mobile */}
                       {profile.is_verified && (
                         <Badge className={cn(
                           "border-none text-white whitespace-nowrap",
@@ -259,7 +260,6 @@ const Perfil = () => {
                           {isPremium ? "Verificado Premium" : "Verificado"}
                         </Badge>
                       )}
-                      {/* Embaixador badge com tooltip */}
                       {referralStats && (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -320,7 +320,6 @@ const Perfil = () => {
                   </p>
                 </div>
 
-                {/* Cursos concluídos */}
                 <div className="mt-10">
                   <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
                     <LayoutGrid className="h-5 w-5 text-primary" />
@@ -395,6 +394,16 @@ const Perfil = () => {
                       </div>
                     )}
                   </div>
+                </div>
+
+                <Separator className="my-10" />
+
+                <div id="avaliacoes">
+                  <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5 text-primary" />
+                    Avaliações e Depoimentos
+                  </h3>
+                  <ReviewList subjectId={profile.id} />
                 </div>
               </div>
             </div>

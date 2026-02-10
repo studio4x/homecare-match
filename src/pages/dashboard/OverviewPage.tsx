@@ -17,7 +17,8 @@ import {
   AlertOctagon,
   RotateCcw,
   LayoutGrid,
-  Loader2
+  Loader2,
+  Eye
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
@@ -258,6 +259,16 @@ const OverviewPage = () => {
               <CardTitle className="text-base">Acesso Rápido</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
+              {isProfessional && (
+                <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 hover:bg-primary/5">
+                  <Link to={`/profissional/${user?.id}`}>
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <Eye className="h-4 w-4 text-primary" />
+                    </div>
+                    Ver Perfil Público
+                  </Link>
+                </Button>
+              )}
               <Button variant="outline" asChild className="justify-start gap-3 h-12">
                 <Link to="/dashboard/perfil">
                   <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">

@@ -163,7 +163,7 @@ const CourseDetail = () => {
       }
     } catch (err) {
       console.error("[CourseDetail] Erro ao salvar progresso:", err);
-      toast.error("Erro ao salvar progresso. Verifique se o banco está sincronizado.");
+      toast.error("Erro ao salvar progresso.");
     }
   };
 
@@ -180,7 +180,7 @@ const CourseDetail = () => {
   const handleOpenLesson = (lesson: any) => {
     if (!isEnrolled) return;
     setSelectedLesson(lesson);
-    setVideoEnded(false); // Reseta trava de vídeo
+    setVideoEnded(false);
   };
 
   if (loading) return <Layout><div className="flex h-[60vh] items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div></Layout>;
@@ -223,7 +223,8 @@ const CourseDetail = () => {
                       </Button>
                     )}
                     <div className="bg-success/10 text-success text-xs p-3 rounded-lg flex items-center gap-2">
-                      <Check size={14} /> Você está matriculado.
+                      <Check size={14} /> 
+                      {stats.pct === 100 ? "Você concluiu este curso!" : "Você está matriculado."}
                     </div>
                   </div>
                 )}
@@ -304,7 +305,6 @@ const CourseDetail = () => {
         </div>
       </div>
 
-      {/* Modal de Conteúdo da Aula */}
       <Dialog open={!!selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
           {selectedLesson && (
@@ -326,7 +326,6 @@ const CourseDetail = () => {
                 {selectedLesson.type === 'video' && (
                   <div className="space-y-4">
                     <AspectRatio ratio={16/9} className="bg-black rounded-xl overflow-hidden shadow-2xl">
-                      {/* Se for um arquivo direto (MP4), usamos a tag video para detectar o fim */}
                       {selectedLesson.resource_url?.includes('.mp4') || selectedLesson.mime_type?.startsWith('video/') ? (
                         <video 
                           src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
@@ -339,12 +338,7 @@ const CourseDetail = () => {
                           src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
                           className="w-full h-full" 
                           allowFullScreen 
-                          onLoad={() => {
-                            // Para iframes externos (YouTube/Vimeo), não conseguimos detectar o fim facilmente sem SDKs.
-                            // Como fallback, habilitamos após o carregamento ou mantemos travado se for política rígida.
-                            // Aqui, vamos habilitar para não travar o usuário em links externos.
-                            setVideoEnded(true);
-                          }}
+                          onLoad={() => setVideoEnded(true)}
                         />
                       )}
                     </AspectRatio>

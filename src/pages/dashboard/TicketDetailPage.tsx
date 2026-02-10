@@ -213,6 +213,16 @@ const TicketDetailPage = () => {
     }
   };
 
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case 'low': return 'Baixa';
+      case 'medium': return 'Média';
+      case 'high': return 'Alta';
+      case 'urgent': return 'Urgente';
+      default: return priority;
+    }
+  };
+
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
   if (!ticket) return <div className="text-center p-12">Chamado não encontrado.</div>;
 
@@ -369,7 +379,7 @@ const TicketDetailPage = () => {
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] uppercase font-bold text-muted-foreground">Prioridade</p>
-                <Badge variant="outline" className="capitalize">{ticket.priority}</Badge>
+                <Badge variant="outline">{getPriorityLabel(ticket.priority)}</Badge>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] uppercase font-bold text-muted-foreground">Última Atualização</p>

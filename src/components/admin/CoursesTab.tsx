@@ -26,6 +26,24 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Drag & Drop Imports
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import SortableModule from "./SortableModule";
+
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
 
 interface Lesson {
@@ -124,6 +142,14 @@ const CoursesTab = () => {
   const heroRef = useRef<HTMLInputElement>(null);
   const materialRef = useRef<HTMLInputElement>(null);
 
+  // Sensors for DND
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   const fetchCourses = async () => {
     setIsLoading(true);
     try {
@@ -144,6 +170,20 @@ const CoursesTab = () => {
   useEffect(() => {
     fetchCourses();
   }, []);
+
+  // Auto-calculate total duration
+  useEffect(() => {
+    if (selectedCourse && modules.length > 0) {
+      const totalMinutes = modules.reduce((acc, mod) => {
+        return acc + mod.lessons.reduce((lAcc, lesson) => lAcc + (lesson.duration_minutes || 0), 0);
+      }, 0);
+      
+      if (selectedCourse.duration_minutes !== totalMinutes) {
+        setSelectedCourse(prev => prev ? { ...prev, duration_minutes: totalMinutes } : null);
+        setIsContentDirty(true);
+      }
+    }
+  }, [modules]);
 
   const handleNewCourse = () => {
     setSelectedCourse({
@@ -270,19 +310,38 @@ const CoursesTab = () => {
   };
 
   const handleSaveContent = async () => {
+    if (!selectedCourse) return;
     setIsSavingContent(true);
     try {
       await supabase.functions.invoke('academy-migrate', { body: { action: 'create_tables' } });
-      for (const m of modules) {
+      
+      // Update course duration in DB
+      await supabase.from("academy_courses").update({
+        duration_minutes: selectedCourse.duration_minutes
+      }).eq("slug", selectedCourse.slug);
+
+      for (let mi = 0; mi < modules.length; mi++) {
+        const m = modules[mi];
         const { error: modErr } = await supabase.from("academy_modules").upsert({
-          id: m.id, course_slug: m.course_slug, title: m.title, description: m.description, position: m.position
+          id: m.id, 
+          course_slug: m.course_slug, 
+          title: m.title, 
+          description: m.description, 
+          position: mi + 1 // Use current index as position
         });
         if (modErr) throw modErr;
-        for (const l of m.lessons) {
+        
+        for (let li = 0; li < m.lessons.length; li++) {
+          const l = m.lessons[li];
           const { error: lesErr } = await supabase.from("academy_lessons").upsert({
-            id: l.id, module_id: m.id, title: l.title, type: l.type, 
-            duration_minutes: l.duration_minutes, resource_url: l.resource_url, 
-            content: l.content, position: l.position
+            id: l.id, 
+            module_id: m.id, 
+            title: l.title, 
+            type: l.type, 
+            duration_minutes: l.duration_minutes, 
+            resource_url: l.resource_url, 
+            content: l.content, 
+            position: li + 1 // Use current index as position
           });
           if (lesErr) throw lesErr;
         }
@@ -290,6 +349,7 @@ const CoursesTab = () => {
       toast.success("Conteúdo salvo!");
       setIsContentDirty(false);
       setOpenContentDialog(false);
+      fetchCourses();
     } catch (e: any) {
       toast.error("Erro ao salvar: " + e.message);
     } finally {
@@ -392,6 +452,42 @@ const CoursesTab = () => {
 
   const attemptCloseContentDialog = () => {
     if (isContentDirty) setShowCloseConfirm(true); else setOpenContentDialog(false);
+  };
+
+  // Drag & Drop Handlers
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    if (active.id !== over.id) {
+      // Check if we are dragging a module
+      const activeModuleIdx = modules.findIndex(m => m.id === active.id);
+      const overModuleIdx = modules.findIndex(m => m.id === over.id);
+
+      if (activeModuleIdx !== -1 && overModuleIdx !== -1) {
+        setModules((items) => arrayMove(items, activeModuleIdx, overModuleIdx));
+        setIsContentDirty(true);
+        return;
+      }
+
+      // Check if we are dragging a lesson
+      for (let mi = 0; mi < modules.length; mi++) {
+        const activeLessonIdx = modules[mi].lessons.findIndex(l => l.id === active.id);
+        const overLessonIdx = modules[mi].lessons.findIndex(l => l.id === over.id);
+
+        if (activeLessonIdx !== -1 && overLessonIdx !== -1) {
+          setModules(prev => {
+            const next = [...prev];
+            const mod = { ...next[mi] };
+            mod.lessons = arrayMove(mod.lessons, activeLessonIdx, overLessonIdx);
+            next[mi] = mod;
+            return next;
+          });
+          setIsContentDirty(true);
+          break;
+        }
+      }
+    }
   };
 
   return (
@@ -501,6 +597,17 @@ const CoursesTab = () => {
               </div>
 
               <div className="space-y-2">
+                <Label>Duração Total (minutos)</Label>
+                <Input 
+                  type="number" 
+                  value={selectedCourse.duration_minutes} 
+                  disabled 
+                  className="bg-muted cursor-not-allowed"
+                />
+                <p className="text-[10px] text-muted-foreground italic">Calculado automaticamente com base na soma das aulas.</p>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Descrição do Curso</Label>
                 <RichTextEditor content={selectedCourse.description || ""} onChange={html => setSelectedCourse({...selectedCourse, description: html})} />
               </div>
@@ -536,93 +643,43 @@ const CoursesTab = () => {
               <Button size="sm" onClick={addModule} className="gap-2"><Plus size={16} /> Novo Módulo</Button>
             </div>
 
-            {modules.map((m, mi) => (
-              <div key={m.id} className="border rounded-lg p-4 space-y-4 bg-muted/20">
-                <div className="flex items-center justify-between gap-3">
-                  <Input className="max-w-xs font-semibold" value={m.title} onChange={e => {
-                    const next = [...modules];
-                    next[mi] = { ...next[mi], title: e.target.value };
-                    setModules(next);
-                    setIsContentDirty(true);
-                  }} />
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => addLesson(mi)}><Plus size={14} className="mr-1" /> Aula</Button>
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeModule(mi)}><Trash2 className="h-4 w-4" /></Button>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {m.lessons.map((l, li) => (
-                    <div key={l.id} className="border bg-card rounded-md p-3 space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                        <div className="md:col-span-2">
-                          <Label className="text-xs">Título da Aula</Label>
-                          <Input value={l.title} onChange={e => updateLessonData(mi, li, { title: e.target.value })} />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Tipo</Label>
-                          <Select value={l.type} onValueChange={v => updateLessonData(mi, li, { type: v as any })}>
-                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="video">Vídeo</SelectItem>
-                              <SelectItem value="pdf">PDF</SelectItem>
-                              <SelectItem value="text">Texto Rico</SelectItem>
-                              <SelectItem value="link">Link Externo</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-xs">Minutos</Label>
-                          <Input type="number" value={l.duration_minutes} onChange={e => updateLessonData(mi, li, { duration_minutes: parseInt(e.target.value) || 0 })} />
-                        </div>
-                      </div>
-
-                      {l.type === 'text' ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-xs">Conteúdo da Aula</Label>
-                            <span className="text-[10px] text-muted-foreground italic">Duração estimada automaticamente</span>
-                          </div>
-                          <RichTextEditor 
-                            content={l.content || ""} 
-                            onChange={html => { 
-                              updateLessonData(mi, li, { 
-                                content: html, 
-                                duration_minutes: estimateTextDuration(html) 
-                              });
-                            }} 
-                          />
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Label className="text-xs">URL / Caminho</Label>
-                          <Input value={l.resource_url} onChange={e => updateLessonData(mi, li, { resource_url: e.target.value })} placeholder="Link ou caminho do arquivo" />
-                        </div>
-                      )}
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" className="h-7" onClick={() => { setSelectedModuleIdx(mi); setSelectedLessonIdx(li); materialRef.current?.click(); }} disabled={(uploadingLessonId === l.id) || l.type === "link" || l.type === "text"}>
-                          {uploadingLessonId === l.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} Enviar Arquivo
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-destructive h-7" onClick={() => removeLesson(mi, li)}>Remover Aula</Button>
-                      </div>
-                    </div>
+            <DndContext 
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext 
+                items={modules.map(m => m.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-6">
+                  {modules.map((m, mi) => (
+                    <SortableModule
+                      key={m.id}
+                      module={m}
+                      onUpdateTitle={(title) => {
+                        const next = [...modules];
+                        next[mi] = { ...next[mi], title };
+                        setModules(next);
+                        setIsContentDirty(true);
+                      }}
+                      onRemove={() => removeModule(mi)}
+                      onAddLesson={() => addLesson(mi)}
+                      onUpdateLesson={(li, data) => updateLessonData(mi, li, data)}
+                      onRemoveLesson={(li) => removeLesson(mi, li)}
+                      onUploadClick={(li) => {
+                        setSelectedModuleIdx(mi);
+                        setSelectedLessonIdx(li);
+                        materialRef.current?.click();
+                      }}
+                      uploadingLessonId={uploadingLessonId}
+                      estimateTextDuration={estimateTextDuration}
+                    />
                   ))}
-
-                  {/* Botão Adicionar Aula ao final do módulo */}
-                  <div className="pt-2 flex justify-center">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full max-w-xs gap-2 border-dashed" 
-                      onClick={() => addLesson(mi)}
-                    >
-                      <Plus size={14} /> Adicionar Aula
-                    </Button>
-                  </div>
                 </div>
-              </div>
-            ))}
+              </SortableContext>
+            </DndContext>
 
-            {/* Seção Separada para Adicionar Novo Módulo */}
             <div className="pt-4 pb-8 border-t border-dashed flex flex-col items-center gap-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Fim do Conteúdo</p>
               <Button 
@@ -634,6 +691,9 @@ const CoursesTab = () => {
             </div>
           </div>
           <div className="p-4 border-t flex justify-end gap-2 bg-card">
+            <div className="flex-1 flex items-center text-sm text-muted-foreground">
+              Duração Total: <span className="font-bold text-foreground ml-1">{selectedCourse?.duration_minutes || 0} min</span>
+            </div>
             <Button variant="ghost" onClick={attemptCloseContentDialog}>Fechar</Button>
             <Button onClick={handleSaveContent} disabled={isSavingContent}>
               {isSavingContent && <Loader2 size={16} className="mr-2 animate-spin" />}

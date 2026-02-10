@@ -108,10 +108,10 @@ serve(async (req) => {
           CREATE POLICY "academy_progress_owner" ON public.academy_progress FOR ALL TO authenticated USING (auth.uid() = user_id);
         END IF;
         
-        -- Políticas para Sugestões
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'suggestions_insert_policy') THEN
-          CREATE POLICY "suggestions_insert_policy" ON public.suggestions FOR INSERT TO authenticated WITH CHECK (true);
-        END IF;
+        -- Políticas para Sugestões (Permitir inserção pública para que visitantes possam sugerir)
+        DROP POLICY IF EXISTS "suggestions_insert_policy" ON public.suggestions;
+        CREATE POLICY "suggestions_insert_policy" ON public.suggestions FOR INSERT WITH CHECK (true);
+        
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'suggestions_admin_select') THEN
           CREATE POLICY "suggestions_admin_select" ON public.suggestions FOR SELECT TO authenticated USING (check_is_admin());
         END IF;

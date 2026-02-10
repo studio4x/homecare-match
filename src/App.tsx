@@ -20,6 +20,7 @@ import Courses from "./pages/Courses";
 import CourseDetail from "./pages/CourseDetail";
 import ReferralLanding from "./pages/ReferralLanding";
 import CertificateView from "./pages/CertificateView";
+import ValidateCertificate from "./pages/ValidateCertificate";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/cursos" element={<Courses />} />
               <Route path="/cursos/:slug" element={<CourseDetail />} />
               <Route path="/certificado/:id" element={<CertificateView />} />
+              <Route path="/validar" element={<ValidateCertificate />} />
 
               {/* Novo Painel do Usuário (Aninhado) */}
               <Route path="/dashboard" element={<UserLayout />}>

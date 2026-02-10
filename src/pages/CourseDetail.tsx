@@ -50,6 +50,7 @@ const CourseDetail = () => {
   
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
   const [videoEnded, setVideoEnded] = useState(false);
+  const [isIssuingCertificate, setIsIssuingCertificate] = useState(false);
 
   const fetchCourseData = async () => {
     setLoading(true);
@@ -156,14 +157,47 @@ const CourseDetail = () => {
       }, { onConflict: 'user_id,lesson_id' });
       
       if (error) throw error;
-      setProgress({ ...progress, [lessonId]: newStatus });
+      
+      const newProgress = { ...progress, [lessonId]: newStatus };
+      setProgress(newProgress);
       
       if (newStatus === 'completed') {
         toast.success("Aula concluída!");
+        
+        // Verificar se o curso chegou a 100% para emitir certificado
+        const total = course?.modules?.reduce((acc: any, m: any) => acc + m.lessons.length, 0) || 0;
+        const done = Object.values(newProgress).filter(s => s === 'completed').length;
+        
+        if (done >= total && !certificateId) {
+          issueCertificate();
+        }
       }
     } catch (err) {
       console.error("[CourseDetail] Erro ao salvar progresso:", err);
       toast.error("Erro ao salvar progresso.");
+    }
+  };
+
+  const issueCertificate = async () => {
+    setIsIssuingCertificate(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('issue-certificate', {
+        body: { course_slug: slug }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.certificate_id) {
+        setCertificateId(data.certificate_id);
+        toast.success("Parabéns! Seu certificado foi gerado.", {
+          description: "Você já pode visualizá-lo na barra lateral.",
+          icon: <Award className="text-yellow-600" />
+        });
+      }
+    } catch (err) {
+      console.error("[CourseDetail] Erro ao emitir certificado:", err);
+    } finally {
+      setIsIssuingCertificate(false);
     }
   };
 
@@ -217,11 +251,17 @@ const CourseDetail = () => {
                       </div>
                       <Progress value={stats.pct} className="h-2" />
                     </div>
-                    {certificateId && (
-                      <Button asChild className="w-full bg-yellow-600 hover:bg-yellow-700 gap-2">
+                    
+                    {isIssuingCertificate ? (
+                      <div className="flex items-center justify-center p-3 bg-yellow-50 rounded-lg border border-yellow-200 text-yellow-700 text-xs gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Gerando certificado...
+                      </div>
+                    ) : certificateId ? (
+                      <Button asChild className="w-full bg-yellow-600 hover:bg-yellow-700 gap-2 shadow-lg animate-scale-in">
                         <Link to={`/certificado/${certificateId}`} target="_blank"><Award size={18} /> Ver Certificado</Link>
                       </Button>
-                    )}
+                    ) : null}
+
                     <div className="bg-success/10 text-success text-xs p-3 rounded-lg flex items-center gap-2">
                       <Check size={14} /> 
                       {stats.pct === 100 ? "Você concluiu este curso!" : "Você está matriculado."}

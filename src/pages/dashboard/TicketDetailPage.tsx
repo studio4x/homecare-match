@@ -63,7 +63,6 @@ const TicketDetailPage = () => {
         filter: `ticket_id=eq.${id}`
       }, (payload) => {
         setMessages(prev => {
-          // Evita duplicatas se o próprio usuário enviou e a mensagem já está no estado
           if (prev.some(m => m.id === payload.new.id)) return prev;
           return [...prev, payload.new];
         });
@@ -76,11 +75,7 @@ const TicketDetailPage = () => {
       }, (payload) => {
         setTicket(prev => ({ ...prev, ...payload.new }));
       })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log("[TicketDetail] Conectado ao Realtime");
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -141,6 +136,14 @@ const TicketDetailPage = () => {
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
+
+      // Se fechou o ticket, notifica o usuário
+      if (newStatus === 'closed') {
+        supabase.functions.invoke('notify-support', {
+          body: { type: 'ticket_closed', ticketId: id, senderId: user?.id }
+        }).catch(err => console.warn("Falha ao notificar fechamento:", err));
+      }
+
       toast.success("Status atualizado!");
     } catch (err) {
       toast.error("Erro ao atualizar status.");
@@ -154,6 +157,8 @@ const TicketDetailPage = () => {
     if ((!newMessage.trim() && !attachment) || isSending) return;
 
     setIsSending(true);
+    const messageText = newMessage.trim();
+
     try {
       let attachmentUrl = null;
       let attachmentName = null;
@@ -182,12 +187,23 @@ const TicketDetailPage = () => {
         .insert({
           ticket_id: id,
           sender_id: user?.id,
-          message: newMessage.trim(),
+          message: messageText,
           attachment_url: attachmentUrl,
           attachment_name: attachmentName
         });
 
       if (error) throw error;
+
+      // Notificar a outra parte por e-mail
+      supabase.functions.invoke('notify-support', {
+        body: { 
+          type: 'new_message', 
+          ticketId: id, 
+          senderId: user?.id, 
+          message: messageText || (attachment ? "[Arquivo Anexo]" : "") 
+        }
+      }).catch(err => console.warn("Falha ao notificar nova mensagem:", err));
+
       setNewMessage("");
       setAttachment(null);
     } catch (err) {

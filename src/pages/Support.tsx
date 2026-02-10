@@ -30,8 +30,7 @@ import {
   Plus,
   ArrowRight,
   Paperclip,
-  X,
-  AlertTriangle
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -115,6 +114,11 @@ const Support = () => {
         .single();
 
       if (error) throw error;
+
+      // Notificar Admin por e-mail
+      supabase.functions.invoke('notify-support', {
+        body: { type: 'new_ticket', ticketId: data.id, senderId: user?.id }
+      }).catch(err => console.warn("Falha ao notificar admin:", err));
 
       toast.success("Chamado aberto com sucesso!");
       navigate(`/dashboard/suporte/${data.id}`);

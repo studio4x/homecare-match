@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Image as ImageIcon, Phone, Eye, EyeOff, Database, RefreshCw } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -23,6 +23,7 @@ const SiteConfigTab = () => {
   
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncingSupport, setIsSyncingSupport] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -41,14 +42,26 @@ const SiteConfigTab = () => {
   const handleSyncDatabase = async () => {
     setIsSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('setup-reviews-table');
+      const { error } = await supabase.functions.invoke('setup-reviews-table');
       if (error) throw error;
-      toast.success("Banco de dados sincronizado com sucesso!");
+      toast.success("Banco de dados sincronizado!");
     } catch (error: any) {
-      console.error("Erro sync:", error);
-      toast.error("Erro ao sincronizar banco: " + (error.message || "Verifique as Logs"));
+      toast.error("Erro ao sincronizar banco.");
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleSyncSupport = async () => {
+    setIsSyncingSupport(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-support-system');
+      if (error) throw error;
+      toast.success("Sistema de suporte sincronizado!");
+    } catch (error: any) {
+      toast.error("Erro ao sincronizar suporte.");
+    } finally {
+      setIsSyncingSupport(false);
     }
   };
 
@@ -75,9 +88,8 @@ const SiteConfigTab = () => {
       if (dbError) throw dbError;
 
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
-      toast.success("Imagem enviada com sucesso!");
+      toast.success("Imagem enviada!");
     } catch (error: any) {
-      console.error("Erro upload:", error);
       toast.error("Erro ao enviar imagem.");
     } finally {
       setIsUploading(null);
@@ -102,7 +114,6 @@ const SiteConfigTab = () => {
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       toast.success("Configurações salvas!");
     } catch (error) {
-      console.error(error);
       toast.error("Erro ao salvar configurações.");
     } finally {
       setIsSaving(false);
@@ -115,18 +126,16 @@ const SiteConfigTab = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Configurações Globais do Site</CardTitle>
-          <CardDescription>Gerencie identidade visual, contatos e visibilidade.</CardDescription>
+          <CardTitle>Configurações Globais</CardTitle>
+          <CardDescription>Gerencie identidade visual e contatos.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          
           <div className="flex items-center justify-between p-4 border rounded-lg bg-secondary/10">
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
                 {formData.enable_professional_list ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
                 <Label className="text-base">Exibir Profissionais na Busca</Label>
               </div>
-              <p className="text-sm text-muted-foreground">Se desligado, a busca mostrará o Concierge.</p>
             </div>
             <Switch 
               checked={formData.enable_professional_list}
@@ -147,7 +156,7 @@ const SiteConfigTab = () => {
 
           <div className="grid gap-4 md:grid-cols-2 items-start p-4 border rounded-lg">
             <div className="space-y-2">
-              <Label>Logotipo do Cabeçalho</Label>
+              <Label>Logotipo</Label>
               <div className="flex flex-col gap-2">
                 {config?.logo_url && <img src={config.logo_url} alt="Logo" style={{ height: `${formData.logo_height_px}px` }} className="object-contain bg-secondary/20 p-2 rounded" />}
                 <Button variant="outline" size="sm" onClick={() => logoRef.current?.click()} disabled={!!isUploading}>Alterar</Button>
@@ -161,7 +170,7 @@ const SiteConfigTab = () => {
           </div>
 
           <div className="flex justify-end pt-4">
-            <Button onClick={handleSave} disabled={isSaving} className="w-full md:w-auto">
+            <Button onClick={handleSave} disabled={isSaving}>
               {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
               Salvar Configurações
             </Button>
@@ -174,24 +183,25 @@ const SiteConfigTab = () => {
           <CardTitle className="text-base flex items-center gap-2 text-amber-800">
             <Database className="h-4 w-4" /> Manutenção do Sistema
           </CardTitle>
-          <CardDescription className="text-amber-700/80">
-            Utilize estas ferramentas para atualizar a estrutura do banco de dados após novas atualizações.
-          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">Sincronizar Estrutura</p>
-              <p className="text-xs text-amber-800/70">Cria colunas de Status, Aulas e a tabela de Avaliações/Academy.</p>
+              <p className="text-sm font-semibold text-amber-900">Sincronizar Estrutura Base</p>
+              <p className="text-xs text-amber-800/70">Atualiza tabelas de avaliações e academy.</p>
             </div>
-            <Button 
-              variant="outline" 
-              className="border-amber-300 text-amber-900 hover:bg-amber-100 gap-2 shrink-0"
-              onClick={handleSyncDatabase}
-              disabled={isSyncing}
-            >
+            <Button variant="outline" onClick={handleSyncDatabase} disabled={isSyncing}>
               {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Sincronizar Agora
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Sincronizar Central de Suporte</p>
+              <p className="text-xs text-amber-800/70">Cria tabelas de Tickets, Mensagens e FAQs.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncSupport} disabled={isSyncingSupport}>
+              {isSyncingSupport ? <Loader2 className="h-4 w-4 animate-spin" /> : <LifeBuoy className="h-4 w-4" />}
             </Button>
           </div>
         </CardContent>

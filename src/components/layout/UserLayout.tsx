@@ -15,7 +15,8 @@ import {
   Menu, 
   X,
   Loader2,
-  Search
+  Search,
+  LifeBuoy
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -77,6 +78,8 @@ const UserLayout = () => {
   } else {
     navItems.push({ href: "/buscar", label: "Buscar Profissionais", icon: Search });
   }
+
+  navItems.push({ href: "/dashboard/suporte", label: "Suporte", icon: LifeBuoy });
 
   const initials = profile?.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
 

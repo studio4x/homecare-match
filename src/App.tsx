@@ -21,6 +21,7 @@ import CourseDetail from "./pages/CourseDetail";
 import ReferralLanding from "./pages/ReferralLanding";
 import CertificateView from "./pages/CertificateView";
 import ValidateCertificate from "./pages/ValidateCertificate";
+import Support from "./pages/Support";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -29,6 +30,8 @@ import ProfilePage from "./pages/dashboard/ProfilePage";
 import InteractionsPage from "./pages/dashboard/InteractionsPage";
 import AcademyPage from "./pages/dashboard/AcademyPage";
 import ReferralsPage from "./pages/dashboard/ReferralsPage";
+import SupportTicketsPage from "./pages/dashboard/SupportTicketsPage";
+import TicketDetailPage from "./pages/dashboard/TicketDetailPage";
 
 // Admin Layout & Pages
 import AdminLayout from "./components/layout/AdminLayout";
@@ -40,6 +43,8 @@ import CoursesAdminPage from "./pages/admin/CoursesPage";
 import MarketingPage from "./pages/admin/MarketingPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import SuggestionsPage from "./pages/admin/SuggestionsPage";
+import SupportAdminPage from "./pages/admin/SupportAdminPage";
+import FaqAdminPage from "./pages/admin/FaqAdminPage";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +71,7 @@ const App = () => (
               <Route path="/cursos/:slug" element={<CourseDetail />} />
               <Route path="/certificado/:id" element={<CertificateView />} />
               <Route path="/validar" element={<ValidateCertificate />} />
+              <Route path="/suporte" element={<Support />} />
 
               {/* Novo Painel do Usuário (Aninhado) */}
               <Route path="/dashboard" element={<UserLayout />}>
@@ -74,6 +80,8 @@ const App = () => (
                 <Route path="contatos" element={<InteractionsPage />} />
                 <Route path="cursos" element={<AcademyPage />} />
                 <Route path="indicacoes" element={<ReferralsPage />} />
+                <Route path="suporte" element={<SupportTicketsPage />} />
+                <Route path="suporte/:id" element={<TicketDetailPage />} />
               </Route>
 
               {/* Área Administrativa (Aninhada) */}
@@ -87,6 +95,8 @@ const App = () => (
                 <Route path="sugestoes" element={<SuggestionsPage />} />
                 <Route path="marketing" element={<MarketingPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />
+                <Route path="suporte" element={<SupportAdminPage />} />
+                <Route path="faq" element={<FaqAdminPage />} />
               </Route>
 
               {/* 404 */}

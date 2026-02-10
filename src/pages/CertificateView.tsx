@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Award, Printer, ArrowLeft, ShieldCheck } from "lucide-react";
+import { Loader2, Award, Printer, ArrowLeft, ShieldCheck, Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/hooks/use-site-config";
 
 const CertificateView = () => {
-  const { id } = useParams(); // ID do certificado
+  const { id } = useParams();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { data: config } = useSiteConfig();
@@ -46,7 +46,13 @@ const CertificateView = () => {
     day: '2-digit', month: 'long', year: 'numeric'
   });
 
-  const workloadHours = Math.floor(data.workload_minutes / 60);
+  const formatWorkload = (minutes: number) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}min`;
+    if (h > 0) return `${h} ${h === 1 ? 'hora' : 'horas'}`;
+    return `${m} minutos`;
+  };
 
   return (
     <div className="min-h-screen bg-secondary/10 py-10 px-4 print:p-0 print:bg-white">
@@ -86,12 +92,31 @@ const CertificateView = () => {
             <p className="text-lg text-slate-600 leading-relaxed">
               concluiu com êxito o curso de capacitação profissional em
             </p>
-            <h3 className="text-2xl font-bold text-primary mt-2 mb-6 uppercase">
+            <h3 className="text-2xl font-bold text-primary mt-2 mb-8 uppercase">
               {data.course.title}
             </h3>
-            <p className="text-slate-600">
-              realizado na plataforma <strong>HomeCare Match</strong>, com carga horária total de <strong>{workloadHours} horas</strong>,
-              finalizado em <strong>{issueDate}</strong>.
+            
+            {/* Box de Informações Destacadas */}
+            <div className="flex items-center justify-center gap-8 py-4 px-8 bg-secondary/30 rounded-2xl border border-slate-200 mb-8">
+              <div className="flex items-center gap-2 text-slate-700">
+                <Calendar className="h-5 w-5 text-primary" />
+                <div className="text-left">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 leading-none mb-1">Concluído em</p>
+                  <p className="font-semibold">{issueDate}</p>
+                </div>
+              </div>
+              <div className="h-8 w-px bg-slate-300" />
+              <div className="flex items-center gap-2 text-slate-700">
+                <Clock className="h-5 w-5 text-primary" />
+                <div className="text-left">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 leading-none mb-1">Carga Horária</p>
+                  <p className="font-semibold">{formatWorkload(data.workload_minutes)}</p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-500">
+              Curso realizado integralmente na plataforma <strong>HomeCare Match</strong>.
             </p>
           </div>
 

@@ -56,19 +56,20 @@ const CertificateView = () => {
 
   return (
     <div className="min-h-screen bg-secondary/10 py-6 px-4 print:p-0 print:bg-white">
-      <div className="mx-auto max-w-5xl space-y-6">
+      <div className="mx-auto max-w-[1100px] space-y-6 print:max-w-none">
         {/* Barra de Ações (Oculta na impressão) */}
         <div className="flex items-center justify-between print:hidden">
           <Button variant="ghost" asChild className="gap-2">
             <Link to="/dashboard/cursos"><ArrowLeft size={16} /> Voltar</Link>
           </Button>
           <Button onClick={handlePrint} className="gap-2 bg-primary">
-            <Printer size={16} /> Imprimir / Salvar PDF
+            <Printer size={16} /> Imprimir / Salvar PDF (A4)
           </Button>
         </div>
 
-        {/* O Certificado */}
-        <div className="relative w-full bg-white shadow-2xl border-[12px] md:border-[20px] border-primary/10 p-6 md:p-16 flex flex-col items-center text-center overflow-hidden print:shadow-none print:border-primary/20 print:m-0 min-h-[600px]">
+        {/* O Certificado - Container com proporção A4 Paisagem */}
+        <div className="certificate-container relative w-full bg-white shadow-2xl border-[12px] md:border-[20px] border-primary/10 p-8 md:p-16 flex flex-col items-center text-center overflow-hidden print:shadow-none print:border-primary/20 print:m-0">
+          
           {/* Decoração de Fundo */}
           <Award className="absolute -top-10 -right-10 h-48 w-48 md:h-80 md:w-80 text-primary/5 rotate-12 pointer-events-none" />
           <Award className="absolute -bottom-10 -left-10 h-48 w-48 md:h-80 md:w-80 text-primary/5 -rotate-12 pointer-events-none" />
@@ -88,7 +89,7 @@ const CertificateView = () => {
           </h2>
           {data.user.registration && <p className="text-slate-500 mb-6 md:mb-10 italic text-sm md:text-base">Registro Profissional: {data.user.registration}</p>}
 
-          <div className="max-w-3xl w-full">
+          <div className="max-w-3xl w-full flex-1 flex flex-col justify-center">
             <p className="text-base md:text-lg text-slate-600 leading-relaxed">
               concluiu com êxito o curso de capacitação profissional em
             </p>
@@ -115,13 +116,13 @@ const CertificateView = () => {
               </div>
             </div>
 
-            <p className="text-xs md:text-sm text-slate-500 mb-8">
+            <p className="text-xs md:text-sm text-slate-500 mb-4">
               Curso realizado integralmente na plataforma <strong>HomeCare Match</strong>.
             </p>
           </div>
 
           {/* Assinatura e Selo */}
-          <div className="mt-auto w-full flex flex-col md:flex-row items-center md:items-end justify-between gap-6 pt-8">
+          <div className="mt-auto w-full flex flex-col md:flex-row items-center md:items-end justify-between gap-6 pt-4">
             <div className="text-center md:text-left space-y-1">
               <p className="text-[9px] md:text-[10px] text-slate-400 font-mono">Código de Validação:</p>
               <p className="text-[10px] md:text-xs font-mono font-bold text-slate-700 bg-secondary/50 px-2 py-1 rounded print:bg-slate-100">
@@ -143,10 +144,27 @@ const CertificateView = () => {
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
+        @media screen {
+          .certificate-container {
+            aspect-ratio: 297 / 210;
+            min-height: 600px;
+          }
+        }
         @media print {
           body { background: white !important; }
           .print\\:hidden { display: none !important; }
-          @page { size: landscape; margin: 0; }
+          @page { 
+            size: A4 landscape; 
+            margin: 0; 
+          }
+          .certificate-container {
+            width: 297mm;
+            height: 210mm;
+            border-width: 15mm;
+            padding: 15mm;
+            box-sizing: border-box;
+            page-break-inside: avoid;
+          }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}} />

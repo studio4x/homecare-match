@@ -47,38 +47,44 @@ const TicketDetailPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (id) {
-      fetchTicket();
-      fetchMessages();
-      checkAdminStatus();
-      
-      // Real-time subscription
-      const channel = supabase
-        .channel(`ticket-${id}`)
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'support_messages',
-          filter: `ticket_id=eq.${id}`
-        }, (payload) => {
-          // Evita duplicatas se o próprio usuário enviou
-          setMessages(prev => {
-            if (prev.some(m => m.id === payload.new.id)) return prev;
-            return [...prev, payload.new];
-          });
-        })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'support_tickets',
-          filter: `id=eq.${id}`
-        }, (payload) => {
-          setTicket(prev => ({ ...prev, ...payload.new }));
-        })
-        .subscribe();
+    if (!id) return;
 
-      return () => { supabase.removeChannel(channel); };
-    }
+    fetchTicket();
+    fetchMessages();
+    checkAdminStatus();
+    
+    // Configuração do canal de Realtime
+    const channel = supabase
+      .channel(`support-chat-${id}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'support_messages',
+        filter: `ticket_id=eq.${id}`
+      }, (payload) => {
+        setMessages(prev => {
+          // Evita duplicatas se o próprio usuário enviou e a mensagem já está no estado
+          if (prev.some(m => m.id === payload.new.id)) return prev;
+          return [...prev, payload.new];
+        });
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'support_tickets',
+        filter: `id=eq.${id}`
+      }, (payload) => {
+        setTicket(prev => ({ ...prev, ...payload.new }));
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log("[TicketDetail] Conectado ao Realtime");
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
 
   useEffect(() => {

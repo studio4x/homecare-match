@@ -31,7 +31,6 @@ serve(async (req) => {
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- Adicionar colunas se não existirem
       ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS attachment_url TEXT;
       ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 
@@ -46,11 +45,10 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- Adicionar colunas se não existirem
       ALTER TABLE public.support_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;
       ALTER TABLE public.support_messages ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 
-      -- FAQs e Base de Conhecimento
+      -- FAQs
       CREATE TABLE IF NOT EXISTS public.support_faqs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         question TEXT NOT NULL,
@@ -61,10 +59,17 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- Habilitar RLS
       ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.support_messages ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.support_faqs ENABLE ROW LEVEL SECURITY;
+
+      -- Ativar Realtime (IMPORTANTE)
+      BEGIN;
+        -- Remove se já existir para evitar erro de duplicata na publicação
+        ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.support_tickets, public.support_messages;
+        -- Adiciona as tabelas à publicação de tempo real
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.support_tickets, public.support_messages;
+      COMMIT;
 
       -- Políticas
       DO $$
@@ -90,7 +95,7 @@ serve(async (req) => {
     await client.queryObject(sql);
     await client.end();
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de suporte atualizado!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de suporte e Realtime configurados!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

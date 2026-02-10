@@ -33,7 +33,6 @@ interface SortableModuleProps {
   onRemoveLesson: (li: number) => void;
   onUploadClick: (li: number) => void;
   uploadingLessonId: string | null;
-  estimateTextDuration: (html: string) => number;
 }
 
 const SortableModule = ({
@@ -44,8 +43,7 @@ const SortableModule = ({
   onUpdateLesson,
   onRemoveLesson,
   onUploadClick,
-  uploadingLessonId,
-  estimateTextDuration
+  uploadingLessonId
 }: SortableModuleProps) => {
   const {
     attributes,
@@ -96,7 +94,6 @@ const SortableModule = ({
               onRemove={() => onRemoveLesson(li)}
               onUploadClick={() => onUploadClick(li)}
               isUploading={uploadingLessonId === l.id}
-              estimateTextDuration={estimateTextDuration}
             />
           ))}
         </SortableContext>

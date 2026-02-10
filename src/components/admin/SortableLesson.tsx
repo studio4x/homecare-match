@@ -25,7 +25,6 @@ interface SortableLessonProps {
   onRemove: () => void;
   onUploadClick: () => void;
   isUploading: boolean;
-  estimateTextDuration: (html: string) => number;
 }
 
 const SortableLesson = ({ 
@@ -33,8 +32,7 @@ const SortableLesson = ({
   onUpdate, 
   onRemove, 
   onUploadClick, 
-  isUploading,
-  estimateTextDuration 
+  isUploading
 }: SortableLessonProps) => {
   const {
     attributes,
@@ -100,10 +98,7 @@ const SortableLesson = ({
           <RichTextEditor 
             content={lesson.content || ""} 
             onChange={html => { 
-              onUpdate({ 
-                content: html, 
-                duration_minutes: estimateTextDuration(html) 
-              });
+              onUpdate({ content: html });
             }} 
           />
         </div>

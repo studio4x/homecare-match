@@ -96,27 +96,6 @@ const generateSlug = (text: string) => {
     .trim();
 };
 
-const estimateTextDuration = (html: string) => {
-  if (!html) return 0;
-  const text = html.replace(/<[^>]*>?/gm, ' ');
-  const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-  return Math.ceil(words / 200) || 1;
-};
-
-const getVideoDuration = (file: File): Promise<number> => {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(video.src);
-      const duration = Math.round(video.duration / 60) || 1; 
-      resolve(duration);
-    };
-    video.onerror = () => resolve(0);
-    video.src = URL.createObjectURL(file);
-  });
-};
-
 const CoursesTab = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -327,7 +306,7 @@ const CoursesTab = () => {
           course_slug: m.course_slug, 
           title: m.title, 
           description: m.description, 
-          position: mi + 1 // Use current index as position
+          position: mi + 1 
         });
         if (modErr) throw modErr;
         
@@ -341,7 +320,7 @@ const CoursesTab = () => {
             duration_minutes: l.duration_minutes, 
             resource_url: l.resource_url, 
             content: l.content, 
-            position: li + 1 // Use current index as position
+            position: li + 1 
           });
           if (lesErr) throw lesErr;
         }
@@ -395,11 +374,6 @@ const CoursesTab = () => {
     }
 
     try {
-      let detectedDuration = 0;
-      if (file.type.startsWith("video/")) {
-        detectedDuration = await getVideoDuration(file);
-      }
-
       const ext = (file.name.split(".").pop() || "").toLowerCase();
       const safeExt = ext || (file.type.startsWith("video/") ? "mp4" : "bin");
       const fileName = `${lesson.id}.${safeExt}`;
@@ -411,8 +385,7 @@ const CoursesTab = () => {
       updateLessonData(selectedModuleIdx, selectedLessonIdx, {
         resource_url: path,
         storage_path: path,
-        mime_type: file.type,
-        duration_minutes: detectedDuration > 0 ? detectedDuration : lesson.duration_minutes
+        mime_type: file.type
       });
 
       toast.success("Material enviado!");
@@ -460,7 +433,6 @@ const CoursesTab = () => {
     if (!over) return;
 
     if (active.id !== over.id) {
-      // Check if we are dragging a module
       const activeModuleIdx = modules.findIndex(m => m.id === active.id);
       const overModuleIdx = modules.findIndex(m => m.id === over.id);
 
@@ -470,7 +442,6 @@ const CoursesTab = () => {
         return;
       }
 
-      // Check if we are dragging a lesson
       for (let mi = 0; mi < modules.length; mi++) {
         const activeLessonIdx = modules[mi].lessons.findIndex(l => l.id === active.id);
         const overLessonIdx = modules[mi].lessons.findIndex(l => l.id === over.id);
@@ -673,7 +644,6 @@ const CoursesTab = () => {
                         materialRef.current?.click();
                       }}
                       uploadingLessonId={uploadingLessonId}
-                      estimateTextDuration={estimateTextDuration}
                     />
                   ))}
                 </div>

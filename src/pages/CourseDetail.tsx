@@ -18,12 +18,19 @@ import {
   ExternalLink, 
   Lock, 
   ArrowLeft,
-  GraduationCap
+  GraduationCap,
+  ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -39,6 +46,9 @@ const CourseDetail = () => {
   const [progress, setProgress] = useState<any>({});
   const [certificateId, setCertificateId] = useState<string | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  
+  // Estado para a aula aberta no modal
+  const [selectedLesson, setSelectedLesson] = useState<any>(null);
 
   const fetchCourseData = async () => {
     setLoading(true);
@@ -70,7 +80,6 @@ const CourseDetail = () => {
         setIsEnrolled(!!enr);
 
         if (enr) {
-          // Gerar URLs assinadas se estiver matriculado
           if (storagePathsToSign.length > 0) {
             const { data: signedData, error: signErr } = await supabase.storage
               .from(PRIVATE_BUCKET)
@@ -90,7 +99,6 @@ const CourseDetail = () => {
           prog?.forEach(p => pMap[p.lesson_id] = p.status);
           setProgress(pMap);
 
-          // Buscar certificado (usando query segura para evitar erro se tabela não existir)
           try {
             const { data: cert } = await supabase.from("certificates").select("id").eq("user_id", user.id).eq("course_slug", slug).maybeSingle();
             if (cert) setCertificateId(cert.id);
@@ -127,7 +135,7 @@ const CourseDetail = () => {
       if (error) throw error;
       setIsEnrolled(true);
       toast.success("Inscrição realizada! Bons estudos.");
-      fetchCourseData(); // Recarrega para gerar URLs assinadas
+      fetchCourseData();
     } catch (err) {
       toast.error("Erro ao realizar inscrição.");
     } finally {
@@ -135,7 +143,8 @@ const CourseDetail = () => {
     }
   };
 
-  const toggleComplete = async (lessonId: string, currentStatus: string) => {
+  const toggleComplete = async (e: React.MouseEvent, lessonId: string, currentStatus: string) => {
+    e.stopPropagation(); // Impede de abrir o modal ao clicar apenas no botão de concluir
     const newStatus = currentStatus === 'completed' ? 'in-progress' : 'completed';
     try {
       const { error } = await supabase.from("academy_progress").upsert({
@@ -149,7 +158,9 @@ const CourseDetail = () => {
       if (error) throw error;
       setProgress({ ...progress, [lessonId]: newStatus });
       
-      // Se completou, verifica se terminou o curso (opcional: aqui poderia disparar a verificação de certificado)
+      if (newStatus === 'completed') {
+        toast.success("Aula concluída!");
+      }
     } catch (err) {
       toast.error("Erro ao salvar progresso.");
     }
@@ -175,6 +186,7 @@ const CourseDetail = () => {
         </Button>
 
         <div className="grid gap-8 md:grid-cols-3">
+          {/* Sidebar Info */}
           <div className="space-y-6">
             <Card className="overflow-hidden border-none shadow-lg">
               <AspectRatio ratio={16/9}>
@@ -213,6 +225,7 @@ const CourseDetail = () => {
             </Card>
           </div>
 
+          {/* Conteúdo */}
           <div className="md:col-span-2 space-y-8">
             <div>
               <h1 className="text-4xl font-bold text-foreground mb-4">{course.title}</h1>
@@ -234,55 +247,43 @@ const CourseDetail = () => {
                       <div className="divide-y">
                         {m.lessons?.map((l: any) => {
                           const status = progress[l.id] || 'pending';
-                          const finalUrl = signedUrls[l.resource_url] || l.resource_url;
                           
                           return (
-                            <div key={l.id} className="p-4 space-y-4">
-                              <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="text-primary shrink-0">
-                                    {l.type === 'video' ? <PlayCircle size={20} /> : l.type === 'pdf' ? <FileSearch size={20} /> : l.type === 'text' ? <FileText size={20} /> : <ExternalLink size={20} />}
-                                  </div>
-                                  <div>
-                                    <h4 className="font-medium text-sm sm:text-base">{l.title}</h4>
-                                    <p className="text-[10px] text-muted-foreground uppercase">{l.duration_minutes || 0} min</p>
-                                  </div>
-                                </div>
-                                {isEnrolled ? (
-                                  <Button 
-                                    variant={status === 'completed' ? 'default' : 'outline'} 
-                                    size="sm" 
-                                    className={cn("h-8 px-3 text-xs", status === 'completed' && "bg-success hover:bg-success/90")}
-                                    onClick={() => toggleComplete(l.id, status)}
-                                  >
-                                    {status === 'completed' ? <><Check size={14} className="mr-1" /> Concluído</> : 'Concluir'}
-                                  </Button>
-                                ) : <Lock size={16} className="text-muted-foreground/40" />}
-                              </div>
-
-                              {isEnrolled && (
-                                <div className="animate-fade-in pl-8 border-l-2 border-primary/20 pt-2 pb-4">
-                                  {l.type === 'text' && l.content && (
-                                    <div className="prose prose-sm max-w-none bg-muted/20 p-6 rounded-xl" dangerouslySetInnerHTML={{ __html: l.content }} />
-                                  )}
-                                  {l.type === 'video' && finalUrl && (
-                                    <AspectRatio ratio={16/9} className="bg-black rounded-xl overflow-hidden shadow-inner">
-                                      <iframe 
-                                        src={finalUrl} 
-                                        className="w-full h-full" 
-                                        allowFullScreen 
-                                      />
-                                    </AspectRatio>
-                                  )}
-                                  {(l.type === 'pdf' || l.type === 'link') && finalUrl && (
-                                    <Button asChild variant="secondary" size="sm">
-                                      <a href={finalUrl} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink size={14} className="mr-2" /> {l.type === 'pdf' ? 'Abrir PDF' : 'Acessar Link'}
-                                      </a>
-                                    </Button>
-                                  )}
-                                </div>
+                            <div 
+                              key={l.id} 
+                              className={cn(
+                                "p-4 flex items-center justify-between gap-4 transition-colors",
+                                isEnrolled ? "hover:bg-secondary/30 cursor-pointer" : "cursor-not-allowed"
                               )}
+                              onClick={() => isEnrolled && setSelectedLesson(l)}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="text-primary shrink-0">
+                                  {l.type === 'video' ? <PlayCircle size={20} /> : l.type === 'pdf' ? <FileSearch size={20} /> : l.type === 'text' ? <FileText size={20} /> : <ExternalLink size={20} />}
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="font-medium text-sm sm:text-base truncate">{l.title}</h4>
+                                  <p className="text-[10px] text-muted-foreground uppercase">{l.duration_minutes || 0} min</p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-3">
+                                {isEnrolled ? (
+                                  <>
+                                    <Button 
+                                      variant={status === 'completed' ? 'default' : 'outline'} 
+                                      size="sm" 
+                                      className={cn("h-8 px-3 text-xs hidden sm:flex", status === 'completed' && "bg-success hover:bg-success/90")}
+                                      onClick={(e) => toggleComplete(e, l.id, status)}
+                                    >
+                                      {status === 'completed' ? <Check size={14} /> : 'Concluir'}
+                                    </Button>
+                                    <ChevronRight size={16} className="text-muted-foreground/50" />
+                                  </>
+                                ) : (
+                                  <Lock size={16} className="text-muted-foreground/40" />
+                                )}
+                              </div>
                             </div>
                           );
                         })}
@@ -295,6 +296,88 @@ const CourseDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Conteúdo da Aula */}
+      <Dialog open={!!selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          {selectedLesson && (
+            <>
+              <DialogHeader className="p-6 border-b bg-card">
+                <div className="flex items-center justify-between gap-4">
+                  <DialogTitle className="text-xl font-bold line-clamp-1">{selectedLesson.title}</DialogTitle>
+                  <Badge variant="outline" className="uppercase text-[10px] shrink-0">
+                    {selectedLesson.type} • {selectedLesson.duration_minutes} min
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div className="flex-1 overflow-y-auto p-6 bg-secondary/5">
+                {/* Texto Rico */}
+                {selectedLesson.type === 'text' && selectedLesson.content && (
+                  <div className="prose prose-slate max-w-none bg-card p-8 rounded-2xl shadow-sm border" dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
+                )}
+
+                {/* Vídeo */}
+                {selectedLesson.type === 'video' && (
+                  <div className="space-y-4">
+                    <AspectRatio ratio={16/9} className="bg-black rounded-xl overflow-hidden shadow-2xl">
+                      <iframe 
+                        src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
+                        className="w-full h-full" 
+                        allowFullScreen 
+                      />
+                    </AspectRatio>
+                    <p className="text-xs text-center text-muted-foreground">
+                      Dica: Se o vídeo não carregar, verifique sua conexão ou tente recarregar a página.
+                    </p>
+                  </div>
+                )}
+
+                {/* PDF ou Link */}
+                {(selectedLesson.type === 'pdf' || selectedLesson.type === 'link') && (
+                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
+                    <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                      {selectedLesson.type === 'pdf' ? <FileSearch className="h-10 w-10 text-primary" /> : <ExternalLink className="h-10 w-10 text-primary" />}
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-semibold">Material Complementar</h3>
+                      <p className="text-sm text-muted-foreground max-w-xs">
+                        Este conteúdo está disponível em um arquivo externo ou link dedicado.
+                      </p>
+                    </div>
+                    <Button asChild size="lg" className="gap-2">
+                      <a href={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} target="_blank" rel="noopener noreferrer">
+                        {selectedLesson.type === 'pdf' ? 'Abrir PDF em nova aba' : 'Acessar Link Externo'}
+                        <ExternalLink size={16} />
+                      </a>
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 border-t bg-card flex justify-between items-center">
+                <Button variant="ghost" onClick={() => setSelectedLesson(null)}>Fechar</Button>
+                <Button 
+                  className={cn(
+                    "gap-2",
+                    progress[selectedLesson.id] === 'completed' ? "bg-success hover:bg-success/90" : "bg-primary"
+                  )}
+                  onClick={(e) => {
+                    toggleComplete(e, selectedLesson.id, progress[selectedLesson.id] || 'pending');
+                    // Não fecha o modal automaticamente para o usuário decidir quando sair
+                  }}
+                >
+                  {progress[selectedLesson.id] === 'completed' ? (
+                    <><Check size={16} /> Aula Concluída</>
+                  ) : (
+                    'Marcar como Concluída'
+                  )}
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

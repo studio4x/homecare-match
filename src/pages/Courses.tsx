@@ -242,29 +242,34 @@ const Courses = () => {
         ) : courses.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((c) => (
-              <Card key={c.slug} className="overflow-hidden">
+              <Card key={c.slug} className="overflow-hidden flex flex-col">
                 {c.hero_asset_url ? (
-                  <AspectRatio ratio={4/3} className="relative w-full bg-muted">
+                  <AspectRatio ratio={4/3} className="relative w-full bg-muted shrink-0">
                     {isCompleted(c.slug) ? (
-                      <Badge className="absolute left-2 top-2 bg-success">Concluído</Badge>
+                      <Badge className="absolute left-2 top-2 bg-success z-10">Concluído</Badge>
                     ) : null}
                     <img
                       src={c.hero_asset_url}
                       alt={c.title}
-                      className="h-full w-full object-cover rounded-md"
+                      className="h-full w-full object-cover rounded-t-md"
                     />
                   </AspectRatio>
                 ) : null}
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>{c.title}</span>
-                    <Badge variant="secondary" className="capitalize">{c.level || "iniciante"}</Badge>
+                  <CardTitle className="flex items-center justify-between gap-2">
+                    <span className="line-clamp-2">{c.title}</span>
+                    <Badge variant="secondary" className="capitalize shrink-0">{c.level || "iniciante"}</Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <p className="text-sm text-muted-foreground">{c.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">{c.duration_minutes ? `${c.duration_minutes} min` : ""}</span>
+                <CardContent className="space-y-4 flex-1 flex flex-col">
+                  <div 
+                    className="text-sm text-muted-foreground prose prose-sm max-w-none line-clamp-4 flex-1"
+                    dangerouslySetInnerHTML={{ __html: c.description || "" }}
+                  />
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      {c.duration_minutes ? `${c.duration_minutes} min` : ""}
+                    </span>
                     <div className="flex gap-2">
                       <Button asChild variant="outline" size="sm">
                         <Link to={`/cursos/${c.slug}`}>Ver detalhes</Link>

@@ -18,7 +18,8 @@ import {
   RotateCcw,
   LayoutGrid,
   Loader2,
-  Eye
+  Eye,
+  LifeBuoy
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
@@ -285,16 +286,14 @@ const OverviewPage = () => {
                   Histórico de Contatos
                 </Link>
               </Button>
-              {isProfessional && (
-                <Button variant="outline" asChild className="justify-start gap-3 h-12">
-                  <Link to="/dashboard/cursos">
-                    <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                      <Star className="h-4 w-4 text-primary" />
-                    </div>
-                    Meus Cursos
-                  </Link>
-                </Button>
-              )}
+              <Button variant="outline" asChild className="justify-start gap-3 h-12 border-amber-200 hover:bg-amber-50">
+                <Link to="/suporte">
+                  <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                    <LifeBuoy className="h-4 w-4 text-amber-600" />
+                  </div>
+                  Central de Ajuda (FAQs)
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>

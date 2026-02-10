@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin, LifeBuoy } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 
 // Fallback logo
@@ -88,8 +88,14 @@ const Footer = () => {
 
           {/* Contato */}
           <div className="space-y-4">
-            <h4 className="font-semibold text-foreground">Contato</h4>
+            <h4 className="font-semibold text-foreground">Suporte e Contato</h4>
             <ul className="space-y-3">
+              <li>
+                <Link to="/suporte" className="flex items-center gap-2 text-sm text-primary font-medium hover:underline">
+                  <LifeBuoy className="h-4 w-4" />
+                  Central de Ajuda (FAQs)
+                </Link>
+              </li>
               <li className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="h-4 w-4" />
                 contato@homecarematch.com.br

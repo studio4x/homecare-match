@@ -14,7 +14,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Loader2, MessageSquare, Eye, Plus } from "lucide-react";
+import { Loader2, MessageSquare, Eye, Plus, LifeBuoy } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const SupportTicketsPage = () => {
@@ -60,9 +60,14 @@ const SupportTicketsPage = () => {
           </h1>
           <p className="text-muted-foreground">Acompanhe o status das suas solicitações de suporte.</p>
         </div>
-        <Button asChild className="gap-2">
-          <Link to="/suporte"><Plus className="h-4 w-4" /> Novo Chamado</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild className="gap-2">
+            <Link to="/suporte"><LifeBuoy className="h-4 w-4" /> Ver FAQs</Link>
+          </Button>
+          <Button asChild className="gap-2">
+            <Link to="/suporte"><Plus className="h-4 w-4" /> Novo Chamado</Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

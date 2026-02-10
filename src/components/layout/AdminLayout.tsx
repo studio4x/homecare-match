@@ -17,7 +17,8 @@ import {
   FileCheck,
   CreditCard,
   Menu,
-  X
+  X,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -110,6 +111,7 @@ const AdminLayout = () => {
     { href: "/admin/planos", label: "Planos", icon: CreditCard },
     { href: "/admin/indicacoes", label: "Indicações", icon: Award },
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
+    { href: "/admin/sugestoes", label: "Sugestões", icon: MessageSquare },
     { href: "/admin/marketing", label: "Marketing", icon: BarChart },
     { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
   ];

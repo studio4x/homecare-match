@@ -39,6 +39,7 @@ import ReferralsAdminPage from "./pages/admin/ReferralsPage";
 import CoursesAdminPage from "./pages/admin/CoursesPage";
 import MarketingPage from "./pages/admin/MarketingPage";
 import SettingsPage from "./pages/admin/SettingsPage";
+import SuggestionsPage from "./pages/admin/SuggestionsPage";
 
 const queryClient = new QueryClient();
 
@@ -83,6 +84,7 @@ const App = () => (
                 <Route path="planos" element={<PlansPage />} />
                 <Route path="indicacoes" element={<ReferralsAdminPage />} />
                 <Route path="cursos" element={<CoursesAdminPage />} />
+                <Route path="sugestoes" element={<SuggestionsPage />} />
                 <Route path="marketing" element={<MarketingPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />
               </Route>

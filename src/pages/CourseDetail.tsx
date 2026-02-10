@@ -19,7 +19,8 @@ import {
   Lock, 
   ArrowLeft,
   GraduationCap,
-  ChevronRight
+  ChevronRight,
+  Eye
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -47,8 +48,8 @@ const CourseDetail = () => {
   const [certificateId, setCertificateId] = useState<string | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   
-  // Estado para a aula aberta no modal
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
+  const [videoEnded, setVideoEnded] = useState(false);
 
   const fetchCourseData = async () => {
     setLoading(true);
@@ -103,7 +104,7 @@ const CourseDetail = () => {
             const { data: cert } = await supabase.from("certificates").select("id").eq("user_id", user.id).eq("course_slug", slug).maybeSingle();
             if (cert) setCertificateId(cert.id);
           } catch {
-            console.warn("Tabela de certificados não encontrada ou inacessível.");
+            console.warn("Tabela de certificados não encontrada.");
           }
         }
       }
@@ -143,8 +144,7 @@ const CourseDetail = () => {
     }
   };
 
-  const toggleComplete = async (e: React.MouseEvent, lessonId: string, currentStatus: string) => {
-    e.stopPropagation(); // Impede de abrir o modal ao clicar apenas no botão de concluir
+  const toggleComplete = async (lessonId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'completed' ? 'in-progress' : 'completed';
     try {
       const { error } = await supabase.from("academy_progress").upsert({
@@ -162,7 +162,8 @@ const CourseDetail = () => {
         toast.success("Aula concluída!");
       }
     } catch (err) {
-      toast.error("Erro ao salvar progresso.");
+      console.error("[CourseDetail] Erro ao salvar progresso:", err);
+      toast.error("Erro ao salvar progresso. Verifique se o banco está sincronizado.");
     }
   };
 
@@ -176,6 +177,12 @@ const CourseDetail = () => {
     };
   }, [course, progress]);
 
+  const handleOpenLesson = (lesson: any) => {
+    if (!isEnrolled) return;
+    setSelectedLesson(lesson);
+    setVideoEnded(false); // Reseta trava de vídeo
+  };
+
   if (loading) return <Layout><div className="flex h-[60vh] items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div></Layout>;
 
   return (
@@ -186,7 +193,6 @@ const CourseDetail = () => {
         </Button>
 
         <div className="grid gap-8 md:grid-cols-3">
-          {/* Sidebar Info */}
           <div className="space-y-6">
             <Card className="overflow-hidden border-none shadow-lg">
               <AspectRatio ratio={16/9}>
@@ -225,7 +231,6 @@ const CourseDetail = () => {
             </Card>
           </div>
 
-          {/* Conteúdo */}
           <div className="md:col-span-2 space-y-8">
             <div>
               <h1 className="text-4xl font-bold text-foreground mb-4">{course.title}</h1>
@@ -255,7 +260,7 @@ const CourseDetail = () => {
                                 "p-4 flex items-center justify-between gap-4 transition-colors",
                                 isEnrolled ? "hover:bg-secondary/30 cursor-pointer" : "cursor-not-allowed"
                               )}
-                              onClick={() => isEnrolled && setSelectedLesson(l)}
+                              onClick={() => handleOpenLesson(l)}
                             >
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className="text-primary shrink-0">
@@ -263,7 +268,10 @@ const CourseDetail = () => {
                                 </div>
                                 <div className="min-w-0">
                                   <h4 className="font-medium text-sm sm:text-base truncate">{l.title}</h4>
-                                  <p className="text-[10px] text-muted-foreground uppercase">{l.duration_minutes || 0} min</p>
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-[10px] text-muted-foreground uppercase">{l.duration_minutes || 0} min</p>
+                                    {status === 'completed' && <Badge variant="secondary" className="h-4 text-[8px] bg-success/10 text-success border-none">Concluída</Badge>}
+                                  </div>
                                 </div>
                               </div>
                               
@@ -271,12 +279,11 @@ const CourseDetail = () => {
                                 {isEnrolled ? (
                                   <>
                                     <Button 
-                                      variant={status === 'completed' ? 'default' : 'outline'} 
+                                      variant="outline" 
                                       size="sm" 
-                                      className={cn("h-8 px-3 text-xs hidden sm:flex", status === 'completed' && "bg-success hover:bg-success/90")}
-                                      onClick={(e) => toggleComplete(e, l.id, status)}
+                                      className="h-8 px-3 text-xs gap-1.5"
                                     >
-                                      {status === 'completed' ? <Check size={14} /> : 'Concluir'}
+                                      <Eye size={14} /> Acessar
                                     </Button>
                                     <ChevronRight size={16} className="text-muted-foreground/50" />
                                   </>
@@ -312,28 +319,43 @@ const CourseDetail = () => {
               </DialogHeader>
 
               <div className="flex-1 overflow-y-auto p-6 bg-secondary/5">
-                {/* Texto Rico */}
                 {selectedLesson.type === 'text' && selectedLesson.content && (
                   <div className="prose prose-slate max-w-none bg-card p-8 rounded-2xl shadow-sm border" dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
                 )}
 
-                {/* Vídeo */}
                 {selectedLesson.type === 'video' && (
                   <div className="space-y-4">
                     <AspectRatio ratio={16/9} className="bg-black rounded-xl overflow-hidden shadow-2xl">
-                      <iframe 
-                        src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
-                        className="w-full h-full" 
-                        allowFullScreen 
-                      />
+                      {/* Se for um arquivo direto (MP4), usamos a tag video para detectar o fim */}
+                      {selectedLesson.resource_url?.includes('.mp4') || selectedLesson.mime_type?.startsWith('video/') ? (
+                        <video 
+                          src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
+                          className="w-full h-full" 
+                          controls 
+                          onEnded={() => setVideoEnded(true)}
+                        />
+                      ) : (
+                        <iframe 
+                          src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
+                          className="w-full h-full" 
+                          allowFullScreen 
+                          onLoad={() => {
+                            // Para iframes externos (YouTube/Vimeo), não conseguimos detectar o fim facilmente sem SDKs.
+                            // Como fallback, habilitamos após o carregamento ou mantemos travado se for política rígida.
+                            // Aqui, vamos habilitar para não travar o usuário em links externos.
+                            setVideoEnded(true);
+                          }}
+                        />
+                      )}
                     </AspectRatio>
-                    <p className="text-xs text-center text-muted-foreground">
-                      Dica: Se o vídeo não carregar, verifique sua conexão ou tente recarregar a página.
-                    </p>
+                    {!videoEnded && selectedLesson.type === 'video' && (
+                      <p className="text-xs text-center text-amber-600 font-medium animate-pulse">
+                        Assista ao vídeo completo para habilitar a conclusão.
+                      </p>
+                    )}
                   </div>
                 )}
 
-                {/* PDF ou Link */}
                 {(selectedLesson.type === 'pdf' || selectedLesson.type === 'link') && (
                   <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
                     <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
@@ -362,9 +384,9 @@ const CourseDetail = () => {
                     "gap-2",
                     progress[selectedLesson.id] === 'completed' ? "bg-success hover:bg-success/90" : "bg-primary"
                   )}
-                  onClick={(e) => {
-                    toggleComplete(e, selectedLesson.id, progress[selectedLesson.id] || 'pending');
-                    // Não fecha o modal automaticamente para o usuário decidir quando sair
+                  disabled={selectedLesson.type === 'video' && !videoEnded && progress[selectedLesson.id] !== 'completed'}
+                  onClick={() => {
+                    toggleComplete(selectedLesson.id, progress[selectedLesson.id] || 'pending');
                   }}
                 >
                   {progress[selectedLesson.id] === 'completed' ? (

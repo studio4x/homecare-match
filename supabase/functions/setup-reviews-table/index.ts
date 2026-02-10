@@ -20,15 +20,36 @@ serve(async (req) => {
     
     console.log("[setup-reviews-table] Iniciando sincronização completa...");
 
-    // 1. ACADEMY: Colunas necessárias
+    // 1. Tabelas Base da Academy
+    await client.queryObject(`
+      CREATE TABLE IF NOT EXISTS public.academy_enrollments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (user_id, course_slug)
+      );
+
+      CREATE TABLE IF NOT EXISTS public.academy_progress (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
+        lesson_id UUID NOT NULL REFERENCES public.academy_lessons(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'in-progress',
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (user_id, lesson_id)
+      );
+    `);
+
+    // 2. Colunas Adicionais
     await client.queryObject(`ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS content TEXT;`);
     await client.queryObject(`ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS storage_path TEXT;`);
     await client.queryObject(`ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS mime_type TEXT;`);
     await client.queryObject(`ALTER TABLE public.academy_courses ADD COLUMN IF NOT EXISTS price NUMERIC DEFAULT 0;`);
     await client.queryObject(`ALTER TABLE public.interactions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';`);
 
-    // 2. REVIEWS: Tabela de avaliações
-    const createReviewsSql = `
+    // 3. REVIEWS e CERTIFICATES
+    await client.queryObject(`
       CREATE TABLE IF NOT EXISTS public.reviews (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         reviewer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -38,12 +59,7 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE (reviewer_id, subject_id)
       );
-      ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
-    `;
-    await client.queryObject(createReviewsSql);
 
-    // 3. CERTIFICATES: Tabela de certificados
-    const createCertsSql = `
       CREATE TABLE IF NOT EXISTS public.certificates (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -53,35 +69,26 @@ serve(async (req) => {
         workload_minutes INTEGER DEFAULT 0,
         UNIQUE (user_id, course_slug)
       );
-      ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
-    `;
-    await client.queryObject(createCertsSql);
+    `);
 
-    // 4. POLICIES: Garantir permissões básicas
-    const policiesSql = `
+    // 4. RLS e Policies
+    await client.queryObject(`
+      ALTER TABLE public.academy_enrollments ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.academy_progress ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
+
       DO $$
       BEGIN
-        -- Interactions update
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'interactions_update_policy') THEN
-          CREATE POLICY "interactions_update_policy" ON public.interactions FOR UPDATE TO authenticated USING ((auth.uid() = sender_id) OR (auth.uid() = professional_id));
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_enrollments_owner') THEN
+          CREATE POLICY "academy_enrollments_owner" ON public.academy_enrollments FOR ALL TO authenticated USING (auth.uid() = user_id);
         END IF;
-
-        -- Reviews read/insert
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_read_policy') THEN
-          CREATE POLICY "reviews_read_policy" ON public.reviews FOR SELECT USING (true);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_insert_policy') THEN
-          CREATE POLICY "reviews_insert_policy" ON public.reviews FOR INSERT TO authenticated WITH CHECK (auth.uid() = reviewer_id);
-        END IF;
-
-        -- Certificates read
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'certificates_public_read') THEN
-          CREATE POLICY "certificates_public_read" ON public.certificates FOR SELECT USING (true);
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_progress_owner') THEN
+          CREATE POLICY "academy_progress_owner" ON public.academy_progress FOR ALL TO authenticated USING (auth.uid() = user_id);
         END IF;
       END
       $$;
-    `;
-    await client.queryObject(policiesSql);
+    `);
 
     await client.end();
     return new Response(JSON.stringify({ ok: true, message: "Sincronização concluída!" }), {

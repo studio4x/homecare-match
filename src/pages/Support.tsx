@@ -14,6 +14,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   LifeBuoy, 
   Search, 
@@ -23,7 +30,8 @@ import {
   Plus,
   ArrowRight,
   Paperclip,
-  X
+  X,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -36,7 +44,7 @@ const Support = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isOpeningTicket, setIsOpeningTicket] = useState(false);
-  const [ticketData, setTicketData] = useState({ subject: "", description: "" });
+  const [ticketData, setTicketData] = useState({ subject: "", description: "", priority: "medium" });
   const [attachment, setAttachment] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -98,6 +106,7 @@ const Support = () => {
           user_id: user?.id,
           subject: ticketData.subject,
           description: ticketData.description,
+          priority: ticketData.priority,
           status: 'open',
           attachment_url: attachmentUrl,
           attachment_name: attachmentName
@@ -191,6 +200,25 @@ const Support = () => {
                       onChange={(e) => setTicketData({...ticketData, subject: e.target.value})}
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <Label>Prioridade</Label>
+                    <Select 
+                      value={ticketData.priority} 
+                      onValueChange={(v) => setTicketData({...ticketData, priority: v})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a prioridade" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Baixa</SelectItem>
+                        <SelectItem value="medium">Média</SelectItem>
+                        <SelectItem value="high">Alta</SelectItem>
+                        <SelectItem value="urgent">Urgente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-2">
                     <Label>Descrição</Label>
                     <Textarea 

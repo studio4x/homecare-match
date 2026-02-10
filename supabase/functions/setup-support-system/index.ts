@@ -17,7 +17,7 @@ serve(async (req) => {
     await client.connect();
     
     const sql = `
-      -- Tabela de Tickets
+      -- Tabelas base
       CREATE TABLE IF NOT EXISTS public.support_tickets (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -31,10 +31,6 @@ serve(async (req) => {
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS attachment_url TEXT;
-      ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS attachment_name TEXT;
-
-      -- Mensagens dos Tickets (Chat)
       CREATE TABLE IF NOT EXISTS public.support_messages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         ticket_id UUID NOT NULL REFERENCES public.support_tickets(id) ON DELETE CASCADE,
@@ -45,10 +41,6 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      ALTER TABLE public.support_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;
-      ALTER TABLE public.support_messages ADD COLUMN IF NOT EXISTS attachment_name TEXT;
-
-      -- FAQs
       CREATE TABLE IF NOT EXISTS public.support_faqs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         question TEXT NOT NULL,
@@ -63,15 +55,34 @@ serve(async (req) => {
       ALTER TABLE public.support_messages ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.support_faqs ENABLE ROW LEVEL SECURITY;
 
-      -- Ativar Realtime (IMPORTANTE)
-      BEGIN;
-        -- Remove se já existir para evitar erro de duplicata na publicação
-        ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.support_tickets, public.support_messages;
-        -- Adiciona as tabelas à publicação de tempo real
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.support_tickets, public.support_messages;
-      COMMIT;
+      -- Configuração Robusta de Realtime
+      DO $$
+      BEGIN
+        -- Cria a publicação se não existir
+        IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+          CREATE PUBLICATION supabase_realtime;
+        END IF;
+      END
+      $$;
 
-      -- Políticas
+      -- Adiciona as tabelas à publicação (ignora se já estiverem lá)
+      DO $$
+      BEGIN
+        BEGIN
+          ALTER PUBLICATION supabase_realtime ADD TABLE public.support_tickets;
+        EXCEPTION WHEN others THEN
+          NULL;
+        END;
+        
+        BEGIN
+          ALTER PUBLICATION supabase_realtime ADD TABLE public.support_messages;
+        EXCEPTION WHEN others THEN
+          NULL;
+        END;
+      END
+      $$;
+
+      -- Políticas de Segurança
       DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'support_tickets_owner') THEN
@@ -86,16 +97,13 @@ serve(async (req) => {
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'support_faqs_read') THEN
           CREATE POLICY "support_faqs_read" ON public.support_faqs FOR SELECT USING (true);
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'support_faqs_admin') THEN
-          CREATE POLICY "support_faqs_admin" ON public.support_faqs FOR ALL TO authenticated USING (check_is_admin());
-        END IF;
       END
       $$;
     `;
     await client.queryObject(sql);
     await client.end();
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de suporte e Realtime configurados!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de suporte e Realtime sincronizados!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

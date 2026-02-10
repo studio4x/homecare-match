@@ -53,6 +53,8 @@ const TicketDetailPage = () => {
     fetchMessages();
     checkAdminStatus();
     
+    console.log(`[SupportChat] Iniciando canal para ticket: ${id}`);
+
     // Configuração do canal de Realtime
     const channel = supabase
       .channel(`support-chat-${id}`)
@@ -62,7 +64,9 @@ const TicketDetailPage = () => {
         table: 'support_messages',
         filter: `ticket_id=eq.${id}`
       }, (payload) => {
+        console.log("[SupportChat] Nova mensagem recebida via Realtime:", payload.new);
         setMessages(prev => {
+          // Evita duplicatas se a mensagem já foi adicionada localmente
           if (prev.some(m => m.id === payload.new.id)) return prev;
           return [...prev, payload.new];
         });
@@ -73,11 +77,15 @@ const TicketDetailPage = () => {
         table: 'support_tickets',
         filter: `id=eq.${id}`
       }, (payload) => {
+        console.log("[SupportChat] Ticket atualizado via Realtime:", payload.new);
         setTicket(prev => ({ ...prev, ...payload.new }));
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[SupportChat] Status da inscrição: ${status}`);
+      });
 
     return () => {
+      console.log("[SupportChat] Removendo canal de Realtime");
       supabase.removeChannel(channel);
     };
   }, [id]);
@@ -137,7 +145,6 @@ const TicketDetailPage = () => {
         .eq("id", id);
       if (error) throw error;
 
-      // Se fechou o ticket, notifica o usuário
       if (newStatus === 'closed') {
         supabase.functions.invoke('notify-support', {
           body: { type: 'ticket_closed', ticketId: id, senderId: user?.id }
@@ -194,7 +201,6 @@ const TicketDetailPage = () => {
 
       if (error) throw error;
 
-      // Notificar a outra parte por e-mail
       supabase.functions.invoke('notify-support', {
         body: { 
           type: 'new_message', 
@@ -291,7 +297,6 @@ const TicketDetailPage = () => {
               )}
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
-              {/* Descrição Inicial */}
               <div className="flex justify-start">
                 <div className="max-w-[80%] rounded-2xl rounded-tl-none bg-secondary/30 p-4 border">
                   <p className="text-xs font-bold mb-1 text-primary uppercase tracking-wider">Descrição do Problema</p>

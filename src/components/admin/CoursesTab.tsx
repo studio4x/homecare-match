@@ -66,6 +66,17 @@ const HERO_DIR = "academy/hero";
 const MATERIALS_DIR = "materials";
 const PRIVATE_BUCKET = "academy-private";
 
+const generateSlug = (text: string) => {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove acentos
+    .replace(/[^\w\s-]/g, "") // Remove caracteres especiais
+    .replace(/\s+/g, "-") // Troca espaços por -
+    .replace(/--+/g, "-") // Remove múltiplos hífens
+    .trim();
+};
+
 const CoursesTab = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -409,11 +420,26 @@ const CoursesTab = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Título</Label>
-                  <Input value={selectedCourse.title} onChange={e => setSelectedCourse({...selectedCourse, title: e.target.value})} />
+                  <Input 
+                    value={selectedCourse.title} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      const isNew = !selectedCourse.created_at;
+                      setSelectedCourse({
+                        ...selectedCourse,
+                        title: val,
+                        slug: isNew ? generateSlug(val) : selectedCourse.slug
+                      });
+                    }} 
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Slug</Label>
-                  <Input value={selectedCourse.slug} disabled={!!selectedCourse.created_at} onChange={e => setSelectedCourse({...selectedCourse, slug: e.target.value})} />
+                  <Input 
+                    value={selectedCourse.slug} 
+                    disabled={!!selectedCourse.created_at} 
+                    onChange={e => setSelectedCourse({...selectedCourse, slug: e.target.value})} 
+                  />
                 </div>
               </div>
               <div className="space-y-2">

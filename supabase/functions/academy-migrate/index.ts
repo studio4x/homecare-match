@@ -57,7 +57,6 @@ serve(async (req) => {
       await client.connect();
 
       const sql = `
-      -- ... Tabelas existentes ...
       CREATE TABLE IF NOT EXISTS public.academy_courses (
         slug TEXT PRIMARY KEY,
         title TEXT NOT NULL,
@@ -67,8 +66,12 @@ serve(async (req) => {
         is_active BOOLEAN DEFAULT TRUE,
         hero_asset_url TEXT,
         content_url TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        price NUMERIC DEFAULT 0 -- Nova coluna para preço
       );
+
+      -- Garante que a coluna price existe caso a tabela já tenha sido criada antes
+      ALTER TABLE public.academy_courses ADD COLUMN IF NOT EXISTS price NUMERIC DEFAULT 0;
 
       CREATE TABLE IF NOT EXISTS public.academy_modules (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -88,12 +91,11 @@ serve(async (req) => {
         position INTEGER DEFAULT 1,
         storage_path TEXT,
         mime_type TEXT,
-        content TEXT -- Nova coluna para texto rico
+        content TEXT
       );
 
       ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS content TEXT;
 
-      -- ... RLS Policies (mesmas já definidas) ...
       ALTER TABLE public.academy_courses ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.academy_modules ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.academy_lessons ENABLE ROW LEVEL SECURITY;

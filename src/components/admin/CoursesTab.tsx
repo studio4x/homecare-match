@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye } from "lucide-react";
+import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye, DollarSign } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/ui/RichTextEditor";
@@ -60,6 +60,7 @@ interface Course {
   hero_asset_url?: string;
   content_url?: string;
   created_at?: string;
+  price?: number;
 }
 
 const HERO_DIR = "academy/hero";
@@ -79,10 +80,8 @@ const generateSlug = (text: string) => {
 
 const estimateTextDuration = (html: string) => {
   if (!html) return 0;
-  // Remove tags HTML e conta palavras
   const text = html.replace(/<[^>]*>?/gm, ' ');
   const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-  // Média de leitura: 200 palavras por minuto
   return Math.ceil(words / 200) || 1;
 };
 
@@ -142,6 +141,7 @@ const CoursesTab = () => {
       is_active: true,
       hero_asset_url: "",
       content_url: "",
+      price: 0,
     });
     setOpenDialog(true);
   };
@@ -170,6 +170,9 @@ const CoursesTab = () => {
     if (!selectedCourse) return;
     setIsSaving(true);
     try {
+      // Garante que o banco está sincronizado antes de salvar
+      await supabase.functions.invoke("academy-migrate", { body: { action: "create_tables" } });
+
       const { error } = await supabase.from("academy_courses").upsert({
         ...selectedCourse,
         created_at: selectedCourse.created_at || new Date().toISOString(),
@@ -380,12 +383,12 @@ const CoursesTab = () => {
             <Button
               variant="outline"
               onClick={async () => {
-                toast.info("Configurando storage seguro...");
-                const { error } = await supabase.functions.invoke("academy-storage-setup", { body: { action: "setup" } });
-                if (error) toast.error("Erro ao configurar storage."); else toast.success("Storage privado configurado!");
+                toast.info("Sincronizando estrutura...");
+                const { error } = await supabase.functions.invoke("academy-migrate", { body: { action: "create_tables" } });
+                if (error) toast.error("Erro ao sincronizar."); else toast.success("Banco de dados atualizado!");
               }}
             >
-              Configurar Storage Seguro
+              Sincronizar Banco
             </Button>
           </div>
         </CardHeader>
@@ -395,6 +398,7 @@ const CoursesTab = () => {
               <TableRow>
                 <TableHead>Título</TableHead>
                 <TableHead>Nível</TableHead>
+                <TableHead>Preço</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -403,6 +407,13 @@ const CoursesTab = () => {
                 <TableRow key={c.slug}>
                   <TableCell className="font-medium">{c.title}</TableCell>
                   <TableCell><Badge variant="outline" className="capitalize">{c.level}</Badge></TableCell>
+                  <TableCell>
+                    {c.price && c.price > 0 ? (
+                      <span className="text-sm font-semibold">R$ {Number(c.price).toFixed(2).replace('.', ',')}</span>
+                    ) : (
+                      <Badge variant="secondary" className="bg-success/10 text-success border-success/20">Grátis</Badge>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right flex justify-end gap-2">
                     <Button variant="outline" size="sm" asChild className="gap-2">
                       <Link to={`/cursos/${c.slug}`} target="_blank">
@@ -451,6 +462,37 @@ const CoursesTab = () => {
                   />
                 </div>
               </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><DollarSign size={14} /> Preço (R$)</Label>
+                  <div className="relative">
+                    <Input 
+                      type="number" 
+                      step="0.01"
+                      placeholder="0.00"
+                      value={selectedCourse.price} 
+                      onChange={e => setSelectedCourse({...selectedCourse, price: parseFloat(e.target.value) || 0})} 
+                    />
+                    {(!selectedCourse.price || selectedCourse.price === 0) && (
+                      <span className="absolute right-3 top-2.5 text-[10px] uppercase font-bold text-success">Grátis</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">Deixe 0 para tornar o curso gratuito.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Nível</Label>
+                  <Select value={selectedCourse.level} onValueChange={v => setSelectedCourse({...selectedCourse, level: v as any})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="iniciante">Iniciante</SelectItem>
+                      <SelectItem value="intermediario">Intermediário</SelectItem>
+                      <SelectItem value="avancado">Avançado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label>Descrição do Curso</Label>
                 <RichTextEditor 
@@ -459,6 +501,7 @@ const CoursesTab = () => {
                   placeholder="Explique sobre o que é este curso..."
                 />
               </div>
+              
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Capa (imagem)</Label>
@@ -534,7 +577,6 @@ const CoursesTab = () => {
                             onChange={html => { 
                               const next = [...modules]; 
                               next[mi].lessons[li].content = html; 
-                              // Estimativa automática de duração
                               next[mi].lessons[li].duration_minutes = estimateTextDuration(html);
                               setModules(next); 
                             }} 
@@ -554,7 +596,6 @@ const CoursesTab = () => {
                       </div>
                     </div>
                   ))}
-                  {/* Botão Nova Aula no final da lista do módulo */}
                   <div className="flex justify-center pt-2">
                     <Button size="sm" variant="ghost" className="w-full border-dashed border-2 text-muted-foreground hover:text-primary hover:border-primary" onClick={() => addLesson(mi)}>
                       <Plus size={14} className="mr-1" /> Adicionar Aula ao Módulo
@@ -563,7 +604,6 @@ const CoursesTab = () => {
                 </div>
               </div>
             ))}
-            {/* Botão Novo Módulo no final da lista geral */}
             <div className="pb-10">
               <Button variant="outline" className="w-full border-dashed border-2 h-14 text-muted-foreground hover:text-primary hover:border-primary" onClick={addModule}>
                 <Plus size={18} className="mr-2" /> Novo Módulo

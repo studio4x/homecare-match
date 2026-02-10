@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
+import AppVersion from "./AppVersion";
 
 const AdminLayout = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -46,8 +47,10 @@ const AdminLayout = () => {
 
   useEffect(() => {
     const verifyAdmin = async () => {
+      console.log("[AdminLayout] Verificando admin...", { userId: user?.id, authLoading });
       if (authLoading) return;
       if (!user) {
+        console.log("[AdminLayout] Nenhum usuário logado.");
         setLoading(false);
         return;
       }
@@ -55,12 +58,17 @@ const AdminLayout = () => {
       try {
         setLoading(true);
         // Verificação dupla: RPC e Perfil direto
-        const { data: rpcData } = await supabase.rpc('check_is_admin');
-        const { data: profileData } = await supabase
+        const { data: rpcData, error: rpcError } = await supabase.rpc('check_is_admin');
+        if (rpcError) console.error("[AdminLayout] Erro RPC check_is_admin:", rpcError);
+
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('role, is_admin')
           .eq('id', user.id)
           .single();
+        if (profileError) console.error("[AdminLayout] Erro fetch profile:", profileError);
+
+        console.log("[AdminLayout] Resultado verificação:", { rpcData, profileData });
 
         if (rpcData === true || profileData?.is_admin === true || profileData?.role === 'admin') {
           setIsAdmin(true);
@@ -180,6 +188,7 @@ const AdminLayout = () => {
         <div className="flex-1 overflow-auto p-4 md:p-8">
           <Outlet />
         </div>
+        <AppVersion />
       </main>
     </div>
   );

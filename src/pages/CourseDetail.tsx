@@ -122,6 +122,23 @@ const CourseDetail = () => {
     if (slug) fetchCourseData();
   }, [slug, user]);
 
+  const stats = useMemo(() => {
+    const total = course?.modules?.reduce((acc: any, m: any) => acc + m.lessons.length, 0) || 0;
+    const done = Object.values(progress).filter(s => s === 'completed').length;
+    return { 
+      total, 
+      done, 
+      pct: total > 0 ? Math.round((done / total) * 100) : 0 
+    };
+  }, [course, progress]);
+
+  // Efeito para emissão automática retroativa
+  useEffect(() => {
+    if (!loading && isEnrolled && stats.pct === 100 && !certificateId && !isIssuingCertificate) {
+      issueCertificate();
+    }
+  }, [loading, isEnrolled, stats.pct, certificateId]);
+
   const handleEnroll = async () => {
     if (!session) {
       toast.info("Faça login para se inscrever.");
@@ -163,14 +180,6 @@ const CourseDetail = () => {
       
       if (newStatus === 'completed') {
         toast.success("Aula concluída!");
-        
-        // Verificar se o curso chegou a 100% para emitir certificado
-        const total = course?.modules?.reduce((acc: any, m: any) => acc + m.lessons.length, 0) || 0;
-        const done = Object.values(newProgress).filter(s => s === 'completed').length;
-        
-        if (done >= total && !certificateId) {
-          issueCertificate();
-        }
       }
     } catch (err) {
       console.error("[CourseDetail] Erro ao salvar progresso:", err);
@@ -200,16 +209,6 @@ const CourseDetail = () => {
       setIsIssuingCertificate(false);
     }
   };
-
-  const stats = useMemo(() => {
-    const total = course?.modules?.reduce((acc: any, m: any) => acc + m.lessons.length, 0) || 0;
-    const done = Object.values(progress).filter(s => s === 'completed').length;
-    return { 
-      total, 
-      done, 
-      pct: total > 0 ? Math.round((done / total) * 100) : 0 
-    };
-  }, [course, progress]);
 
   const handleOpenLesson = (lesson: any) => {
     if (!isEnrolled) return;
@@ -424,7 +423,7 @@ const CourseDetail = () => {
                   }}
                 >
                   {progress[selectedLesson.id] === 'completed' ? (
-                    <><Check size={16} /> Aula Concluída</>
+                    <><><Check size={16} /> Aula Concluída</></>
                   ) : (
                     'Marcar como Concluída'
                   )}

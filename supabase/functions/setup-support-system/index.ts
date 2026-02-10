@@ -23,11 +23,17 @@ serve(async (req) => {
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
         subject TEXT NOT NULL,
         description TEXT,
-        status TEXT NOT NULL DEFAULT 'open', -- open, in_progress, closed
-        priority TEXT NOT NULL DEFAULT 'medium', -- low, medium, high
+        status TEXT NOT NULL DEFAULT 'open',
+        priority TEXT NOT NULL DEFAULT 'medium',
+        attachment_url TEXT,
+        attachment_name TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      -- Adicionar colunas se não existirem
+      ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+      ALTER TABLE public.support_tickets ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 
       -- Mensagens dos Tickets (Chat)
       CREATE TABLE IF NOT EXISTS public.support_messages (
@@ -35,8 +41,14 @@ serve(async (req) => {
         ticket_id UUID NOT NULL REFERENCES public.support_tickets(id) ON DELETE CASCADE,
         sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
         message TEXT NOT NULL,
+        attachment_url TEXT,
+        attachment_name TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      -- Adicionar colunas se não existirem
+      ALTER TABLE public.support_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+      ALTER TABLE public.support_messages ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 
       -- FAQs e Base de Conhecimento
       CREATE TABLE IF NOT EXISTS public.support_faqs (
@@ -57,18 +69,15 @@ serve(async (req) => {
       -- Políticas
       DO $$
       BEGIN
-        -- Tickets: Usuário vê os seus, Admin vê todos
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'support_tickets_owner') THEN
           CREATE POLICY "support_tickets_owner" ON public.support_tickets FOR ALL TO authenticated USING (auth.uid() = user_id OR check_is_admin());
         END IF;
 
-        -- Mensagens: Usuário vê as do seu ticket, Admin vê todas
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'support_messages_owner') THEN
           CREATE POLICY "support_messages_owner" ON public.support_messages FOR ALL TO authenticated 
           USING (EXISTS (SELECT 1 FROM public.support_tickets t WHERE t.id = ticket_id AND (t.user_id = auth.uid() OR check_is_admin())));
         END IF;
 
-        -- FAQs: Todos leem, Admin edita
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'support_faqs_read') THEN
           CREATE POLICY "support_faqs_read" ON public.support_faqs FOR SELECT USING (true);
         END IF;
@@ -81,7 +90,7 @@ serve(async (req) => {
     await client.queryObject(sql);
     await client.end();
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de suporte configurado!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de suporte atualizado!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

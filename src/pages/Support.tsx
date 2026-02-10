@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -21,7 +21,9 @@ import {
   FileText, 
   Loader2, 
   Plus,
-  ArrowRight
+  ArrowRight,
+  Paperclip,
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -35,6 +37,8 @@ const Support = () => {
   const [search, setSearch] = useState("");
   const [isOpeningTicket, setIsOpeningTicket] = useState(false);
   const [ticketData, setTicketData] = useState({ subject: "", description: "" });
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchFaqs();
@@ -66,13 +70,37 @@ const Support = () => {
 
     setIsOpeningTicket(true);
     try {
+      let attachmentUrl = null;
+      let attachmentName = null;
+
+      if (attachment) {
+        const fileExt = attachment.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `support/${user?.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('uploads')
+          .upload(filePath, attachment);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('uploads')
+          .getPublicUrl(filePath);
+        
+        attachmentUrl = publicUrl;
+        attachmentName = attachment.name;
+      }
+
       const { data, error } = await supabase
         .from("support_tickets")
         .insert({
           user_id: user?.id,
           subject: ticketData.subject,
           description: ticketData.description,
-          status: 'open'
+          status: 'open',
+          attachment_url: attachmentUrl,
+          attachment_name: attachmentName
         })
         .select()
         .single();
@@ -173,6 +201,37 @@ const Support = () => {
                       onChange={(e) => setTicketData({...ticketData, description: e.target.value})}
                     />
                   </div>
+
+                  <div className="space-y-2">
+                    <Label>Anexo (Opcional)</Label>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Paperclip className="h-4 w-4" />
+                        {attachment ? "Alterar Arquivo" : "Anexar Arquivo"}
+                      </Button>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                      />
+                      {attachment && (
+                        <div className="flex items-center gap-1 bg-secondary px-2 py-1 rounded text-xs">
+                          <span className="truncate max-w-[100px]">{attachment.name}</span>
+                          <button type="button" onClick={() => setAttachment(null)}>
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <Button type="submit" className="w-full gap-2" disabled={isOpeningTicket}>
                     {isOpeningTicket ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                     Enviar Ticket

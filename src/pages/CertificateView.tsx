@@ -20,7 +20,7 @@ const CertificateView = () => {
           .from("certificates")
           .select(`
             *,
-            course:academy_courses(title, level),
+            course:academy_courses(title, level, duration_minutes),
             user:profiles(full_name, registration)
           `)
           .eq("id", id)
@@ -45,6 +45,9 @@ const CertificateView = () => {
   const issueDate = new Date(data.issued_at).toLocaleDateString('pt-BR', {
     day: '2-digit', month: 'long', year: 'numeric'
   });
+
+  // Fallback: Se a carga horária gravada no certificado for 0, usa a duração atual do curso
+  const workloadMinutes = data.workload_minutes || data.course?.duration_minutes || 0;
 
   const formatWorkload = (minutes: number) => {
     const h = Math.floor(minutes / 60);
@@ -111,7 +114,7 @@ const CertificateView = () => {
                 <Clock className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0" />
                 <div className="text-left">
                   <p className="text-[8px] uppercase font-bold text-slate-400 leading-none mb-0.5">Carga Horária</p>
-                  <p className="font-semibold text-xs md:text-sm">{formatWorkload(data.workload_minutes)}</p>
+                  <p className="font-semibold text-xs md:text-sm">{formatWorkload(workloadMinutes)}</p>
                 </div>
               </div>
             </div>

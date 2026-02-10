@@ -39,16 +39,14 @@ serve(async (req) => {
       );
     `);
 
-    // 2. Adicionar restrições de unicidade (Obrigatório para o UPSERT funcionar)
+    // 2. Adicionar restrições de unicidade
     await client.queryObject(`
       DO $$
       BEGIN
-        -- Unicidade para Inscrições
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'academy_enrollments_user_course_unique') THEN
           ALTER TABLE public.academy_enrollments ADD CONSTRAINT academy_enrollments_user_course_unique UNIQUE (user_id, course_slug);
         END IF;
 
-        -- Unicidade para Progresso (Corrige o erro 42P10)
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'academy_progress_user_lesson_unique') THEN
           ALTER TABLE public.academy_progress ADD CONSTRAINT academy_progress_user_lesson_unique UNIQUE (user_id, lesson_id);
         END IF;
@@ -83,6 +81,14 @@ serve(async (req) => {
         workload_minutes INTEGER DEFAULT 0,
         UNIQUE (user_id, course_slug)
       );
+
+      -- Nova tabela de sugestões
+      CREATE TABLE IF NOT EXISTS public.suggestions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
     `);
 
     // 4. RLS e Policies
@@ -91,6 +97,7 @@ serve(async (req) => {
       ALTER TABLE public.academy_progress ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.suggestions ENABLE ROW LEVEL SECURITY;
 
       DO $$
       BEGIN
@@ -99,6 +106,14 @@ serve(async (req) => {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_progress_owner') THEN
           CREATE POLICY "academy_progress_owner" ON public.academy_progress FOR ALL TO authenticated USING (auth.uid() = user_id);
+        END IF;
+        
+        -- Políticas para Sugestões
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'suggestions_insert_policy') THEN
+          CREATE POLICY "suggestions_insert_policy" ON public.suggestions FOR INSERT TO authenticated WITH CHECK (true);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'suggestions_admin_select') THEN
+          CREATE POLICY "suggestions_admin_select" ON public.suggestions FOR SELECT TO authenticated USING (check_is_admin());
         END IF;
       END
       $$;

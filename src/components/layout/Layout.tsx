@@ -6,6 +6,7 @@ import AppVersion from "./AppVersion";
 import FaviconUpdater from "./FaviconUpdater";
 import ScrollToTop from "../ScrollToTop";
 import MarketingScripts from "../MarketingScripts";
+import SuggestionDrawer from "../SuggestionDrawer";
 
 interface LayoutProps {
   children: ReactNode;
@@ -19,6 +20,7 @@ const Layout = ({ children }: LayoutProps) => {
       <Navbar />
       <ImpersonationBar />
       <MarketingScripts />
+      <SuggestionDrawer />
       <main className="flex-1 py-8 md:py-12">{children}</main>
       <Footer />
       <AppVersion />

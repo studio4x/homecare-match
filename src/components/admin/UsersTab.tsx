@@ -54,7 +54,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [isUpdatingPlan, setIsUpdatingPlan] = useState<string | null>(null);
   const [isImpersonating, setIsImpersonating] = useState<string | null>(null);
 
-  const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br";
+  const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
 
   const getTierLabel = (tier: string) => {
     switch (tier.toLowerCase()) {

@@ -47,7 +47,7 @@ serve(async (req) => {
       return new Response('Você não pode excluir sua própria conta por aqui', { status: 400, headers: corsHeaders })
     }
 
-    if (targetProfile?.email === "homecarematch@studio4x.com.br") {
+    if (targetProfile?.email === "contato@homecarematch.com.br") {
       return new Response('O administrador mestre não pode ser excluído', { status: 400, headers: corsHeaders })
     }
 

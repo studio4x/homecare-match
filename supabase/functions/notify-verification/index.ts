@@ -41,7 +41,7 @@ serve(async (req) => {
     if (authError || !user) return new Response('Invalid token', { status: 401, headers: corsHeaders })
 
     const { userName, userEmail, userId } = await req.json()
-    const MASTER_ADMIN_EMAIL = "homecarematch@studio4x.com.br"
+    const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br"
     
     console.log(`[notify-verification] Processando pedido de: ${userName} (${userEmail})`);
 

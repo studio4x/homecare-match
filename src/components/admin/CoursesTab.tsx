@@ -85,14 +85,13 @@ const estimateTextDuration = (html: string) => {
   return Math.ceil(words / 200) || 1;
 };
 
-// Função auxiliar para extrair duração de arquivo de vídeo
 const getVideoDuration = (file: File): Promise<number> => {
   return new Promise((resolve) => {
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       window.URL.revokeObjectURL(video.src);
-      const duration = Math.round(video.duration / 60) || 1; // em minutos
+      const duration = Math.round(video.duration / 60) || 1; 
       resolve(duration);
     };
     video.onerror = () => resolve(0);
@@ -112,7 +111,7 @@ const CoursesTab = () => {
   const [modules, setModules] = useState<Module[]>([]);
   const [isSavingContent, setIsSavingContent] = useState<boolean>(false);
   const [uploadingLessonId, setUploadingLessonId] = useState<string | null>(null);
-  const MAX_FILE_SIZE_MB = 100; // Aumentado para vídeos
+  const MAX_FILE_SIZE_MB = 100; 
   const [selectedModuleIdx, setSelectedModuleIdx] = useState<number | null>(null);
   const [selectedLessonIdx, setSelectedLessonIdx] = useState<number | null>(null);
   const [originalModules, setOriginalModules] = useState<Module[]>([]);
@@ -336,7 +335,6 @@ const CoursesTab = () => {
     }
 
     try {
-      // Se for vídeo, tenta pegar a duração
       let detectedDuration = 0;
       if (file.type.startsWith("video/")) {
         detectedDuration = await getVideoDuration(file);
@@ -452,7 +450,6 @@ const CoursesTab = () => {
         </CardContent>
       </Card>
 
-      {/* Dialog: Editar Curso */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader><DialogTitle>Configurações do Curso</DialogTitle></DialogHeader>
@@ -531,12 +528,14 @@ const CoursesTab = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Gerenciar Conteúdo */}
       <Dialog open={openContentDialog} onOpenChange={attemptCloseContentDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader><DialogTitle>Conteúdo: {selectedCourse?.title}</DialogTitle></DialogHeader>
-          <div className="flex-1 overflow-y-auto p-1 space-y-6">
-            <Button size="sm" onClick={addModule} className="gap-2"><Plus size={16} /> Novo Módulo</Button>
+          <div className="flex-1 overflow-y-auto p-1 space-y-8">
+            <div className="flex justify-between items-center">
+              <Button size="sm" onClick={addModule} className="gap-2"><Plus size={16} /> Novo Módulo</Button>
+            </div>
+
             {modules.map((m, mi) => (
               <div key={m.id} className="border rounded-lg p-4 space-y-4 bg-muted/20">
                 <div className="flex items-center justify-between gap-3">
@@ -607,11 +606,34 @@ const CoursesTab = () => {
                       </div>
                     </div>
                   ))}
+
+                  {/* Botão Adicionar Aula ao final do módulo */}
+                  <div className="pt-2 flex justify-center">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full max-w-xs gap-2 border-dashed" 
+                      onClick={() => addLesson(mi)}
+                    >
+                      <Plus size={14} /> Adicionar Aula
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
+
+            {/* Seção Separada para Adicionar Novo Módulo */}
+            <div className="pt-4 pb-8 border-t border-dashed flex flex-col items-center gap-4">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Fim do Conteúdo</p>
+              <Button 
+                onClick={addModule} 
+                className="gap-2 h-12 px-8 shadow-md"
+              >
+                <Plus size={18} /> Adicionar Novo Módulo
+              </Button>
+            </div>
           </div>
-          <div className="p-4 border-t flex justify-end gap-2">
+          <div className="p-4 border-t flex justify-end gap-2 bg-card">
             <Button variant="ghost" onClick={attemptCloseContentDialog}>Fechar</Button>
             <Button onClick={handleSaveContent} disabled={isSavingContent}>
               {isSavingContent && <Loader2 size={16} className="mr-2 animate-spin" />}

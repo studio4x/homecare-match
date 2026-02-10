@@ -25,6 +25,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { cn } from "@/lib/utils";
 
+const PRIVATE_BUCKET = "academy-private";
+
 const CourseDetail = () => {
   const { slug } = useParams();
   const { user, session } = useAuth();
@@ -36,47 +38,79 @@ const CourseDetail = () => {
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
   const [progress, setProgress] = useState<any>({});
   const [certificateId, setCertificateId] = useState<string | null>(null);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    const fetchCourseData = async () => {
-      setLoading(true);
-      try {
-        const { data: c, error: cErr } = await supabase.from("academy_courses").select("*").eq("slug", slug).single();
-        if (cErr) throw cErr;
+  const fetchCourseData = async () => {
+    setLoading(true);
+    try {
+      const { data: c, error: cErr } = await supabase.from("academy_courses").select("*").eq("slug", slug).single();
+      if (cErr) throw cErr;
 
-        const { data: m } = await supabase.from("academy_modules").select("*").eq("course_slug", slug).order("position", { ascending: true });
+      const { data: m } = await supabase.from("academy_modules").select("*").eq("course_slug", slug).order("position", { ascending: true });
+      
+      const modsWithLessons: any[] = [];
+      const storagePathsToSign: string[] = [];
+
+      for (const mod of m || []) {
+        const { data: l } = await supabase.from("academy_lessons").select("*").eq("module_id", mod.id).order("position", { ascending: true });
+        const lessons = l || [];
         
-        const modsWithLessons = [];
-        for (const mod of m || []) {
-          const { data: l } = await supabase.from("academy_lessons").select("*").eq("module_id", mod.id).order("position", { ascending: true });
-          modsWithLessons.push({ ...mod, lessons: l || [] });
-        }
-        setCourse({ ...c, modules: modsWithLessons });
+        lessons.forEach(lesson => {
+          if (lesson.resource_url && !lesson.resource_url.startsWith('http')) {
+            storagePathsToSign.push(lesson.resource_url);
+          }
+        });
 
-        if (user) {
-          const { data: enr } = await supabase.from("academy_enrollments").select("id").eq("user_id", user.id).eq("course_slug", slug).maybeSingle();
-          setIsEnrolled(!!enr);
+        modsWithLessons.push({ ...mod, lessons });
+      }
+      setCourse({ ...c, modules: modsWithLessons });
 
-          if (enr) {
-            const { data: prog } = await supabase.from("academy_progress").select("*").eq("user_id", user.id).eq("course_slug", slug);
-            const pMap: any = {};
-            prog?.forEach(p => pMap[p.lesson_id] = p.status);
-            setProgress(pMap);
+      if (user) {
+        const { data: enr } = await supabase.from("academy_enrollments").select("id").eq("user_id", user.id).eq("course_slug", slug).maybeSingle();
+        setIsEnrolled(!!enr);
 
+        if (enr) {
+          // Gerar URLs assinadas se estiver matriculado
+          if (storagePathsToSign.length > 0) {
+            const { data: signedData, error: signErr } = await supabase.storage
+              .from(PRIVATE_BUCKET)
+              .createSignedUrls(storagePathsToSign, 3600);
+            
+            if (!signErr && signedData) {
+              const urlMap: Record<string, string> = {};
+              signedData.forEach((item, idx) => {
+                if (item.signedUrl) urlMap[storagePathsToSign[idx]] = item.signedUrl;
+              });
+              setSignedUrls(urlMap);
+            }
+          }
+
+          const { data: prog } = await supabase.from("academy_progress").select("*").eq("user_id", user.id).eq("course_slug", slug);
+          const pMap: any = {};
+          prog?.forEach(p => pMap[p.lesson_id] = p.status);
+          setProgress(pMap);
+
+          // Buscar certificado (usando query segura para evitar erro se tabela não existir)
+          try {
             const { data: cert } = await supabase.from("certificates").select("id").eq("user_id", user.id).eq("course_slug", slug).maybeSingle();
             if (cert) setCertificateId(cert.id);
+          } catch {
+            console.warn("Tabela de certificados não encontrada ou inacessível.");
           }
         }
-      } catch (err) {
-        console.error(err);
-        toast.error("Curso não encontrado.");
-        navigate("/cursos");
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchCourseData();
-  }, [slug, user, navigate]);
+    } catch (err) {
+      console.error(err);
+      toast.error("Curso não encontrado.");
+      navigate("/cursos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (slug) fetchCourseData();
+  }, [slug, user]);
 
   const handleEnroll = async () => {
     if (!session) {
@@ -92,7 +126,8 @@ const CourseDetail = () => {
       });
       if (error) throw error;
       setIsEnrolled(true);
-      toast.success("Inscrição realizada com sucesso! Bons estudos.");
+      toast.success("Inscrição realizada! Bons estudos.");
+      fetchCourseData(); // Recarrega para gerar URLs assinadas
     } catch (err) {
       toast.error("Erro ao realizar inscrição.");
     } finally {
@@ -113,6 +148,8 @@ const CourseDetail = () => {
       
       if (error) throw error;
       setProgress({ ...progress, [lessonId]: newStatus });
+      
+      // Se completou, verifica se terminou o curso (opcional: aqui poderia disparar a verificação de certificado)
     } catch (err) {
       toast.error("Erro ao salvar progresso.");
     }
@@ -138,7 +175,6 @@ const CourseDetail = () => {
         </Button>
 
         <div className="grid gap-8 md:grid-cols-3">
-          {/* Sidebar Info */}
           <div className="space-y-6">
             <Card className="overflow-hidden border-none shadow-lg">
               <AspectRatio ratio={16/9}>
@@ -169,7 +205,7 @@ const CourseDetail = () => {
                       </Button>
                     )}
                     <div className="bg-success/10 text-success text-xs p-3 rounded-lg flex items-center gap-2">
-                      <Check size={14} /> Você está matriculado neste curso.
+                      <Check size={14} /> Você está matriculado.
                     </div>
                   </div>
                 )}
@@ -177,7 +213,6 @@ const CourseDetail = () => {
             </Card>
           </div>
 
-          {/* Main Content */}
           <div className="md:col-span-2 space-y-8">
             <div>
               <h1 className="text-4xl font-bold text-foreground mb-4">{course.title}</h1>
@@ -188,22 +223,19 @@ const CourseDetail = () => {
             </div>
 
             <div className="space-y-4">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                Conteúdo do Curso
-                {!isEnrolled && <Badge variant="outline" className="ml-2 font-normal text-xs"><Lock size={10} className="mr-1" /> Conteúdo Protegido</Badge>}
-              </h2>
-              
+              <h2 className="text-2xl font-bold flex items-center gap-2">Conteúdo do Curso</h2>
               <div className="space-y-6">
                 {course.modules?.map((m: any) => (
                   <Card key={m.id} className={cn(!isEnrolled && "opacity-80")}>
                     <CardHeader className="bg-muted/30 py-4">
                       <CardTitle className="text-lg">{m.title}</CardTitle>
-                      {m.description && <p className="text-xs text-muted-foreground">{m.description}</p>}
                     </CardHeader>
                     <CardContent className="p-0">
                       <div className="divide-y">
                         {m.lessons?.map((l: any) => {
                           const status = progress[l.id] || 'pending';
+                          const finalUrl = signedUrls[l.resource_url] || l.resource_url;
+                          
                           return (
                             <div key={l.id} className="p-4 space-y-4">
                               <div className="flex items-center justify-between gap-4">
@@ -216,7 +248,6 @@ const CourseDetail = () => {
                                     <p className="text-[10px] text-muted-foreground uppercase">{l.duration_minutes || 0} min</p>
                                   </div>
                                 </div>
-                                
                                 {isEnrolled ? (
                                   <Button 
                                     variant={status === 'completed' ? 'default' : 'outline'} 
@@ -224,11 +255,9 @@ const CourseDetail = () => {
                                     className={cn("h-8 px-3 text-xs", status === 'completed' && "bg-success hover:bg-success/90")}
                                     onClick={() => toggleComplete(l.id, status)}
                                   >
-                                    {status === 'completed' ? <><Check size={14} className="mr-1" /> Concluído</> : 'Marcar como concluída'}
+                                    {status === 'completed' ? <><Check size={14} className="mr-1" /> Concluído</> : 'Concluir'}
                                   </Button>
-                                ) : (
-                                  <Lock size={16} className="text-muted-foreground/40" />
-                                )}
+                                ) : <Lock size={16} className="text-muted-foreground/40" />}
                               </div>
 
                               {isEnrolled && (
@@ -236,20 +265,19 @@ const CourseDetail = () => {
                                   {l.type === 'text' && l.content && (
                                     <div className="prose prose-sm max-w-none bg-muted/20 p-6 rounded-xl" dangerouslySetInnerHTML={{ __html: l.content }} />
                                   )}
-                                  {l.type === 'video' && l.resource_url && (
+                                  {l.type === 'video' && finalUrl && (
                                     <AspectRatio ratio={16/9} className="bg-black rounded-xl overflow-hidden shadow-inner">
                                       <iframe 
-                                        src={l.resource_url} 
+                                        src={finalUrl} 
                                         className="w-full h-full" 
                                         allowFullScreen 
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                       />
                                     </AspectRatio>
                                   )}
-                                  {(l.type === 'pdf' || l.type === 'link') && l.resource_url && (
+                                  {(l.type === 'pdf' || l.type === 'link') && finalUrl && (
                                     <Button asChild variant="secondary" size="sm">
-                                      <a href={l.resource_url} target="_blank" rel="noopener noreferrer">
-                                        <ExternalLink size={14} className="mr-2" /> Acessar Recurso Externo
+                                      <a href={finalUrl} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink size={14} className="mr-2" /> {l.type === 'pdf' ? 'Abrir PDF' : 'Acessar Link'}
                                       </a>
                                     </Button>
                                   )}
@@ -264,21 +292,6 @@ const CourseDetail = () => {
                 ))}
               </div>
             </div>
-
-            {!isEnrolled && (
-              <div className="bg-primary/5 border border-primary/10 rounded-2xl p-8 text-center space-y-4">
-                <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                  <Lock size={24} />
-                </div>
-                <h3 className="text-xl font-bold">Conteúdo Restrito</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Inscreva-se agora para desbloquear todas as aulas, assistir aos vídeos e garantir seu certificado de conclusão.
-                </p>
-                <Button onClick={handleEnroll} size="lg" className="px-12">
-                  Começar a Estudar Agora
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </div>

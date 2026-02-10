@@ -18,38 +18,16 @@ serve(async (req) => {
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
-    console.log("[setup-reviews-table] Iniciando sincronização do banco...");
+    console.log("[setup-reviews-table] Iniciando sincronização completa...");
 
-    // 1. ACADEMY: Adiciona coluna de conteúdo rico nas aulas
-    const academySql = `
-      ALTER TABLE public.academy_lessons 
-      ADD COLUMN IF NOT EXISTS content TEXT;
-    `;
-    await client.queryObject(academySql);
+    // 1. ACADEMY: Colunas necessárias
+    await client.queryObject(`ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS content TEXT;`);
+    await client.queryObject(`ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS storage_path TEXT;`);
+    await client.queryObject(`ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS mime_type TEXT;`);
+    await client.queryObject(`ALTER TABLE public.academy_courses ADD COLUMN IF NOT EXISTS price NUMERIC DEFAULT 0;`);
+    await client.queryObject(`ALTER TABLE public.interactions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';`);
 
-    // 2. INTERACTIONS: Adiciona coluna de status
-    const addStatusSql = `
-      ALTER TABLE public.interactions 
-      ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
-    `;
-    await client.queryObject(addStatusSql);
-
-    // 3. POLICIES: Garante permissão de UPDATE em interactions
-    const updatePolicySql = `
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'interactions' AND policyname = 'interactions_update_policy') THEN
-          CREATE POLICY "interactions_update_policy" ON public.interactions
-          FOR UPDATE TO authenticated
-          USING ((auth.uid() = sender_id) OR (auth.uid() = professional_id))
-          WITH CHECK ((auth.uid() = sender_id) OR (auth.uid() = professional_id));
-        END IF;
-      END
-      $$;
-    `;
-    await client.queryObject(updatePolicySql);
-
-    // 4. REVIEWS: Cria tabela de avaliações
+    // 2. REVIEWS: Tabela de avaliações
     const createReviewsSql = `
       CREATE TABLE IF NOT EXISTS public.reviews (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -60,50 +38,58 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE (reviewer_id, subject_id)
       );
-
       ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
-
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_read_policy') THEN
-          CREATE POLICY "reviews_read_policy" ON public.reviews FOR SELECT USING (true);
-        END IF;
-        
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_insert_policy') THEN
-          CREATE POLICY "reviews_insert_policy" ON public.reviews 
-          FOR INSERT TO authenticated 
-          WITH CHECK (auth.uid() = reviewer_id);
-        END IF;
-      END
-      $$;
     `;
     await client.queryObject(createReviewsSql);
 
-    // 5. VISIBILIDADE: Permitir ver perfis que fizeram reviews
-    const visibilityPolicySql = `
+    // 3. CERTIFICATES: Tabela de certificados
+    const createCertsSql = `
+      CREATE TABLE IF NOT EXISTS public.certificates (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
+        issued_at TIMESTAMPTZ DEFAULT NOW(),
+        validation_code TEXT UNIQUE NOT NULL,
+        workload_minutes INTEGER DEFAULT 0,
+        UNIQUE (user_id, course_slug)
+      );
+      ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
+    `;
+    await client.queryObject(createCertsSql);
+
+    // 4. POLICIES: Garantir permissões básicas
+    const policiesSql = `
       DO $$
       BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'profiles' AND policyname = 'profiles_reviewer_visibility') THEN
-          CREATE POLICY "profiles_reviewer_visibility" ON public.profiles
-          FOR SELECT USING (
-            EXISTS (
-              SELECT 1 FROM public.reviews 
-              WHERE reviews.reviewer_id = profiles.id
-            )
-          );
+        -- Interactions update
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'interactions_update_policy') THEN
+          CREATE POLICY "interactions_update_policy" ON public.interactions FOR UPDATE TO authenticated USING ((auth.uid() = sender_id) OR (auth.uid() = professional_id));
+        END IF;
+
+        -- Reviews read/insert
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_read_policy') THEN
+          CREATE POLICY "reviews_read_policy" ON public.reviews FOR SELECT USING (true);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reviews_insert_policy') THEN
+          CREATE POLICY "reviews_insert_policy" ON public.reviews FOR INSERT TO authenticated WITH CHECK (auth.uid() = reviewer_id);
+        END IF;
+
+        -- Certificates read
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'certificates_public_read') THEN
+          CREATE POLICY "certificates_public_read" ON public.certificates FOR SELECT USING (true);
         END IF;
       END
       $$;
     `;
-    await client.queryObject(visibilityPolicySql);
+    await client.queryObject(policiesSql);
 
     await client.end();
-    return new Response(JSON.stringify({ ok: true, message: "Banco de dados e Academy sincronizados com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sincronização concluída!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[setup-reviews] Erro:", e);
+    console.error("[setup-sync] Erro:", e);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

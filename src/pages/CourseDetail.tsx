@@ -213,7 +213,7 @@ const CourseDetail = () => {
                                   </div>
                                   <div>
                                     <h4 className="font-medium text-sm sm:text-base">{l.title}</h4>
-                                    <p className="text-[10px] text-muted-foreground uppercase">{l.type} • {l.duration_minutes} min</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase">{l.duration_minutes || 0} min</p>
                                   </div>
                                 </div>
                                 

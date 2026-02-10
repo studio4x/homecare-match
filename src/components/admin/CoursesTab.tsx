@@ -70,11 +70,20 @@ const generateSlug = (text: string) => {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove acentos
-    .replace(/[^\w\s-]/g, "") // Remove caracteres especiais
-    .replace(/\s+/g, "-") // Troca espaços por -
-    .replace(/--+/g, "-") // Remove múltiplos hífens
+    .replace(/[\u0300-\u036f]/g, "") 
+    .replace(/[^\w\s-]/g, "") 
+    .replace(/\s+/g, "-") 
+    .replace(/--+/g, "-") 
     .trim();
+};
+
+const estimateTextDuration = (html: string) => {
+  if (!html) return 0;
+  // Remove tags HTML e conta palavras
+  const text = html.replace(/<[^>]*>?/gm, ' ');
+  const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+  // Média de leitura: 200 palavras por minuto
+  return Math.ceil(words / 200) || 1;
 };
 
 const CoursesTab = () => {
@@ -510,16 +519,25 @@ const CoursesTab = () => {
                         </div>
                         <div>
                           <Label className="text-xs">Minutos</Label>
-                          <Input type="number" value={l.duration_minutes} onChange={e => { const next = [...modules]; next[mi].lessons[li].duration_minutes = parseInt(e.target.value); setModules(next); }} />
+                          <Input type="number" value={l.duration_minutes} onChange={e => { const next = [...modules]; next[mi].lessons[li].duration_minutes = parseInt(e.target.value) || 0; setModules(next); }} />
                         </div>
                       </div>
 
                       {l.type === 'text' ? (
                         <div className="space-y-2">
-                          <Label className="text-xs">Conteúdo da Aula</Label>
+                          <div className="flex items-center justify-between">
+                            <Label className="text-xs">Conteúdo da Aula</Label>
+                            <span className="text-[10px] text-muted-foreground italic">Duração estimada automaticamente</span>
+                          </div>
                           <RichTextEditor 
                             content={l.content || ""} 
-                            onChange={html => { const next = [...modules]; next[mi].lessons[li].content = html; setModules(next); }} 
+                            onChange={html => { 
+                              const next = [...modules]; 
+                              next[mi].lessons[li].content = html; 
+                              // Estimativa automática de duração
+                              next[mi].lessons[li].duration_minutes = estimateTextDuration(html);
+                              setModules(next); 
+                            }} 
                           />
                         </div>
                       ) : (

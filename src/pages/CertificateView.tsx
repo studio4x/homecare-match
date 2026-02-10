@@ -55,8 +55,8 @@ const CertificateView = () => {
   };
 
   return (
-    <div className="min-h-screen bg-secondary/10 py-6 px-4 print:p-0 print:bg-white">
-      <div className="mx-auto max-w-[1100px] space-y-6 print:max-w-none">
+    <div className="min-h-screen bg-secondary/10 py-6 px-4 print:p-0 print:m-0 print:bg-white">
+      <div className="mx-auto max-w-[1100px] space-y-6 print:max-w-none print:space-y-0">
         {/* Barra de Ações (Oculta na impressão) */}
         <div className="flex items-center justify-between print:hidden">
           <Button variant="ghost" asChild className="gap-2">
@@ -68,7 +68,7 @@ const CertificateView = () => {
         </div>
 
         {/* O Certificado - Container A4 Paisagem */}
-        <div className="certificate-container relative w-full bg-white shadow-2xl border-[10mm] border-primary/10 p-8 md:p-12 flex flex-col items-center text-center overflow-hidden print:shadow-none print:border-primary/20 print:m-0">
+        <div className="certificate-container relative w-full bg-white shadow-2xl border-[10mm] border-primary/10 p-8 md:p-12 flex flex-col items-center text-center overflow-hidden print:shadow-none print:border-primary/20 print:m-0 print:border-[10mm]">
           
           {/* Decoração de Fundo */}
           <Award className="absolute -top-10 -right-10 h-48 w-48 md:h-64 md:w-64 text-primary/5 rotate-12 pointer-events-none" />
@@ -151,7 +151,12 @@ const CertificateView = () => {
           }
         }
         @media print {
-          body { background: white !important; }
+          html, body { 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            height: 100%;
+            background: white !important;
+          }
           .print\\:hidden { display: none !important; }
           @page { 
             size: A4 landscape; 
@@ -160,13 +165,17 @@ const CertificateView = () => {
           .certificate-container {
             width: 297mm;
             height: 210mm;
-            border-width: 10mm;
-            padding: 10mm;
-            box-sizing: border-box;
+            border-width: 10mm !important;
+            padding: 10mm !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
             page-break-inside: avoid;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            position: absolute;
+            top: 0;
+            left: 0;
           }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }

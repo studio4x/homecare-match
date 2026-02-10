@@ -20,6 +20,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle,
+  DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
 import { Loader2, Plus, Edit2, Trash2, FileText } from "lucide-react";
@@ -75,7 +76,7 @@ const FaqAdminPage = () => {
       setOpenDialog(false);
       fetchFaqs();
     } catch (err) {
-      toast.error("Erro ao salvar FAQ.");
+      toast.error("Erro ao salvar FAQ. Certifique-se de sincronizar o suporte nas configurações.");
     } finally {
       setIsSaving(false);
     }
@@ -139,7 +140,12 @@ const FaqAdminPage = () => {
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>{selectedFaq?.id ? "Editar FAQ" : "Nova FAQ"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{selectedFaq?.id ? "Editar FAQ" : "Nova FAQ"}</DialogTitle>
+            <DialogDescription>
+              Preencha os campos abaixo para gerenciar o conteúdo da base de conhecimento.
+            </DialogDescription>
+          </DialogHeader>
           {selectedFaq && (
             <div className="space-y-4">
               <div className="space-y-2">

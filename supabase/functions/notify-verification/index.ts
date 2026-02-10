@@ -9,8 +9,7 @@ const corsHeaders = {
 }
 
 // --- CONFIGURAÇÃO ---
-// Para alterar o domínio, mude aqui OU configure a Secret 'SITE_URL' no Supabase
-const DEFAULT_SITE_URL = "https://homecarematch.lovable.app";
+const DEFAULT_SITE_URL = "https://homecarematch.com.br";
 // --------------------
 
 serve(async (req) => {

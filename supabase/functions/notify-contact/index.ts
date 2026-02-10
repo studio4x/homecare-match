@@ -8,7 +8,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const DEFAULT_SITE_URL = "https://homecarematch.lovable.app";
+const DEFAULT_SITE_URL = "https://homecarematch.com.br";
 
 serve(async (req) => {
   console.log("[notify-contact] Função iniciada.");

@@ -37,18 +37,31 @@ serve(async (req) => {
     
     if (!plan) throw new Error(`Plano "\${planId}" não encontrado.`);
 
-    const priceId = config?.stripe_mode === 'live' ? plan.stripe_price_id_live : plan.stripe_price_id_test;
+    let stripeId = config?.stripe_mode === 'live' ? plan.stripe_price_id_live : plan.stripe_price_id_test;
     
-    if (!priceId) throw new Error("ID de preço não configurado.");
+    if (!stripeId) throw new Error("ID do Stripe não configurado para este plano.");
 
-    // VALIDAÇÃO CRÍTICA: Verifica se é um ID de preço e não de produto
-    if (priceId.startsWith('prod_')) {
-      throw new Error("Erro de Configuração: Você usou um ID de PRODUTO (prod_...), mas o Stripe exige um ID de PREÇO (price_...). Verifique em Admin > Planos.");
+    let finalPriceId = stripeId;
+
+    // Lógica Inteligente: Se for ID de Produto, busca o preço padrão
+    if (stripeId.startsWith('prod_')) {
+      console.log(`[create-checkout-session] ID de produto detectado (\${stripeId}). Buscando preço padrão...`);
+      try {
+        const product = await stripe.products.retrieve(stripeId);
+        if (!product.default_price) {
+          throw new Error("O produto informado no Stripe não possui um 'Preço Padrão' configurado. Defina um preço padrão na Stripe ou use o ID do Preço (price_...).");
+        }
+        finalPriceId = typeof product.default_price === 'string' 
+          ? product.default_price 
+          : product.default_price.id;
+      } catch (err) {
+        throw new Error(`Erro ao buscar produto na Stripe: \${err.message}`);
+      }
     }
 
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price: finalPriceId, quantity: 1 }],
       mode: 'subscription',
       success_url: `\${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `\${req.headers.get('origin')}/dashboard?canceled=true`,
@@ -61,6 +74,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
+    console.error("[create-checkout-session] Erro:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

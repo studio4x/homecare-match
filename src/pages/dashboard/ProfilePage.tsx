@@ -30,7 +30,9 @@ import {
   FileCheck,
   CheckCircle2,
   ArrowRight,
-  Clock
+  Clock,
+  Lock,
+  ShieldCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -510,6 +512,17 @@ const ProfilePage = () => {
                 <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="bg-secondary/30 p-3 rounded-lg flex gap-3 items-start border border-border/50">
+                  <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold">Upload Seguro</p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Seus documentos são armazenados em um servidor privado com criptografia. 
+                      Apenas administradores autorizados podem visualizá-los através de links temporários protegidos.
+                    </p>
+                  </div>
+                </div>
+
                 {profile.is_verified ? (
                   <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center">
                     <CheckCircle2 className="h-8 w-8 text-success mb-2" />

@@ -20,7 +20,8 @@ import {
   Loader2,
   Eye,
   LifeBuoy,
-  Settings
+  Settings,
+  Lock
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
@@ -209,6 +210,13 @@ const OverviewPage = () => {
                     </Button>
                   </div>
                 )}
+                
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                    <Lock className="h-3 w-3 text-primary/60" />
+                    Seus documentos são armazenados em ambiente privado e criptografado.
+                  </p>
+                </div>
               </CardContent>
             </Card>
 

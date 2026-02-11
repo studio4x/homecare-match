@@ -1,5 +1,6 @@
 "use client";
 
+import React from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -7,7 +8,7 @@ import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import TextAlign from '@tiptap/extension-text-align';
 import { Color } from '@tiptap/extension-color';
-import TextStyle from '@tiptap/extension-text-style';
+import { TextStyle } from '@tiptap/extension-text-style';
 import { 
   Bold, 
   Italic, 
@@ -20,8 +21,7 @@ import {
   AlignJustify,
   Undo,
   Redo,
-  Link as LinkIcon,
-  Type
+  Link as LinkIcon
 } from 'lucide-react';
 import { Button } from './button';
 import { cn } from '@/lib/utils';

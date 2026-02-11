@@ -28,12 +28,14 @@ import { Link } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import PlanSelectionModal from "@/components/PlanSelectionModal";
 
 const OverviewPage = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isManagingBilling, setIsManagingBilling] = useState(false);
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -276,8 +278,13 @@ const OverviewPage = () => {
                     ) : (
                       <p className="text-[10px] text-muted-foreground italic">* Plano de 30 dias aplicado automaticamente no cadastro.</p>
                     )}
-                    <Button asChild size="sm" className="w-full mt-2" variant={trial.isExpired ? "default" : "outline"}>
-                      <a href="/#planos">Ver Planos de Assinatura</a>
+                    <Button 
+                      size="sm" 
+                      className="w-full mt-2" 
+                      variant={trial.isExpired ? "default" : "outline"}
+                      onClick={() => setIsPlanModalOpen(true)}
+                    >
+                      Ver Planos de Assinatura
                     </Button>
                   </div>
                 )}
@@ -355,6 +362,11 @@ const OverviewPage = () => {
           </Card>
         </div>
       </div>
+
+      <PlanSelectionModal 
+        open={isPlanModalOpen} 
+        onOpenChange={setIsPlanModalOpen} 
+      />
     </div>
   );
 };

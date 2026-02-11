@@ -52,13 +52,24 @@ const Index = () => {
         body: { planId }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Tenta extrair a mensagem de erro do corpo da resposta se disponível
+        let errorMessage = "Erro ao iniciar checkout.";
+        try {
+          const body = await error.response?.json();
+          errorMessage = body?.error || error.message || errorMessage;
+        } catch {
+          errorMessage = error.message || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+
       if (data?.url) {
         window.location.href = data.url;
       }
     } catch (err: any) {
-      console.error(err);
-      toast.error("Erro ao iniciar checkout. Verifique se as chaves do Stripe estão configuradas.");
+      console.error("[Checkout Error]", err);
+      toast.error(err.message || "Erro ao iniciar checkout. Verifique as configurações.");
     } finally {
       setLoadingPlan(null);
     }

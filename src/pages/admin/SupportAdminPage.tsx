@@ -20,10 +20,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MessageSquare, Eye, Search, Filter, AlertCircle } from "lucide-react";
+import { 
+  Loader2, 
+  MessageSquare, 
+  Eye, 
+  Search, 
+  Filter, 
+  AlertCircle,
+  Trash2,
+  ShieldAlert
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const SupportAdminPage = () => {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -31,6 +50,10 @@ const SupportAdminPage = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  
+  // Estado para exclusão
+  const [ticketToDelete, setTicketToDelete] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchTickets();
@@ -40,7 +63,6 @@ const SupportAdminPage = () => {
     setLoading(true);
     setError(null);
     try {
-      // Consulta simplificada sem o hint de FK explícito para evitar erros de sincronização
       const { data, error: fetchError } = await supabase
         .from("support_tickets")
         .select("*, user:profiles(full_name, email)")
@@ -75,6 +97,28 @@ const SupportAdminPage = () => {
     }
   };
 
+  const handleDeleteTicket = async () => {
+    if (!ticketToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("support_tickets")
+        .delete()
+        .eq("id", ticketToDelete.id);
+
+      if (error) throw error;
+
+      toast.success("Ticket excluído com sucesso!");
+      setTickets(prev => prev.filter(t => t.id !== ticketToDelete.id));
+      setTicketToDelete(null);
+    } catch (err: any) {
+      console.error("[SupportAdmin] Erro ao excluir ticket:", err);
+      toast.error("Erro ao excluir ticket.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const filteredTickets = tickets.filter(t => {
     const matchesStatus = filterStatus === "all" || t.status === filterStatus;
     const matchesSearch = 
@@ -83,15 +127,6 @@ const SupportAdminPage = () => {
       (t.user?.email || "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'open': return <Badge className="bg-blue-500">Aberto</Badge>;
-      case 'in_progress': return <Badge className="bg-amber-500">Em Atendimento</Badge>;
-      case 'closed': return <Badge variant="secondary">Fechado</Badge>;
-      default: return <Badge>{status}</Badge>;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -181,11 +216,21 @@ const SupportAdminPage = () => {
                       {new Date(t.created_at).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild className="gap-2">
-                        <Link to={`/dashboard/suporte/${t.id}`}>
-                          <Eye className="h-4 w-4" /> Responder
-                        </Link>
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" asChild className="gap-2">
+                          <Link to={`/dashboard/suporte/${t.id}`}>
+                            <Eye className="h-4 w-4" /> Responder
+                          </Link>
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => setTicketToDelete(t)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -199,6 +244,35 @@ const SupportAdminPage = () => {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!ticketToDelete} onOpenChange={(open) => !open && setTicketToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Excluir Chamado Permanentemente
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja excluir o ticket <strong>"{ticketToDelete?.subject}"</strong>? 
+              Esta ação é irreversível e apagará todo o histórico de mensagens para você e para o usuário.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteTicket();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirmar Exclusão
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -15,14 +15,19 @@ import {
   Building2,
   Home,
   Info,
-  MessageCircle
+  MessageCircle,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/components/auth/AuthProvider";
+import ReportModal from "@/components/ReportModal";
 
 const RecruiterProfile = () => {
   const { id } = useParams();
+  const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -75,12 +80,26 @@ const RecruiterProfile = () => {
     <Layout>
       <div className="bg-secondary/20 py-8 min-h-[calc(100vh-10rem)]">
         <div className="container mx-auto px-4">
-          <Button variant="ghost" asChild className="mb-6 gap-2">
-            <Link to="/dashboard">
-              <ArrowLeft className="h-4 w-4" />
-              Voltar para o Painel
-            </Link>
-          </Button>
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="ghost" asChild className="gap-2">
+              <Link to="/dashboard">
+                <ArrowLeft className="h-4 w-4" />
+                Voltar para o Painel
+              </Link>
+            </Button>
+
+            {user && user.id !== profile.id && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-destructive gap-2"
+                onClick={() => setShowReportModal(true)}
+              >
+                <AlertTriangle className="h-4 w-4" />
+                Denunciar Perfil
+              </Button>
+            )}
+          </div>
 
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="rounded-2xl border bg-card p-8 shadow-card">
@@ -100,7 +119,7 @@ const RecruiterProfile = () => {
                     </Badge>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4 text-primary" />
-                      {profile.city && profile.state ? `${profile.city} - ${profile.state}` : 'Localização não informada'}
+                      {profile.city && profile.state ? `\${profile.city} - \${profile.state}` : 'Localização não informada'}
                     </div>
                   </div>
                 </div>
@@ -127,6 +146,13 @@ const RecruiterProfile = () => {
           </div>
         </div>
       </div>
+
+      <ReportModal 
+        open={showReportModal} 
+        onOpenChange={setShowReportModal} 
+        reportedId={profile.id} 
+        reportedName={profile.full_name} 
+      />
     </Layout>
   );
 };

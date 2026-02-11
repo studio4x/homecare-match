@@ -28,7 +28,8 @@ import {
   GraduationCap,
   Info,
   ShieldCheck,
-  MessageCircle
+  MessageCircle,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -40,7 +41,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import ReportModal from "@/components/ReportModal";
 
 const Perfil = () => {
   const { id } = useParams();
@@ -51,6 +53,7 @@ const Perfil = () => {
   const [loading, setLoading] = useState(true);
   const [isContacting, setIsContacting] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
   const [referralStats, setReferralStats] = useState<{ count: number; currentTier?: any; nextTier?: any } | null>(null);
   const [completedCourses, setCompletedCourses] = useState<Array<{ slug: string; title: string; hero_asset_url: string | null; workload_minutes: number }>>([]);
@@ -204,12 +207,26 @@ const Perfil = () => {
     <Layout>
       <div className="bg-secondary/20 py-8">
         <div className="container mx-auto px-4">
-          <Button variant="ghost" asChild className="mb-6 gap-2">
-            <Link to="/buscar">
-              <ArrowLeft className="h-4 w-4" />
-              Voltar para busca
-            </Link>
-          </Button>
+          <div className="flex items-center justify-between mb-6">
+            <Button variant="ghost" asChild className="gap-2">
+              <Link to="/buscar">
+                <ArrowLeft className="h-4 w-4" />
+                Voltar para busca
+              </Link>
+            </Button>
+            
+            {user && user.id !== profile.id && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-muted-foreground hover:text-destructive gap-2"
+                onClick={() => setShowReportModal(true)}
+              >
+                <AlertTriangle className="h-4 w-4" />
+                Denunciar Perfil
+              </Button>
+            )}
+          </div>
 
           <div className="grid gap-8 lg:grid-cols-3">
             {/* Perfil Principal */}
@@ -232,24 +249,28 @@ const Perfil = () => {
                       <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
                         {profile.full_name}
                         {isPremium && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Star className="h-5 w-5 text-amber-500 fill-current" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Destaque Premium (Plano Anual)
-                            </TooltipContent>
-                          </Tooltip>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Star className="h-5 w-5 text-amber-500 fill-current" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Destaque Premium (Plano Anual)
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                         {profile.is_verified && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <ShieldCheck className="h-5 w-5 text-success" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Perfil Verificado
-                            </TooltipContent>
-                          </Tooltip>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <ShieldCheck className="h-5 w-5 text-success" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Perfil Verificado
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         )}
                       </h1>
                       {profile.is_verified && (
@@ -261,17 +282,19 @@ const Perfil = () => {
                         </Badge>
                       )}
                       {referralStats && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="secondary" className="ml-2 whitespace-nowrap">
-                              {referralStats.currentTier?.badge_label || "Embaixador"} • {referralStats.count}
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Programa de Indicação: {referralStats.currentTier?.badge_label || "Embaixador"} • Indicações: {referralStats.count}
-                            {referralStats.nextTier ? ` • Próximo selo: ${referralStats.nextTier.badge_label} em ${referralStats.nextTier.threshold}` : ""}
-                          </TooltipContent>
-                        </Tooltip>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="secondary" className="ml-2 whitespace-nowrap">
+                                {referralStats.currentTier?.badge_label || "Embaixador"} • {referralStats.count}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Programa de Indicação: {referralStats.currentTier?.badge_label || "Embaixador"} • Indicações: {referralStats.count}
+                              {referralStats.nextTier ? ` • Próximo selo: \${referralStats.nextTier.badge_label} em \${referralStats.nextTier.threshold}` : ""}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                     </div>
                     <p className="mt-2 text-xl text-muted-foreground font-medium uppercase tracking-tight">
@@ -528,6 +551,13 @@ const Perfil = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ReportModal 
+        open={showReportModal} 
+        onOpenChange={setShowReportModal} 
+        reportedId={profile.id} 
+        reportedName={profile.full_name} 
+      />
     </Layout>
   );
 };

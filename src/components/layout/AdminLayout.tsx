@@ -20,7 +20,8 @@ import {
   X,
   MessageSquare,
   LifeBuoy,
-  HelpCircle
+  HelpCircle,
+  AlertTriangle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -49,28 +50,20 @@ const AdminLayout = () => {
 
   useEffect(() => {
     const verifyAdmin = async () => {
-      console.log("[AdminLayout] Verificando admin...", { userId: user?.id, authLoading });
       if (authLoading) return;
       if (!user) {
-        console.log("[AdminLayout] Nenhum usuário logado.");
         setLoading(false);
         return;
       }
       
       try {
         setLoading(true);
-        // Verificação dupla: RPC e Perfil direto
-        const { data: rpcData, error: rpcError } = await supabase.rpc('check_is_admin');
-        if (rpcError) console.error("[AdminLayout] Erro RPC check_is_admin:", rpcError);
-
-        const { data: profileData, error: profileError } = await supabase
+        const { data: rpcData } = await supabase.rpc('check_is_admin');
+        const { data: profileData } = await supabase
           .from('profiles')
           .select('role, is_admin')
           .eq('id', user.id)
           .single();
-        if (profileError) console.error("[AdminLayout] Erro fetch profile:", profileError);
-
-        console.log("[AdminLayout] Resultado verificação:", { rpcData, profileData });
 
         if (rpcData === true || profileData?.is_admin === true || profileData?.role === 'admin') {
           setIsAdmin(true);
@@ -121,6 +114,7 @@ const AdminLayout = () => {
     { href: "/admin/planos", label: "Planos", icon: CreditCard },
     { href: "/admin/indicacoes", label: "Indicações", icon: Award },
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
+    { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },
     { href: "/admin/suporte", label: "Tickets", icon: LifeBuoy },
     { href: "/admin/faq", label: "FAQ / Ajuda", icon: HelpCircle },
     { href: "/admin/sugestoes", label: "Sugestões", icon: MessageSquare },
@@ -130,7 +124,6 @@ const AdminLayout = () => {
 
   return (
     <div className="flex min-h-screen bg-secondary/10">
-      {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 z-40 bg-black/50 md:hidden"
@@ -138,7 +131,6 @@ const AdminLayout = () => {
         />
       )}
 
-      {/* Sidebar */}
       <aside className={cn(
         "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-200 ease-in-out md:translate-x-0 md:static md:block",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -180,7 +172,6 @@ const AdminLayout = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 flex items-center gap-4 px-4 border-b bg-card md:hidden">
           <button onClick={() => setSidebarOpen(true)}>

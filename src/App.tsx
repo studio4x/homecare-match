@@ -45,6 +45,7 @@ import SettingsPage from "./pages/admin/SettingsPage";
 import SuggestionsPage from "./pages/admin/SuggestionsPage";
 import SupportAdminPage from "./pages/admin/SupportAdminPage";
 import FaqAdminPage from "./pages/admin/FaqAdminPage";
+import ReportsPage from "./pages/admin/ReportsPage";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ const App = () => (
                 <Route path="planos" element={<PlansPage />} />
                 <Route path="indicacoes" element={<ReferralsAdminPage />} />
                 <Route path="cursos" element={<CoursesAdminPage />} />
+                <Route path="denuncias" element={<ReportsPage />} />
                 <Route path="sugestoes" element={<SuggestionsPage />} />
                 <Route path="marketing" element={<MarketingPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />

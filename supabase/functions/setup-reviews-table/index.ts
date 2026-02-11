@@ -18,15 +18,16 @@ serve(async (req) => {
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
-    console.log("[setup-reviews-table] Iniciando sincronização profunda...");
+    console.log("[setup-sync] Iniciando sincronização profunda...");
 
-    // 1. Criar tabelas base se não existirem
+    // 1. Tabelas base e extensões
     await client.queryObject(`
       CREATE TABLE IF NOT EXISTS public.academy_enrollments (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
         course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
-        created_at TIMESTAMPTZ DEFAULT NOW()
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (user_id, course_slug)
       );
 
       CREATE TABLE IF NOT EXISTS public.academy_progress (
@@ -35,32 +36,9 @@ serve(async (req) => {
         course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
         lesson_id UUID NOT NULL REFERENCES public.academy_lessons(id) ON DELETE CASCADE,
         status TEXT NOT NULL DEFAULT 'in-progress',
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (user_id, lesson_id)
       );
-    `);
-
-    // 2. Adicionar restrições de unicidade
-    await client.queryObject(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'academy_enrollments_user_course_unique') THEN
-          ALTER TABLE public.academy_enrollments ADD CONSTRAINT academy_enrollments_user_course_unique UNIQUE (user_id, course_slug);
-        END IF;
-
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'academy_progress_user_lesson_unique') THEN
-          ALTER TABLE public.academy_progress ADD CONSTRAINT academy_progress_user_lesson_unique UNIQUE (user_id, lesson_id);
-        END IF;
-      END
-      $$;
-    `);
-
-    // 3. Colunas Adicionais e Tabelas de Apoio
-    await client.queryObject(`
-      ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS content TEXT;
-      ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS storage_path TEXT;
-      ALTER TABLE public.academy_lessons ADD COLUMN IF NOT EXISTS mime_type TEXT;
-      ALTER TABLE public.academy_courses ADD COLUMN IF NOT EXISTS price NUMERIC DEFAULT 0;
-      ALTER TABLE public.interactions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
 
       CREATE TABLE IF NOT EXISTS public.reviews (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -72,48 +50,46 @@ serve(async (req) => {
         UNIQUE (reviewer_id, subject_id)
       );
 
-      CREATE TABLE IF NOT EXISTS public.certificates (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
-        issued_at TIMESTAMPTZ DEFAULT NOW(),
-        validation_code TEXT UNIQUE NOT NULL,
-        workload_minutes INTEGER DEFAULT 0,
-        UNIQUE (user_id, course_slug)
-      );
-
-      -- Nova tabela de sugestões
       CREATE TABLE IF NOT EXISTS public.suggestions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
         content TEXT NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      -- Nova Tabela de Denúncias
+      CREATE TABLE IF NOT EXISTS public.reports (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        reporter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+        reported_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        reason TEXT NOT NULL,
+        description TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
     `);
 
-    // 4. RLS e Policies
+    // 2. RLS e Policies
     await client.queryObject(`
       ALTER TABLE public.academy_enrollments ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.academy_progress ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.suggestions ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 
       DO $$
       BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_enrollments_owner') THEN
-          CREATE POLICY "academy_enrollments_owner" ON public.academy_enrollments FOR ALL TO authenticated USING (auth.uid() = user_id);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_progress_owner') THEN
-          CREATE POLICY "academy_progress_owner" ON public.academy_progress FOR ALL TO authenticated USING (auth.uid() = user_id);
+        -- Policies para Reports
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reports_insert_policy') THEN
+          CREATE POLICY "reports_insert_policy" ON public.reports FOR INSERT TO authenticated WITH CHECK (auth.uid() = reporter_id);
         END IF;
         
-        -- Políticas para Sugestões (Permitir inserção pública para que visitantes possam sugerir)
-        DROP POLICY IF EXISTS "suggestions_insert_policy" ON public.suggestions;
-        CREATE POLICY "suggestions_insert_policy" ON public.suggestions FOR INSERT WITH CHECK (true);
-        
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'suggestions_admin_select') THEN
-          CREATE POLICY "suggestions_admin_select" ON public.suggestions FOR SELECT TO authenticated USING (check_is_admin());
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reports_admin_select') THEN
+          CREATE POLICY "reports_admin_select" ON public.reports FOR SELECT TO authenticated USING (check_is_admin());
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reports_admin_all') THEN
+          CREATE POLICY "reports_admin_all" ON public.reports FOR ALL TO authenticated USING (check_is_admin());
         END IF;
       END
       $$;

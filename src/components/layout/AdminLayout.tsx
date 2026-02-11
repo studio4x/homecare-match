@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +32,7 @@ const AdminLayout = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const hasVerifiedOnce = useRef(false);
   
   // Verifica se existe algum admin cadastrado (para liberar cadastro se não houver)
   const [adminExists, setAdminExists] = useState(true);
@@ -57,7 +58,11 @@ const AdminLayout = () => {
       }
       
       try {
-        setLoading(true);
+        // Só mostra o loader de tela cheia na primeira vez
+        if (!hasVerifiedOnce.current) {
+          setLoading(true);
+        }
+
         const { data: rpcData } = await supabase.rpc('check_is_admin');
         const { data: profileData } = await supabase
           .from('profiles')
@@ -70,6 +75,7 @@ const AdminLayout = () => {
         } else {
           setIsAdmin(false);
         }
+        hasVerifiedOnce.current = true;
       } catch (err) {
         console.error("Erro verificação admin:", err);
         setIsAdmin(false);
@@ -81,7 +87,7 @@ const AdminLayout = () => {
     verifyAdmin();
   }, [user, authLoading]);
 
-  if (authLoading || loading) {
+  if (authLoading || (loading && !hasVerifiedOnce.current)) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 

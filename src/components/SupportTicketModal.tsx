@@ -140,7 +140,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
             <div className="grid gap-4">
               <Button 
                 variant="outline" 
-                className="h-20 justify-between px-6 text-left hover:border-primary hover:bg-primary/5 group"
+                className="h-20 justify-between px-6 text-left hover:border-primary hover:bg-primary/5 hover:text-foreground group"
                 asChild
                 onClick={() => onOpenChange(false)}
               >
@@ -160,7 +160,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
 
               <Button 
                 variant="outline" 
-                className="h-20 justify-between px-6 text-left hover:border-primary hover:bg-primary/5 group"
+                className="h-20 justify-between px-6 text-left hover:border-primary hover:bg-primary/5 hover:text-foreground group"
                 onClick={() => setStep("form")}
               >
                 <div className="flex items-center gap-4">
@@ -177,7 +177,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
             </div>
             
             <div className="text-center">
-              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-muted-foreground">
+              <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground">
                 Cancelar
               </Button>
             </div>
@@ -250,7 +250,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
                   type="button" 
                   variant="outline" 
                   size="sm" 
-                  className="w-full gap-2 border-dashed h-10"
+                  className="w-full gap-2 border-dashed h-10 hover:text-foreground"
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Paperclip className="h-4 w-4" />
@@ -266,7 +266,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
             </div>
 
             <DialogFooter className="p-6 bg-secondary/5 border-t gap-2 sm:gap-0">
-              <Button type="button" variant="ghost" onClick={() => initialStep === "choice" ? setStep("choice") : onOpenChange(false)}>
+              <Button type="button" variant="ghost" onClick={() => initialStep === "choice" ? setStep("choice") : onOpenChange(false)} className="hover:text-foreground">
                 Voltar
               </Button>
               <Button type="submit" className="gap-2 shadow-lg" disabled={isSubmitting}>

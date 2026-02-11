@@ -28,7 +28,8 @@ import {
   Edit2,
   Plus,
   FlaskConical,
-  Zap
+  Zap,
+  AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -53,6 +54,13 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
   const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPlan?.id || !selectedPlan?.name) return;
+
+    // Validação básica de formato
+    if (selectedPlan.stripe_price_id_test?.startsWith('prod_') || selectedPlan.stripe_price_id_live?.startsWith('prod_')) {
+      toast.error("Atenção: Você usou um ID de Produto (prod_). Use o ID do Preço (price_).");
+      return;
+    }
+
     setIsSavingPlan(true);
     try {
       const { error } = await supabase.from("plans").upsert({
@@ -83,7 +91,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Preço</TableHead>
-              <TableHead>Stripe IDs</TableHead>
+              <TableHead>Stripe IDs (Price ID)</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -110,11 +118,15 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-1 text-[10px]">
                       <FlaskConical className="h-3 w-3 text-amber-500" />
-                      <span className="truncate max-w-[100px]">{p.stripe_price_id_test || 'Não config.'}</span>
+                      <span className={p.stripe_price_id_test?.startsWith('prod_') ? "text-destructive font-bold" : "truncate max-w-[150px]"}>
+                        {p.stripe_price_id_test || 'Não config.'}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1 text-[10px]">
                       <Zap className="h-3 w-3 text-success" />
-                      <span className="truncate max-w-[100px]">{p.stripe_price_id_live || 'Não config.'}</span>
+                      <span className={p.stripe_price_id_live?.startsWith('prod_') ? "text-destructive font-bold" : "truncate max-w-[150px]"}>
+                        {p.stripe_price_id_live || 'Não config.'}
+                      </span>
                     </div>
                   </div>
                 </TableCell>
@@ -135,6 +147,13 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
             <DialogTitle>{selectedPlan?.created_at ? "Editar Plano" : "Novo Plano"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSavePlan} className="space-y-4">
+            <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex gap-3 items-start">
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800">
+                <strong>Importante:</strong> Use o <strong>ID do Preço</strong> (começa com <code>price_...</code>) e não o ID do Produto. Você encontra esse ID na seção "Preços" dentro do produto no painel da Stripe.
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>ID do Plano (Slug)</Label>

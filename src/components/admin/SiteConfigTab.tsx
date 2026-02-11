@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Image as ImageIcon, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy } from "lucide-react";
+import { Loader2, Save, Image as ImageIcon, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -24,6 +24,7 @@ const SiteConfigTab = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSyncingSupport, setIsSyncingSupport] = useState(false);
+  const [isSyncingKYC, setIsSyncingKYC] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -62,6 +63,19 @@ const SiteConfigTab = () => {
       toast.error("Erro ao sincronizar suporte.");
     } finally {
       setIsSyncingSupport(false);
+    }
+  };
+
+  const handleSyncKYC = async () => {
+    setIsSyncingKYC(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-kyc-storage');
+      if (error) throw error;
+      toast.success("Segurança de documentos configurada!");
+    } catch (error: any) {
+      toast.error("Erro ao configurar segurança.");
+    } finally {
+      setIsSyncingKYC(false);
     }
   };
 
@@ -202,6 +216,16 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncSupport} disabled={isSyncingSupport}>
               {isSyncingSupport ? <Loader2 className="h-4 w-4 animate-spin" /> : <LifeBuoy className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Segurança de Documentos (KYC)</p>
+              <p className="text-xs text-amber-800/70">Torna o bucket de documentos privado e configura RLS.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncKYC} disabled={isSyncingKYC}>
+              {isSyncingKYC ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             </Button>
           </div>
         </CardContent>

@@ -25,7 +25,8 @@ import {
   Loader2,
   ThumbsUp,
   ThumbsDown,
-  CheckCircle2
+  CheckCircle2,
+  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,6 +41,33 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
   const [selectedProfile, setSelectedProfile] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessingVerification, setIsProcessingVerification] = useState(false);
+  const [isGeneratingUrl, setIsGeneratingUrl] = useState<string | null>(null);
+
+  const handleViewDocument = async (pathOrUrl: string, type: string) => {
+    if (!pathOrUrl) return;
+    
+    setIsGeneratingUrl(type);
+    try {
+      // Se for uma URL antiga (pública), abrimos direto. 
+      // Se for apenas o caminho (novo padrão), geramos a URL assinada.
+      let path = pathOrUrl;
+      if (pathOrUrl.includes('storage/v1/object/public/')) {
+        path = pathOrUrl.split('documents/')[1];
+      }
+
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(path, 60); // Expira em 60 segundos
+
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank');
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao gerar link seguro.");
+    } finally {
+      setIsGeneratingUrl(null);
+    }
+  };
 
   const handleApprove = async () => {
     if (!selectedProfile) return;
@@ -128,8 +156,30 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-2">
-                    {p.id_document_url && <Button variant="outline" size="sm" asChild className="h-7 text-xs"><a href={p.id_document_url} target="_blank" rel="noreferrer">RG/CNH</a></Button>}
-                    {p.prof_registration_url && <Button variant="outline" size="sm" asChild className="h-7 text-xs"><a href={p.prof_registration_url} target="_blank" rel="noreferrer">Registro</a></Button>}
+                    {p.id_document_url && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => handleViewDocument(p.id_document_url, `id-${p.id}`)}
+                        disabled={isGeneratingUrl === `id-${p.id}`}
+                      >
+                        {isGeneratingUrl === `id-${p.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                        RG/CNH
+                      </Button>
+                    )}
+                    {p.prof_registration_url && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 text-xs gap-1.5"
+                        onClick={() => handleViewDocument(p.prof_registration_url, `prof-${p.id}`)}
+                        disabled={isGeneratingUrl === `prof-${p.id}`}
+                      >
+                        {isGeneratingUrl === `prof-${p.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                        Registro
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">

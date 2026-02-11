@@ -150,19 +150,33 @@ const ProfilePage = () => {
     const file = event.target.files?.[0];
     if (!file || !user) return;
     setIsUploading(type);
+    
     const fileExt = file.name.split('.').pop();
     const bucket = type === 'avatar' ? 'avatars' : 'documents';
     const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+    
     try {
       const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
-      const updateData = type === 'avatar' ? { avatar_url: publicUrl } : 
-                        type === 'id_doc' ? { id_document_url: publicUrl } : 
-                        { prof_registration_url: publicUrl };
+      
+      let storageValue = filePath;
+      
+      // Apenas para o avatar (público) pegamos a URL completa
+      if (type === 'avatar') {
+        const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        storageValue = publicUrl;
+      }
+
+      const updateData = type === 'avatar' ? { avatar_url: storageValue } : 
+                        type === 'id_doc' ? { id_document_url: storageValue } : 
+                        { prof_registration_url: storageValue };
+      
       await supabase.from("profiles").update(updateData).eq("id", user.id);
       setProfile(prev => ({ ...prev, ...updateData }));
       toast.success("Arquivo carregado!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao enviar arquivo.");
     } finally {
       setIsUploading(null);
     }
@@ -246,6 +260,34 @@ const ProfilePage = () => {
       toast.success("Conta excluída.");
     } finally {
       setIsDeletingAccount(false);
+    }
+  };
+
+  const handleRequestVerification = async () => {
+    if (!profile.id_document_url || !profile.prof_registration_url) {
+      toast.error("Envie os dois documentos antes de solicitar análise.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ verification_sent: true })
+        .eq("id", user?.id);
+      
+      if (error) throw error;
+
+      // Notificar Admin
+      supabase.functions.invoke('notify-verification', {
+        body: { userName: profile.full_name, userEmail: profile.email, userId: user?.id }
+      }).catch(err => console.warn("Falha ao notificar admin:", err));
+
+      toast.success("Solicitação enviada! Analisaremos em breve.");
+      fetchProfile();
+    } catch (err) {
+      toast.error("Erro ao enviar solicitação.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -494,7 +536,14 @@ const ProfilePage = () => {
                       </Button>
                       <input type="file" ref={profDocRef} className="hidden" onChange={e => handleFileUpload(e, 'prof_doc')} />
                     </div>
-                    <Button variant="outline" className="w-full" disabled={!profile.id_document_url || !profile.prof_registration_url}>Solicitar Análise</Button>
+                    <Button 
+                      className="w-full" 
+                      disabled={!profile.id_document_url || !profile.prof_registration_url || isSaving}
+                      onClick={handleRequestVerification}
+                    >
+                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Solicitar Análise
+                    </Button>
                   </div>
                 )}
               </CardContent>

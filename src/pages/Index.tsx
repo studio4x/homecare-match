@@ -14,6 +14,7 @@ import {
   CheckCircle,
   ArrowRight,
   HelpCircle,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
@@ -26,18 +27,41 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useState } from "react";
 
 const Index = () => {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
-  const handleSubscribe = (planId: string) => {
+  const handleSubscribe = async (planId: string) => {
     if (!session) {
       toast.info("Por favor, crie uma conta para escolher seu plano.");
       navigate("/login#auth-sign-up");
       return;
     }
-    navigate("/dashboard", { state: { selectedPlan: planId } });
+
+    if (planId === 'free') {
+      navigate("/dashboard");
+      return;
+    }
+
+    setLoadingPlan(planId);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+        body: { planId }
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao iniciar checkout. Verifique se as chaves do Stripe estão configuradas.");
+    } finally {
+      setLoadingPlan(null);
+    }
   };
 
   const features = [
@@ -306,51 +330,6 @@ const Index = () => {
         </div>
       </section>
 
-      <section id="planos" className="scroll-mt-20 py-20 bg-secondary/30">
-        <div className="container mx-auto px-4">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-foreground">
-              Escolha seu Plano
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Assine agora e torne seu perfil visível para centenas de empresas de recrutamento.
-            </p>
-          </div>
-
-          {/* Dica no mobile para o carrossel */}
-          <p className="md:hidden text-center text-xs text-muted-foreground mb-4">
-            Dica: arraste para o lado para ver todos os planos.
-          </p>
-
-          {/* Novo: carrossel responsivo com 1/2/3 colunas e setas */}
-          <Carousel className="w-full">
-            <CarouselContent className="items-stretch">
-              {allPlans.map((plan) => (
-                <CarouselItem key={plan.id} className="basis-full md:basis-1/2 lg:basis-1/3">
-                  <div className="p-2 h-full">
-                    <PricingCard
-                      id={plan.id}
-                      name={plan.name}
-                      price={plan.price}
-                      period={plan.period}
-                      description={plan.description ?? ""}
-                      features={plan.features ?? []}
-                      popular={plan.popular}
-                      savings={plan.savings}
-                      onSubscribe={handleSubscribe}
-                    />
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <div className="mt-6 flex items-center justify-center gap-4">
-              <CarouselPrevious className="relative" />
-              <CarouselNext className="relative" />
-            </div>
-          </Carousel>
-        </div>
-      </section>
-
       {/* CTA Section - Agora em Azul e no final */}
       <section className="bg-primary py-20">
         <div className="container mx-auto px-4 text-center">
@@ -412,6 +391,52 @@ const Index = () => {
               </Link>
             </Button>
           </div>
+        </div>
+      </section>
+
+      <section id="planos" className="scroll-mt-20 py-20 bg-secondary/30">
+        <div className="container mx-auto px-4">
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl font-bold text-foreground">
+              Escolha seu Plano
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+              Assine agora e torne seu perfil visível para centenas de empresas de recrutamento.
+            </p>
+          </div>
+
+          {/* Dica no mobile para o carrossel */}
+          <p className="md:hidden text-center text-xs text-muted-foreground mb-4">
+            Dica: arraste para o lado para ver todos os planos.
+          </p>
+
+          {/* Novo: carrossel responsivo com 1/2/3 colunas e setas */}
+          <Carousel className="w-full">
+            <CarouselContent className="items-stretch">
+              {allPlans.map((plan) => (
+                <CarouselItem key={plan.id} className="basis-full md:basis-1/2 lg:basis-1/3">
+                  <div className="p-2 h-full">
+                    <PricingCard
+                      id={plan.id}
+                      name={plan.name}
+                      price={plan.price}
+                      period={plan.period}
+                      description={plan.description ?? ""}
+                      features={plan.features ?? []}
+                      popular={plan.popular}
+                      savings={plan.savings}
+                      onSubscribe={handleSubscribe}
+                      isLoading={loadingPlan === plan.id}
+                    />
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <div className="mt-6 flex items-center justify-center gap-4">
+              <CarouselPrevious className="relative" />
+              <CarouselNext className="relative" />
+            </div>
+          </Carousel>
         </div>
       </section>
     </Layout>

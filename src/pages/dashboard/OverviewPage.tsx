@@ -55,20 +55,24 @@ const OverviewPage = () => {
 
   const getProfileCompleteness = () => {
     if (!profile) return { progress: 0, missingFields: [], isComplete: false };
-    if (profile.role !== 'professional') return { progress: 100, missingFields: [], isComplete: true };
     
     const requiredFields: { [key: string]: string } = {
       avatar_url: "Foto",
       full_name: "Nome",
       phone: "WhatsApp",
-      specialty: "Especialidade",
-      registration: "Registro",
       neighborhood: "Bairro",
       city: "Cidade",
       state: "Estado",
-      experience: "Formações",
-      bio: "Biografia",
     };
+
+    if (profile.role === 'professional') {
+      requiredFields.specialty = "Especialidade";
+      requiredFields.registration = "Registro";
+      requiredFields.experience = "Formações";
+      requiredFields.bio = "Biografia";
+    } else {
+      requiredFields.bio = "Descrição";
+    }
     
     let completedCount = 0;
     const missingFields: string[] = [];
@@ -135,7 +139,7 @@ const OverviewPage = () => {
         </p>
       </div>
 
-      {isProfessional && !completeness.isComplete && (
+      {!completeness.isComplete && (
         <Card className="border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
             <div className="flex items-start gap-4">
@@ -143,9 +147,9 @@ const OverviewPage = () => {
                 <AlertCircle className="h-6 w-6 text-primary" />
               </div>
               <div className="space-y-3 flex-1">
-                <h3 className="font-semibold text-primary">Seu perfil ainda não está visível</h3>
+                <h3 className="font-semibold text-primary">Seu perfil ainda não está completo</h3>
                 <p className="text-sm text-muted-foreground">
-                  Para aparecer nas buscas das empresas e famílias, complete os seguintes campos: 
+                  Para uma melhor experiência na plataforma, complete os seguintes campos: 
                   <span className="font-medium"> {completeness.missingFields.join(", ")}</span>.
                 </p>
                 <div className="space-y-1">
@@ -166,60 +170,60 @@ const OverviewPage = () => {
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Status Section */}
-        {isProfessional ? (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {profile?.is_verified ? (
-                  <div className="flex items-center gap-3 text-success bg-success/5 p-4 rounded-lg border border-success/10">
-                    <CheckCircle2 className="h-5 w-5" />
-                    <div>
-                      <p className="text-sm font-semibold">Perfil Verificado</p>
-                      <p className="text-[10px] opacity-80">Selo de confiança ativo nas buscas.</p>
-                    </div>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {profile?.is_verified ? (
+                <div className="flex items-center gap-3 text-success bg-success/5 p-4 rounded-lg border border-success/10">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <div>
+                    <p className="text-sm font-semibold">Perfil Verificado</p>
+                    <p className="text-[10px] opacity-80">Selo de confiança ativo.</p>
                   </div>
-                ) : profile?.rejection_reason ? (
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 text-destructive bg-destructive/5 p-4 rounded-lg border border-destructive/10">
-                      <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold">Documentos Reprovados</p>
-                        <p className="text-xs mt-1">{profile.rejection_reason}</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleRetryVerification}>
-                      <RotateCcw className="h-3 w-3" /> Reiniciar Processo
-                    </Button>
-                  </div>
-                ) : profile?.verification_sent ? (
-                  <div className="flex items-center gap-3 text-primary bg-primary/5 p-4 rounded-lg border border-primary/10">
-                    <Clock className="h-5 w-5 animate-pulse" />
-                    <div>
-                      <p className="text-sm font-semibold">Em Análise</p>
-                      <p className="text-[10px] opacity-80">Aguarde o retorno por e-mail.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado e transmitir mais segurança.</p>
-                    <Button asChild variant="outline" size="sm" className="w-full">
-                      <Link to="/dashboard/perfil">Enviar Documentos</Link>
-                    </Button>
-                  </div>
-                )}
-                
-                <div className="mt-4 pt-4 border-t border-border/50">
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                    <Lock className="h-3 w-3 text-primary/60" />
-                    Seus documentos são armazenados em ambiente privado e criptografado.
-                  </p>
                 </div>
-              </CardContent>
-            </Card>
+              ) : profile?.rejection_reason ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 text-destructive bg-destructive/5 p-4 rounded-lg border border-destructive/10">
+                    <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold">Documentos Reprovados</p>
+                      <p className="text-xs mt-1">{profile.rejection_reason}</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleRetryVerification}>
+                    <RotateCcw className="h-3 w-3" /> Reiniciar Processo
+                  </Button>
+                </div>
+              ) : profile?.verification_sent ? (
+                <div className="flex items-center gap-3 text-primary bg-primary/5 p-4 rounded-lg border border-primary/10">
+                  <Clock className="h-5 w-5 animate-pulse" />
+                  <div>
+                    <p className="text-sm font-semibold">Em Análise</p>
+                    <p className="text-[10px] opacity-80">Aguarde o retorno por e-mail.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado e transmitir mais segurança.</p>
+                  <Button asChild variant="outline" size="sm" className="w-full">
+                    <Link to="/dashboard/perfil">Enviar Documentos</Link>
+                  </Button>
+                </div>
+              )}
+              
+              <div className="mt-4 pt-4 border-t border-border/50">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="h-3 w-3 text-primary/60" />
+                  Seus documentos são armazenados em ambiente privado e criptografado.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
+          {isProfessional && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" /> Plano Atual</CardTitle>
@@ -248,23 +252,25 @@ const OverviewPage = () => {
                 )}
               </CardContent>
             </Card>
-          </div>
-        ) : (
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle className="text-base">Busca de Profissionais</CardTitle>
-              <CardDescription>Encontre o profissional ideal para sua necessidade.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full gap-2">
-                <Link to="/buscar">Ir para a Busca <ArrowRight className="h-4 w-4" /></Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+          )}
+        </div>
 
         {/* Quick Links Section */}
         <div className="space-y-6">
+          {!isProfessional && (
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="text-base">Busca de Profissionais</CardTitle>
+                <CardDescription>Encontre o profissional ideal para sua necessidade.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild className="w-full gap-2">
+                  <Link to="/buscar">Ir para a Busca <ArrowRight className="h-4 w-4" /></Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Acesso Rápido</CardTitle>

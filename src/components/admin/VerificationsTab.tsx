@@ -26,9 +26,13 @@ import {
   ThumbsUp,
   ThumbsDown,
   CheckCircle2,
-  ExternalLink
+  ExternalLink,
+  Building2,
+  Home,
+  User
 } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface VerificationsTabProps {
   pendingProfiles: any[];
@@ -48,8 +52,6 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
     
     setIsGeneratingUrl(type);
     try {
-      // Se for uma URL antiga (pública), abrimos direto. 
-      // Se for apenas o caminho (novo padrão), geramos a URL assinada.
       let path = pathOrUrl;
       if (pathOrUrl.includes('storage/v1/object/public/')) {
         path = pathOrUrl.split('documents/')[1];
@@ -57,7 +59,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
 
       const { data, error } = await supabase.storage
         .from('documents')
-        .createSignedUrl(path, 60); // Expira em 60 segundos
+        .createSignedUrl(path, 60);
 
       if (error) throw error;
       window.open(data.signedUrl, '_blank');
@@ -136,58 +138,77 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
     }
   };
 
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'company': return <Badge variant="secondary" className="gap-1"><Building2 className="h-3 w-3" /> Empresa</Badge>;
+      case 'family': return <Badge variant="outline" className="gap-1"><Home className="h-3 w-3" /> Família</Badge>;
+      default: return <Badge variant="secondary" className="gap-1"><User className="h-3 w-3" /> Profissional</Badge>;
+    }
+  };
+
+  const getDocLabels = (role: string) => {
+    if (role === 'company') return { doc1: "Cartão CNPJ", doc2: "ID Responsável" };
+    if (role === 'family') return { doc1: "ID Responsável", doc2: null };
+    return { doc1: "RG/CNH", doc2: "Registro Prof." };
+  };
+
   return (
     <>
       <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Profissional</TableHead>
+              <TableHead>Usuário</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Documentos</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pendingProfiles.length > 0 ? pendingProfiles.map(p => (
-              <TableRow key={p.id}>
-                <TableCell>
-                  <div className="font-medium">{p.full_name}</div>
-                  <div className="text-xs text-muted-foreground">{p.email}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-2">
-                    {p.id_document_url && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-7 text-xs gap-1.5"
-                        onClick={() => handleViewDocument(p.id_document_url, `id-${p.id}`)}
-                        disabled={isGeneratingUrl === `id-${p.id}`}
-                      >
-                        {isGeneratingUrl === `id-${p.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-                        RG/CNH
-                      </Button>
-                    )}
-                    {p.prof_registration_url && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-7 text-xs gap-1.5"
-                        onClick={() => handleViewDocument(p.prof_registration_url, `prof-${p.id}`)}
-                        disabled={isGeneratingUrl === `prof-${p.id}`}
-                      >
-                        {isGeneratingUrl === `prof-${p.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-                        Registro
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
-                  <Button variant="ghost" size="sm" className="text-success" onClick={() => { setSelectedProfile(p); setApproveModalOpen(true); }}><ThumbsUp className="h-4 w-4 mr-1" />Aprovar</Button>
-                </TableCell>
-              </TableRow>
-            )) : <TableRow><TableCell colSpan={3} className="h-32 text-center text-muted-foreground">Nenhuma solicitação pendente.</TableCell></TableRow>}
+            {pendingProfiles.length > 0 ? pendingProfiles.map(p => {
+              const labels = getDocLabels(p.role);
+              return (
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <div className="font-medium">{p.full_name}</div>
+                    <div className="text-xs text-muted-foreground">{p.email}</div>
+                  </TableCell>
+                  <TableCell>{getRoleBadge(p.role)}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-2">
+                      {p.id_document_url && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 text-xs gap-1.5"
+                          onClick={() => handleViewDocument(p.id_document_url, `id-${p.id}`)}
+                          disabled={isGeneratingUrl === `id-${p.id}`}
+                        >
+                          {isGeneratingUrl === `id-${p.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                          {labels.doc1}
+                        </Button>
+                      )}
+                      {p.prof_registration_url && labels.doc2 && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 text-xs gap-1.5"
+                          onClick={() => handleViewDocument(p.prof_registration_url, `prof-${p.id}`)}
+                          disabled={isGeneratingUrl === `prof-${p.id}`}
+                        >
+                          {isGeneratingUrl === `prof-${p.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                          {labels.doc2}
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
+                    <Button variant="ghost" size="sm" className="text-success" onClick={() => { setSelectedProfile(p); setApproveModalOpen(true); }}><ThumbsUp className="h-4 w-4 mr-1" />Aprovar</Button>
+                  </TableCell>
+                </TableRow>
+              );
+            }) : <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground">Nenhuma solicitação pendente.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>

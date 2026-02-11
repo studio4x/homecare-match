@@ -266,10 +266,19 @@ const ProfilePage = () => {
   };
 
   const handleRequestVerification = async () => {
-    if (!profile.id_document_url || !profile.prof_registration_url) {
+    const isFamily = profile.role === 'family';
+    const isCompany = profile.role === 'company';
+    
+    if (isFamily && !profile.id_document_url) {
+      toast.error("Envie o documento de identidade antes de solicitar análise.");
+      return;
+    }
+
+    if (!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) {
       toast.error("Envie os dois documentos antes de solicitar análise.");
       return;
     }
+
     setIsSaving(true);
     try {
       const { error } = await supabase
@@ -296,7 +305,13 @@ const ProfilePage = () => {
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
 
   const isProfessional = profile.role === 'professional';
+  const isCompany = profile.role === 'company';
+  const isFamily = profile.role === 'family';
   const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
+
+  // Rótulos dinâmicos para documentos
+  const doc1Label = isCompany ? "Cartão CNPJ" : isFamily ? "RG ou CNH do Responsável" : "RG ou CNH";
+  const doc2Label = isCompany ? "RG ou CNH do Responsável" : "Registro (COREN/CREFITO)";
 
   return (
     <div className="space-y-6">
@@ -506,62 +521,64 @@ const ProfilePage = () => {
         </div>
 
         <div className="space-y-6">
-          {isProfessional && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-secondary/30 p-3 rounded-lg flex gap-3 items-start border border-border/50">
-                  <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold">Upload Seguro</p>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      Seus documentos são armazenados em um servidor privado com criptografia. 
-                      Apenas administradores autorizados podem visualizá-los através de links temporários protegidos.
-                    </p>
-                  </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-secondary/30 p-3 rounded-lg flex gap-3 items-start border border-border/50">
+                <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold">Upload Seguro</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Seus documentos são armazenados em um servidor privado com criptografia. 
+                    Apenas administradores autorizados podem visualizá-los através de links temporários protegidos.
+                  </p>
                 </div>
+              </div>
 
-                {profile.is_verified ? (
-                  <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center">
-                    <CheckCircle2 className="h-8 w-8 text-success mb-2" />
-                    <p className="text-sm font-semibold text-success">Perfil Verificado</p>
+              {profile.is_verified ? (
+                <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center">
+                  <CheckCircle2 className="h-8 w-8 text-success mb-2" />
+                  <p className="text-sm font-semibold text-success">Perfil Verificado</p>
+                </div>
+              ) : profile.verification_sent ? (
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
+                  <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
+                  <p className="text-sm font-semibold text-primary">Documentos em Análise</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase">{doc1Label}</Label>
+                    <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>
+                        {profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}
+                    </Button>
+                    <input type="file" ref={idDocRef} className="hidden" onChange={e => handleFileUpload(e, 'id_doc')} />
                   </div>
-                ) : profile.verification_sent ? (
-                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
-                    <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
-                    <p className="text-sm font-semibold text-primary">Documentos em Análise</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
+                  
+                  {!isFamily && (
                     <div className="space-y-1">
-                      <Label className="text-[10px] uppercase">RG ou CNH</Label>
-                      <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>
-                         {profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}
-                      </Button>
-                      <input type="file" ref={idDocRef} className="hidden" onChange={e => handleFileUpload(e, 'id_doc')} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase">Registro (COREN/etc)</Label>
+                      <Label className="text-[10px] uppercase">{doc2Label}</Label>
                       <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>
-                         {profile.prof_registration_url ? "✓ Registro enviado" : "Selecionar arquivo"}
+                          {profile.prof_registration_url ? "✓ Documento enviado" : "Selecionar arquivo"}
                       </Button>
                       <input type="file" ref={profDocRef} className="hidden" onChange={e => handleFileUpload(e, 'prof_doc')} />
                     </div>
-                    <Button 
-                      className="w-full" 
-                      disabled={!profile.id_document_url || !profile.prof_registration_url || isSaving}
-                      onClick={handleRequestVerification}
-                    >
-                      {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      Solicitar Análise
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+                  )}
+
+                  <Button 
+                    className="w-full" 
+                    disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && !profile.id_document_url) || isSaving}
+                    onClick={handleRequestVerification}
+                  >
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Solicitar Análise
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {isProfessional && (
             <Card>

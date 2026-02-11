@@ -6,7 +6,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 serve(async (req) => {
   const signature = req.headers.get('stripe-signature');
   if (!signature) {
-    console.error("[stripe-webhook] Assinatura ausente no cabeçalho.");
+    console.error("[stripe-webhook] Assinatura ausente.");
     return new Response('No signature', { status: 400 });
   }
 
@@ -23,7 +23,8 @@ serve(async (req) => {
     const webhookSecret = Deno.env.get(`STRIPE_WEBHOOK_SECRET_${mode}`);
 
     if (!webhookSecret) {
-      console.error(`[stripe-webhook] STRIPE_WEBHOOK_SECRET_${mode} não configurado no Supabase.`);
+      console.error(`[stripe-webhook] ERRO: STRIPE_WEBHOOK_SECRET_${mode} não configurado no Supabase.`);
+      return new Response('Webhook secret missing', { status: 500 });
     }
 
     const stripe = new Stripe(stripeSecret || '', {
@@ -35,20 +36,20 @@ serve(async (req) => {
     let event;
 
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret || '');
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err) {
-      console.error(`[stripe-webhook] Erro na validação da assinatura: ${err.message}`);
+      console.error(`[stripe-webhook] Falha na assinatura: ${err.message}`);
       return new Response(`Webhook Error: ${err.message}`, { status: 400 });
     }
 
-    console.log(`[stripe-webhook] Evento recebido: ${event.type}`);
+    console.log(`[stripe-webhook] Evento validado: ${event.type}`);
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const userId = session.metadata?.userId;
       const planId = session.metadata?.planId;
 
-      console.log(`[stripe-webhook] Processando conclusão. User: ${userId}, Plan: ${planId}`);
+      console.log(`[stripe-webhook] Processando: User=${userId}, Plan=${planId}`);
 
       if (userId && planId) {
         const { error: updateError } = await supabaseAdmin
@@ -60,12 +61,10 @@ serve(async (req) => {
           .eq('id', userId);
 
         if (updateError) {
-          console.error(`[stripe-webhook] Erro ao atualizar perfil: ${updateError.message}`);
+          console.error(`[stripe-webhook] Erro DB: ${updateError.message}`);
           throw updateError;
         }
-        console.log(`[stripe-webhook] Perfil atualizado com sucesso para o plano: ${planId}`);
-      } else {
-        console.warn("[stripe-webhook] Metadados (userId ou planId) ausentes na sessão.");
+        console.log(`[stripe-webhook] SUCESSO: Plano ${planId} liberado para ${userId}`);
       }
     }
 
@@ -74,7 +73,7 @@ serve(async (req) => {
       status: 200 
     });
   } catch (err) {
-    console.error(`[stripe-webhook] Erro crítico: ${err.message}`);
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+    console.error(`[stripe-webhook] Erro Crítico: ${err.message}`);
+    return new Response(`Error: ${err.message}`, { status: 400 });
   }
 });

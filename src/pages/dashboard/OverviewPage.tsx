@@ -24,7 +24,7 @@ import {
   Lock,
   CreditCard
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -32,30 +32,56 @@ import PlanSelectionModal from "@/components/PlanSelectionModal";
 
 const OverviewPage = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isManagingBilling, setIsManagingBilling] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
-  useEffect(() => {
-    fetchProfile();
-  }, [user]);
-
   const fetchProfile = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
+      
+      if (error) throw error;
       setProfile(data);
     } catch (err) {
-      console.error(err);
+      console.error("[Overview] Erro ao carregar perfil:", err);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProfile();
+  }, [user]);
+
+  // Lógica para detectar retorno do Stripe
+  useEffect(() => {
+    if (searchParams.get("success") === "true") {
+      toast.success("Pagamento processado! Atualizando seu plano...", {
+        duration: 5000,
+      });
+      
+      // Tenta atualizar o perfil algumas vezes, pois o webhook pode demorar alguns segundos
+      const interval = setInterval(fetchProfile, 3000);
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        // Limpa a URL para não ficar disparando o toast
+        searchParams.delete("success");
+        setSearchParams(searchParams);
+      }, 15000);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [searchParams]);
 
   const handleManageBilling = async () => {
     setIsManagingBilling(true);
@@ -67,7 +93,7 @@ const OverviewPage = () => {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error("Não foi possível acessar o portal de pagamentos. Verifique se você possui uma assinatura ativa.");
+      toast.error("Não foi possível acessar o portal de pagamentos.");
     } finally {
       setIsManagingBilling(false);
     }
@@ -190,7 +216,6 @@ const OverviewPage = () => {
       )}
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Status Section */}
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
@@ -234,13 +259,6 @@ const OverviewPage = () => {
                   </Button>
                 </div>
               )}
-              
-              <div className="mt-4 pt-4 border-t border-border/50">
-                <p className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                  <Lock className="h-3 w-3 text-primary/60" />
-                  Seus documentos são armazenados em ambiente privado e criptografado.
-                </p>
-              </div>
             </CardContent>
           </Card>
 
@@ -293,7 +311,6 @@ const OverviewPage = () => {
           )}
         </div>
 
-        {/* Quick Links Section */}
         <div className="space-y-6">
           {!isProfessional && (
             <Card className="h-fit">

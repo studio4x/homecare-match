@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 // Páginas Públicas / Usuário
 import Index from "./pages/Index";
@@ -58,6 +59,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <SpeedInsights />
           <AppErrorBoundary>
             <Routes>
               {/* Rotas Públicas */}

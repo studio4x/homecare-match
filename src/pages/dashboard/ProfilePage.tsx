@@ -33,7 +33,9 @@ import {
   Clock,
   Lock,
   ShieldCheck,
-  KeyRound
+  KeyRound,
+  AlertTriangle,
+  Check
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -55,7 +57,11 @@ const ProfilePage = () => {
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
+  
+  // Estados para o Modal de Exclusão
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const avatarRef = useRef<HTMLInputElement>(null);
@@ -165,7 +171,6 @@ const ProfilePage = () => {
       
       let storageValue = filePath;
       
-      // Apenas para o avatar (público) pegamos a URL completa
       if (type === 'avatar') {
         const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
         storageValue = publicUrl;
@@ -261,7 +266,9 @@ const ProfilePage = () => {
       const { error } = await supabase.functions.invoke('delete-user');
       if (error) throw error;
       await signOut();
-      toast.success("Conta excluída.");
+      toast.success("Conta excluída com sucesso.");
+    } catch (err) {
+      toast.error("Erro ao excluir conta.");
     } finally {
       setIsDeletingAccount(false);
     }
@@ -269,7 +276,6 @@ const ProfilePage = () => {
 
   const handleRequestVerification = async () => {
     const isFamily = profile.role === 'family';
-    const isCompany = profile.role === 'company';
     
     if (isFamily && !profile.id_document_url) {
       toast.error("Envie o documento de identidade antes de solicitar análise.");
@@ -290,7 +296,6 @@ const ProfilePage = () => {
       
       if (error) throw error;
 
-      // Notificar Admin
       supabase.functions.invoke('notify-verification', {
         body: { userName: profile.full_name, userEmail: profile.email, userId: user?.id }
       }).catch(err => console.warn("Falha ao notificar admin:", err));
@@ -311,9 +316,32 @@ const ProfilePage = () => {
   const isFamily = profile.role === 'family';
   const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
 
-  // Rótulos dinâmicos para documentos
   const doc1Label = isCompany ? "Cartão CNPJ" : isFamily ? "RG ou CNH do Responsável" : "RG ou CNH";
   const doc2Label = isCompany ? "RG ou CNH do Responsável" : "Registro (COREN/CREFITO)";
+
+  // Benefícios por papel
+  const getBenefits = () => {
+    if (isProfessional) return [
+      "Visibilidade para centenas de empresas de Home Care.",
+      "Acesso a cursos de capacitação exclusivos.",
+      "Recebimento de propostas direto no WhatsApp.",
+      "Selo de verificação profissional."
+    ];
+    if (isCompany) return [
+      "Acesso ilimitado à base de profissionais qualificados.",
+      "Filtros avançados por região e especialidade.",
+      "Histórico de contatos e recrutamento centralizado.",
+      "Suporte prioritário para fechamento de escalas."
+    ];
+    return [
+      "Encontre cuidadores e enfermeiros verificados perto de você.",
+      "Contato direto sem taxas de agenciamento.",
+      "Segurança na análise de documentos dos profissionais.",
+      "Suporte humanizado para sua necessidade."
+    ];
+  };
+
+  const CONFIRMATION_PHRASE = "EXCLUIR MINHA CONTA";
 
   return (
     <div className="space-y-6">
@@ -669,7 +697,7 @@ const ProfilePage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/5 text-xs w-full justify-start" onClick={() => setDeleteAccountModalOpen(true)}>
+              <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/5 text-xs w-full justify-start" onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}>
                 Excluir minha conta permanentemente
               </Button>
             </CardContent>
@@ -677,21 +705,95 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      <Dialog open={deleteAccountModalOpen} onOpenChange={setDeleteAccountModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Excluir Conta</DialogTitle>
-            <DialogDescription className="pt-2">
-              Esta ação é **permanente**. Todos os seus dados, documentos e histórico serão apagados. Deseja continuar?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-4">
-            <Button variant="ghost" onClick={() => setDeleteAccountModalOpen(false)}>Cancelar</Button>
-            <Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeletingAccount}>
-              {isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Confirmar Exclusão
-            </Button>
-          </DialogFooter>
+      <Dialog open={deleteAccountModalOpen} onOpenChange={(open) => {
+        setDeleteAccountModalOpen(open);
+        if (!open) {
+          setDeleteStep(1);
+          setDeleteConfirmationText("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-[500px]">
+          {deleteStep === 1 ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <ShieldAlert className="h-5 w-5" /> 
+                  Sentiremos sua falta!
+                </DialogTitle>
+                <DialogDescription className="pt-2 text-base">
+                  Você tem certeza que deseja excluir sua conta? Ao manter seu perfil ativo, você continua aproveitando:
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-4 space-y-3">
+                {getBenefits().map((benefit, i) => (
+                  <div key={i} className="flex items-start gap-3 bg-secondary/20 p-3 rounded-lg border border-border/50">
+                    <div className="h-5 w-5 rounded-full bg-success/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check className="h-3 w-3 text-success" />
+                    </div>
+                    <span className="text-sm text-foreground/80">{benefit}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-destructive/5 border border-destructive/10 p-4 rounded-lg flex gap-3 items-start">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <p className="text-xs text-destructive font-medium">
+                  A exclusão é irreversível. Todos os seus dados, documentos e histórico de contatos serão apagados permanentemente.
+                </p>
+              </div>
+
+              <DialogFooter className="mt-6 gap-2 sm:gap-0">
+                <Button variant="ghost" onClick={() => setDeleteAccountModalOpen(false)}>Manter Minha Conta</Button>
+                <Button variant="destructive" onClick={() => setDeleteStep(2)}>
+                  Prosseguir com a Exclusão
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" /> 
+                  Confirmação Final
+                </DialogTitle>
+                <DialogDescription className="pt-2">
+                  Para confirmar a exclusão definitiva, digite a frase abaixo exatamente como aparece:
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="py-6 space-y-4">
+                <div className="text-center p-4 bg-muted rounded-lg border border-dashed border-muted-foreground/30">
+                  <span className="font-mono font-bold text-lg tracking-wider select-none">{CONFIRMATION_PHRASE}</span>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="delete-confirm-input">Digite a frase de confirmação</Label>
+                  <Input 
+                    id="delete-confirm-input"
+                    placeholder="Digite aqui..."
+                    value={deleteConfirmationText}
+                    onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                    className="h-12 text-center font-medium"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button variant="ghost" onClick={() => setDeleteStep(1)} disabled={isDeletingAccount}>Voltar</Button>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleDeleteAccount} 
+                  disabled={isDeletingAccount || deleteConfirmationText !== CONFIRMATION_PHRASE}
+                  className="gap-2"
+                >
+                  {isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  Excluir Conta Permanentemente
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

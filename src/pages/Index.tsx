@@ -306,70 +306,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-success py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-success-foreground">
-            Pronto para conquistar as melhores oportunidades?
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-success-foreground/80">
-            Junte-se a milhares de profissionais e tenha visibilidade para as maiores empresas de Home Care do Brasil.
-          </p>
-          <Button
-            size="lg"
-            variant="secondary"
-            className="mt-8 gap-2"
-            asChild
-          >
-            <Link to="/login#auth-sign-up">
-              Criar Perfil Agora
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-20 bg-secondary/10">
-        <div className="container mx-auto px-4 max-w-3xl">
-          <div className="mb-12 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <HelpCircle className="h-6 w-6 text-primary" />
-            </div>
-            <h2 className="text-3xl font-bold text-foreground">Dúvidas Frequentes</h2>
-            <p className="mt-4 text-muted-foreground">
-              Tudo o que você precisa saber para começar sua jornada conosco.
-            </p>
-          </div>
-
-          <Accordion type="single" collapsible className="w-full space-y-4">
-            {faqs.map((faq, index) => (
-              <AccordionItem 
-                key={index} 
-                value={`item-\${index}`} 
-                className="border rounded-xl px-6 bg-card shadow-sm border-primary/5"
-              >
-                <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-
-          <div className="mt-10 text-center">
-            <Button variant="outline" asChild className="gap-2">
-              <Link to="/suporte">
-                Ver Todas as Dúvidas
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
       <section id="planos" className="scroll-mt-20 py-20 bg-secondary/30">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
@@ -412,6 +348,70 @@ const Index = () => {
               <CarouselNext className="relative" />
             </div>
           </Carousel>
+        </div>
+      </section>
+
+      {/* CTA Section - Agora em Azul e no final */}
+      <section className="bg-primary py-20">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold text-primary-foreground">
+            Pronto para conquistar as melhores oportunidades?
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-primary-foreground/80">
+            Junte-se a milhares de profissionais e tenha visibilidade para as maiores empresas de Home Care do Brasil.
+          </p>
+          <Button
+            size="lg"
+            variant="secondary"
+            className="mt-8 gap-2"
+            asChild
+          >
+            <Link to="/login#auth-sign-up">
+              Criar Perfil Agora
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* FAQ Section - No final */}
+      <section className="py-20 bg-secondary/10">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="mb-12 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <HelpCircle className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="text-3xl font-bold text-foreground">Dúvidas Frequentes</h2>
+            <p className="mt-4 text-muted-foreground">
+              Tudo o que você precisa saber para começar sua jornada conosco.
+            </p>
+          </div>
+
+          <Accordion type="single" collapsible className="w-full space-y-4">
+            {faqs.map((faq, index) => (
+              <AccordionItem 
+                key={index} 
+                value={`item-\${index}`} 
+                className="border rounded-xl px-6 bg-card shadow-sm border-primary/5"
+              >
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-4">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+
+          <div className="mt-10 text-center">
+            <Button variant="outline" asChild className="gap-2">
+              <Link to="/suporte">
+                Ver Todas as Dúvidas
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
     </Layout>

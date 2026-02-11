@@ -11,9 +11,16 @@ import {
   Clock,
   ArrowRight,
   MessageCircle,
+  HelpCircle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfessionalStats } from "@/hooks/use-professional-stats";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const Familias = () => {
   const features = [
@@ -50,6 +57,29 @@ const Familias = () => {
     { value: "fisioterapeuta", label: "Fisioterapeuta" },
     { value: "fonoaudiologo", label: "Fonoaudiólogo(a)" },
     { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
+  ];
+
+  const faqs = [
+    {
+      question: "É seguro contratar profissionais pela plataforma?",
+      answer: "Sim. Priorizamos a segurança através do nosso selo de verificação, onde analisamos documentos e registros profissionais. Recomendamos sempre entrevistar o profissional e checar referências."
+    },
+    {
+      question: "Como vejo o valor cobrado pelo profissional?",
+      answer: "Muitos profissionais informam seu valor por hora diretamente no perfil. Caso não esteja visível, você pode combinar os valores diretamente com eles via WhatsApp."
+    },
+    {
+      question: "Preciso pagar alguma taxa para o site ao contratar?",
+      answer: "Não. O HomeCare Match não cobra taxas de agenciamento ou porcentagem sobre o valor do serviço. O pagamento é combinado e realizado diretamente ao profissional."
+    },
+    {
+      question: "Como sei se o profissional tem experiência com o perfil do meu familiar?",
+      answer: "Os perfis detalham as especialidades e o público-alvo (idosos, pediátrico, pós-cirúrgico, etc). Você também pode ler as avaliações de outras famílias."
+    },
+    {
+      question: "O que fazer se o profissional não responder?",
+      answer: "Caso um profissional não responda em tempo hábil, você pode buscar outros especialistas na mesma região através dos nossos filtros de busca."
+    }
   ];
 
   const { data: stats, isLoading: isLoadingStats } = useProfessionalStats();
@@ -255,29 +285,63 @@ const Familias = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-rose-50 py-20 dark:bg-rose-950/20">
+      <section className="bg-rose-500 py-20">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-foreground">
-            Pronto para encontrar quem vai cuidar de quem você ama?
+          <h2 className="text-3xl font-bold text-white">
+            Encontre quem vai cuidar de quem você ama
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            O cadastro é rápido, gratuito e seguro.
+          <p className="mx-auto mt-4 max-w-2xl text-white/80">
+            O cadastro é rápido, gratuito e seguro. Comece sua busca agora mesmo.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Button
               size="lg"
-              className="gap-2 bg-rose-500 hover:bg-rose-600 border-none min-w-[200px]"
+              variant="secondary"
+              className="gap-2 min-w-[200px]"
               asChild
             >
               <Link to="/cadastro-empresa">Criar Conta Grátis</Link>
             </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="min-w-[200px]"
-              asChild
-            >
-              <Link to="/login">Já tenho conta</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 bg-secondary/10">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="mb-12 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100">
+              <HelpCircle className="h-6 w-6 text-rose-600" />
+            </div>
+            <h2 className="text-3xl font-bold text-foreground">Dúvidas Frequentes</h2>
+            <p className="mt-4 text-muted-foreground">
+              Tudo o que você precisa saber para encontrar o melhor cuidado.
+            </p>
+          </div>
+
+          <Accordion type="single" collapsible className="w-full space-y-4">
+            {faqs.map((faq, index) => (
+              <AccordionItem 
+                key={index} 
+                value={`item-\${index}`} 
+                className="border rounded-xl px-6 bg-card shadow-sm border-rose-100"
+              >
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-4">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+
+          <div className="mt-10 text-center">
+            <Button variant="outline" asChild className="gap-2">
+              <Link to="/suporte">
+                Ver Todas as Dúvidas
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>

@@ -13,7 +13,14 @@ import {
   ArrowRight,
   CheckCircle,
   Zap,
+  HelpCircle,
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const Empresas = () => {
   const features = [
@@ -50,6 +57,29 @@ const Empresas = () => {
     "Perfis completos e verificados",
     "Histórico de experiência e qualificações",
     "Suporte dedicado para recrutadores",
+  ];
+
+  const faqs = [
+    {
+      question: "Como encontro profissionais na minha região?",
+      answer: "Utilize nossos filtros avançados de busca para selecionar o estado, cidade e até o bairro desejado. Você verá uma lista de profissionais disponíveis naquela localidade."
+    },
+    {
+      question: "Os profissionais são realmente verificados?",
+      answer: "Sim. Nossa equipe analisa os documentos de identificação e os registros profissionais (como COREN ou CREFITO) de cada profissional que solicita o selo de verificação."
+    },
+    {
+      question: "Existe algum custo para a empresa utilizar a plataforma?",
+      answer: "Atualmente, o acesso à base de profissionais e o contato direto são gratuitos para empresas de Home Care parceiras."
+    },
+    {
+      question: "Como entro em contato com o profissional?",
+      answer: "Ao encontrar um perfil de interesse, basta clicar no botão de contato. O sistema liberará o link direto para o WhatsApp do profissional."
+    },
+    {
+      question: "Posso salvar perfis para consultar depois?",
+      answer: "Sim. Todos os profissionais que você entrar em contato ficam salvos automaticamente no seu histórico de contatos no painel administrativo."
+    }
   ];
 
   return (
@@ -260,6 +290,47 @@ const Empresas = () => {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 bg-secondary/10">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="mb-12 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
+              <HelpCircle className="h-6 w-6 text-success" />
+            </div>
+            <h2 className="text-3xl font-bold text-foreground">Dúvidas Frequentes</h2>
+            <p className="mt-4 text-muted-foreground">
+              Respostas para as principais dúvidas de recrutadores e empresas.
+            </p>
+          </div>
+
+          <Accordion type="single" collapsible className="w-full space-y-4">
+            {faqs.map((faq, index) => (
+              <AccordionItem 
+                key={index} 
+                value={`item-\${index}`} 
+                className="border rounded-xl px-6 bg-card shadow-sm border-success/5"
+              >
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-4">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+
+          <div className="mt-10 text-center">
+            <Button variant="outline" asChild className="gap-2">
+              <Link to="/suporte">
+                Ver Todas as Dúvidas
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
     </Layout>

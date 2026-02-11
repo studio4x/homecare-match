@@ -57,6 +57,11 @@ const Footer = () => {
             <h4 className="font-semibold text-foreground">Para Empresas</h4>
             <ul className="space-y-2">
               <li>
+                <Link to="/cadastro-empresa" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Criar Perfil
+                </Link>
+              </li>
+              <li>
                 <Link to="/empresas" className="text-sm text-muted-foreground transition-colors hover:text-primary">
                   Soluções
                 </Link>
@@ -64,6 +69,11 @@ const Footer = () => {
               <li>
                 <Link to="/buscar" className="text-sm text-muted-foreground transition-colors hover:text-primary">
                   Buscar Profissionais
+                </Link>
+              </li>
+              <li>
+                <Link to="/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Meu Dashboard
                 </Link>
               </li>
             </ul>
@@ -74,13 +84,18 @@ const Footer = () => {
             <h4 className="font-semibold text-foreground">Para Famílias</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/familias" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Encontrar Cuidador
+                <Link to="/cadastro-empresa" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Criar Perfil
                 </Link>
               </li>
               <li>
-                <Link to="/cadastro-empresa" className="text-sm text-muted-foreground transition-colors hover:text-primary">
-                  Cadastrar Grátis
+                <Link to="/buscar" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Buscar Profissionais
+                </Link>
+              </li>
+              <li>
+                <Link to="/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Meu Dashboard
                 </Link>
               </li>
             </ul>

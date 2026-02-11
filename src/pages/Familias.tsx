@@ -199,13 +199,9 @@ const Familias = () => {
                     <h3 className="font-semibold text-foreground">
                       Profissionais Disponíveis
                     </h3>
-                    {isLoadingStats ? (
-                      <Skeleton className="mt-1 h-4 w-44" />
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {stats?.total ?? 0} profissionais cadastrados
-                      </p>
-                    )}
+                    <p className="text-sm text-muted-foreground">
+                      Encontre especialistas verificados
+                    </p>
                   </div>
                 </div>
 

@@ -11,7 +11,9 @@ export interface SiteConfig {
   whatsapp_number: string | null;
   enable_professional_list: boolean;
   stripe_mode?: string | null;
-  // Added marketing fields
+  stripe_publishable_key_test?: string | null;
+  stripe_publishable_key_live?: string | null;
+  // Marketing fields
   ga_measurement_id?: string | null;
   ga_enabled?: boolean;
   gtm_container_id?: string | null;
@@ -32,7 +34,6 @@ export const useSiteConfig = () => {
 
       if (error) {
         console.error("Erro ao buscar configurações do site:", error);
-        // Retorna defaults em caso de erro
         return {
           id: 1,
           logo_url: null,
@@ -43,18 +44,14 @@ export const useSiteConfig = () => {
           whatsapp_number: null,
           enable_professional_list: true,
           stripe_mode: 'test',
-          // Defaults for marketing fields
-          ga_measurement_id: null,
           ga_enabled: false,
-          gtm_container_id: null,
           gtm_enabled: false,
-          fb_pixel_id: null,
           fb_pixel_enabled: false,
         };
       }
 
       return data;
     },
-    staleTime: 1000 * 60 * 5, // Cache por 5 minutos
+    staleTime: 1000 * 60 * 5,
   });
 };

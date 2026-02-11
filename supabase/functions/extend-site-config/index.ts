@@ -21,14 +21,16 @@ serve(async (req) => {
     const sql = `
       -- Configuração do modo Stripe
       ALTER TABLE public.site_config 
-        ADD COLUMN IF NOT EXISTS stripe_mode TEXT DEFAULT 'test';
+        ADD COLUMN IF NOT EXISTS stripe_mode TEXT DEFAULT 'test',
+        ADD COLUMN IF NOT EXISTS stripe_publishable_key_test TEXT,
+        ADD COLUMN IF NOT EXISTS stripe_publishable_key_live TEXT;
 
       -- IDs de preço separados por modo na tabela de planos
       ALTER TABLE public.plans 
         ADD COLUMN IF NOT EXISTS stripe_price_id_test TEXT,
         ADD COLUMN IF NOT EXISTS stripe_price_id_live TEXT;
 
-      -- Colunas de marketing (mantendo as anteriores)
+      -- Colunas de marketing
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS ga_measurement_id TEXT,
         ADD COLUMN IF NOT EXISTS ga_enabled BOOLEAN DEFAULT true,

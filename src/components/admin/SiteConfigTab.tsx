@@ -20,7 +20,9 @@ const SiteConfigTab = () => {
     footer_logo_height_px: 48,
     whatsapp_number: "",
     enable_professional_list: true,
-    stripe_mode: "test"
+    stripe_mode: "test",
+    stripe_publishable_key_test: "",
+    stripe_publishable_key_live: ""
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -38,7 +40,9 @@ const SiteConfigTab = () => {
         footer_logo_height_px: config.footer_logo_height_px || 48,
         whatsapp_number: config.whatsapp_number || "",
         enable_professional_list: config.enable_professional_list ?? true,
-        stripe_mode: config.stripe_mode || "test"
+        stripe_mode: config.stripe_mode || "test",
+        stripe_publishable_key_test: config.stripe_publishable_key_test || "",
+        stripe_publishable_key_live: config.stripe_publishable_key_live || ""
       });
     }
   }, [config]);
@@ -125,6 +129,8 @@ const SiteConfigTab = () => {
           whatsapp_number: formData.whatsapp_number,
           enable_professional_list: formData.enable_professional_list,
           stripe_mode: formData.stripe_mode,
+          stripe_publishable_key_test: formData.stripe_publishable_key_test,
+          stripe_publishable_key_live: formData.stripe_publishable_key_live,
           updated_at: new Date().toISOString()
         })
         .eq('id', 1);
@@ -151,7 +157,7 @@ const SiteConfigTab = () => {
           </CardTitle>
           <CardDescription>Alterne entre o ambiente de testes e o ambiente real.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <div className="flex flex-col gap-4">
             <Label>Modo de Operação</Label>
             <Tabs 
@@ -168,8 +174,33 @@ const SiteConfigTab = () => {
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            <p className="text-[10px] text-muted-foreground italic">
-              * Certifique-se de ter configurado as chaves correspondentes no Supabase Secrets.
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2 p-4 border rounded-lg bg-amber-50/30 border-amber-200">
+              <Label className="flex items-center gap-2 text-amber-700"><FlaskConical className="h-3 w-3" /> Chave Publicável (Teste)</Label>
+              <Input 
+                placeholder="pk_test_..."
+                value={formData.stripe_publishable_key_test} 
+                onChange={(e) => setFormData({...formData, stripe_publishable_key_test: e.target.value})} 
+              />
+              <p className="text-[10px] text-muted-foreground italic">Usada para identificar sua conta no modo de testes.</p>
+            </div>
+
+            <div className="space-y-2 p-4 border rounded-lg bg-success/5 border-success/20">
+              <Label className="flex items-center gap-2 text-success"><Zap className="h-3 w-3" /> Chave Publicável (Produção)</Label>
+              <Input 
+                placeholder="pk_live_..."
+                value={formData.stripe_publishable_key_live} 
+                onChange={(e) => setFormData({...formData, stripe_publishable_key_live: e.target.value})} 
+              />
+              <p className="text-[10px] text-muted-foreground italic">Usada para identificar sua conta no modo real.</p>
+            </div>
+          </div>
+
+          <div className="bg-secondary/20 p-4 rounded-lg border border-dashed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong>Lembrete:</strong> As chaves <strong>Secretas</strong> e os <strong>Webhooks</strong> devem ser inseridos apenas no painel do Supabase (Secrets), pois são dados sensíveis que não devem ser expostos publicamente.
             </p>
           </div>
         </CardContent>

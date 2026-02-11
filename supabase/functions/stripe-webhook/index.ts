@@ -1,28 +1,32 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
 
 serve(async (req) => {
   const signature = req.headers.get('stripe-signature');
   if (!signature) return new Response('No signature', { status: 400 });
 
-  try {
-    const body = await req.text();
-    const event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      Deno.env.get('STRIPE_WEBHOOK_SECRET') || ''
-    );
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+  try {
+    // 1. Identificar o modo atual
+    const { data: config } = await supabaseAdmin.from('site_config').select('stripe_mode').eq('id', 1).single();
+    const mode = config?.stripe_mode === 'live' ? 'LIVE' : 'TEST';
+
+    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${mode}`);
+    const webhookSecret = Deno.env.get(`STRIPE_WEBHOOK_SECRET_\${mode}`);
+
+    const stripe = new Stripe(stripeSecret || '', {
+      apiVersion: '2023-10-16',
+      httpClient: Stripe.createFetchHttpClient(),
+    });
+
+    const body = await req.text();
+    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret || '');
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -38,7 +42,7 @@ serve(async (req) => {
           })
           .eq('id', userId);
         
-        console.log(`[Stripe Webhook] Assinatura atualizada para o usuário \${userId}: \${planId}`);
+        console.log(`[Stripe Webhook \${mode}] Assinatura atualizada para o usuário \${userId}: \${planId}`);
       }
     }
 

@@ -10,6 +10,7 @@ export interface SiteConfig {
   favicon_url: string | null;
   whatsapp_number: string | null;
   enable_professional_list: boolean;
+  stripe_mode?: string | null;
   // Added marketing fields
   ga_measurement_id?: string | null;
   ga_enabled?: boolean;
@@ -41,6 +42,7 @@ export const useSiteConfig = () => {
           favicon_url: null,
           whatsapp_number: null,
           enable_professional_list: true,
+          stripe_mode: 'test',
           // Defaults for marketing fields
           ga_measurement_id: null,
           ga_enabled: false,

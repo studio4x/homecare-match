@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Image as ImageIcon, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck } from "lucide-react";
+import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const SiteConfigTab = () => {
   const { data: config, isLoading } = useSiteConfig();
@@ -19,6 +20,7 @@ const SiteConfigTab = () => {
     footer_logo_height_px: 48,
     whatsapp_number: "",
     enable_professional_list: true,
+    stripe_mode: "test"
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -36,6 +38,7 @@ const SiteConfigTab = () => {
         footer_logo_height_px: config.footer_logo_height_px || 48,
         whatsapp_number: config.whatsapp_number || "",
         enable_professional_list: config.enable_professional_list ?? true,
+        stripe_mode: config.stripe_mode || "test"
       });
     }
   }, [config]);
@@ -43,6 +46,7 @@ const SiteConfigTab = () => {
   const handleSyncDatabase = async () => {
     setIsSyncing(true);
     try {
+      await supabase.functions.invoke('extend-site-config');
       const { error } = await supabase.functions.invoke('setup-reviews-table');
       if (error) throw error;
       toast.success("Banco de dados sincronizado!");
@@ -120,6 +124,7 @@ const SiteConfigTab = () => {
           footer_logo_height_px: formData.footer_logo_height_px,
           whatsapp_number: formData.whatsapp_number,
           enable_professional_list: formData.enable_professional_list,
+          stripe_mode: formData.stripe_mode,
           updated_at: new Date().toISOString()
         })
         .eq('id', 1);
@@ -138,6 +143,38 @@ const SiteConfigTab = () => {
 
   return (
     <div className="space-y-6">
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-primary" />
+            Configuração de Pagamentos (Stripe)
+          </CardTitle>
+          <CardDescription>Alterne entre o ambiente de testes e o ambiente real.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4">
+            <Label>Modo de Operação</Label>
+            <Tabs 
+              value={formData.stripe_mode} 
+              onValueChange={(v) => setFormData({...formData, stripe_mode: v})}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-2 h-12">
+                <TabsTrigger value="test" className="gap-2 data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                  <FlaskConical className="h-4 w-4" /> Modo de Teste
+                </TabsTrigger>
+                <TabsTrigger value="live" className="gap-2 data-[state=active]:bg-success data-[state=active]:text-white">
+                  <Zap className="h-4 w-4" /> Modo de Produção (Real)
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <p className="text-[10px] text-muted-foreground italic">
+              * Certifique-se de ter configurado as chaves correspondentes no Supabase Secrets.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Configurações Globais</CardTitle>
@@ -202,7 +239,7 @@ const SiteConfigTab = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-amber-900">Sincronizar Estrutura Base</p>
-              <p className="text-xs text-amber-800/70">Atualiza tabelas de avaliações e academy.</p>
+              <p className="text-xs text-amber-800/70">Atualiza tabelas de avaliações, academy e Stripe.</p>
             </div>
             <Button variant="outline" onClick={handleSyncDatabase} disabled={isSyncing}>
               {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}

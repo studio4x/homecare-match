@@ -26,7 +26,9 @@ import {
 import { 
   Loader2,
   Edit2,
-  Plus
+  Plus,
+  FlaskConical,
+  Zap
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -71,7 +73,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
   return (
     <>
       <div className="mb-4 flex justify-end">
-        <Button onClick={() => { setSelectedPlan({ id: '', name: '', price: '', period: 'mês', features: '' }); setPlanModalOpen(true); }} className="gap-2">
+        <Button onClick={() => { setSelectedPlan({ id: '', name: '', price: '', period: 'mês', features: '', stripe_price_id_test: '', stripe_price_id_live: '' }); setPlanModalOpen(true); }} className="gap-2">
           <Plus className="h-4 w-4" /> Novo Plano
         </Button>
       </div>
@@ -81,7 +83,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Preço</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Stripe IDs</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -104,7 +106,18 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                   <div className="text-xs text-muted-foreground">{p.id}</div>
                 </TableCell>
                 <TableCell>{p.price}/{p.period}</TableCell>
-                <TableCell>{p.popular && <Badge variant="secondary" className="bg-primary/10 text-primary">Popular</Badge>}</TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1 text-[10px]">
+                      <FlaskConical className="h-3 w-3 text-amber-500" />
+                      <span className="truncate max-w-[100px]">{p.stripe_price_id_test || 'Não config.'}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px]">
+                      <Zap className="h-3 w-3 text-success" />
+                      <span className="truncate max-w-[100px]">{p.stripe_price_id_live || 'Não config.'}</span>
+                    </div>
+                  </div>
+                </TableCell>
                 <TableCell className="text-right">
                   <Button variant="ghost" size="sm" onClick={() => { setSelectedPlan({ ...p, features: Array.isArray(p.features) ? p.features.join('\n') : '' }); setPlanModalOpen(true); }}>
                     <Edit2 className="h-4 w-4" />
@@ -124,7 +137,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
           <form onSubmit={handleSavePlan} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>ID do Plano</Label>
+                <Label>ID do Plano (Slug)</Label>
                 <Input value={selectedPlan?.id || ''} onChange={e => setSelectedPlan({...selectedPlan, id: e.target.value})} disabled={!!selectedPlan?.created_at} />
               </div>
               <div className="space-y-2">
@@ -132,9 +145,21 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                 <Input value={selectedPlan?.name || ''} onChange={e => setSelectedPlan({...selectedPlan, name: e.target.value})} />
               </div>
             </div>
+            
+            <div className="grid grid-cols-2 gap-4 p-4 bg-secondary/20 rounded-lg border">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-amber-600"><FlaskConical className="h-3 w-3" /> Stripe Price ID (Teste)</Label>
+                <Input placeholder="price_..." value={selectedPlan?.stripe_price_id_test || ''} onChange={e => setSelectedPlan({...selectedPlan, stripe_price_id_test: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2 text-success"><Zap className="h-3 w-3" /> Stripe Price ID (Produção)</Label>
+                <Input placeholder="price_..." value={selectedPlan?.stripe_price_id_live || ''} onChange={e => setSelectedPlan({...selectedPlan, stripe_price_id_live: e.target.value})} />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Preço</Label>
+                <Label>Preço Exibido</Label>
                 <Input value={selectedPlan?.price || ''} onChange={e => setSelectedPlan({...selectedPlan, price: e.target.value})} />
               </div>
               <div className="space-y-2">

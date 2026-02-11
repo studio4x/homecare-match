@@ -12,7 +12,19 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // 1. Buscar modo atual do Stripe
+    const { data: config } = await supabaseAdmin.from('site_config').select('stripe_mode').eq('id', 1).single();
+    const mode = config?.stripe_mode === 'live' ? 'LIVE' : 'TEST';
+    
+    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${mode}`);
+    if (!stripeSecret) throw new Error(`Chave secreta Stripe (\${mode}) não configurada nos Secrets.`);
+
+    const stripe = new Stripe(stripeSecret, {
       apiVersion: '2023-10-16',
       httpClient: Stripe.createFetchHttpClient(),
     });
@@ -20,30 +32,20 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) throw new Error('Não autorizado');
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
     if (userError || !user) throw new Error('Usuário não encontrado');
 
     const { planId } = await req.json();
     
-    // MAPEAMENTO DE PREÇOS (Atualize aqui com os IDs do Modo de Teste)
-    const priceMapping: Record<string, string> = {
-      'monthly': 'price_1SzjOu0p7oPiMHmJdsA0VH0n', // Substitua pelo ID de teste
-      'yearly': 'price_1SzjPL0p7oPiMHmJklhNxP7P',  // Substitua pelo ID de teste
-    };
-
-    const priceId = priceMapping[planId];
+    // 2. Buscar ID do preço no banco de dados
+    const { data: plan } = await supabaseAdmin.from('plans').select('*').eq('id', planId).single();
+    const priceId = config?.stripe_mode === 'live' ? plan?.stripe_price_id_live : plan?.stripe_price_id_test;
     
     if (!priceId) {
-      throw new Error(`ID de preço não configurado para o plano: \${planId}`);
+      throw new Error(`ID de preço não configurado para o plano \${planId} no modo \${mode}`);
     }
 
-    console.log(`[Stripe Checkout] Iniciando sessão de TESTE para \${user.email} - Plano: \${planId}`);
+    console.log(`[Stripe Checkout] Iniciando sessão (\${mode}) para \${user.email} - Plano: \${planId}`);
 
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email,

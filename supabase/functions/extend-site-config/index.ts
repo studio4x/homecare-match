@@ -15,20 +15,20 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    const body = await req.json().catch(() => ({}));
-    const action = body?.action || "add_marketing_columns";
-
-    if (action !== "add_marketing_columns") {
-      return new Response(JSON.stringify({ error: "Unknown action" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
 
     const sql = `
+      -- Configuração do modo Stripe
+      ALTER TABLE public.site_config 
+        ADD COLUMN IF NOT EXISTS stripe_mode TEXT DEFAULT 'test';
+
+      -- IDs de preço separados por modo na tabela de planos
+      ALTER TABLE public.plans 
+        ADD COLUMN IF NOT EXISTS stripe_price_id_test TEXT,
+        ADD COLUMN IF NOT EXISTS stripe_price_id_live TEXT;
+
+      -- Colunas de marketing (mantendo as anteriores)
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS ga_measurement_id TEXT,
         ADD COLUMN IF NOT EXISTS ga_enabled BOOLEAN DEFAULT true,
@@ -48,7 +48,7 @@ serve(async (req) => {
     });
   } catch (e) {
     try { await client?.end(); } catch {}
-    return new Response(JSON.stringify({ error: "Failed to extend site_config" }), {
+    return new Response(JSON.stringify({ error: "Failed to extend schema" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

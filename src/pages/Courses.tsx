@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import AccessRestricted from "@/components/AccessRestricted";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { cn } from "@/lib/utils";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
 
@@ -275,7 +276,11 @@ const Courses = () => {
                         <Link to={`/cursos/${c.slug}`}>Ver detalhes</Link>
                       </Button>
                       {isEnrolled(c.slug) ? (
-                        <Button asChild size="sm">
+                        <Button 
+                          asChild 
+                          size="sm"
+                          className={cn(isCompleted(c.slug) && "bg-success hover:bg-success/90 border-none")}
+                        >
                           <Link to={`/cursos/${c.slug}`}>{isCompleted(c.slug) ? "Rever Curso" : "Continuar"}</Link>
                         </Button>
                       ) : (

@@ -13,12 +13,11 @@ serve(async (req) => {
   );
 
   try {
-    // 1. Identificar o modo atual
     const { data: config } = await supabaseAdmin.from('site_config').select('stripe_mode').eq('id', 1).single();
     const mode = config?.stripe_mode === 'live' ? 'LIVE' : 'TEST';
 
-    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${mode}`);
-    const webhookSecret = Deno.env.get(`STRIPE_WEBHOOK_SECRET_\${mode}`);
+    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_${mode}`);
+    const webhookSecret = Deno.env.get(`STRIPE_WEBHOOK_SECRET_${mode}`);
 
     const stripe = new Stripe(stripeSecret || '', {
       apiVersion: '2023-10-16',
@@ -41,14 +40,11 @@ serve(async (req) => {
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
-        
-        console.log(`[Stripe Webhook \${mode}] Assinatura atualizada para o usuário \${userId}: \${planId}`);
       }
     }
 
     return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (err) {
-    console.error(`[Stripe Webhook Error] \${err.message}`);
-    return new Response(`Webhook Error: \${err.message}`, { status: 400 });
+    return new Response(`Webhook Error: ${err.message}`, { status: 400 });
   }
 });

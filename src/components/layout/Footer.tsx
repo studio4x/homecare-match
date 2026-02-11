@@ -112,10 +112,18 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-border pt-6">
-          <p className="text-center text-sm text-muted-foreground">
+        <div className="mt-12 border-t border-border pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} HomeCare Match. Todos os direitos reservados.
           </p>
+          <div className="flex items-center gap-6">
+            <Link to="/politica-de-privacidade" className="text-[10px] uppercase tracking-widest text-muted-foreground/60 hover:text-primary transition-colors">
+              Privacidade
+            </Link>
+            <Link to="/politica-de-cookies" className="text-[10px] uppercase tracking-widest text-muted-foreground/60 hover:text-primary transition-colors">
+              Cookies
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

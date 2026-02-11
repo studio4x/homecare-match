@@ -22,6 +22,8 @@ import ReferralLanding from "./pages/ReferralLanding";
 import CertificateView from "./pages/CertificateView";
 import ValidateCertificate from "./pages/ValidateCertificate";
 import Support from "./pages/Support";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import CookiePolicy from "./pages/CookiePolicy";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -73,6 +75,8 @@ const App = () => (
               <Route path="/certificado/:id" element={<CertificateView />} />
               <Route path="/validar" element={<ValidateCertificate />} />
               <Route path="/suporte" element={<Support />} />
+              <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
+              <Route path="/politica-de-cookies" element={<CookiePolicy />} />
 
               {/* Novo Painel do Usuário (Aninhado) */}
               <Route path="/dashboard" element={<UserLayout />}>

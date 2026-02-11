@@ -7,6 +7,7 @@ import FaviconUpdater from "./FaviconUpdater";
 import ScrollToTop from "../ScrollToTop";
 import MarketingScripts from "../MarketingScripts";
 import SuggestionDrawer from "../SuggestionDrawer";
+import CookieConsent from "../CookieConsent";
 
 interface LayoutProps {
   children: ReactNode;
@@ -21,6 +22,7 @@ const Layout = ({ children }: LayoutProps) => {
       <ImpersonationBar />
       <MarketingScripts />
       <SuggestionDrawer />
+      <CookieConsent />
       <main className="flex-1 py-8 md:py-12">{children}</main>
       <Footer />
       <AppVersion />

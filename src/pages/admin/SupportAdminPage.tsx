@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MessageSquare, Eye, Search, Filter } from "lucide-react";
+import { Loader2, MessageSquare, Eye, Search, Filter, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ const SupportAdminPage = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTickets();
@@ -37,15 +38,24 @@ const SupportAdminPage = () => {
 
   const fetchTickets = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data, error } = await supabase
+      // Consulta simplificada sem o hint de FK explícito para evitar erros de sincronização
+      const { data, error: fetchError } = await supabase
         .from("support_tickets")
-        .select("*, user:profiles!support_tickets_user_id_fkey(full_name, email)")
+        .select("*, user:profiles(full_name, email)")
         .order("created_at", { ascending: false });
-      if (error) throw error;
+
+      if (fetchError) {
+        console.error("[SupportAdmin] Erro ao buscar tickets:", fetchError);
+        setError(fetchError.message);
+        return;
+      }
+
       setTickets(data || []);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error("[SupportAdmin] Erro inesperado:", err);
+      setError(err.message || "Erro ao carregar dados.");
     } finally {
       setLoading(false);
     }
@@ -67,23 +77,50 @@ const SupportAdminPage = () => {
 
   const filteredTickets = tickets.filter(t => {
     const matchesStatus = filterStatus === "all" || t.status === filterStatus;
-    const matchesSearch = t.subject.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         t.user?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = 
+      t.subject.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (t.user?.full_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (t.user?.email || "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'open': return <Badge className="bg-blue-500">Aberto</Badge>;
+      case 'in_progress': return <Badge className="bg-amber-500">Em Atendimento</Badge>;
+      case 'closed': return <Badge variant="secondary">Fechado</Badge>;
+      default: return <Badge>{status}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Central de Atendimento</h1>
-        <p className="text-muted-foreground">Gerencie os chamados de suporte dos usuários.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Central de Atendimento</h1>
+          <p className="text-muted-foreground">Gerencie os chamados de suporte de todos os usuários.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchTickets} disabled={loading}>
+          Atualizar Lista
+        </Button>
       </div>
+
+      {error && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center gap-3 text-destructive">
+          <AlertCircle className="h-5 w-5" />
+          <div className="text-sm">
+            <p className="font-bold">Erro ao carregar chamados</p>
+            <p>{error}</p>
+            <p className="mt-2 text-xs opacity-80">Dica: Certifique-se de ter clicado em "Sincronizar Central de Suporte" nas Configurações.</p>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Buscar por assunto ou usuário..." 
+            placeholder="Buscar por assunto, nome ou e-mail..." 
             className="pl-10"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -124,8 +161,8 @@ const SupportAdminPage = () => {
                 {filteredTickets.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell>
-                      <div className="font-medium text-sm">{t.user?.full_name}</div>
-                      <div className="text-[10px] text-muted-foreground">{t.user?.email}</div>
+                      <div className="font-medium text-sm">{t.user?.full_name || "Usuário Desconhecido"}</div>
+                      <div className="text-[10px] text-muted-foreground">{t.user?.email || "N/A"}</div>
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate font-medium">{t.subject}</TableCell>
                     <TableCell>
@@ -156,6 +193,7 @@ const SupportAdminPage = () => {
             </Table>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
               <p>Nenhum chamado encontrado.</p>
             </div>
           )}

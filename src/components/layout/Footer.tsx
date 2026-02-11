@@ -40,6 +40,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Como Funciona
+                </Link>
+              </li>
+              <li>
                 <Link to="/#planos" className="text-sm text-muted-foreground transition-colors hover:text-primary">
                   Planos e Preços
                 </Link>
@@ -86,6 +91,11 @@ const Footer = () => {
               <li>
                 <Link to="/cadastro-empresa" className="text-sm text-muted-foreground transition-colors hover:text-primary">
                   Criar Perfil
+                </Link>
+              </li>
+              <li>
+                <Link to="/familias" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                  Soluções
                 </Link>
               </li>
               <li>

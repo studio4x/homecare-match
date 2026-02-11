@@ -31,10 +31,10 @@ serve(async (req) => {
 
     const { planId } = await req.json();
     
-    // MAPEAMENTO DE PREÇOS DO STRIPE (IDs Reais configurados)
+    // MAPEAMENTO DE PREÇOS (Atualize aqui com os IDs do Modo de Teste)
     const priceMapping: Record<string, string> = {
-      'monthly': 'price_1SzjOu0p7oPiMHmJdsA0VH0n',
-      'yearly': 'price_1SzjPL0p7oPiMHmJklhNxP7P',
+      'monthly': 'price_1SzjOu0p7oPiMHmJdsA0VH0n', // Substitua pelo ID de teste
+      'yearly': 'price_1SzjPL0p7oPiMHmJklhNxP7P',  // Substitua pelo ID de teste
     };
 
     const priceId = priceMapping[planId];
@@ -43,7 +43,7 @@ serve(async (req) => {
       throw new Error(`ID de preço não configurado para o plano: \${planId}`);
     }
 
-    console.log(`[Stripe Checkout] Iniciando sessão para \${user.email} - Plano: \${planId}`);
+    console.log(`[Stripe Checkout] Iniciando sessão de TESTE para \${user.email} - Plano: \${planId}`);
 
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email,

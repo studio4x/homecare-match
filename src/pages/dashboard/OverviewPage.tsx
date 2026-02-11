@@ -19,7 +19,8 @@ import {
   LayoutGrid,
   Loader2,
   Eye,
-  LifeBuoy
+  LifeBuoy,
+  Settings
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
@@ -118,6 +119,7 @@ const OverviewPage = () => {
   const completeness = getProfileCompleteness();
   const trial = getTrialInfo();
   const isProfessional = profile?.role === 'professional';
+  const isAdmin = profile?.is_admin || profile?.role === 'admin';
   const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
 
   return (
@@ -260,6 +262,16 @@ const OverviewPage = () => {
               <CardTitle className="text-base">Acesso Rápido</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
+              {isAdmin && (
+                <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 bg-primary/5 hover:bg-primary/10">
+                  <Link to="/admin">
+                    <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                      <Settings className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="font-bold text-primary">Painel Administrativo</span>
+                  </Link>
+                </Button>
+              )}
               {isProfessional && (
                 <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 hover:bg-primary/5">
                   <Link to={`/profissional/${user?.id}`}>

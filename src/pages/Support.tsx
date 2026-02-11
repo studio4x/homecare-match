@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -30,7 +30,8 @@ import {
   Plus,
   ArrowRight,
   Paperclip,
-  X
+  X,
+  Tag
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -129,10 +130,24 @@ const Support = () => {
     }
   };
 
-  const filteredFaqs = faqs.filter(f => 
-    f.question.toLowerCase().includes(search.toLowerCase()) || 
-    f.answer.toLowerCase().includes(search.toLowerCase())
-  );
+  // Agrupa FAQs por categoria
+  const groupedFaqs = useMemo(() => {
+    const filtered = faqs.filter(f => 
+      f.question.toLowerCase().includes(search.toLowerCase()) || 
+      f.answer.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const groups: Record<string, any[]> = {};
+    filtered.forEach(faq => {
+      const cat = faq.category || "Geral";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(faq);
+    });
+
+    return groups;
+  }, [faqs, search]);
+
+  const categoryNames = Object.keys(groupedFaqs).sort();
 
   return (
     <Layout>
@@ -158,26 +173,37 @@ const Support = () => {
         </div>
 
         <div className="grid gap-8 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-8">
+          <div className="md:col-span-2 space-y-12">
             <section>
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <h2 className="text-2xl font-bold mb-8 flex items-center gap-2">
                 <FileText className="text-primary" /> Perguntas Frequentes
               </h2>
+              
               {loading ? (
                 <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" /></div>
-              ) : filteredFaqs.length > 0 ? (
-                <Accordion type="single" collapsible className="w-full space-y-4">
-                  {filteredFaqs.map((faq) => (
-                    <AccordionItem key={faq.id} value={faq.id} className="border rounded-xl px-4 bg-card shadow-sm">
-                      <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
-                        {faq.question}
-                      </AccordionTrigger>
-                      <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
-                        {faq.answer}
-                      </AccordionContent>
-                    </AccordionItem>
+              ) : categoryNames.length > 0 ? (
+                <div className="space-y-10">
+                  {categoryNames.map(category => (
+                    <div key={category} className="space-y-4">
+                      <div className="flex items-center gap-2 border-b pb-2">
+                        <Tag className="h-4 w-4 text-primary/60" />
+                        <h3 className="text-lg font-bold uppercase tracking-wider text-foreground/80">{category}</h3>
+                      </div>
+                      <Accordion type="single" collapsible className="w-full space-y-3">
+                        {groupedFaqs[category].map((faq) => (
+                          <AccordionItem key={faq.id} value={faq.id} className="border rounded-xl px-4 bg-card shadow-sm hover:shadow-md transition-shadow">
+                            <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
+                              {faq.question}
+                            </AccordionTrigger>
+                            <AccordionContent className="text-muted-foreground pb-4 leading-relaxed">
+                              {faq.answer}
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    </div>
                   ))}
-                </Accordion>
+                </div>
               ) : (
                 <p className="text-center py-12 text-muted-foreground">Nenhuma resposta encontrada para sua busca.</p>
               )}

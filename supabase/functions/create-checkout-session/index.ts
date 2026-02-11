@@ -9,7 +9,10 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
 
   try {
     const supabaseAdmin = createClient(
@@ -18,11 +21,20 @@ serve(async (req) => {
     );
 
     // 1. Buscar modo atual do Stripe
-    const { data: config } = await supabaseAdmin.from('site_config').select('stripe_mode').eq('id', 1).single();
+    const { data: config, error: configError } = await supabaseAdmin
+      .from('site_config')
+      .select('stripe_mode')
+      .eq('id', 1)
+      .single();
+
+    if (configError) throw new Error("Falha ao carregar configuração do site.");
+
     const mode = config?.stripe_mode === 'live' ? 'LIVE' : 'TEST';
-    
     const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${mode}`);
-    if (!stripeSecret) throw new Error(`Chave secreta Stripe (\${mode}) não configurada nos Secrets.`);
+
+    if (!stripeSecret) {
+      throw new Error(`A chave secreta STRIPE_SECRET_KEY_\${mode} não foi encontrada nos Secrets do Supabase.`);
+    }
 
     const stripe = new Stripe(stripeSecret, {
       apiVersion: '2023-10-16',
@@ -30,22 +42,30 @@ serve(async (req) => {
     });
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Não autorizado');
+    if (!authHeader) throw new Error('Usuário não autenticado.');
 
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (userError || !user) throw new Error('Usuário não encontrado');
+    if (userError || !user) throw new Error('Usuário não encontrado.');
 
     const { planId } = await req.json();
+    if (!planId) throw new Error('ID do plano não fornecido.');
     
     // 2. Buscar ID do preço no banco de dados
-    const { data: plan } = await supabaseAdmin.from('plans').select('*').eq('id', planId).single();
-    const priceId = config?.stripe_mode === 'live' ? plan?.stripe_price_id_live : plan?.stripe_price_id_test;
+    const { data: plan, error: planError } = await supabaseAdmin
+      .from('plans')
+      .select('*')
+      .eq('id', planId)
+      .single();
+    
+    if (planError || !plan) throw new Error(`Plano "\${planId}" não encontrado no banco de dados.`);
+
+    const priceId = config?.stripe_mode === 'live' ? plan.stripe_price_id_live : plan.stripe_price_id_test;
     
     if (!priceId) {
-      throw new Error(`ID de preço não configurado para o plano \${planId} no modo \${mode}`);
+      throw new Error(`O ID de preço da Stripe não foi configurado para o plano "\${planId}" no modo \${mode}. Vá em Admin > Planos e configure.`);
     }
 
-    console.log(`[Stripe Checkout] Iniciando sessão (\${mode}) para \${user.email} - Plano: \${planId}`);
+    console.log(`[create-checkout-session] Iniciando sessão para \${user.email} no modo \${mode}`);
 
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email,
@@ -63,8 +83,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
+
   } catch (error) {
-    console.error("[Stripe Checkout] Erro:", error.message);
+    console.error("[create-checkout-session] Erro crítico:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

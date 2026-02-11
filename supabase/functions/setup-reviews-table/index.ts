@@ -9,17 +9,18 @@ const corsHeaders = {
 const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL")!;
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   let client: Client | null = null;
   try {
+    console.log("[setup-sync] Iniciando sincronização profunda...");
+    
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
-    console.log("[setup-sync] Iniciando sincronização profunda...");
-
     // 1. Tabelas base e extensões
     await client.queryObject(`
       CREATE TABLE IF NOT EXISTS public.academy_enrollments (
@@ -57,7 +58,6 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- Nova Tabela de Denúncias
       CREATE TABLE IF NOT EXISTS public.reports (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         reporter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -102,6 +102,9 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("[setup-sync] Erro crítico:", e);
+    if (client) {
+      try { await client.end(); } catch (err) { console.error("[setup-sync] Erro ao fechar cliente:", err); }
+    }
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -265,10 +265,14 @@ const ProfilePage = () => {
     try {
       const { error } = await supabase.functions.invoke('delete-user');
       if (error) throw error;
+      
+      toast.success("Sua conta foi excluída permanentemente.");
+      
+      // O signOut já faz o redirecionamento para a home ('/')
       await signOut();
-      toast.success("Conta excluída com sucesso.");
     } catch (err) {
-      toast.error("Erro ao excluir conta.");
+      console.error("[ProfilePage] Erro ao excluir conta:", err);
+      toast.error("Ocorreu um erro ao tentar excluir sua conta. Por favor, tente novamente.");
     } finally {
       setIsDeletingAccount(false);
     }

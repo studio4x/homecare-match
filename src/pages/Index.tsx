@@ -53,14 +53,17 @@ const Index = () => {
       });
 
       if (error) {
-        // Tenta extrair a mensagem de erro do corpo da resposta se disponível
+        // Tenta extrair a mensagem de erro do corpo da resposta
         let errorMessage = "Erro ao iniciar checkout.";
-        try {
-          const body = await error.response?.json();
-          errorMessage = body?.error || error.message || errorMessage;
-        } catch {
-          errorMessage = error.message || errorMessage;
+        
+        // Se for um erro de HTTP (como 400), o Supabase coloca o corpo em error.context
+        if (error.context?.json) {
+          const body = await error.context.json();
+          errorMessage = body.error || errorMessage;
+        } else if (error.message) {
+          errorMessage = error.message;
         }
+        
         throw new Error(errorMessage);
       }
 
@@ -69,7 +72,9 @@ const Index = () => {
       }
     } catch (err: any) {
       console.error("[Checkout Error]", err);
-      toast.error(err.message || "Erro ao iniciar checkout. Verifique as configurações.");
+      // Remove o prefixo genérico do Supabase para mostrar apenas a nossa mensagem
+      const cleanMessage = err.message?.replace("Edge Function returned a non-2xx status code", "").trim();
+      toast.error(cleanMessage || "Erro ao iniciar checkout. Verifique as configurações.");
     } finally {
       setLoadingPlan(null);
     }

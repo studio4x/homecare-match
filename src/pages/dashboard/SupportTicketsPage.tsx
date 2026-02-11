@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -16,11 +16,13 @@ import {
 } from "@/components/ui/table";
 import { Loader2, MessageSquare, Eye, Plus, LifeBuoy } from "lucide-react";
 import { Link } from "react-router-dom";
+import SupportTicketModal from "@/components/SupportTicketModal";
 
 const SupportTicketsPage = () => {
   const { user } = useAuth();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) fetchTickets();
@@ -64,8 +66,8 @@ const SupportTicketsPage = () => {
           <Button variant="outline" asChild className="gap-2">
             <Link to="/suporte"><LifeBuoy className="h-4 w-4" /> Ver FAQs</Link>
           </Button>
-          <Button asChild className="gap-2">
-            <Link to="/suporte"><Plus className="h-4 w-4" /> Novo Chamado</Link>
+          <Button className="gap-2" onClick={() => setIsModalOpen(true)}>
+            <Plus className="h-4 w-4" /> Novo Chamado
           </Button>
         </div>
       </div>
@@ -111,6 +113,12 @@ const SupportTicketsPage = () => {
           )}
         </CardContent>
       </Card>
+
+      <SupportTicketModal 
+        open={isModalOpen} 
+        onOpenChange={setIsModalOpen} 
+        initialStep="choice"
+      />
     </div>
   );
 };

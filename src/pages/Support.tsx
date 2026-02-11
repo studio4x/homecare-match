@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -10,18 +10,9 @@ import {
   AccordionTrigger 
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { 
   LifeBuoy, 
   Search, 
@@ -30,28 +21,21 @@ import {
   Loader2, 
   Plus,
   ArrowRight,
-  Paperclip,
-  X,
   ChevronRight,
-  HelpCircle,
-  Send
+  HelpCircle
 } from "lucide-react";
-import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import SupportTicketModal from "@/components/SupportTicketModal";
 
 const Support = () => {
-  const { user, session } = useAuth();
-  const navigate = useNavigate();
+  const { session } = useAuth();
   const [faqs, setFaqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [isOpeningTicket, setIsOpeningTicket] = useState(false);
-  const [ticketData, setTicketData] = useState({ subject: "", description: "", priority: "medium" });
-  const [attachment, setAttachment] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     fetchFaqs();
@@ -67,7 +51,6 @@ const Support = () => {
       if (error) throw error;
       setFaqs(data || []);
       
-      // Define a primeira categoria como ativa por padrão
       if (data && data.length > 0) {
         const firstCat = data[0].category || "Geral";
         setActiveCategory(firstCat);
@@ -79,74 +62,11 @@ const Support = () => {
     }
   };
 
-  const handleOpenTicket = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!session) {
-      toast.info("Faça login para abrir um chamado.");
-      navigate("/login");
-      return;
-    }
-
-    setIsOpeningTicket(true);
-    try {
-      let attachmentUrl = null;
-      let attachmentName = null;
-
-      if (attachment) {
-        const fileExt = attachment.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `support/${user?.id}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('uploads')
-          .upload(filePath, attachment);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('uploads')
-          .getPublicUrl(filePath);
-        
-        attachmentUrl = publicUrl;
-        attachmentName = attachment.name;
-      }
-
-      const { data, error } = await supabase
-        .from("support_tickets")
-        .insert({
-          user_id: user?.id,
-          subject: ticketData.subject,
-          description: ticketData.description,
-          priority: ticketData.priority,
-          status: 'open',
-          attachment_url: attachmentUrl,
-          attachment_name: attachmentName
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      supabase.functions.invoke('notify-support', {
-        body: { type: 'new_ticket', ticketId: data.id, senderId: user?.id }
-      }).catch(err => console.warn("Falha ao notificar admin:", err));
-
-      toast.success("Chamado aberto com sucesso!");
-      navigate(`/dashboard/suporte/${data.id}`);
-    } catch (err) {
-      toast.error("Erro ao abrir chamado.");
-    } finally {
-      setIsOpeningTicket(false);
-    }
-  };
-
-  // Categorias únicas
   const categories = useMemo(() => {
     const set = new Set(faqs.map(f => f.category || "Geral"));
     return Array.from(set).sort();
   }, [faqs]);
 
-  // Filtra FAQs baseado na busca OU na categoria ativa
   const filteredFaqs = useMemo(() => {
     if (search.trim()) {
       return faqs.filter(f => 
@@ -181,7 +101,6 @@ const Support = () => {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-12">
-          {/* Navegação Lateral de Categorias (Desktop) */}
           <div className="lg:col-span-3 space-y-4">
             <div className="hidden lg:block space-y-1">
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 px-3">Categorias</h3>
@@ -202,18 +121,16 @@ const Support = () => {
               ))}
             </div>
 
-            {/* Seletor Mobile */}
             <div className="lg:hidden">
-              <Select value={activeCategory || ""} onValueChange={(v) => { setActiveCategory(v); setSearch(""); }}>
-                <SelectTrigger className="h-12">
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select 
+                value={activeCategory || ""} 
+                onChange={(e) => { setActiveCategory(e.target.value); setSearch(""); }}
+                className="w-full h-12 rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              >
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
             </div>
 
             <Card className="bg-primary/5 border-primary/10 mt-6">
@@ -226,16 +143,24 @@ const Support = () => {
                     <p className="text-sm font-bold">Ainda com dúvidas?</p>
                     <p className="text-xs text-muted-foreground">Nossa equipe está pronta para te ouvir.</p>
                   </div>
-                  <Button variant="link" className="text-primary p-0 h-auto" asChild>
-                    <a href="#ticket-form">Abrir um chamado <ArrowRight className="ml-1 h-3 w-3" /></a>
+                  <Button 
+                    variant="default" 
+                    className="w-full gap-2 shadow-md" 
+                    onClick={() => setIsModalOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" /> Abrir Chamado
                   </Button>
+                  {session && (
+                    <Button variant="link" size="sm" className="text-xs text-muted-foreground" asChild>
+                      <Link to="/dashboard/suporte">Ver meus chamados</Link>
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Conteúdo Principal (FAQs) */}
-          <div className="lg:col-span-6 space-y-8">
+          <div className="lg:col-span-9 space-y-8">
             <section className="animate-fade-in">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -280,106 +205,14 @@ const Support = () => {
               )}
             </section>
           </div>
-
-          {/* Sidebar Direita (Formulário) */}
-          <div className="lg:col-span-3 space-y-6">
-            <Card id="ticket-form" className="shadow-xl border-primary/10 sticky top-24">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Plus className="h-5 w-5 text-primary" />
-                  Novo Chamado
-                </CardTitle>
-                <CardDescription>Fale diretamente com nosso suporte.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleOpenTicket} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs uppercase font-bold text-muted-foreground">Assunto</Label>
-                    <Input 
-                      required 
-                      placeholder="Ex: Problema com acesso" 
-                      className="h-10"
-                      value={ticketData.subject}
-                      onChange={(e) => setTicketData({...ticketData, subject: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs uppercase font-bold text-muted-foreground">Prioridade</Label>
-                    <Select 
-                      value={ticketData.priority} 
-                      onValueChange={(v) => setTicketData({...ticketData, priority: v})}
-                    >
-                      <SelectTrigger className="h-10">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Baixa</SelectItem>
-                        <SelectItem value="medium">Média</SelectItem>
-                        <SelectItem value="high">Alta</SelectItem>
-                        <SelectItem value="urgent">Urgente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-xs uppercase font-bold text-muted-foreground">Descrição</Label>
-                    <Textarea 
-                      required 
-                      placeholder="Como podemos ajudar?" 
-                      rows={4}
-                      className="resize-none"
-                      value={ticketData.description}
-                      onChange={(e) => setTicketData({...ticketData, description: e.target.value})}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs uppercase font-bold text-muted-foreground">Anexo</Label>
-                      {attachment && (
-                        <button type="button" onClick={() => setAttachment(null)} className="text-[10px] text-destructive hover:underline flex items-center gap-1">
-                          <X className="h-2 w-2" /> Remover
-                        </button>
-                      )}
-                    </div>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full gap-2 border-dashed h-10"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Paperclip className="h-4 w-4" />
-                      {attachment ? attachment.name : "Anexar arquivo"}
-                    </Button>
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      className="hidden" 
-                      onChange={(e) => setAttachment(e.target.files?.[0] || null)}
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full h-11 gap-2 shadow-lg" disabled={isOpeningTicket}>
-                    {isOpeningTicket ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    Enviar Ticket
-                  </Button>
-                </form>
-              </CardContent>
-              {session && (
-                <CardFooter className="border-t bg-secondary/10 py-3">
-                  <Button variant="ghost" size="sm" className="w-full text-xs gap-2" asChild>
-                    <Link to="/dashboard/suporte">
-                      <FileText className="h-3 w-3" /> Ver meus chamados
-                    </Link>
-                  </Button>
-                </CardFooter>
-              )}
-            </Card>
-          </div>
         </div>
       </div>
+
+      <SupportTicketModal 
+        open={isModalOpen} 
+        onOpenChange={setIsModalOpen} 
+        initialStep="form"
+      />
     </Layout>
   );
 };

@@ -35,7 +35,7 @@ const Footer = () => {
             <h4 className="font-semibold text-foreground">Para Profissionais</h4>
             <ul className="space-y-2">
               <li>
-                <Link to="/" className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                <Link to="/login#auth-sign-up" className="text-sm text-muted-foreground transition-colors hover:text-primary">
                   Criar Perfil
                 </Link>
               </li>

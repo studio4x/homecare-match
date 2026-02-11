@@ -157,7 +157,7 @@ const Index = () => {
         </div>
 
         <div className="container relative mx-auto px-4">
-          <div className="mx-auto max-w-3xl text-center">
+          <div className="mx-auto max-w-4xl text-center">
             <div className="animate-fade-in mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm">
               <Heart className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-muted-foreground">
@@ -192,15 +192,15 @@ const Index = () => {
             <div className="animate-slide-up mt-16 grid grid-cols-1 sm:grid-cols-3 gap-8" style={{ animationDelay: "0.3s" }}>
               <div className="flex items-center justify-center gap-3 text-center">
                 <Shield className="h-5 w-5 text-primary" />
-                <span className="text-sm text-muted-foreground">Perfis verificados</span>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Perfis verificados</span>
               </div>
               <div className="flex items-center justify-center gap-3 text-center">
                 <Award className="h-5 w-5 text-success" />
-                <span className="text-sm text-muted-foreground">Parcerias com empresas líderes</span>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Parcerias com empresas líderes</span>
               </div>
               <div className="flex items-center justify-center gap-3 text-center">
                 <Heart className="h-5 w-5 text-primary" />
-                <span className="text-sm text-muted-foreground">Foco total em Home Care</span>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">Foco total em Home Care</span>
               </div>
             </div>
           </div>

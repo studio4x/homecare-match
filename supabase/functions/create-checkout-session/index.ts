@@ -31,13 +31,20 @@ serve(async (req) => {
 
     const { planId } = await req.json();
     
+    // MAPEAMENTO DE PREÇOS DO STRIPE
+    // Substitua os valores abaixo pelos IDs que você copiou do Stripe (ex: price_1QvX...)
     const priceMapping: Record<string, string> = {
-      'monthly': 'price_monthly_id_here',
-      'yearly': 'price_yearly_id_here',
+      'monthly': 'COLE_AQUI_O_ID_DO_PLANO_MENSAL',
+      'yearly': 'COLE_AQUI_O_ID_DO_PLANO_ANUAL',
     };
 
     const priceId = priceMapping[planId];
-    if (!priceId) throw new Error('Plano inválido');
+    
+    if (!priceId || priceId.includes('COLE_AQUI')) {
+      throw new Error(`ID de preço não configurado para o plano: \${planId}`);
+    }
+
+    console.log(`[Stripe Checkout] Iniciando sessão para \${user.email} - Plano: \${planId}`);
 
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email,
@@ -56,6 +63,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error("[Stripe Checkout] Erro:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

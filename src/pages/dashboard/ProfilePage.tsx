@@ -32,7 +32,8 @@ import {
   ArrowRight,
   Clock,
   Lock,
-  ShieldCheck
+  ShieldCheck,
+  KeyRound
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ import {
   DialogFooter,
   DialogHeader
 } from "@/components/ui/dialog";
+import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -577,6 +579,17 @@ const ProfilePage = () => {
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-primary" /> Segurança
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChangePasswordDialog />
             </CardContent>
           </Card>
 

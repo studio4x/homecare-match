@@ -327,6 +327,9 @@ const ProfilePage = () => {
           <Card>
             <CardHeader>
               <CardTitle>Informações Básicas</CardTitle>
+              <CardDescription>
+                Esses dados são a sua porta de entrada. Um perfil com foto e nome completo transmite muito mais profissionalismo e confiança.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
@@ -420,6 +423,9 @@ const ProfilePage = () => {
           <Card>
             <CardHeader>
               <CardTitle>Endereço e Localização</CardTitle>
+              <CardDescription>
+                Sua localização é usada para te conectar a oportunidades próximas, facilitando o deslocamento e otimizando sua rotina.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-3">
@@ -478,7 +484,12 @@ const ProfilePage = () => {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle>Currículo e Biografia</CardTitle>
+                  <div>
+                    <CardTitle>Currículo e Biografia</CardTitle>
+                    <CardDescription>
+                      Destaque suas competências e trajetória. Perfis detalhados têm 3x mais chances de atrair a atenção de recrutadores.
+                    </CardDescription>
+                  </div>
                   <Button variant="outline" size="sm" className="gap-2" onClick={handleGenerateBio} disabled={isGeneratingBio}>
                     {isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
                     Gerar com IA
@@ -506,6 +517,9 @@ const ProfilePage = () => {
             <Card>
               <CardHeader>
                 <CardTitle>{profile.role === 'company' ? "Sobre a Empresa" : "Sobre a Família"}</CardTitle>
+                <CardDescription>
+                  Conte um pouco sobre suas necessidades e o perfil de atendimento que busca.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} placeholder="Conte um pouco sobre suas necessidades..." />
@@ -526,6 +540,9 @@ const ProfilePage = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação</CardTitle>
+              <CardDescription className="text-[10px]">
+                O selo de verificação comprova a autenticidade dos seus documentos e coloca seu perfil em destaque nas buscas.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-secondary/30 p-3 rounded-lg flex gap-3 items-start border border-border/50">
@@ -587,6 +604,9 @@ const ProfilePage = () => {
               <CardTitle className="text-base flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-primary" /> Segurança
               </CardTitle>
+              <CardDescription className="text-[10px]">
+                Mantenha sua conta protegida e seus dados de acesso sempre atualizados.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ChangePasswordDialog />
@@ -597,6 +617,9 @@ const ProfilePage = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Detalhes do Atendimento</CardTitle>
+                <CardDescription className="text-[10px]">
+                  Defina suas preferências e valores para receber propostas que realmente se encaixam no seu perfil de trabalho.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid gap-2">
@@ -641,6 +664,9 @@ const ProfilePage = () => {
           <Card className="border-destructive/20">
             <CardHeader>
               <CardTitle className="text-base text-destructive flex items-center gap-2"><Trash2 className="h-4 w-4" /> Zona de Perigo</CardTitle>
+              <CardDescription className="text-[10px]">
+                Ações irreversíveis relacionadas à exclusão definitiva da sua conta e de todos os seus dados.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/5 text-xs w-full justify-start" onClick={() => setDeleteAccountModalOpen(true)}>

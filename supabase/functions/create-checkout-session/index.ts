@@ -31,16 +31,15 @@ serve(async (req) => {
 
     const { planId } = await req.json();
     
-    // MAPEAMENTO DE PREÇOS DO STRIPE
-    // Substitua os valores abaixo pelos IDs que você copiou do Stripe (ex: price_1QvX...)
+    // MAPEAMENTO DE PREÇOS DO STRIPE (IDs Reais configurados)
     const priceMapping: Record<string, string> = {
-      'monthly': 'COLE_AQUI_O_ID_DO_PLANO_MENSAL',
-      'yearly': 'COLE_AQUI_O_ID_DO_PLANO_ANUAL',
+      'monthly': 'price_1SzjOu0p7oPiMHmJdsA0VH0n',
+      'yearly': 'price_1SzjPL0p7oPiMHmJklhNxP7P',
     };
 
     const priceId = priceMapping[planId];
     
-    if (!priceId || priceId.includes('COLE_AQUI')) {
+    if (!priceId) {
       throw new Error(`ID de preço não configurado para o plano: \${planId}`);
     }
 

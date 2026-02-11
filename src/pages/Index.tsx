@@ -35,28 +35,37 @@ const Index = () => {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handleSubscribe = async (planId: string) => {
+    console.log("Botão clicado! ID do plano:", planId);
+    
     if (!session) {
-      toast.info("Por favor, crie uma conta para escolher seu plano.");
+      console.log("Usuário não logado. Redirecionando...");
+      toast.info("Por favor, crie uma conta ou faça login para continuar.");
       navigate("/login#auth-sign-up");
       return;
     }
 
     if (planId === 'free') {
+      console.log("Plano gratuito selecionado.");
       navigate("/dashboard");
       return;
     }
 
+    // Feedback visual imediato
+    const toastId = toast.loading("Iniciando checkout...");
     setLoadingPlan(planId);
+
     try {
+      console.log("Chamando Edge Function 'create-checkout-session'...");
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { planId }
       });
+
+      console.log("Resposta da função:", { data, error });
 
       if (error) {
         // Tenta extrair a mensagem de erro do corpo da resposta
         let errorMessage = "Erro ao iniciar checkout.";
         
-        // Se for um erro de HTTP (como 400), o Supabase coloca o corpo em error.context
         if (error.context?.json) {
           const body = await error.context.json();
           errorMessage = body.error || errorMessage;
@@ -68,13 +77,24 @@ const Index = () => {
       }
 
       if (data?.url) {
+        console.log("Redirecionando para Stripe:", data.url);
+        toast.dismiss(toastId);
+        toast.success("Redirecionando para pagamento...");
         window.location.href = data.url;
+      } else {
+        throw new Error("URL de checkout não retornada pelo servidor.");
       }
     } catch (err: any) {
-      console.error("[Checkout Error]", err);
-      // Remove o prefixo genérico do Supabase para mostrar apenas a nossa mensagem
+      console.error("[Checkout Error Completo]", err);
+      toast.dismiss(toastId);
+      
       const cleanMessage = err.message?.replace("Edge Function returned a non-2xx status code", "").trim();
-      toast.error(cleanMessage || "Erro ao iniciar checkout. Verifique as configurações.");
+      
+      if (cleanMessage.includes("Failed to fetch")) {
+        toast.error("Erro de conexão. Verifique sua internet ou tente novamente.");
+      } else {
+        toast.error(`Erro: ${cleanMessage || "Falha ao iniciar pagamento."}`);
+      }
     } finally {
       setLoadingPlan(null);
     }
@@ -143,15 +163,18 @@ const Index = () => {
   }
 
   // Busca planos do Admin automaticamente
-  const { data: remotePlans } = useQuery({
+  const { data: remotePlans, error: plansError } = useQuery({
     queryKey: ["plans"],
     queryFn: async (): Promise<DbPlan[]> => {
+      console.log("Buscando planos no banco...");
       const { data, error } = await supabase
         .from("plans")
         .select("*")
         .order("price", { ascending: true });
-      if (error) throw error;
-      // Normaliza features para array
+      if (error) {
+        console.error("Erro ao buscar planos:", error);
+        throw error;
+      }
       return (data || []).map((p: any) => ({
         id: p.id,
         name: p.name,
@@ -166,23 +189,21 @@ const Index = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Plano Gratuito fixo
   const freePlan: DbPlan = {
     id: "free",
     name: "Plano Gratuito",
     price: "R$ 0,00",
     period: "mês",
-    description: "Aplicado automaticamente no cadastro do profissional. Válido por 30 dias e não pode ser estendido.",
+    description: "Aplicado automaticamente no cadastro. Válido por 30 dias.",
     features: [
       "Perfil básico",
       "Visibilidade limitada",
       "Suporte por email",
-      "Ao término de 30 dias, selecione um dos outros planos."
+      "Ao término de 30 dias, selecione um plano pago."
     ],
     popular: false,
   };
 
-  // Fallback quando não houver planos cadastrados no Admin
   const defaultPlans: DbPlan[] = [
     {
       id: "monthly",
@@ -346,7 +367,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section - Agora em Azul e no final */}
+      {/* CTA Section */}
       <section className="bg-primary py-20">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-primary-foreground">
@@ -369,7 +390,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* FAQ Section - No final */}
+      {/* FAQ Section */}
       <section className="py-20 bg-secondary/10">
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="mb-12 text-center">
@@ -421,12 +442,10 @@ const Index = () => {
             </p>
           </div>
 
-          {/* Dica no mobile para o carrossel */}
           <p className="md:hidden text-center text-xs text-muted-foreground mb-4">
             Dica: arraste para o lado para ver todos os planos.
           </p>
 
-          {/* Novo: carrossel responsivo com 1/2/3 colunas e setas */}
           <Carousel className="w-full">
             <CarouselContent className="items-stretch">
               {allPlans.map((plan) => (

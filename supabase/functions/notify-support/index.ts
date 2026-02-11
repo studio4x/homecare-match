@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
-import { createTransport } from "https://esm.sh/nodemailer@6.9.13"
+import nodemailer from "npm:nodemailer"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,8 +22,6 @@ serve(async (req) => {
     const { type, ticketId, senderId, message } = await req.json();
     const SITE_URL = Deno.env.get('SITE_URL') || DEFAULT_SITE_URL;
 
-    console.log(`[notify-support] Processando evento: ${type} para o ticket: ${ticketId}`);
-
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -36,33 +34,23 @@ serve(async (req) => {
       .eq('id', ticketId)
       .single();
 
-    if (ticketError || !ticket) {
-      console.error("[notify-support] Erro ao buscar ticket:", ticketError);
-      throw new Error("Ticket não encontrado");
-    }
+    if (ticketError || !ticket) throw new Error("Ticket não encontrado");
 
-    // 2. Buscar dados do dono do ticket (quem abriu)
+    // 2. Buscar dados do dono do ticket
     const { data: ticketOwner, error: ownerError } = await supabaseAdmin
       .from('profiles')
       .select('full_name, email')
       .eq('id', ticket.user_id)
       .single();
 
-    if (ownerError || !ticketOwner) {
-      console.error("[notify-support] Erro ao buscar dono do ticket:", ownerError);
-      throw new Error("Dono do ticket não encontrado");
-    }
+    if (ownerError || !ticketOwner) throw new Error("Dono do ticket não encontrado");
 
-    // 3. Buscar dados de quem enviou a ação atual (remetente)
-    const { data: sender, error: senderError } = await supabaseAdmin
+    // 3. Buscar dados do remetente
+    const { data: sender } = await supabaseAdmin
       .from('profiles')
       .select('full_name, role, is_admin')
       .eq('id', senderId)
       .single();
-
-    if (senderError || !sender) {
-      console.error("[notify-support] Erro ao buscar remetente:", senderError);
-    }
 
     const isAdminAction = sender?.is_admin || sender?.role === 'admin';
 
@@ -73,11 +61,10 @@ serve(async (req) => {
     const smtpPort = Deno.env.get('SMTP_PORT') || "587";
 
     if (!smtpHost || !smtpUser || !smtpPass) {
-      console.error("[notify-support] Erro: Configurações SMTP ausentes nas Secrets!");
       throw new Error("SMTP configuration missing");
     }
 
-    const transporter = createTransport({
+    const transporter = nodemailer.createTransport({
       host: smtpHost,
       port: parseInt(smtpPort),
       secure: smtpPort === "465",
@@ -111,7 +98,6 @@ serve(async (req) => {
 
       case 'new_message':
         if (isAdminAction) {
-          // Admin respondeu -> Notifica o Usuário
           mailOptions.to = ticketOwner.email;
           mailOptions.subject = `💬 Nova resposta no seu chamado: ${ticket.subject}`;
           mailOptions.html = `
@@ -127,7 +113,6 @@ serve(async (req) => {
             </div>
           `;
         } else {
-          // Usuário respondeu -> Notifica o Admin
           mailOptions.to = MASTER_ADMIN_EMAIL;
           mailOptions.subject = `📩 Nova mensagem no Ticket: ${ticket.subject}`;
           mailOptions.html = `
@@ -160,10 +145,7 @@ serve(async (req) => {
         break;
     }
 
-    console.log(`[notify-support] Tentando enviar e-mail para: ${mailOptions.to}`);
     await transporter.sendMail(mailOptions);
-    console.log("[notify-support] E-mail enviado com sucesso!");
-
     return new Response(JSON.stringify({ success: true }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });

@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Edit2, Trash2, Tag } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, Tag, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 
@@ -64,11 +64,18 @@ const FaqAdminPage = () => {
     }
   };
 
-  // Extrai categorias únicas existentes
-  const categories = useMemo(() => {
-    const set = new Set(faqs.map(f => f.category).filter(Boolean));
-    return Array.from(set).sort();
+  // Agrupa FAQs por categoria para exibição organizada
+  const groupedFaqs = useMemo(() => {
+    const groups: Record<string, any[]> = {};
+    faqs.forEach(faq => {
+      const cat = faq.category || "Geral";
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(faq);
+    });
+    return groups;
   }, [faqs]);
+
+  const categories = useMemo(() => Object.keys(groupedFaqs).sort(), [groupedFaqs]);
 
   const handleNewFaq = () => {
     setSelectedFaq({ question: "", answer: "", category: categories[0] || "geral", position: faqs.length, is_published: true });
@@ -127,48 +134,67 @@ const FaqAdminPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Base de Conhecimento</h1>
-          <p className="text-muted-foreground">Gerencie as perguntas frequentes e artigos de ajuda.</p>
+          <p className="text-muted-foreground">Gerencie as perguntas frequentes organizadas por categorias.</p>
         </div>
         <Button onClick={handleNewFaq} className="gap-2">
           <Plus className="h-4 w-4" /> Nova FAQ
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" /></div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pergunta</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {faqs.map((f) => (
-                  <TableRow key={f.id}>
-                    <TableCell className="font-medium max-w-md truncate">{f.question}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="capitalize font-normal">
-                        {f.category}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{f.is_published ? "Publicado" : "Rascunho"}</TableCell>
-                    <TableCell className="text-right flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleEditFaq(f)}><Edit2 className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDeleteFaq(f.id)}><Trash2 className="h-4 w-4" /></Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" /></div>
+      ) : categories.length > 0 ? (
+        <div className="space-y-8">
+          {categories.map(category => (
+            <Card key={category} className="border-none shadow-sm bg-card/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2 uppercase tracking-wider text-primary">
+                  <FolderOpen className="h-5 w-5" />
+                  {category}
+                  <Badge variant="secondary" className="ml-2 font-mono">{groupedFaqs[category].length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-md border bg-card">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[40px]">Pos.</TableHead>
+                        <TableHead>Pergunta</TableHead>
+                        <TableHead className="w-[120px]">Status</TableHead>
+                        <TableHead className="text-right w-[100px]">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {groupedFaqs[category].map((f) => (
+                        <TableRow key={f.id}>
+                          <TableCell className="text-xs text-muted-foreground font-mono">{f.position}</TableCell>
+                          <TableCell className="font-medium max-w-md truncate">{f.question}</TableCell>
+                          <TableCell>
+                            <Badge variant={f.is_published ? "default" : "outline"} className={f.is_published ? "bg-success hover:bg-success" : ""}>
+                              {f.is_published ? "Publicado" : "Rascunho"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditFaq(f)}><Edit2 className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteFaq(f.id)}><Trash2 className="h-4 w-4" /></Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="p-12 text-center text-muted-foreground">
+          <Tag className="h-12 w-12 mx-auto mb-4 opacity-20" />
+          <p>Nenhuma FAQ cadastrada ainda.</p>
+          <Button variant="outline" className="mt-4" onClick={handleNewFaq}>Criar Primeira Pergunta</Button>
+        </Card>
+      )}
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="max-w-2xl">

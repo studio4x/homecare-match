@@ -518,7 +518,12 @@ const CoursesTab = () => {
       </Card>
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent 
+          className="max-w-2xl"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader><DialogTitle>Configurações do Curso</DialogTitle></DialogHeader>
           {selectedCourse && (
             <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
@@ -607,7 +612,12 @@ const CoursesTab = () => {
       </Dialog>
 
       <Dialog open={openContentDialog} onOpenChange={attemptCloseContentDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader><DialogTitle>Conteúdo: {selectedCourse?.title}</DialogTitle></DialogHeader>
           <div className="flex-1 overflow-y-auto p-1 space-y-8">
             <div className="flex justify-between items-center">

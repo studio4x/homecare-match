@@ -29,26 +29,15 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) throw new Error('Usuário não encontrado');
 
-    const { planId } = await req.json();
+    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
-    const priceMapping: Record<string, string> = {
-      'monthly': 'price_monthly_id_here',
-      'yearly': 'price_yearly_id_here',
-    };
+    if (customers.data.length === 0) {
+      throw new Error('Cliente não encontrado no Stripe. Você precisa ter uma assinatura ativa ou iniciada.');
+    }
 
-    const priceId = priceMapping[planId];
-    if (!priceId) throw new Error('Plano inválido');
-
-    const session = await stripe.checkout.sessions.create({
-      customer_email: user.email,
-      line_items: [{ price: priceId, quantity: 1 }],
-      mode: 'subscription',
-      success_url: `\${req.headers.get('origin')}/dashboard?success=true`,
-      cancel_url: `\${req.headers.get('origin')}/dashboard?canceled=true`,
-      metadata: {
-        userId: user.id,
-        planId: planId
-      }
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customers.data[0].id,
+      return_url: `\${req.headers.get('origin')}/dashboard`,
     });
 
     return new Response(JSON.stringify({ url: session.url }), {
@@ -56,6 +45,7 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
+    console.error("[Stripe Portal] Erro:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

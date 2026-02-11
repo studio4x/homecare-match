@@ -21,7 +21,8 @@ import {
   Eye,
   LifeBuoy,
   Settings,
-  Lock
+  Lock,
+  CreditCard
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
@@ -32,6 +33,7 @@ const OverviewPage = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isManagingBilling, setIsManagingBilling] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -50,6 +52,22 @@ const OverviewPage = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setIsManagingBilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-portal-session');
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Não foi possível acessar o portal de pagamentos. Verifique se você possui uma assinatura ativa.");
+    } finally {
+      setIsManagingBilling(false);
     }
   };
 
@@ -126,6 +144,7 @@ const OverviewPage = () => {
   const isProfessional = profile?.role === 'professional';
   const isAdmin = profile?.is_admin || profile?.role === 'admin';
   const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
+  const hasPaidPlan = profile?.subscription_tier === 'monthly' || profile?.subscription_tier === 'yearly';
 
   return (
     <div className="space-y-6">
@@ -237,7 +256,19 @@ const OverviewPage = () => {
                     <span className="text-xs font-medium text-primary">{trial.daysRemaining} dias restantes</span>
                   )}
                 </div>
-                {trial && (
+                
+                {hasPaidPlan ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full gap-2" 
+                    onClick={handleManageBilling}
+                    disabled={isManagingBilling}
+                  >
+                    {isManagingBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                    Gerenciar Assinatura
+                  </Button>
+                ) : trial && (
                   <div className="space-y-2">
                     <Progress value={trial.progress} className="h-2" />
                     {trial.isExpired ? (

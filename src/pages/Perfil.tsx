@@ -88,11 +88,12 @@ const Perfil = () => {
     fetchProfile();
     
     if (id) {
+      // Registrar visualização de forma silenciosa
       supabase.from('profile_views').insert({
         profile_id: id,
         viewer_id: user?.id || null
       }).then(({ error }) => {
-        if (error) console.warn("[Analytics] Erro ao registrar view:", error);
+        if (error) console.warn("[Analytics] Tabela profile_views não encontrada ou erro de permissão.");
       });
     }
   }, [id, user?.id, fetchProfile]);
@@ -114,10 +115,14 @@ const Perfil = () => {
   useEffect(() => {
     const fetchStats = async () => {
       if (!id) return;
-      const { data } = await supabase.functions.invoke('referral-stats', {
-        body: { referrerId: id }
-      });
-      if (data) setReferralStats(data as any);
+      try {
+        const { data, error } = await supabase.functions.invoke('referral-stats', {
+          body: { referrerId: id }
+        });
+        if (!error && data) setReferralStats(data as any);
+      } catch (e) {
+        console.warn("[ReferralStats] Falha ao buscar estatísticas.");
+      }
     };
     fetchStats();
   }, [id]);
@@ -194,7 +199,6 @@ const Perfil = () => {
     return `${m}min`;
   };
 
-  // Verificações de renderização APÓS todos os hooks
   if (authLoading || loading) return (
     <Layout>
       <div className="flex h-96 items-center justify-center">

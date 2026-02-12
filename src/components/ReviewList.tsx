@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import StarRating from "./StarRating";
-import { Loader2, MessageSquare } from "lucide-react";
+import { Loader2, MessageSquare, User } from "lucide-react";
 
 interface Review {
   id: string;
@@ -14,7 +14,7 @@ interface Review {
   reviewer: {
     full_name: string;
     avatar_url: string;
-  };
+  } | null;
 }
 
 interface ReviewListProps {
@@ -86,12 +86,16 @@ const ReviewList = ({ subjectId }: ReviewListProps) => {
             <div key={review.id} className="border-b pb-4 last:border-0 last:pb-0">
               <div className="flex items-start gap-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={review.reviewer.avatar_url} />
-                  <AvatarFallback>{review.reviewer.full_name?.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={review.reviewer?.avatar_url} />
+                  <AvatarFallback>
+                    {review.reviewer?.full_name?.charAt(0) || <User className="h-4 w-4" />}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-sm truncate">{review.reviewer.full_name}</span>
+                    <span className="font-medium text-sm truncate">
+                      {review.reviewer?.full_name || "Usuário Removido"}
+                    </span>
                     <span className="text-[10px] text-muted-foreground">
                       {new Date(review.created_at).toLocaleDateString('pt-BR')}
                     </span>

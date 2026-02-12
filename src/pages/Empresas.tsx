@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Zap,
   HelpCircle,
+  Loader2,
 } from "lucide-react";
 import {
   Accordion,
@@ -21,8 +22,44 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Empresas = () => {
+  const { data: locationData, isLoading: isLoadingLocations } = useQuery({
+    queryKey: ["professional-locations-summary"],
+    queryFn: async () => {
+      const { data, count, error } = await supabase
+        .from("profiles")
+        .select("neighborhood, city, state", { count: "exact" })
+        .eq("role", "professional")
+        .not("full_name", "is", null)
+        .eq("email_confirmed", true)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Filtra locais únicos e remove nulos/vazios
+      const uniqueLocations = Array.from(
+        new Set(
+          (data || [])
+            .filter(p => p.city && p.state)
+            .map(p => {
+              const loc = [];
+              if (p.neighborhood) loc.push(p.neighborhood);
+              loc.push(`\${p.city}/\${p.state}`);
+              return loc.join(" - ");
+            })
+        )
+      ).slice(0, 4); // Mostra até 4 localizações diferentes
+
+      return {
+        total: count || 0,
+        locations: uniqueLocations
+      };
+    }
+  });
+
   const features = [
     {
       icon: Filter,
@@ -81,6 +118,8 @@ const Empresas = () => {
       answer: "Sim. Todos os profissionais que você entrar em contato ficam salvos automaticamente no seu histórico de contatos no painel administrativo."
     }
   ];
+
+  const showLocationCard = !isLoadingLocations && (locationData?.total || 0) >= 10;
 
   return (
     <Layout>
@@ -181,44 +220,53 @@ const Empresas = () => {
             </div>
 
             <div className="relative">
-              <div className="rounded-2xl border border-border bg-card p-8 shadow-lg">
-                <div className="mb-6 flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
-                    <MapPin className="h-6 w-6 text-success" />
+              {showLocationCard ? (
+                <div className="rounded-2xl border border-border bg-card p-8 shadow-lg animate-scale-in">
+                  <div className="mb-6 flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
+                      <MapPin className="h-6 w-6 text-success" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">
+                        Busca por Região
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Encontre profissionais próximos
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">
-                      Busca por Região
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Encontre profissionais próximos
-                    </p>
-                  </div>
-                </div>
 
-                <div className="space-y-3">
-                  {["Zona Norte - SP", "Zona Sul - SP", "Zona Leste - SP"].map(
-                    (region, i) => (
+                  <div className="space-y-3">
+                    {locationData?.locations.map((location, i) => (
                       <div
                         key={i}
                         className="flex items-center justify-between rounded-lg bg-secondary/50 p-3"
                       >
-                        <span className="text-sm text-foreground">{region}</span>
-                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                          {Math.floor(Math.random() * 50 + 20)} profissionais
-                        </span>
+                        <span className="text-sm text-foreground truncate pr-2">{location}</span>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
                       </div>
-                    )
-                  )}
-                </div>
+                    ))}
+                  </div>
 
-                <Button className="mt-6 w-full gap-2 bg-success hover:bg-success/90" asChild>
-                  <Link to="/buscar">
-                    Ver Todos
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
+                  <Button className="mt-6 w-full gap-2 bg-success hover:bg-success/90" asChild>
+                    <Link to="/buscar">
+                      Ver Todos os Profissionais
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 flex flex-col items-center text-center justify-center min-h-[300px]">
+                  <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <h3 className="font-semibold text-muted-foreground">Base em Expansão</h3>
+                  <p className="text-sm text-muted-foreground/70 mt-2">
+                    Estamos cadastrando novos profissionais diariamente em diversas regiões.
+                  </p>
+                  <Button variant="outline" className="mt-6" asChild>
+                    <Link to="/cadastro-empresa">Seja um Parceiro</Link>
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>

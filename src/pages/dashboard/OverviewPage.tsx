@@ -28,7 +28,8 @@ import {
   Building2,
   Home,
   XCircle,
-  HelpCircle
+  HelpCircle,
+  RefreshCw
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -42,11 +43,14 @@ const OverviewPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isManagingBilling, setIsManagingBilling] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (showToast = false) => {
     if (!user) return;
+    if (showToast) setIsRefreshing(true);
+    
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -56,10 +60,13 @@ const OverviewPage = () => {
       
       if (error) throw error;
       setProfile(data);
+      if (showToast) toast.success("Dados atualizados!");
     } catch (err) {
       console.error("[Overview] Erro ao carregar perfil:", err);
+      if (showToast) toast.error("Erro ao atualizar dados.");
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -73,7 +80,7 @@ const OverviewPage = () => {
         duration: 5000,
       });
       
-      const interval = setInterval(fetchProfile, 3000);
+      const interval = setInterval(() => fetchProfile(false), 3000);
       const timeout = setTimeout(() => {
         clearInterval(interval);
         searchParams.delete("success");
@@ -194,15 +201,14 @@ const OverviewPage = () => {
   const getSubscriptionStatus = () => {
     if (!profile) return null;
     
-    // Se não tiver data de fim, assumimos que está processando ou é vitalício/manual
     if (!profile.subscription_end_at) {
       return {
         label: "Ativa",
-        description: "Sincronizando data...",
+        description: "Aguardando sincronização...",
         icon: CheckCircle2,
         color: "text-green-600",
         bg: "bg-green-50 border-green-200",
-        dateLabel: "Renovação em"
+        dateLabel: "Status da Data"
       };
     }
 
@@ -214,7 +220,7 @@ const OverviewPage = () => {
       if (isExpired) {
         return {
           label: "Expirada",
-          description: "Renove para continuar.",
+          description: "Assinatura encerrada.",
           icon: XCircle,
           color: "text-red-600",
           bg: "bg-red-50 border-red-200",
@@ -223,7 +229,7 @@ const OverviewPage = () => {
       }
       return {
         label: "Cancelada",
-        description: "Acesso até o fim do ciclo.",
+        description: "Não será renovada.",
         icon: AlertCircle,
         color: "text-amber-600",
         bg: "bg-amber-50 border-amber-200",
@@ -262,7 +268,19 @@ const OverviewPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
         {getRoleBadge()}
-        <h1 className="text-3xl font-bold tracking-tight">Olá, {firstName}!</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">Olá, {firstName}!</h1>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="text-muted-foreground gap-2" 
+            onClick={() => fetchProfile(true)}
+            disabled={isRefreshing}
+          >
+            {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            <span className="hidden sm:inline">Atualizar Painel</span>
+          </Button>
+        </div>
         <p className="text-muted-foreground max-w-2xl">
           {isProfessional 
             ? "Gerencie seu perfil profissional, acompanhe suas verificações e acesse conteúdos educativos para impulsionar sua carreira no Home Care."
@@ -290,9 +308,6 @@ const OverviewPage = () => {
                   >
                     <CreditCard className="h-4 w-4" />
                     Escolher Plano Agora
-                  </Button>
-                  <Button variant="outline" asChild size="sm">
-                    <Link to="/suporte">Falar com Suporte</Link>
                   </Button>
                 </div>
               </div>
@@ -405,12 +420,17 @@ const OverviewPage = () => {
                         <span className="text-sm font-bold text-foreground">
                           {profile.subscription_end_at 
                             ? format(parseISO(profile.subscription_end_at), "dd/MM/yyyy", { locale: ptBR })
-                            : "Sincronizando..."
+                            : "Aguardando sistema..."
                           }
                         </span>
                       </div>
+                      {!profile.subscription_end_at && (
+                        <p className="text-[10px] text-muted-foreground mt-1 italic">
+                          A data será exibida assim que o pagamento for confirmado.
+                        </p>
+                      )}
                       {profile.cancel_at_period_end && (
-                        <p className="text-[10px] text-amber-600 mt-1">
+                        <p className="text-[10px] text-amber-600 mt-1 font-medium">
                           Sua assinatura não será renovada automaticamente.
                         </p>
                       )}

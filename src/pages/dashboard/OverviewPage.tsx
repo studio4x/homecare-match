@@ -396,30 +396,24 @@ const OverviewPage = () => {
                 
                 {hasPaidPlan ? (
                   <div className="space-y-4">
-                    <div className={cn(
-                      "p-3 rounded-lg border text-xs flex items-start gap-3",
-                      profile.cancel_at_period_end 
-                        ? "bg-amber-50 border-amber-200 text-amber-800" 
-                        : "bg-secondary/30 border-border text-muted-foreground"
-                    )}>
-                      {profile.cancel_at_period_end ? (
-                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                      ) : (
-                        <Calendar className="h-4 w-4 shrink-0 mt-0.5" />
-                      )}
-                      <div>
-                        {profile.cancel_at_period_end ? (
-                          <>
-                            <p className="font-bold">Assinatura cancelada</p>
-                            <p className="mt-1">Seu acesso será encerrado em: <strong>{profile.subscription_end_at ? format(parseISO(profile.subscription_end_at), "dd/MM/yyyy") : "—"}</strong></p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-medium">Próxima renovação</p>
-                            <p className="mt-1">Sua assinatura renova em: <strong>{profile.subscription_end_at ? format(parseISO(profile.subscription_end_at), "dd/MM/yyyy") : "—"}</strong></p>
-                          </>
-                        )}
+                    <div className="p-4 rounded-lg border bg-secondary/10 flex flex-col gap-1">
+                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">
+                        {subStatus?.dateLabel || "Data"}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-bold text-foreground">
+                          {profile.subscription_end_at 
+                            ? format(parseISO(profile.subscription_end_at), "dd/MM/yyyy", { locale: ptBR })
+                            : "Sincronizando..."
+                          }
+                        </span>
                       </div>
+                      {profile.cancel_at_period_end && (
+                        <p className="text-[10px] text-amber-600 mt-1">
+                          Sua assinatura não será renovada automaticamente.
+                        </p>
+                      )}
                     </div>
 
                     <Button 

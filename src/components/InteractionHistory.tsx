@@ -162,6 +162,23 @@ const InteractionHistory = ({
     return phone.replace(/\d(?=\d{4})/g, "*");
   };
 
+  const handleWhatsAppClick = async (contact: Interaction['profile']) => {
+    if (!user) return;
+    
+    // Registrar clique para analytics
+    supabase.from('whatsapp_clicks').insert({
+      profile_id: contact.id,
+      clicker_id: user.id,
+      clicker_role: viewerRole
+    }).then(({ error }) => {
+      if (error) console.warn("[Analytics] Erro ao registrar clique:", error);
+    });
+
+    const message = encodeURIComponent(getWhatsappMessage(contact));
+    const phone = contact.phone?.replace(/\D/g, '');
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  };
+
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   const renderStatusButton = (interaction: Interaction) => {
@@ -331,10 +348,8 @@ const InteractionHistory = ({
               </div>
             </div>
             {selectedContact?.phone && (
-              <Button asChild className="w-full gap-2 bg-green-600 hover:bg-green-700">
-                <a href={`https://wa.me/${selectedContact.phone.replace(/\D/g, '')}?text=${encodeURIComponent(getWhatsappMessage(selectedContact))}`} target="_blank" rel="noopener noreferrer">
-                  <WhatsAppIcon className="h-4 w-4" /> Iniciar Conversa
-                </a>
+              <Button onClick={() => handleWhatsAppClick(selectedContact)} className="w-full gap-2 bg-green-600 hover:bg-green-700">
+                <WhatsAppIcon className="h-4 w-4" /> Iniciar Conversa
               </Button>
             )}
           </div>

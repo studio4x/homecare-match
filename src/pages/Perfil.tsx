@@ -75,6 +75,15 @@ const Perfil = () => {
 
   useEffect(() => {
     fetchProfile();
+    // Registrar visualização
+    if (id) {
+      supabase.from('profile_views').insert({
+        profile_id: id,
+        viewer_id: user?.id || null
+      }).then(({ error }) => {
+        if (error) console.warn("[Analytics] Erro ao registrar view:", error);
+      });
+    }
   }, [id]);
 
   useEffect(() => {

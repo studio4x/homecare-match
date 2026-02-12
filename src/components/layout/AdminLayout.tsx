@@ -21,7 +21,8 @@ import {
   MessageSquare,
   LifeBuoy,
   HelpCircle,
-  AlertTriangle
+  AlertTriangle,
+  TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -115,6 +116,7 @@ const AdminLayout = () => {
   }
 
   const navItems = [
+    { href: "/admin/metricas", label: "Métricas", icon: TrendingUp },
     { href: "/admin/verificacoes", label: "Verificações", icon: FileCheck },
     { href: "/admin/usuarios", label: "Usuários", icon: Users },
     { href: "/admin/planos", label: "Planos", icon: CreditCard },

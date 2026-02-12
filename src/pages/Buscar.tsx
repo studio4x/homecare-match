@@ -23,9 +23,6 @@ import { Badge } from "@/components/ui/badge";
 import AccessRestricted from "@/components/AccessRestricted";
 import { subDays } from "date-fns";
 
-// Configuração do limite mínimo para exibir a lista
-const MIN_RESULTS_TO_SHOW = 1;
-
 const getInitialSpecialtyFromUrl = () => {
   const value = new URLSearchParams(window.location.search).get("specialty");
   return value || "";
@@ -52,6 +49,7 @@ const Buscar = () => {
 
   const isLoggedOut = !session;
 
+  // 1. Verificação de Acesso (Deslogado)
   if (isLoggedOut) {
     return (
       <Layout>
@@ -73,16 +71,13 @@ const Buscar = () => {
           .eq("id", user.id)
           .single();
         setUserRole(data?.role || 'professional');
-      } else {
-        setUserRole('guest');
       }
     };
-    
     checkRole();
   }, [user]);
 
   useEffect(() => {
-    if (userRole && userRole !== 'professional' && !isLoadingConfig && !isLoggedOut) {
+    if (userRole && userRole !== 'professional' && !isLoadingConfig) {
       fetchProfessionals();
     }
   }, [userRole, isLoadingConfig, config]);
@@ -90,6 +85,7 @@ const Buscar = () => {
   const fetchProfessionals = async () => {
     setLoading(true);
 
+    // Se o admin desativou a lista globalmente
     if (config && config.enable_professional_list === false) {
       setProfessionals([]);
       setLoading(false);
@@ -98,7 +94,6 @@ const Buscar = () => {
 
     const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, hourly_rate, trial_started_at";
     
-    // Data limite para o trial (30 dias atrás)
     const trialLimitDate = subDays(new Date(), 30).toISOString();
 
     let query = supabase
@@ -106,10 +101,7 @@ const Buscar = () => {
       .select(safePublicFields)
       .eq("role", "professional")
       .not("full_name", "is", null)
-      // Lógica de visibilidade:
-      // 1. Planos pagos (monthly/yearly) SEMPRE aparecem
-      // 2. Plano free_trial só aparece se trial_started_at for nos últimos 30 dias
-      .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.\${trialLimitDate})`)
+      .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`)
       .order('subscription_tier', { ascending: false })
       .order('updated_at', { ascending: false });
 
@@ -120,6 +112,7 @@ const Buscar = () => {
     if (filters.search) query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
     if (filters.availability) query = query.contains('availability', [filters.availability]);
     if (filters.patient_profile) query = query.contains('patient_profiles', [filters.patient_profile]);
+    
     if (userRole === 'family' && filters.max_hourly_rate) {
       query = query.lte('hourly_rate', parseFloat(filters.max_hourly_rate));
     }
@@ -129,6 +122,7 @@ const Buscar = () => {
     setLoading(false);
   };
 
+  // 2. Verificação de Acesso (Profissional tentando buscar outros profissionais)
   if (userRole === 'professional') {
     return (
       <Layout>
@@ -166,51 +160,29 @@ const Buscar = () => {
   ];
 
   const availabilityOptions = [
-    "Período da Manhã",
-    "Período da Tarde",
-    "Período da Noite",
-    "Dia Integral (Diurno)",
-    "Plantão 12h (Noturno)",
-    "Finais de Semana",
+    "Período da Manhã", "Período da Tarde", "Período da Noite",
+    "Dia Integral (Diurno)", "Plantão 12h (Noturno)", "Finais de Semana",
   ];
 
   const patientProfileOptions = [
-    "Idosos",
-    "Pediátrico",
-    "Pós-cirúrgico",
-    "Doenças Crônicas",
-    "Cuidados Paliativos",
-    "Reabilitação Neurológica",
+    "Idosos", "Pediátrico", "Pós-cirúrgico", "Doenças Crônicas",
+    "Cuidados Paliativos", "Reabilitação Neurológica",
   ];
 
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
   
-  const showConcierge = !loading && (isLoggedOut || userRole === 'professional' || professionals.length < MIN_RESULTS_TO_SHOW);
   const whatsappNumber = config?.whatsapp_number?.replace(/\D/g, '') || "5511999999999";
   const roleLabel = userRole === 'company' ? 'Empresa' : 'Família';
   const requestedSpecialtyLabel = filters.specialty ? (specialties.find(s => s.value === filters.specialty)?.label || filters.specialty) : '';
 
-  const conciergeLines: string[] = [
-    'Olá!',
+  const conciergeMessage = [
+    'Olá!', '',
+    `Sou uma *${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match para encontrar profissionais.`,
     '',
-    `Sou uma *\${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match.`,
-  ];
-
-  const criteriaLines: string[] = [];
-  if (requestedSpecialtyLabel) criteriaLines.push(`• Especialidade: \${requestedSpecialtyLabel}`);
-  if (filters.state || filters.city || filters.neighborhood) {
-    criteriaLines.push(`• Local: \${[filters.neighborhood, filters.city, filters.state].filter(Boolean).join(', ')}`);
-  }
-  if (filters.availability) criteriaLines.push(`• Disponibilidade: \${filters.availability}`);
-  if (filters.patient_profile) criteriaLines.push(`• Perfil do paciente: \${filters.patient_profile}`);
-  if (filters.search) criteriaLines.push(`• Busca: \${filters.search}`);
-  if (userRole === 'family' && filters.max_hourly_rate) criteriaLines.push(`• Valor máx/h: R$ \${filters.max_hourly_rate}`);
-
-  if (criteriaLines.length > 0) {
-    conciergeLines.push('', '*Preferências:*', ...criteriaLines);
-  }
-
-  const conciergeMessage = conciergeLines.join('\n');
+    filters.specialty ? `• Especialidade: ${requestedSpecialtyLabel}` : '',
+    filters.city ? `• Cidade: ${filters.city}` : '',
+    filters.state ? `• Estado: ${filters.state}` : '',
+  ].filter(Boolean).join('\n');
 
   return (
     <Layout>
@@ -219,8 +191,8 @@ const Buscar = () => {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Buscar Profissionais</h1>
             <p className="mt-2 text-muted-foreground flex items-center gap-2">
-              {userRole === 'company' ? <Building2 className="h-4 w-4" /> : userRole === 'family' ? <Home className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-              {userRole === 'company' ? 'Painel de Recrutamento para Empresa' : userRole === 'family' ? 'Painel de Recrutamento para Família' : 'Painel do Profissional'}
+              {userRole === 'company' ? <Building2 className="h-4 w-4" /> : <Home className="h-4 w-4" />}
+              {userRole === 'company' ? 'Painel de Recrutamento para Empresa' : 'Painel de Recrutamento para Família'}
             </p>
           </div>
 
@@ -233,12 +205,10 @@ const Buscar = () => {
               <ShieldCheck className="h-3 w-3 text-success" />
               <span className="leading-none">Perfil Verificado</span>
             </div>
-            <Badge variant="secondary" className="text-[10px]">
-              Embaixador
-            </Badge>
           </div>
         </div>
 
+        {/* Filtros */}
         <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="flex flex-col gap-4 md:flex-row md:items-end">
             <div className="flex-1">
@@ -321,96 +291,61 @@ const Buscar = () => {
           )}
         </div>
 
+        {/* Resultados */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {loading || isLoadingConfig ? (
+          {loading ? (
             Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
-          ) : showConcierge ? (
-            <div className="col-span-full py-16 text-center animate-fade-in bg-card border border-border rounded-2xl shadow-card p-8">
-              <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-                <Headset className="h-10 w-10 text-primary" />
-                <Sparkles className="absolute -top-1 -right-1 h-6 w-6 text-yellow-500 fill-yellow-500" />
-              </div>
-
-              {isLoggedOut ? (
-                <>
-                  <h3 className="text-2xl font-bold text-foreground mb-3">Acesso Restrito</h3>
-                  <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
-                    Somente <strong>Empresas de Home Care</strong> e <strong>Famílias</strong> podem acessar a busca de profissionais.
-                    Faça seu cadastro para continuar.
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <Button asChild className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform">
-                      <Link to="/empresas">
-                        <Building2 className="h-5 w-5" />
-                        Sou Empresa
-                      </Link>
-                    </Button>
-                    <Button variant="outline" asChild className="gap-2 h-14 px-8 text-lg shadow-lg">
-                      <Link to="/familias">
-                        <Home className="h-5 w-5" />
-                        Sou Família
-                      </Link>
-                    </Button>
-                  </div>
-                </>
-              ) : userRole === 'professional' ? (
-                <>
-                  <h3 className="text-2xl font-bold text-foreground mb-3">Acesso Restrito</h3>
-                  <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
-                    A busca de profissionais é exclusiva para <strong>Empresas de Home Care</strong> e <strong>Famílias</strong>.
-                  </p>
-                  <div className="flex items-center justify-center">
-                    <Button asChild className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform">
-                      <Link to="/dashboard">
-                        Ir para Meu Painel
-                        <ArrowRight className="h-5 w-5" />
-                      </Link>
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-2xl font-bold text-foreground mb-3">Busca Personalizada (Concierge)</h3>
-                  <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
-                    Para garantir a melhor experiênca, nossa equipe realiza uma seleção manual dos melhores profissionais para o seu perfil. 
-                    <br/><br/>
-                    Temos profissionais disponíveis que correspondem aos seus critérios, mas que estão passando por nossa verificação de qualidade rigorosa neste momento.
-                  </p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
-                      <a 
-                        href={`https://wa.me/\${whatsappNumber}?text=\${encodeURIComponent(conciergeMessage)}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                      >
-                        Solicitar Profissionais Agora
-                        <ArrowRight className="h-5 w-5" />
-                      </a>
-                    </Button>
-                  </div>
-                  <p className="mt-6 text-sm text-muted-foreground">
-                    Serviço gratuito para {userRole === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
-                  </p>
-                </>
-              )}
-            </div>
-          ) : (
-            professionals.map((professional) => (
+          ) : professionals.length > 0 ? (
+            professionals.map((p) => (
               <ProfessionalCard
-                key={professional.id}
-                id={professional.id}
-                name={professional.full_name}
-                photo={professional.avatar_url}
-                specialty={specialties.find(s => s.value === professional.specialty)?.label || professional.specialty}
-                registration={professional.registration}
-                location={`\${professional.neighborhood || ""}, \${professional.city || ""} - \${professional.state || ""}`}
-                experience={professional.experience}
-                isVerified={professional.is_verified}
-                subscriptionTier={professional.subscription_tier}
+                key={p.id}
+                id={p.id}
+                name={p.full_name}
+                photo={p.avatar_url}
+                specialty={specialties.find(s => s.value === p.specialty)?.label || p.specialty}
+                registration={p.registration}
+                location={`${p.neighborhood || ""}, ${p.city || ""} - ${p.state || ""}`}
+                experience={p.experience}
+                isVerified={p.is_verified}
+                subscriptionTier={p.subscription_tier}
               />
             ))
+          ) : (
+            <div className="col-span-full py-12 text-center bg-secondary/10 rounded-2xl border border-dashed">
+              <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
+              <h3 className="text-lg font-semibold">Nenhum profissional encontrado</h3>
+              <p className="text-muted-foreground">Tente ajustar seus filtros ou use o serviço de Concierge abaixo.</p>
+            </div>
           )}
         </div>
+
+        {/* Bloco de Concierge (Sempre visível no final ou quando não há resultados) */}
+        {!loading && (
+          <div className="mt-16 py-12 text-center animate-fade-in bg-primary/5 border border-primary/10 rounded-3xl p-8">
+            <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+              <Headset className="h-10 w-10 text-primary" />
+              <Sparkles className="absolute -top-1 -right-1 h-6 w-6 text-yellow-500 fill-yellow-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-foreground mb-3">Não encontrou quem procurava?</h3>
+            <p className="max-w-2xl mx-auto text-lg text-muted-foreground mb-8">
+              Nossa equipe de <strong>Concierge</strong> pode realizar uma busca personalizada e manual para você, 
+              selecionando os melhores profissionais que ainda estão em processo de verificação.
+            </p>
+            <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
+              <a 
+                href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+              >
+                Solicitar Busca Personalizada
+                <ArrowRight className="h-5 w-5" />
+              </a>
+            </Button>
+            <p className="mt-6 text-sm text-muted-foreground">
+              Serviço gratuito para {userRole === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
+            </p>
+          </div>
+        )}
       </div>
     </Layout>
   );

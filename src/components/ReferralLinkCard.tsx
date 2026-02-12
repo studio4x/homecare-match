@@ -126,13 +126,7 @@ const ReferralLinkCard = () => {
   return (
     <>
       <Card className="shadow-card">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2">
-            <Award className="h-5 w-5 text-primary" />
-            Programa de Indicação
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pt-6">
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Indique outros profissionais e ganhe destaque no topo das buscas!

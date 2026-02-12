@@ -81,7 +81,7 @@ const CertificateView = () => {
           </div>
 
           <h1 className="text-2xl md:text-4xl font-serif font-bold text-slate-800 mb-1 uppercase tracking-widest">Selo de Conclusão</h1>
-          <p className="text-primary font-semibold tracking-[0.2em] mb-6 md:mb-8 uppercase text-[10px] md:text-xs">Academy Achievement</p>
+          <p className="text-primary font-semibold tracking-[0.2em] mb-6 md:mb-8 uppercase text-[10px] md:text-xs">Conquista Academy</p>
 
           <p className="text-sm md:text-lg text-slate-600 mb-1">Reconhecemos que o(a) profissional</p>
           <h2 className="text-xl md:text-3xl font-bold text-slate-900 mb-1 border-b-2 border-slate-200 px-4 md:px-8 pb-1 inline-block">

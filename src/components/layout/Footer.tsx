@@ -15,9 +15,9 @@ const Footer = () => {
   return (
     <footer className="border-t border-border bg-card">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-3 lg:grid-cols-5">
           {/* Brand */}
-          <div className="space-y-4 lg:col-span-1 flex flex-col items-center text-center md:items-start md:text-left">
+          <div className="space-y-4 col-span-2 lg:col-span-1 flex flex-col items-center text-center md:items-start md:text-left">
             <Link to="/" className="flex w-full items-center justify-center gap-2 md:justify-start">
               <img 
                 src={logoUrl} 
@@ -32,7 +32,7 @@ const Footer = () => {
           </div>
 
           {/* Para Profissionais */}
-          <div className="space-y-4">
+          <div className="space-y-4 col-span-1">
             <h4 className="font-semibold text-foreground">Para Profissionais</h4>
             <ul className="space-y-2">
               <li>
@@ -59,7 +59,7 @@ const Footer = () => {
           </div>
 
           {/* Para Empresas */}
-          <div className="space-y-4">
+          <div className="space-y-4 col-span-1">
             <h4 className="font-semibold text-foreground">Para Empresas</h4>
             <ul className="space-y-2">
               <li>
@@ -86,7 +86,7 @@ const Footer = () => {
           </div>
 
            {/* Para Famílias */}
-           <div className="space-y-4">
+           <div className="space-y-4 col-span-1">
             <h4 className="font-semibold text-foreground">Para Famílias</h4>
             <ul className="space-y-2">
               <li>
@@ -113,7 +113,7 @@ const Footer = () => {
           </div>
 
           {/* Contato */}
-          <div className="space-y-4">
+          <div className="space-y-4 col-span-1">
             <h4 className="font-semibold text-foreground">Suporte e Contato</h4>
             <ul className="space-y-3">
               <li>

@@ -148,6 +148,20 @@ const InteractionHistory = ({
     return [`Olá, ${contact.full_name}.`, '', 'Vi seu perfil na HomeCare Match e gostaria de conversar.', 'Podemos falar?'].join('\n');
   };
 
+  const maskPhone = (phone: string | undefined) => {
+    if (!phone) return "Não informado";
+    // Mantém o DDD e os últimos 4 dígitos, mascarando o meio
+    // Ex: (11) 99999-1234 -> (11) *****-1234
+    if (phone.includes('(') && phone.includes(')')) {
+      const parts = phone.split(')');
+      const ddd = parts[0] + ')';
+      const rest = parts[1];
+      const maskedRest = rest.replace(/\d(?=\d{4})/g, "*");
+      return ddd + maskedRest;
+    }
+    return phone.replace(/\d(?=\d{4})/g, "*");
+  };
+
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
   const renderStatusButton = (interaction: Interaction) => {
@@ -309,10 +323,18 @@ const InteractionHistory = ({
             <DialogDescription>Entre em contato com {selectedContact?.full_name}.</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
-            <div className="flex items-center gap-3 rounded-lg border p-4"><WhatsAppIcon className="h-6 w-6 text-green-600" /><div><p className="text-sm text-muted-foreground">WhatsApp</p><p className="font-semibold">{selectedContact?.phone || "Não informado"}</p></div></div>
+            <div className="flex items-center gap-3 rounded-lg border p-4">
+              <WhatsAppIcon className="h-6 w-6 text-green-600" />
+              <div>
+                <p className="text-sm text-muted-foreground">WhatsApp</p>
+                <p className="font-semibold">{maskPhone(selectedContact?.phone)}</p>
+              </div>
+            </div>
             {selectedContact?.phone && (
               <Button asChild className="w-full gap-2 bg-green-600 hover:bg-green-700">
-                <a href={`https://wa.me/${selectedContact.phone.replace(/\D/g, '')}?text=${encodeURIComponent(getWhatsappMessage(selectedContact))}`} target="_blank" rel="noopener noreferrer"><WhatsAppIcon className="h-4 w-4" /> Iniciar Conversa</a>
+                <a href={`https://wa.me/${selectedContact.phone.replace(/\D/g, '')}?text=${encodeURIComponent(getWhatsappMessage(selectedContact))}`} target="_blank" rel="noopener noreferrer">
+                  <WhatsAppIcon className="h-4 w-4" /> Iniciar Conversa
+                </a>
               </Button>
             )}
           </div>

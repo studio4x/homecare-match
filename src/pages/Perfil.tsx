@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
@@ -46,7 +46,7 @@ import ReportModal from "@/components/ReportModal";
 
 const Perfil = () => {
   const { id } = useParams();
-  const { session, user } = useAuth();
+  const { session, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   const [profile, setProfile] = useState<any>(null);
@@ -59,6 +59,44 @@ const Perfil = () => {
   const [completedCourses, setCompletedCourses] = useState<Array<{ slug: string; title: string; hero_asset_url: string | null; workload_minutes: number }>>([]);
   const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
 
+  const fetchProfile = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, professional_experiences, bio, subscription_tier, is_verified, role, updated_at, phone, hourly_rate, availability, patient_profiles";
+      
+      const { data, error } = await supabase
+        .from("profiles")
+        .select(safePublicFields)
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        console.error(error);
+        toast.error("Perfil não encontrado.");
+      } else {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchProfile();
+    
+    if (id) {
+      supabase.from('profile_views').insert({
+        profile_id: id,
+        viewer_id: user?.id || null
+      }).then(({ error }) => {
+        if (error) console.warn("[Analytics] Erro ao registrar view:", error);
+      });
+    }
+  }, [id, user?.id, fetchProfile]);
+
   useEffect(() => {
     const fetchViewerRole = async () => {
       if (user) {
@@ -70,21 +108,8 @@ const Perfil = () => {
         setViewerRole(data?.role || null);
       }
     };
-    fetchViewerRole();
-  }, [user]);
-
-  useEffect(() => {
-    fetchProfile();
-    // Registrar visualização
-    if (id) {
-      supabase.from('profile_views').insert({
-        profile_id: id,
-        viewer_id: user?.id || null
-      }).then(({ error }) => {
-        if (error) console.warn("[Analytics] Erro ao registrar view:", error);
-      });
-    }
-  }, [id]);
+    if (!authLoading) fetchViewerRole();
+  }, [user, authLoading]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -119,25 +144,6 @@ const Perfil = () => {
     fetchCompleted();
   }, [id]);
 
-  const fetchProfile = async () => {
-    setLoading(true);
-    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, professional_experiences, bio, subscription_tier, is_verified, role, updated_at, phone, hourly_rate, availability, patient_profiles";
-    
-    const { data, error } = await supabase
-      .from("profiles")
-      .select(safePublicFields)
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      console.error(error);
-      toast.error("Perfil não encontrado.");
-    } else {
-      setProfile(data);
-    }
-    setLoading(false);
-  };
-
   const handleContact = async () => {
     if (!session || !user) {
       toast.info("Você precisa estar logado para entrar em contato.");
@@ -160,7 +166,6 @@ const Perfil = () => {
 
       if (error) throw error;
 
-      // Dispara a notificação por e-mail em segundo plano
       supabase.functions.invoke('notify-contact', {
         body: { professional_id: profile.id, sender_id: user.id }
       }).catch(err => console.warn("Falha ao enviar notificação por e-mail:", err));
@@ -189,10 +194,11 @@ const Perfil = () => {
     return `${m}min`;
   };
 
-  if (loading) return (
+  // Verificações de renderização APÓS todos os hooks
+  if (authLoading || loading) return (
     <Layout>
       <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     </Layout>
   );
@@ -221,51 +227,51 @@ const Perfil = () => {
   
   return (
     <Layout>
-      <div className="bg-secondary/20 py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <Button variant="ghost" asChild className="gap-2">
-              <Link to="/buscar">
-                <ArrowLeft className="h-4 w-4" />
-                Voltar para busca
-              </Link>
-            </Button>
-            
-            {user && user.id !== profile.id && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-muted-foreground hover:text-destructive gap-2"
-                onClick={() => setShowReportModal(true)}
-              >
-                <AlertTriangle className="h-4 w-4" />
-                Denunciar Perfil
+      <TooltipProvider>
+        <div className="bg-secondary/20 py-8">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-6">
+              <Button variant="ghost" asChild className="gap-2">
+                <Link to="/buscar">
+                  <ArrowLeft className="h-4 w-4" />
+                  Voltar para busca
+                </Link>
               </Button>
-            )}
-          </div>
+              
+              {user && user.id !== profile.id && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-muted-foreground hover:text-destructive gap-2"
+                  onClick={() => setShowReportModal(true)}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  Denunciar Perfil
+                </Button>
+              )}
+            </div>
 
-          <div className="grid gap-8 lg:grid-cols-3">
-            {/* Perfil Principal */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className={cn(
-                "rounded-2xl border bg-card p-8 shadow-card",
-                isPremium ? "border-amber-400/30" : "border-border"
-              )}>
-                <div className="flex flex-col md:flex-row gap-6 items-start">
-                  <div className="relative">
-                    <Avatar className="h-32 w-32 ring-4 ring-background shadow-lg">
-                      <AvatarImage src={profile.avatar_url} />
-                      <AvatarFallback className="bg-primary/10 text-3xl font-bold text-primary">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-                        {profile.full_name || "Profissional"}
-                        {isPremium && (
-                          <TooltipProvider>
+            <div className="grid gap-8 lg:grid-cols-3">
+              {/* Perfil Principal */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className={cn(
+                  "rounded-2xl border bg-card p-8 shadow-card",
+                  isPremium ? "border-amber-400/30" : "border-border"
+                )}>
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                    <div className="relative">
+                      <Avatar className="h-32 w-32 ring-4 ring-background shadow-lg">
+                        <AvatarImage src={profile.avatar_url} />
+                        <AvatarFallback className="bg-primary/10 text-3xl font-bold text-primary">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+                          {profile.full_name || "Profissional"}
+                          {isPremium && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Star className="h-5 w-5 text-amber-500 fill-current" />
@@ -274,10 +280,8 @@ const Perfil = () => {
                                 Destaque Premium (Plano Anual)
                               </TooltipContent>
                             </Tooltip>
-                          </TooltipProvider>
-                        )}
-                        {profile.is_verified && (
-                          <TooltipProvider>
+                          )}
+                          {profile.is_verified && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <ShieldCheck className="h-5 w-5 text-success" />
@@ -286,19 +290,17 @@ const Perfil = () => {
                                 Perfil Verificado
                               </TooltipContent>
                             </Tooltip>
-                          </TooltipProvider>
+                          )}
+                        </h1>
+                        {profile.is_verified && (
+                          <Badge className={cn(
+                            "border-none text-white whitespace-nowrap",
+                            isPremium ? "bg-gold" : "bg-success"
+                          )}>
+                            {isPremium ? "Verificado Premium" : "Verificado"}
+                          </Badge>
                         )}
-                      </h1>
-                      {profile.is_verified && (
-                        <Badge className={cn(
-                          "border-none text-white whitespace-nowrap",
-                          isPremium ? "bg-gold" : "bg-success"
-                        )}>
-                          {isPremium ? "Verificado Premium" : "Verificado"}
-                        </Badge>
-                      )}
-                      {referralStats && (
-                        <TooltipProvider>
+                        {referralStats && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Badge variant="secondary" className="ml-2 whitespace-nowrap">
@@ -310,213 +312,213 @@ const Perfil = () => {
                               {referralStats.nextTier ? ` • Próximo selo: ${referralStats.nextTier.badge_label} em ${referralStats.nextTier.threshold}` : ""}
                             </TooltipContent>
                           </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </div>
-                    <p className="mt-2 text-xl text-muted-foreground font-medium uppercase tracking-tight">
-                      {specialtyLabel || "Especialidade não informada"}
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        {[profile.neighborhood, profile.city].filter(Boolean).join(", ")} {profile.state ? `- ${profile.state}` : ""}
+                        )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Award className="h-4 w-4 text-primary" />
-                        {profile.registration || "Sem registro informado"}
+                      <p className="mt-2 text-xl text-muted-foreground font-medium uppercase tracking-tight">
+                        {specialtyLabel || "Especialidade não informada"}
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          {[profile.neighborhood, profile.city].filter(Boolean).join(", ")} {profile.state ? `- ${profile.state}` : ""}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Award className="h-4 w-4 text-primary" />
+                          {profile.registration || "Sem registro informado"}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-10">
-                  <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
-                    <Info className="h-5 w-5 text-primary" />
-                    Sobre mim
-                  </h3>
-                  <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {profile.bio || "Este profissional ainda não preencheu sua biografia."}
-                  </p>
-                </div>
+                  <div className="mt-10">
+                    <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                      <Info className="h-5 w-5 text-primary" />
+                      Sobre mim
+                    </h3>
+                    <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {profile.bio || "Este profissional ainda não preencheu sua biografia."}
+                    </p>
+                  </div>
 
-                <div className="mt-10">
-                  <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
-                    <GraduationCap className="h-5 w-5 text-primary" />
-                    Formações
-                  </h3>
-                  <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {profile.experience || "Informações de formações não detalhadas."}
-                  </p>
-                </div>
+                  <div className="mt-10">
+                    <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5 text-primary" />
+                      Formações
+                    </h3>
+                    <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {profile.experience || "Informações de formações não detalhadas."}
+                    </p>
+                  </div>
 
-                <div className="mt-8">
-                  <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
-                    <Briefcase className="h-5 w-5 text-primary" />
-                    Experiências Profissionais
-                  </h3>
-                  <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {profile.professional_experiences || "Informações de experiências profissionais não detalhadas."}
-                  </p>
-                </div>
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                      <Briefcase className="h-5 w-5 text-primary" />
+                      Experiências Profissionais
+                    </h3>
+                    <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {profile.professional_experiences || "Informações de experiências profissionais não detalhadas."}
+                    </p>
+                  </div>
 
-                <div className="mt-10">
-                  <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
-                    <LayoutGrid className="h-5 w-5 text-primary" />
-                    Cursos Concluídos na Plataforma
-                  </h3>
-                  {loadingCourses ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Carregando cursos...
-                    </div>
-                  ) : completedCourses.length > 0 ? (
-                    <div className="space-y-3">
-                      {completedCourses.map((c) => (
-                        <div key={c.slug} className="border rounded-lg p-3 bg-card">
-                          <h4 className="font-semibold">{c.title}</h4>
-                          <p className="text-xs text-muted-foreground">
-                            Carga horária: {formatMinutes(c.workload_minutes)}
+                  <div className="mt-10">
+                    <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                      <LayoutGrid className="h-5 w-5 text-primary" />
+                      Cursos Concluídos na Plataforma
+                    </h3>
+                    {loadingCourses ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" /> Carregando cursos...
+                      </div>
+                    ) : completedCourses.length > 0 ? (
+                      <div className="space-y-3">
+                        {completedCourses.map((c) => (
+                          <div key={c.slug} className="border rounded-lg p-3 bg-card">
+                            <h4 className="font-semibold">{c.title}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              Carga horária: {formatMinutes(c.workload_minutes)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Este profissional ainda não concluiu cursos ou optou por não exibi-los.
+                      </p>
+                    )}
+                  </div>
+
+                  <Separator className="my-10" />
+
+                  <div>
+                    <h3 className="text-lg font-semibold mb-6">Detalhes do Atendimento</h3>
+                    <div className="grid gap-8 md:grid-cols-2">
+                      <div>
+                        <h4 className="font-semibold flex items-center gap-2 mb-3">
+                          <Clock className="h-5 w-5 text-primary" />
+                          Disponibilidade
+                        </h4>
+                        {profile.availability?.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {profile.availability.map((item: string) => (
+                              <Badge key={item} variant="secondary">{item}</Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Não informado.</p>
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold flex items-center gap-2 mb-3">
+                          <Users className="h-5 w-5 text-primary" />
+                          Perfis de Pacientes
+                        </h4>
+                        {profile.patient_profiles?.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {profile.patient_profiles.map((item: string) => (
+                              <Badge key={item} variant="secondary">{item}</Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Não informado.</p>
+                        )}
+                      </div>
+                      {viewerRole === 'family' && profile.hourly_rate && (
+                        <div className="md:col-span-2">
+                          <h4 className="font-semibold flex items-center gap-2 mb-3">
+                            <DollarSign className="h-5 w-5 text-primary" />
+                            Valor por Hora
+                          </h4>
+                          <p className="text-2xl font-bold text-foreground">
+                            R$ {Number(profile.hourly_rate).toFixed(2).replace('.', ',')}
                           </p>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Este profissional ainda não concluiu cursos ou optou por não exibi-los.
-                    </p>
-                  )}
+                  </div>
+
+                  <Separator className="my-10" />
+
+                  <div id="avaliacoes">
+                    <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                      <MessageCircle className="h-5 w-5 text-primary" />
+                      Avaliações e Depoimentos
+                    </h3>
+                    <ReviewList subjectId={profile.id} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sidebar de Ações */}
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-border bg-card p-6 shadow-card sticky top-24">
+                  <h3 className="font-semibold text-lg mb-2 text-center">Interessado?</h3>
+                  <p className="text-xs text-muted-foreground text-center mb-4">
+                    Ao clicar, o profissional será salvo em sua lista de contatos no seu painel, onde você poderá ver o WhatsApp e iniciar a conversa.
+                  </p>
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={handleContact} 
+                      disabled={isContacting}
+                      className="w-full h-12 gap-2 text-lg bg-primary hover:bg-primary/90"
+                    >
+                      {isContacting ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <MessageSquare className="h-5 w-5" />
+                      )}
+                      Adicionar aos Contatos
+                    </Button>
+                    
+                    {!session && (
+                      <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        Login necessário para visualizar contato
+                      </p>
+                    )}
+
+                    <Button onClick={shareProfile} variant="outline" className="w-full gap-2">
+                      <Share2 className="h-4 w-4" />
+                      Compartilhar Perfil
+                    </Button>
+                  </div>
+                  
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>Membro desde {new Date(profile.updated_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <Separator className="my-10" />
-
-                <div>
-                  <h3 className="text-lg font-semibold mb-6">Detalhes do Atendimento</h3>
-                  <div className="grid gap-8 md:grid-cols-2">
-                    <div>
-                      <h4 className="font-semibold flex items-center gap-2 mb-3">
-                        <Clock className="h-5 w-5 text-primary" />
-                        Disponibilidade
-                      </h4>
-                      {profile.availability?.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {profile.availability.map((item: string) => (
-                            <Badge key={item} variant="secondary">{item}</Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">Não informado.</p>
-                      )}
+                {/* Legenda de ícones e selos */}
+                <div className="rounded-2xl border bg-card p-4 shadow-card">
+                  <h4 className="font-semibold mb-3">Legenda</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Star className="h-4 w-4 text-gold fill-current" />
+                      <span className="text-sm text-muted-foreground">Destaque Premium (Plano Anual)</span>
                     </div>
-                    <div>
-                      <h4 className="font-semibold flex items-center gap-2 mb-3">
-                        <Users className="h-5 w-5 text-primary" />
-                        Perfis de Pacientes
-                      </h4>
-                      {profile.patient_profiles?.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {profile.patient_profiles.map((item: string) => (
-                            <Badge key={item} variant="secondary">{item}</Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">Não informado.</p>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-success" />
+                      <span className="text-sm text-muted-foreground">Perfil Verificado</span>
                     </div>
-                    {viewerRole === 'family' && profile.hourly_rate && (
-                      <div className="md:col-span-2">
-                        <h4 className="font-semibold flex items-center gap-2 mb-3">
-                          <DollarSign className="h-5 w-5 text-primary" />
-                          Valor por Hora
-                        </h4>
-                        <p className="text-2xl font-bold text-foreground">
-                          R$ {Number(profile.hourly_rate).toFixed(2).replace('.', ',')}
-                        </p>
+                    {referralStats && (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="whitespace-nowrap">
+                          {referralStats.currentTier?.badge_label || "Embaixador"}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          Programa de Indicação • {referralStats.count} indicação{referralStats.count === 1 ? "" : "s"}
+                        </span>
                       </div>
                     )}
                   </div>
-                </div>
-
-                <Separator className="my-10" />
-
-                <div id="avaliacoes">
-                  <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                    <MessageCircle className="h-5 w-5 text-primary" />
-                    Avaliações e Depoimentos
-                  </h3>
-                  <ReviewList subjectId={profile.id} />
-                </div>
-              </div>
-            </div>
-
-            {/* Sidebar de Ações */}
-            <div className="space-y-6">
-              <div className="rounded-2xl border border-border bg-card p-6 shadow-card sticky top-24">
-                <h3 className="font-semibold text-lg mb-2 text-center">Interessado?</h3>
-                <p className="text-xs text-muted-foreground text-center mb-4">
-                  Ao clicar, o profissional será salvo em sua lista de contatos no seu painel, onde você poderá ver o WhatsApp e iniciar a conversa.
-                </p>
-                <div className="space-y-3">
-                  <Button 
-                    onClick={handleContact} 
-                    disabled={isContacting}
-                    className="w-full h-12 gap-2 text-lg bg-primary hover:bg-primary/90"
-                  >
-                    {isContacting ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <MessageSquare className="h-5 w-5" />
-                    )}
-                    Adicionar aos Contatos
-                  </Button>
-                  
-                  {!session && (
-                    <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
-                      <Lock className="h-3 w-3" />
-                      Login necessário para visualizar contato
-                    </p>
-                  )}
-
-                  <Button onClick={shareProfile} variant="outline" className="w-full gap-2">
-                    <Share2 className="h-4 w-4" />
-                    Compartilhar Perfil
-                  </Button>
-                </div>
-                
-                <div className="mt-6 pt-6 border-t border-border">
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>Membro desde {new Date(profile.updated_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Legenda de ícones e selos */}
-              <div className="rounded-2xl border bg-card p-4 shadow-card">
-                <h4 className="font-semibold mb-3">Legenda</h4>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Star className="h-4 w-4 text-gold fill-current" />
-                    <span className="text-sm text-muted-foreground">Destaque Premium (Plano Anual)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-success" />
-                    <span className="text-sm text-muted-foreground">Perfil Verificado</span>
-                  </div>
-                  {referralStats && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="whitespace-nowrap">
-                        {referralStats.currentTier?.badge_label || "Embaixador"}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        Programa de Indicação • {referralStats.count} indicação{referralStats.count === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </TooltipProvider>
 
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
         <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl animate-scale-in">

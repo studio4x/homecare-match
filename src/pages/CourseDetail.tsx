@@ -359,8 +359,14 @@ const CourseDetail = () => {
               </DialogHeader>
 
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-secondary/5">
-                {selectedLesson.type === 'text' && selectedLesson.content && (
-                  <div className="prose prose-slate max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words overflow-x-hidden" dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
+                {(selectedLesson.type === 'text' || selectedLesson.type === 'html') && selectedLesson.content && (
+                  <div 
+                    className={cn(
+                      "max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words overflow-x-hidden",
+                      selectedLesson.type === 'text' && "prose prose-slate"
+                    )} 
+                    dangerouslySetInnerHTML={{ __html: selectedLesson.content }} 
+                  />
                 )}
 
                 {selectedLesson.type === 'video' && (

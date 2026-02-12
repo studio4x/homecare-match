@@ -9,11 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import RichTextEditor from '@/components/ui/RichTextEditor';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Lesson {
   id: string;
   title: string;
-  type: "video" | "pdf" | "link" | "text";
+  type: "video" | "pdf" | "link" | "text" | "html";
   duration_minutes?: number;
   resource_url?: string;
   content?: string;
@@ -74,6 +75,7 @@ const SortableLesson = ({
                 <SelectItem value="video">Vídeo</SelectItem>
                 <SelectItem value="pdf">PDF</SelectItem>
                 <SelectItem value="text">Texto Rico</SelectItem>
+                <SelectItem value="html">HTML Bruto</SelectItem>
                 <SelectItem value="link">Link Externo</SelectItem>
               </SelectContent>
             </Select>
@@ -102,6 +104,17 @@ const SortableLesson = ({
             }} 
           />
         </div>
+      ) : lesson.type === 'html' ? (
+        <div className="space-y-2 pl-7">
+          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Conteúdo HTML</Label>
+          <Textarea 
+            value={lesson.content || ""} 
+            onChange={e => onUpdate({ content: e.target.value })}
+            placeholder="Cole seu código HTML aqui... (ex: <iframe src=... />)"
+            className="font-mono text-xs"
+            rows={8}
+          />
+        </div>
       ) : (
         <div className="space-y-2 pl-7">
           <Label className="text-[10px] uppercase font-bold text-muted-foreground">URL / Caminho</Label>
@@ -120,7 +133,7 @@ const SortableLesson = ({
           size="sm" 
           className="h-7 text-[10px]" 
           onClick={onUploadClick} 
-          disabled={isUploading || lesson.type === "link" || lesson.type === "text"}
+          disabled={isUploading || lesson.type === "link" || lesson.type === "text" || lesson.type === "html"}
         >
           {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null} 
           Enviar Arquivo

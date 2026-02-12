@@ -49,7 +49,7 @@ type CourseLevel = "iniciante" | "intermediario" | "avancado";
 interface Lesson {
   id: string;
   title: string;
-  type: "video" | "pdf" | "link" | "text";
+  type: "video" | "pdf" | "link" | "text" | "html";
   duration_minutes?: number;
   resource_url?: string;
   content?: string;

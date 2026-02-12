@@ -273,10 +273,10 @@ const CourseDetail = () => {
 
           <div className="md:col-span-2 space-y-8">
             <div>
-              <h1 className="text-4xl font-bold text-foreground mb-4">{course.title}</h1>
-              <div 
-                className="prose prose-slate max-w-none text-muted-foreground" 
-                dangerouslySetInnerHTML={{ __html: course.description || "Sem descrição disponível." }} 
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4 break-words">{course.title}</h1>
+              <div
+                className="prose prose-slate max-w-none text-muted-foreground break-words"
+                dangerouslySetInnerHTML={{ __html: course.description || "Sem descrição disponível." }}
               />
             </div>
 
@@ -294,41 +294,41 @@ const CourseDetail = () => {
                           const status = progress[l.id] || 'pending';
                           
                           return (
-                            <div 
-                              key={l.id} 
+                            <div
+                              key={l.id}
                               className={cn(
-                                "p-4 flex items-center justify-between gap-4 transition-colors",
+                                "p-3 sm:p-4 flex items-center justify-between gap-2 sm:gap-4 transition-colors",
                                 isEnrolled ? "hover:bg-secondary/30 cursor-pointer" : "cursor-not-allowed"
                               )}
                               onClick={() => handleOpenLesson(l)}
                             >
-                              <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                                 <div className="text-primary shrink-0">
-                                  {l.type === 'video' ? <PlayCircle size={20} /> : l.type === 'pdf' ? <FileSearch size={20} /> : l.type === 'text' ? <FileText size={20} /> : <ExternalLink size={20} />}
+                                  {l.type === 'video' ? <PlayCircle size={18} className="sm:w-5 sm:h-5" /> : l.type === 'pdf' ? <FileSearch size={18} className="sm:w-5 sm:h-5" /> : l.type === 'text' ? <FileText size={18} className="sm:w-5 sm:h-5" /> : <ExternalLink size={18} className="sm:w-5 sm:h-5" />}
                                 </div>
                                 <div className="min-w-0">
-                                  <h4 className="font-medium text-sm sm:text-base truncate">{l.title}</h4>
+                                  <h4 className="font-medium text-xs sm:text-base truncate">{l.title}</h4>
                                   <div className="flex items-center gap-2">
-                                    <p className="text-[10px] text-muted-foreground uppercase">{l.duration_minutes || 0} min</p>
-                                    {status === 'completed' && <Badge variant="secondary" className="h-4 text-[8px] bg-success/10 text-success border-none">Concluída</Badge>}
+                                    <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">{l.duration_minutes || 0} min</p>
+                                    {status === 'completed' && <Badge variant="secondary" className="h-3 sm:h-4 text-[7px] sm:text-[8px] bg-success/10 text-success border-none px-1 sm:px-2">Concluída</Badge>}
                                   </div>
                                 </div>
                               </div>
                               
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                                 {isEnrolled ? (
                                   <>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      className="h-8 px-3 text-xs gap-1.5"
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-7 sm:h-8 px-2 sm:px-3 text-[10px] sm:text-xs gap-1 sm:gap-1.5"
                                     >
-                                      <Eye size={14} /> Acessar
+                                      <Eye size={12} className="sm:w-3.5 sm:h-3.5" /> <span className="hidden xs:inline sm:inline">Acessar</span>
                                     </Button>
-                                    <ChevronRight size={16} className="text-muted-foreground/50" />
+                                    <ChevronRight size={14} className="text-muted-foreground/50 sm:w-4 sm:h-4" />
                                   </>
                                 ) : (
-                                  <Lock size={16} className="text-muted-foreground/40" />
+                                  <Lock size={14} className="text-muted-foreground/40 sm:w-4 sm:h-4" />
                                 )}
                               </div>
                             </div>
@@ -345,21 +345,21 @@ const CourseDetail = () => {
       </div>
 
       <Dialog open={!!selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
           {selectedLesson && (
             <>
-              <DialogHeader className="p-6 border-b bg-card">
+              <DialogHeader className="p-4 sm:p-6 border-b bg-card">
                 <div className="flex items-center justify-between gap-4">
-                  <DialogTitle className="text-xl font-bold line-clamp-1">{selectedLesson.title}</DialogTitle>
-                  <Badge variant="outline" className="uppercase text-[10px] shrink-0">
+                  <DialogTitle className="text-lg sm:text-xl font-bold line-clamp-1">{selectedLesson.title}</DialogTitle>
+                  <Badge variant="outline" className="uppercase text-[9px] sm:text-[10px] shrink-0">
                     {selectedLesson.type} • {selectedLesson.duration_minutes} min
                   </Badge>
                 </div>
               </DialogHeader>
 
-              <div className="flex-1 overflow-y-auto p-6 bg-secondary/5">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-secondary/5">
                 {selectedLesson.type === 'text' && selectedLesson.content && (
-                  <div className="prose prose-slate max-w-none bg-card p-8 rounded-2xl shadow-sm border" dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
+                  <div className="prose prose-slate max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words" dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
                 )}
 
                 {selectedLesson.type === 'video' && (
@@ -410,11 +410,12 @@ const CourseDetail = () => {
                 )}
               </div>
 
-              <div className="p-4 border-t bg-card flex justify-between items-center">
-                <Button variant="ghost" onClick={() => setSelectedLesson(null)}>Fechar</Button>
-                <Button 
+              <div className="p-3 sm:p-4 border-t bg-card flex justify-between items-center gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setSelectedLesson(null)} className="text-xs sm:text-sm">Fechar</Button>
+                <Button
+                  size="sm"
                   className={cn(
-                    "gap-2",
+                    "gap-1.5 sm:gap-2 text-xs sm:text-sm",
                     progress[selectedLesson.id] === 'completed' ? "bg-success hover:bg-success/90" : "bg-primary"
                   )}
                   disabled={selectedLesson.type === 'video' && !videoEnded && progress[selectedLesson.id] !== 'completed'}
@@ -423,9 +424,9 @@ const CourseDetail = () => {
                   }}
                 >
                   {progress[selectedLesson.id] === 'completed' ? (
-                    <><><Check size={16} /> Aula Concluída</></>
+                    <><Check size={14} className="sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Aula Concluída</span><span className="xs:hidden">Concluída</span></>
                   ) : (
-                    'Marcar como Concluída'
+                    <><span className="hidden xs:inline">Marcar como Concluída</span><span className="xs:hidden">Concluir</span></>
                   )}
                 </Button>
               </div>

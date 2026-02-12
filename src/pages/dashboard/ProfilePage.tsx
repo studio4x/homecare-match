@@ -513,36 +513,84 @@ const ProfilePage = () => {
           </Card>
 
           {isProfessional && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Currículo e Biografia</CardTitle>
-                    <CardDescription>
-                      Destaque suas competências e trajetória. Perfis detalhados têm 3x mais chances de atrair a atenção de recrutadores.
-                    </CardDescription>
+            <>
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Currículo e Biografia</CardTitle>
+                      <CardDescription>
+                        Destaque suas competências e trajetória. Perfis detalhados têm 3x mais chances de atrair a atenção de recrutadores.
+                      </CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={handleGenerateBio} disabled={isGeneratingBio}>
+                      {isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
+                      Gerar com IA
+                    </Button>
                   </div>
-                  <Button variant="outline" size="sm" className="gap-2" onClick={handleGenerateBio} disabled={isGeneratingBio}>
-                    {isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
-                    Gerar com IA
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-2">
-                  <Label>Formações</Label>
-                  <Textarea value={profile.experience || ""} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} placeholder="Cursos e especializações..." />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Experiências Profissionais</Label>
-                  <Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} placeholder="Locais onde trabalhou..." />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Biografia para o Perfil</Label>
-                  <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} />
-                </div>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-2">
+                    <Label>Formações</Label>
+                    <Textarea value={profile.experience || ""} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} placeholder="Cursos e especializações..." />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Experiências Profissionais</Label>
+                    <Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} placeholder="Locais onde trabalhou..." />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Biografia para o Perfil</Label>
+                    <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Detalhes do Atendimento</CardTitle>
+                  <CardDescription>
+                    Defina suas preferências e valores para receber propostas que realmente se encaixam no seu perfil de trabalho.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-2">
+                    <Label>Valor/Hora (R$)</Label>
+                    <input 
+                      type="number" 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      value={profile.hourly_rate || ""} 
+                      onChange={e => setProfile({...profile, hourly_rate: e.target.value})} 
+                      placeholder="0.00" 
+                    />
+                    <p className="text-[10px] text-muted-foreground italic">Visível apenas para famílias.</p>
+                  </div>
+                  <Separator />
+                  <div className="space-y-3">
+                    <Label className="text-xs uppercase">Disponibilidade</Label>
+                    <div className="grid gap-2">
+                      {availabilityOptions.map(opt => (
+                        <div key={opt} className="flex items-center gap-2">
+                          <Checkbox id={opt} checked={profile.availability.includes(opt)} onCheckedChange={() => handleCheckboxChange('availability', opt)} />
+                          <label htmlFor={opt} className="text-xs">{opt}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="space-y-3">
+                    <Label className="text-xs uppercase">Público-alvo</Label>
+                    <div className="grid gap-2">
+                      {patientProfileOptions.map(opt => (
+                        <div key={opt} className="flex items-center gap-2">
+                          <Checkbox id={opt} checked={profile.patient_profiles.includes(opt)} onCheckedChange={() => handleCheckboxChange('patient_profiles', opt)} />
+                          <label htmlFor={opt} className="text-xs">{opt}</label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
           )}
 
           {!isProfessional && (
@@ -644,54 +692,6 @@ const ProfilePage = () => {
               <ChangePasswordDialog />
             </CardContent>
           </Card>
-
-          {isProfessional && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Detalhes do Atendimento</CardTitle>
-                <CardDescription className="text-[10px]">
-                  Defina suas preferências e valores para receber propostas que realmente se encaixam no seu perfil de trabalho.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-2">
-                  <Label>Valor/Hora (R$)</Label>
-                  <input 
-                    type="number" 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={profile.hourly_rate || ""} 
-                    onChange={e => setProfile({...profile, hourly_rate: e.target.value})} 
-                    placeholder="0.00" 
-                  />
-                  <p className="text-[10px] text-muted-foreground italic">Visível apenas para famílias.</p>
-                </div>
-                <Separator />
-                <div className="space-y-3">
-                  <Label className="text-xs uppercase">Disponibilidade</Label>
-                  <div className="grid gap-2">
-                    {availabilityOptions.map(opt => (
-                      <div key={opt} className="flex items-center gap-2">
-                        <Checkbox id={opt} checked={profile.availability.includes(opt)} onCheckedChange={() => handleCheckboxChange('availability', opt)} />
-                        <label htmlFor={opt} className="text-xs">{opt}</label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <Separator />
-                <div className="space-y-3">
-                  <Label className="text-xs uppercase">Público-alvo</Label>
-                  <div className="grid gap-2">
-                    {patientProfileOptions.map(opt => (
-                      <div key={opt} className="flex items-center gap-2">
-                        <Checkbox id={opt} checked={profile.patient_profiles.includes(opt)} onCheckedChange={() => handleCheckboxChange('patient_profiles', opt)} />
-                        <label htmlFor={opt} className="text-xs">{opt}</label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <Card className="border-destructive/20">
             <CardHeader>

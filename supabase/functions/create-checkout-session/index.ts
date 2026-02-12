@@ -32,10 +32,7 @@ serve(async (req) => {
     });
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Usuário não autenticado.');
-
     const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (!user) throw new Error('Sessão inválida.');
 
     const { planId, courseSlug } = await req.json();
     
@@ -44,28 +41,18 @@ serve(async (req) => {
     let checkoutMode = "subscription";
 
     if (courseSlug) {
-      // Pagamento de Curso
       const { data: course } = await supabaseAdmin.from('academy_courses').select('*').eq('slug', courseSlug).maybeSingle();
-      if (!course) throw new Error(`Curso "${courseSlug}" não encontrado.`);
-      
       stripeId = config?.stripe_mode === 'live' ? course.stripe_price_id_live : course.stripe_price_id_test;
       metadata.courseSlug = courseSlug;
       checkoutMode = "payment";
     } else if (planId) {
-      // Pagamento de Assinatura
       const { data: plan } = await supabaseAdmin.from('plans').select('*').eq('id', planId).maybeSingle();
-      if (!plan) throw new Error(`Plano "${planId}" não encontrado.`);
-      
       stripeId = config?.stripe_mode === 'live' ? plan.stripe_price_id_live : plan.stripe_price_id_test;
       metadata.planId = planId;
       checkoutMode = "subscription";
-    } else {
-      throw new Error("Nenhum item selecionado para pagamento.");
     }
     
-    if (!stripeId) {
-      throw new Error(`ID da Stripe não configurado para o modo ${mode}.`);
-    }
+    if (!stripeId) throw new Error("ID da Stripe não configurado para este item.");
 
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email,

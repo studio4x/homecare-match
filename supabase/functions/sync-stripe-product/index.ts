@@ -34,17 +34,11 @@ serve(async (req) => {
     const body = await req.json();
     const { courseSlug, title, price, mode } = body;
     
-    console.log("[sync-stripe-product] Dados recebidos:", { courseSlug, title, price, mode });
-
-    if (!courseSlug || !title || price === undefined) {
-      throw new Error('Parâmetros obrigatórios ausentes (slug, título ou preço)');
-    }
-
     const stripeMode = mode === 'live' ? 'LIVE' : 'TEST';
-    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${stripeMode}`);
+    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_${stripeMode}`);
 
     if (!stripeSecret) {
-      throw new Error(`Configuração Stripe ausente: Chave secreta para \${stripeMode} não encontrada nos Secrets.`);
+      throw new Error(`Configuração Stripe ausente: Chave secreta para ${stripeMode} não encontrada nos Secrets do Supabase.`);
     }
 
     const stripe = new Stripe(stripeSecret, {
@@ -54,49 +48,32 @@ serve(async (req) => {
 
     // 2. Buscar ou Criar Produto
     let product;
-    try {
-      const products = await stripe.products.list({ limit: 100 });
-      product = products.data.find(p => p.metadata.courseSlug === courseSlug);
+    const products = await stripe.products.list({ limit: 100 });
+    product = products.data.find(p => p.metadata.courseSlug === courseSlug);
 
-      if (!product) {
-        console.log("[sync-stripe-product] Criando novo produto na Stripe...");
-        product = await stripe.products.create({
-          name: `Curso: \${title}`,
-          description: `Acesso vitalício ao curso \${title} na plataforma HomeCare Match.`,
-          metadata: { courseSlug },
-        });
-      } else {
-        console.log("[sync-stripe-product] Produto já existe:", product.id);
-      }
-    } catch (err) {
-      console.error("[sync-stripe-product] Erro ao gerenciar produto na Stripe:", err);
-      throw new Error(`Erro na Stripe (Produto): \${err.message}`);
+    if (!product) {
+      product = await stripe.products.create({
+        name: `Curso: ${title}`,
+        description: `Acesso vitalício ao curso ${title} na plataforma HomeCare Match.`,
+        metadata: { courseSlug },
+      });
     }
 
     // 3. Criar Novo Preço
-    try {
-      const amount = Math.round(Number(price) * 100);
-      if (isNaN(amount) || amount <= 0) throw new Error('Valor do preço inválido');
+    const amount = Math.round(Number(price) * 100);
+    const priceObj = await stripe.prices.create({
+      unit_amount: amount,
+      currency: 'brl',
+      product: product.id,
+    });
 
-      console.log("[sync-stripe-product] Criando novo preço de R$", amount / 100);
-      const priceObj = await stripe.prices.create({
-        unit_amount: amount,
-        currency: 'brl',
-        product: product.id,
-      });
-
-      console.log("[sync-stripe-product] Sucesso! Price ID:", priceObj.id);
-      return new Response(JSON.stringify({ priceId: priceObj.id }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    } catch (err) {
-      console.error("[sync-stripe-product] Erro ao criar preço na Stripe:", err);
-      throw new Error(`Erro na Stripe (Preço): \${err.message}`);
-    }
+    return new Response(JSON.stringify({ priceId: priceObj.id }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
 
   } catch (error) {
-    console.error("[sync-stripe-product] Erro crítico:", error.message);
+    console.error("[sync-stripe-product] Erro:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

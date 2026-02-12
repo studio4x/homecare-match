@@ -194,28 +194,37 @@ const CoursesTab = () => {
     }
 
     setIsSyncingStripe(mode);
-    const toastId = toast.loading(`Sincronizando com Stripe (${mode})...`);
+    const toastId = toast.loading(`Sincronizando com Stripe (\${mode})...`);
 
     try {
       const { data, error } = await supabase.functions.invoke('sync-stripe-product', {
         body: {
           courseSlug: selectedCourse.slug,
           title: selectedCourse.title,
-          price: selectedCourse.price,
+          price: Number(selectedCourse.price),
           mode
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        let errorMessage = "Erro ao sincronizar.";
+        if (error.context?.json) {
+          const body = await error.context.json();
+          errorMessage = body.error || errorMessage;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        throw new Error(errorMessage);
+      }
 
       if (data?.priceId) {
         const field = mode === 'test' ? 'stripe_price_id_test' : 'stripe_price_id_live';
         setSelectedCourse(prev => prev ? { ...prev, [field]: data.priceId } : null);
-        toast.success(`ID da Stripe (${mode}) gerado com sucesso!`, { id: toastId });
+        toast.success(`ID da Stripe (\${mode}) gerado com sucesso!`, { id: toastId });
       }
     } catch (err: any) {
       console.error(err);
-      toast.error(`Erro ao sincronizar: ${err.message}`, { id: toastId });
+      toast.error(err.message || "Erro ao sincronizar com Stripe.", { id: toastId });
     } finally {
       setIsSyncingStripe(null);
     }
@@ -413,8 +422,8 @@ const CoursesTab = () => {
     }
     setIsUploading(true);
     const ext = file.name.split(".").pop();
-    const fileName = `${selectedCourse.slug}_${Date.now()}.${ext}`;
-    const path = `${HERO_DIR}/${fileName}`;
+    const fileName = `\${selectedCourse.slug}_\${Date.now()}.\${ext}`;
+    const path = `\${HERO_DIR}/\${fileName}`;
     try {
       const { error: uploadError } = await supabase.storage.from("uploads").upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
@@ -436,8 +445,8 @@ const CoursesTab = () => {
     }
     setIsUploading(true);
     const ext = file.name.split(".").pop();
-    const fileName = `${selectedCourse.slug}_video_${Date.now()}.${ext}`;
-    const path = `${MATERIALS_DIR}/${selectedCourse.slug}/${fileName}`;
+    const fileName = `\${selectedCourse.slug}_video_\${Date.now()}.\${ext}`;
+    const path = `\${MATERIALS_DIR}/\${selectedCourse.slug}/\${fileName}`;
     try {
       const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
@@ -466,7 +475,7 @@ const CoursesTab = () => {
 
     const maxBytes = MAX_FILE_SIZE_MB * 1024 * 1024;
     if (file.size > maxBytes) {
-      toast.error(`Arquivo muito grande (${Math.round(file.size / 1024 / 1024)}MB). Limite: ${MAX_FILE_SIZE_MB}MB.`);
+      toast.error(`Arquivo muito grande (\${Math.round(file.size / 1024 / 1024)}MB). Limite: \${MAX_FILE_SIZE_MB}MB.`);
       setUploadingLessonId(null);
       return;
     }
@@ -474,8 +483,8 @@ const CoursesTab = () => {
     try {
       const ext = (file.name.split(".").pop() || "").toLowerCase();
       const safeExt = ext || (file.type.startsWith("video/") ? "mp4" : "bin");
-      const fileName = `${lesson.id}.${safeExt}`;
-      const path = `${MATERIALS_DIR}/${selectedCourse.slug}/${modules[selectedModuleIdx].id}/${fileName}`;
+      const fileName = `\${lesson.id}.\${safeExt}`;
+      const path = `\${MATERIALS_DIR}/\${selectedCourse.slug}/\${modules[selectedModuleIdx].id}/\${fileName}`;
 
       const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
@@ -601,7 +610,7 @@ const CoursesTab = () => {
                   </TableCell>
                   <TableCell className="text-right flex justify-end gap-2">
                     <Button variant="outline" size="sm" asChild className="gap-2">
-                      <Link to={`/cursos/${c.slug}`} target="_blank"><Eye size={14} /> Ver</Link>
+                      <Link to={`/cursos/\${c.slug}`} target="_blank"><Eye size={14} /> Ver</Link>
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => handleOpenContent(c)}>Conteúdo</Button>
                     <Button variant="ghost" size="sm" onClick={() => handleEditCourse(c)}><Edit2 size={16} /></Button>

@@ -11,6 +11,8 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  console.log("[sync-stripe-product] Início da execução");
+
   try {
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -19,18 +21,31 @@ serve(async (req) => {
 
     // 1. Validar Admin
     const authHeader = req.headers.get('Authorization');
-    const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
+    if (!authHeader) throw new Error('Não autorizado: Token ausente');
+
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
+    if (userError || !user) throw new Error('Sessão inválida ou expirada');
     
     const { data: profile } = await supabaseAdmin.from('profiles').select('is_admin, role').eq('id', user.id).single();
     if (!profile?.is_admin && profile?.role !== 'admin') {
-      throw new Error('Acesso negado.');
+      throw new Error('Acesso negado: Apenas administradores podem sincronizar produtos');
     }
 
-    const { courseSlug, title, price, mode } = await req.json();
+    const body = await req.json();
+    const { courseSlug, title, price, mode } = body;
+    
+    console.log("[sync-stripe-product] Dados recebidos:", { courseSlug, title, price, mode });
+
+    if (!courseSlug || !title || price === undefined) {
+      throw new Error('Parâmetros obrigatórios ausentes (slug, título ou preço)');
+    }
+
     const stripeMode = mode === 'live' ? 'LIVE' : 'TEST';
     const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${stripeMode}`);
 
-    if (!stripeSecret) throw new Error(`Chave Stripe \${stripeMode} não configurada.`);
+    if (!stripeSecret) {
+      throw new Error(`Configuração Stripe ausente: Chave secreta para \${stripeMode} não encontrada nos Secrets.`);
+    }
 
     const stripe = new Stripe(stripeSecret, {
       apiVersion: '2023-10-16',
@@ -39,30 +54,49 @@ serve(async (req) => {
 
     // 2. Buscar ou Criar Produto
     let product;
-    const products = await stripe.products.list({ limit: 100 });
-    product = products.data.find(p => p.metadata.courseSlug === courseSlug);
+    try {
+      const products = await stripe.products.list({ limit: 100 });
+      product = products.data.find(p => p.metadata.courseSlug === courseSlug);
 
-    if (!product) {
-      product = await stripe.products.create({
-        name: `Curso: \${title}`,
-        description: `Acesso vitalício ao curso \${title} na plataforma HomeCare Match.`,
-        metadata: { courseSlug },
-      });
+      if (!product) {
+        console.log("[sync-stripe-product] Criando novo produto na Stripe...");
+        product = await stripe.products.create({
+          name: `Curso: \${title}`,
+          description: `Acesso vitalício ao curso \${title} na plataforma HomeCare Match.`,
+          metadata: { courseSlug },
+        });
+      } else {
+        console.log("[sync-stripe-product] Produto já existe:", product.id);
+      }
+    } catch (err) {
+      console.error("[sync-stripe-product] Erro ao gerenciar produto na Stripe:", err);
+      throw new Error(`Erro na Stripe (Produto): \${err.message}`);
     }
 
-    // 3. Criar Novo Preço (Preços na Stripe são imutáveis, então sempre criamos um novo se o valor mudar)
-    const priceObj = await stripe.prices.create({
-      unit_amount: Math.round(price * 100),
-      currency: 'brl',
-      product: product.id,
-    });
+    // 3. Criar Novo Preço
+    try {
+      const amount = Math.round(Number(price) * 100);
+      if (isNaN(amount) || amount <= 0) throw new Error('Valor do preço inválido');
 
-    return new Response(JSON.stringify({ priceId: priceObj.id }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+      console.log("[sync-stripe-product] Criando novo preço de R$", amount / 100);
+      const priceObj = await stripe.prices.create({
+        unit_amount: amount,
+        currency: 'brl',
+        product: product.id,
+      });
+
+      console.log("[sync-stripe-product] Sucesso! Price ID:", priceObj.id);
+      return new Response(JSON.stringify({ priceId: priceObj.id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    } catch (err) {
+      console.error("[sync-stripe-product] Erro ao criar preço na Stripe:", err);
+      throw new Error(`Erro na Stripe (Preço): \${err.message}`);
+    }
 
   } catch (error) {
+    console.error("[sync-stripe-product] Erro crítico:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

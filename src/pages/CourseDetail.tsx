@@ -132,7 +132,6 @@ const CourseDetail = () => {
     };
   }, [course, progress]);
 
-  // Efeito para emissão automática retroativa
   useEffect(() => {
     if (!loading && isEnrolled && stats.pct === 100 && !certificateId && !isIssuingCertificate) {
       issueCertificate();
@@ -302,13 +301,13 @@ const CourseDetail = () => {
                               )}
                               onClick={() => handleOpenLesson(l)}
                             >
-                              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                 <div className="text-primary shrink-0">
                                   {l.type === 'video' ? <PlayCircle size={18} className="sm:w-5 sm:h-5" /> : l.type === 'pdf' ? <FileSearch size={18} className="sm:w-5 sm:h-5" /> : l.type === 'text' ? <FileText size={18} className="sm:w-5 sm:h-5" /> : <ExternalLink size={18} className="sm:w-5 sm:h-5" />}
                                 </div>
-                                <div className="min-w-0">
-                                  <h4 className="font-medium text-xs sm:text-base truncate">{l.title}</h4>
-                                  <div className="flex items-center gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <h4 className="font-medium text-xs sm:text-base line-clamp-2">{l.title}</h4>
+                                  <div className="flex items-center gap-2 mt-0.5">
                                     <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">{l.duration_minutes || 0} min</p>
                                     {status === 'completed' && <Badge variant="secondary" className="h-3 sm:h-4 text-[7px] sm:text-[8px] bg-success/10 text-success border-none px-1 sm:px-2">Concluída</Badge>}
                                   </div>
@@ -350,7 +349,7 @@ const CourseDetail = () => {
             <>
               <DialogHeader className="p-4 sm:p-6 border-b bg-card">
                 <div className="flex items-center justify-between gap-4">
-                  <DialogTitle className="text-lg sm:text-xl font-bold line-clamp-1">{selectedLesson.title}</DialogTitle>
+                  <DialogTitle className="text-lg sm:text-xl font-bold line-clamp-2">{selectedLesson.title}</DialogTitle>
                   <Badge variant="outline" className="uppercase text-[9px] sm:text-[10px] shrink-0">
                     {selectedLesson.type} • {selectedLesson.duration_minutes} min
                   </Badge>
@@ -359,7 +358,7 @@ const CourseDetail = () => {
 
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-secondary/5">
                 {selectedLesson.type === 'text' && selectedLesson.content && (
-                  <div className="prose prose-slate max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words" dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
+                  <div className="prose prose-slate max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words overflow-x-hidden" dangerouslySetInnerHTML={{ __html: selectedLesson.content }} />
                 )}
 
                 {selectedLesson.type === 'video' && (

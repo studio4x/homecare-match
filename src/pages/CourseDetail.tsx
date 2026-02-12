@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Dialog,
   DialogContent,
@@ -39,12 +40,13 @@ const CourseDetail = () => {
   const { slug } = useParams();
   const { user, session } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   const [course, setCourse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [enrollmentLoading, setEnrollmentLoading] = useState(false);
-  const [progress, setProgress] = useState<any>({});
+  const [progress, setProgress] = useState<Record<string, string>>({});
   const [certificateId, setCertificateId] = useState<string | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   
@@ -97,7 +99,7 @@ const CourseDetail = () => {
           }
 
           const { data: prog } = await supabase.from("academy_progress").select("*").eq("user_id", user.id).eq("course_slug", slug);
-          const pMap: any = {};
+          const pMap: Record<string, string> = {};
           prog?.forEach(p => pMap[p.lesson_id] = p.status);
           setProgress(pMap);
 
@@ -123,7 +125,7 @@ const CourseDetail = () => {
   }, [slug, user]);
 
   const stats = useMemo(() => {
-    const total = course?.modules?.reduce((acc: any, m: any) => acc + m.lessons.length, 0) || 0;
+    const total = course?.modules?.reduce((acc: number, m: any) => acc + m.lessons.length, 0) || 0;
     const done = Object.values(progress).filter(s => s === 'completed').length;
     return { 
       total, 
@@ -227,7 +229,7 @@ const CourseDetail = () => {
         <div className="grid gap-8 md:grid-cols-3">
           <div className="space-y-6">
             <Card className="overflow-hidden border-none shadow-lg">
-              <AspectRatio ratio={16/9}>
+              <AspectRatio ratio={isMobile ? 4/3 : 16/9}>
                 <img src={course.hero_asset_url || "/placeholder.svg"} className="object-cover w-full h-full" alt={course.title} />
               </AspectRatio>
               <CardContent className="pt-6">

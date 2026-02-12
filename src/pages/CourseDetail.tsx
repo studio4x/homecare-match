@@ -199,13 +199,13 @@ const CourseDetail = () => {
       
       if (data?.certificate_id) {
         setCertificateId(data.certificate_id);
-        toast.success("Parabéns! Seu certificado foi gerado.", {
+        toast.success("Parabéns! Seu selo de conclusão foi gerado.", {
           description: "Você já pode visualizá-lo na barra lateral.",
           icon: <Award className="text-yellow-600" />
         });
       }
     } catch (err) {
-      console.error("[CourseDetail] Erro ao emitir certificado:", err);
+      console.error("[CourseDetail] Erro ao emitir selo:", err);
     } finally {
       setIsIssuingCertificate(false);
     }
@@ -254,11 +254,11 @@ const CourseDetail = () => {
                     
                     {isIssuingCertificate ? (
                       <div className="flex items-center justify-center p-3 bg-yellow-50 rounded-lg border border-yellow-200 text-yellow-700 text-xs gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Gerando certificado...
+                        <Loader2 className="h-4 w-4 animate-spin" /> Gerando selo...
                       </div>
                     ) : certificateId ? (
                       <Button asChild className="w-full bg-yellow-600 hover:bg-yellow-700 gap-2 shadow-lg animate-scale-in">
-                        <Link to={`/certificado/${certificateId}`} target="_blank"><Award size={18} /> Ver Certificado</Link>
+                        <Link to={`/certificado/${certificateId}`} target="_blank"><Award size={18} /> Ver Selo de Conclusão</Link>
                       </Button>
                     ) : null}
 
@@ -432,9 +432,9 @@ const CourseDetail = () => {
                   }}
                 >
                   {progress[selectedLesson.id] === 'completed' ? (
-                    <><><Check size={14} className="sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Aula Concluída</span><span className="xs:hidden">Concluída</span></></>
+                    <><Check size={14} className="sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Aula Concluída</span><span className="xs:hidden">Concluída</span></>
                   ) : (
-                    <><><span className="hidden xs:inline">Marcar como Concluída</span><span className="xs:hidden">Concluir</span></></>
+                    <><span className="hidden xs:inline">Marcar como Concluída</span><span className="xs:hidden">Concluir</span></>
                   )}
                 </Button>
               </div>

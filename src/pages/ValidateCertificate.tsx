@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldCheck, Search, XCircle, Award, Calendar, Clock, User } from "lucide-react";
+import { Loader2, ShieldCheck, Search, XCircle, Award, Calendar, Clock, User, Info } from "lucide-react";
 import { toast } from "sonner";
 
 const ValidateCertificate = () => {
@@ -43,11 +43,11 @@ const ValidateCertificate = () => {
       if (!data) {
         toast.error("Código de validação não encontrado.");
       } else {
-        toast.success("Certificado validado com sucesso!");
+        toast.success("Selo validado com sucesso!");
       }
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao validar certificado.");
+      toast.error("Erro ao validar código.");
     } finally {
       setLoading(false);
     }
@@ -68,9 +68,9 @@ const ValidateCertificate = () => {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <ShieldCheck className="h-10 w-10 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Validação de Certificados</h1>
+          <h1 className="text-3xl font-bold text-foreground">Validação Academy</h1>
           <p className="mt-2 text-muted-foreground">
-            Insira o código impresso no rodapé do certificado para verificar sua autenticidade.
+            Verifique a autenticidade de selos e conquistas internas da plataforma.
           </p>
         </div>
 
@@ -98,7 +98,7 @@ const ValidateCertificate = () => {
             <Card className="border-success/20 bg-success/5 overflow-hidden">
               <div className="bg-success p-4 text-white flex items-center gap-2">
                 <ShieldCheck className="h-5 w-5" />
-                <span className="font-bold uppercase tracking-wider text-sm">Certificado Autêntico</span>
+                <span className="font-bold uppercase tracking-wider text-sm">Conquista Autêntica</span>
               </div>
               <CardContent className="p-6 space-y-6">
                 <div className="flex items-start gap-4">
@@ -106,7 +106,7 @@ const ValidateCertificate = () => {
                     <Award className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Curso</p>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Conteúdo</p>
                     <h3 className="text-xl font-bold text-foreground leading-tight">{certificate.course.title}</h3>
                   </div>
                 </div>
@@ -115,7 +115,7 @@ const ValidateCertificate = () => {
                   <div className="flex items-center gap-3">
                     <User className="h-5 w-5 text-primary" />
                     <div>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Aluno(a)</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Profissional</p>
                       <p className="font-semibold">{certificate.user.full_name}</p>
                     </div>
                   </div>
@@ -141,6 +141,13 @@ const ValidateCertificate = () => {
                     </div>
                   </div>
                 </div>
+
+                <div className="p-3 bg-white/50 border rounded-lg flex gap-3 items-start">
+                  <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-muted-foreground leading-tight">
+                    Este registro confirma que o profissional completou o conteúdo educativo na plataforma HomeCare Match. Não possui validade como título acadêmico ou técnico oficial.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           ) : searched ? (
@@ -150,9 +157,9 @@ const ValidateCertificate = () => {
                   <XCircle className="h-6 w-6 text-destructive" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-destructive">Certificado não encontrado</h3>
+                  <h3 className="text-lg font-bold text-destructive">Código não encontrado</h3>
                   <p className="text-sm text-muted-foreground">
-                    O código informado não corresponde a nenhum certificado emitido pela nossa plataforma.
+                    O código informado não corresponde a nenhuma conquista registrada em nossa plataforma.
                   </p>
                 </div>
               </CardContent>

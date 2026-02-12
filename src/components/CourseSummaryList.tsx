@@ -75,7 +75,7 @@ const CourseSummaryList: React.FC<CourseSummaryListProps> = ({ title, items, per
                 <div className="flex gap-2">
                   {c.certificateId && (
                     <Button asChild size="sm" variant="outline" className="h-8 text-xs border-yellow-600/30 text-yellow-700 hover:bg-yellow-50">
-                      <Link to={`/certificado/${c.certificateId}`} target="_blank"><Award className="h-3 w-3 mr-1" /> Certificado</Link>
+                      <Link to={`/certificado/${c.certificateId}`} target="_blank"><Award className="h-3 w-3 mr-1" /> Ver Selo</Link>
                     </Button>
                   )}
                   <Button asChild size="sm" className="h-8 text-xs">

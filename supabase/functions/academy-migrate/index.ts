@@ -67,11 +67,14 @@ serve(async (req) => {
         hero_asset_url TEXT,
         content_url TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
-        price NUMERIC DEFAULT 0 -- Nova coluna para preço
+        price NUMERIC DEFAULT 0
       );
 
-      -- Garante que a coluna price existe caso a tabela já tenha sido criada antes
       ALTER TABLE public.academy_courses ADD COLUMN IF NOT EXISTS price NUMERIC DEFAULT 0;
+      ALTER TABLE public.academy_courses ADD COLUMN IF NOT EXISTS video_source TEXT DEFAULT 'url';
+      ALTER TABLE public.academy_courses ADD COLUMN IF NOT EXISTS video_url TEXT;
+      ALTER TABLE public.academy_courses ADD COLUMN IF NOT EXISTS video_storage_path TEXT;
+      ALTER TABLE public.academy_courses ADD COLUMN IF NOT EXISTS video_mime TEXT;
 
       CREATE TABLE IF NOT EXISTS public.academy_modules (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

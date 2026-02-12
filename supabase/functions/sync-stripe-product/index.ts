@@ -35,11 +35,15 @@ serve(async (req) => {
     const { courseSlug, title, price, mode } = body;
     
     const stripeMode = mode === 'live' ? 'LIVE' : 'TEST';
-    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_${stripeMode}`);
+    const secretName = `STRIPE_SECRET_KEY_${stripeMode}`;
+    const stripeSecret = Deno.env.get(secretName);
 
     if (!stripeSecret) {
-      throw new Error(`Configuração Stripe ausente: Chave secreta para ${stripeMode} não encontrada nos Secrets do Supabase.`);
+      throw new Error(`Configuração Stripe ausente: Chave ${secretName} não encontrada nos Secrets do Supabase.`);
     }
+
+    // Log de depuração (seguro)
+    console.log(`[sync-stripe-product] Usando chave que começa com: ${stripeSecret.substring(0, 7)}...`);
 
     const stripe = new Stripe(stripeSecret, {
       apiVersion: '2023-10-16',

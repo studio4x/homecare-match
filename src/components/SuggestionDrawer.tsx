@@ -17,7 +17,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 
-const SuggestionDrawer = () => {
+interface SuggestionDrawerProps {
+  variant?: "fixed" | "footer";
+}
+
+const SuggestionDrawer = ({ variant = "fixed" }: SuggestionDrawerProps) => {
   const { user } = useAuth();
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,16 +53,25 @@ const SuggestionDrawer = () => {
     }
   };
 
+  const trigger = variant === "fixed" ? (
+    <button 
+      className="hidden md:flex fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-primary text-primary-foreground py-3 px-1.5 rounded-r-xl shadow-lg hover:pl-3 transition-all group flex-col items-center gap-2 border border-l-0 border-primary-foreground/20"
+      title="Enviar Sugestão"
+    >
+      <Lightbulb className="h-5 w-5 animate-pulse" />
+      <span className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold uppercase tracking-widest">Sugestões</span>
+    </button>
+  ) : (
+    <button className="flex items-center gap-2 text-sm text-primary font-medium hover:underline">
+      <Lightbulb className="h-4 w-4" />
+      Enviar Sugestão
+    </button>
+  );
+
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <button 
-          className="fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-primary text-primary-foreground py-3 px-1.5 rounded-r-xl shadow-lg hover:pl-3 transition-all group flex flex-col items-center gap-2 border border-l-0 border-primary-foreground/20"
-          title="Enviar Sugestão"
-        >
-          <Lightbulb className="h-5 w-5 animate-pulse" />
-          <span className="[writing-mode:vertical-lr] rotate-180 text-[10px] font-bold uppercase tracking-widest">Sugestões</span>
-        </button>
+        {trigger}
       </SheetTrigger>
       <SheetContent side="left" className="w-full sm:max-w-md">
         <SheetHeader className="mb-6">

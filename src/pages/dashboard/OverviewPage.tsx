@@ -100,7 +100,16 @@ const OverviewPage = () => {
     const toastId = toast.loading("Consultando Stripe...");
     try {
       const { data, error } = await supabase.functions.invoke('sync-user-subscription');
-      if (error) throw error;
+      
+      if (error) {
+        // Tenta extrair a mensagem de erro do corpo da resposta
+        let errorMessage = "Erro ao sincronizar com Stripe.";
+        try {
+          const body = await error.context?.json();
+          if (body?.error) errorMessage = body.error;
+        } catch {}
+        throw new Error(errorMessage);
+      }
       
       if (data?.success) {
         toast.success(data.message, { id: toastId });
@@ -109,8 +118,8 @@ const OverviewPage = () => {
         toast.info(data.message || "Nenhuma alteração encontrada.", { id: toastId });
       }
     } catch (err: any) {
-      console.error(err);
-      toast.error("Erro ao sincronizar com Stripe.", { id: toastId });
+      console.error("[Sync Error]", err);
+      toast.error(err.message || "Erro ao sincronizar com Stripe.", { id: toastId });
     } finally {
       setIsSyncingStripe(false);
     }

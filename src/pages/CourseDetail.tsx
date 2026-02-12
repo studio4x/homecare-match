@@ -53,6 +53,8 @@ const CourseDetail = () => {
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
   const [videoEnded, setVideoEnded] = useState(false);
   const [isIssuingCertificate, setIsIssuingCertificate] = useState(false);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [videoLoading, setVideoLoading] = useState(false);
 
   const fetchCourseData = async () => {
     setLoading(true);
@@ -123,6 +125,36 @@ const CourseDetail = () => {
   useEffect(() => {
     if (slug) fetchCourseData();
   }, [slug, user]);
+
+  useEffect(() => {
+    if (!course) {
+      setVideoPreviewUrl(null);
+      return;
+    }
+
+    const sourcePath = course.video_storage_path;
+    if (sourcePath) {
+      setVideoLoading(true);
+      supabase.storage
+        .from(PRIVATE_BUCKET)
+        .createSignedUrl(sourcePath, 3600)
+        .then(({ data, error }) => {
+          if (!error && data?.signedUrl) {
+            setVideoPreviewUrl(data.signedUrl);
+          } else {
+            setVideoPreviewUrl(course.video_url || null);
+          }
+        })
+        .finally(() => setVideoLoading(false));
+      return;
+    }
+
+    if (course.video_source === "url" && course.video_url) {
+      setVideoPreviewUrl(course.video_url);
+    } else {
+      setVideoPreviewUrl(null);
+    }
+  }, [course]);
 
   const stats = useMemo(() => {
     const total = course?.modules?.reduce((acc: number, m: any) => acc + m.lessons.length, 0) || 0;
@@ -217,6 +249,9 @@ const CourseDetail = () => {
     setVideoEnded(false);
   };
 
+  const videoToShow = videoPreviewUrl;
+  const isEmbeddedVideo = !!videoToShow && (videoToShow.includes("youtube.com") || videoToShow.includes("youtu.be"));
+
   if (loading) return <Layout><div className="flex h-[60vh] items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div></Layout>;
 
   return (
@@ -229,7 +264,7 @@ const CourseDetail = () => {
         <div className="grid gap-8 md:grid-cols-3">
           <div className="space-y-6">
             <Card className="overflow-hidden border-none shadow-lg">
-              <AspectRatio ratio={isMobile ? 4/3 : 16/9}>
+              <AspectRatio ratio={4/3}>
                 <img src={course.hero_asset_url || "/placeholder.svg"} className="object-cover w-full h-full" alt={course.title} />
               </AspectRatio>
               <CardContent className="pt-6">
@@ -273,6 +308,27 @@ const CourseDetail = () => {
           </div>
 
           <div className="md:col-span-2 space-y-8">
+            {videoToShow && (
+              <div className="mb-6">
+                <AspectRatio ratio={4/3} className="overflow-hidden rounded-3xl border border-border bg-black">
+                  {isEmbeddedVideo ? (
+                    <iframe
+                      src={videoToShow}
+                      title="Vídeo do curso"
+                      className="h-full w-full"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      src={videoToShow}
+                      className="h-full w-full object-cover"
+                      controls
+                      autoPlay={false}
+                    />
+                  )}
+                </AspectRatio>
+              </div>
+            )}
             <div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4 break-words">{course.title}</h1>
               <div

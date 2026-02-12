@@ -26,7 +26,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// Drag & Drop Imports
 import {
   DndContext,
   closestCenter,
@@ -43,6 +42,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import SortableModule from "./SortableModule";
+
+// existing constants
+const HERO_DIR = "academy/hero";
+const MATERIALS_DIR = "materials";
+const PRIVATE_BUCKET = "academy-private";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
 
@@ -79,11 +83,11 @@ interface Course {
   content_url?: string;
   created_at?: string;
   price?: number;
+  video_source?: string;
+  video_url?: string;
+  video_storage_path?: string;
+  video_mime?: string;
 }
-
-const HERO_DIR = "academy/hero";
-const MATERIALS_DIR = "materials";
-const PRIVATE_BUCKET = "academy-private";
 
 const generateSlug = (text: string) => {
   return text
@@ -120,8 +124,8 @@ const CoursesTab = () => {
 
   const heroRef = useRef<HTMLInputElement>(null);
   const materialRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
 
-  // Sensors for DND
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -150,7 +154,6 @@ const CoursesTab = () => {
     fetchCourses();
   }, []);
 
-  // Auto-calculate total duration
   useEffect(() => {
     if (selectedCourse && modules.length > 0) {
       const totalMinutes = modules.reduce((acc, mod) => {
@@ -175,12 +178,22 @@ const CoursesTab = () => {
       hero_asset_url: "",
       content_url: "",
       price: 0,
+      video_source: "url",
+      video_url: "",
+      video_storage_path: "",
+      video_mime: ""
     });
     setOpenDialog(true);
   };
 
   const handleEditCourse = (c: Course) => {
-    setSelectedCourse({ ...c });
+    setSelectedCourse({ 
+      ...c,
+      video_source: c.video_source || "url",
+      video_url: c.video_url || "",
+      video_storage_path: c.video_storage_path || "",
+      video_mime: c.video_mime || ""
+    });
     setOpenDialog(true);
   };
 
@@ -262,7 +275,7 @@ const CoursesTab = () => {
       mod.lessons = [...mod.lessons, {
         id: crypto.randomUUID(),
         title: "Nova Aula",
-        type: "text", // Alterado de 'video' para 'text' como padrão
+        type: "text",
         duration_minutes: 0,
         resource_url: "",
         content: "",
@@ -293,8 +306,6 @@ const CoursesTab = () => {
     setIsSavingContent(true);
     try {
       await supabase.functions.invoke('academy-migrate', { body: { action: 'create_tables' } });
-      
-      // Update course duration in DB
       await supabase.from("academy_courses").update({
         duration_minutes: selectedCourse.duration_minutes
       }).eq("slug", selectedCourse.slug);
@@ -356,6 +367,34 @@ const CoursesTab = () => {
       toast.error("Falha ao enviar capa.");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleUploadVideo = async (file: File) => {
+    if (!selectedCourse?.slug) {
+      toast.error("Defina o slug antes de enviar o vídeo.");
+      return;
+    }
+    setIsUploading(true);
+    const ext = file.name.split(".").pop();
+    const fileName = `${selectedCourse.slug}_video_${Date.now()}.${ext}`;
+    const path = `${MATERIALS_DIR}/${selectedCourse.slug}/${fileName}`;
+    try {
+      const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      toast.success("Vídeo carregado!");
+      setSelectedCourse((prev) => prev ? {
+        ...prev,
+        video_source: "storage",
+        video_storage_path: path,
+        video_mime: file.type,
+        video_url: ""
+      } : prev);
+    } catch {
+      toast.error("Erro ao enviar vídeo.");
+    } finally {
+      setIsUploading(false);
+      if (videoRef.current) videoRef.current.value = "";
     }
   };
 
@@ -427,7 +466,6 @@ const CoursesTab = () => {
     if (isContentDirty) setShowCloseConfirm(true); else setOpenContentDialog(false);
   };
 
-  // Drag & Drop Handlers
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -587,21 +625,68 @@ const CoursesTab = () => {
                 <Label>Descrição do Curso</Label>
                 <RichTextEditor content={selectedCourse.description || ""} onChange={html => setSelectedCourse({...selectedCourse, description: html})} />
               </div>
-              
+
+              <div className="space-y-4 border rounded-lg p-4 bg-secondary/10">
+                <div className="flex items-center justify-between">
+                  <Label>Vídeo Principal</Label>
+                  <span className="text-[10px] text-muted-foreground">Será exibido antes do título</span>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input 
+                    placeholder="https://..." 
+                    value={selectedCourse.video_url || ""} 
+                    onChange={(e) => setSelectedCourse(prev => prev ? {
+                      ...prev,
+                      video_url: e.target.value,
+                      video_source: "url"
+                    } : prev)} 
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => videoRef.current?.click()} 
+                    disabled={isUploading}
+                    className="gap-2"
+                  >
+                    {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                    Enviar vídeo
+                  </Button>
+                </div>
+                {selectedCourse.video_storage_path && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Vídeo armazenado no bucket privado. Use o botão para atualizar.
+                  </p>
+                )}
+              </div>
+
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Capa (imagem)</Label>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => heroRef.current?.click()} disabled={isUploading}>{isUploading ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} className="mr-2" />} Enviar Capa</Button>
-                    <input ref={heroRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadHero(file); }} />
-                  </div>
-                  {selectedCourse.hero_asset_url && <div className="mt-2 border rounded-md p-2 bg-secondary/20"><img src={selectedCourse.hero_asset_url} className="max-h-24 object-contain mx-auto" alt="Preview" /></div>}
+                  <Label>Team</Label>
+                  <Select value={selectedCourse.video_source || "url"} onValueChange={(v) => setSelectedCourse(prev => prev ? { ...prev, video_source: v } : prev)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="url">URL Externa</SelectItem>
+                      <SelectItem value="storage">Arquivo Privado</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <div className="flex items-center justify-between rounded-lg border p-3"><span>Ativo</span><Switch checked={!!selectedCourse.is_active} onCheckedChange={(checked) => setSelectedCourse({ ...selectedCourse, is_active: checked })} /></div>
                 </div>
               </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Capa (imagem)</Label>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => heroRef.current?.click()} disabled={isUploading}>{isUploading ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />} Enviar Capa</Button>
+                    <input ref={heroRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadHero(file); }} />
+                  </div>
+                  {selectedCourse.hero_asset_url && <div className="mt-2 border rounded-md p-2 bg-secondary/20"><img src={selectedCourse.hero_asset_url} className="max-h-24 object-contain mx-auto" alt="Preview" /></div>}
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setOpenDialog(false)}>Cancelar</Button>
                 <Button onClick={handleSaveCourse} disabled={isSaving}>Salvar</Button>
@@ -610,79 +695,7 @@ const CoursesTab = () => {
           )}
         </DialogContent>
       </Dialog>
-
-      <Dialog open={openContentDialog} onOpenChange={attemptCloseContentDialog}>
-        <DialogContent 
-          className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <DialogHeader><DialogTitle>Conteúdo: {selectedCourse?.title}</DialogTitle></DialogHeader>
-          <div className="flex-1 overflow-y-auto p-1 space-y-8">
-            <div className="flex justify-between items-center">
-              <Button size="sm" onClick={addModule} className="gap-2"><Plus size={16} /> Novo Módulo</Button>
-            </div>
-
-            <DndContext 
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext 
-                items={modules.map(m => m.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <div className="space-y-6">
-                  {modules.map((m, mi) => (
-                    <SortableModule
-                      key={m.id}
-                      module={m}
-                      onUpdateTitle={(title) => {
-                        const next = [...modules];
-                        next[mi] = { ...next[mi], title };
-                        setModules(next);
-                        setIsContentDirty(true);
-                      }}
-                      onRemove={() => removeModule(mi)}
-                      onAddLesson={() => addLesson(mi)}
-                      onUpdateLesson={(li, data) => updateLessonData(mi, li, data)}
-                      onRemoveLesson={(li) => removeLesson(mi, li)}
-                      onUploadClick={(li) => {
-                        setSelectedModuleIdx(mi);
-                        setSelectedLessonIdx(li);
-                        materialRef.current?.click();
-                      }}
-                      uploadingLessonId={uploadingLessonId}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
-
-            <div className="pt-4 pb-8 border-t border-dashed flex flex-col items-center gap-4">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Fim do Conteúdo</p>
-              <Button 
-                onClick={addModule} 
-                className="gap-2 h-12 px-8 shadow-md"
-              >
-                <Plus size={18} /> Adicionar Novo Módulo
-              </Button>
-            </div>
-          </div>
-          <div className="p-4 border-t flex justify-end gap-2 bg-card">
-            <div className="flex-1 flex items-center text-sm text-muted-foreground">
-              Duração Total: <span className="font-bold text-foreground ml-1">{selectedCourse?.duration_minutes || 0} min</span>
-            </div>
-            <Button variant="ghost" onClick={attemptCloseContentDialog}>Fechar</Button>
-            <Button onClick={handleSaveContent} disabled={isSavingContent}>
-              {isSavingContent && <Loader2 size={16} className="mr-2 animate-spin" />}
-              Salvar Tudo
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
+      <input ref={videoRef} type="file" className="hidden" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadVideo(file); }} />
       <input ref={materialRef} type="file" className="hidden" accept="video/*,application/pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadMaterial(file); }} />
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

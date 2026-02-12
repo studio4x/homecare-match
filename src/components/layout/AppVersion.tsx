@@ -3,7 +3,7 @@
 import React from 'react';
 
 const AppVersion = () => {
-  const version = "2.5.1";
+  const version = "2.5.2";
   const lastUpdate = new Date().toLocaleDateString('pt-BR');
 
   return (

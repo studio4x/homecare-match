@@ -346,10 +346,10 @@ const CourseDetail = () => {
       </div>
 
       <Dialog open={!!selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)}>
-        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="w-[95vw] max-w-4xl h-[92dvh] sm:h-auto sm:max-h-[90vh] flex flex-col p-0 overflow-hidden">
           {selectedLesson && (
             <>
-              <DialogHeader className="p-4 sm:p-6 border-b bg-card">
+              <DialogHeader className="p-4 sm:p-6 border-b bg-card shrink-0">
                 <div className="flex items-center justify-between gap-4">
                   <DialogTitle className="text-lg sm:text-xl font-bold line-clamp-2">{selectedLesson.title}</DialogTitle>
                   <Badge variant="outline" className="uppercase text-[9px] sm:text-[10px] shrink-0">
@@ -411,7 +411,7 @@ const CourseDetail = () => {
                 )}
               </div>
 
-              <div className="p-3 sm:p-4 border-t bg-card flex justify-between items-center gap-2">
+              <div className="p-4 sm:p-4 border-t bg-card flex justify-between items-center gap-2 shrink-0 pb-6 sm:pb-4">
                 <Button variant="ghost" size="sm" onClick={() => setSelectedLesson(null)} className="text-xs sm:text-sm">Fechar</Button>
                 <Button
                   size="sm"

@@ -102,7 +102,6 @@ const OverviewPage = () => {
       const { data, error } = await supabase.functions.invoke('sync-user-subscription');
       
       if (error) {
-        // Tenta extrair a mensagem de erro do corpo da resposta
         let errorMessage = "Erro ao sincronizar com Stripe.";
         try {
           const body = await error.context?.json();
@@ -113,7 +112,11 @@ const OverviewPage = () => {
       
       if (data?.success) {
         toast.success(data.message, { id: toastId });
-        await fetchProfile();
+        if (data.profile) {
+          setProfile(data.profile);
+        } else {
+          await fetchProfile();
+        }
       } else {
         toast.info(data.message || "Nenhuma alteração encontrada.", { id: toastId });
       }

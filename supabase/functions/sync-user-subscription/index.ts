@@ -74,14 +74,16 @@ serve(async (req) => {
       
       // Se a assinatura estiver cancelada e expirada, voltamos para o trial
       if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
-        await supabaseAdmin.from('profiles').update({
+        const { data: updatedProfile, error: updateError } = await supabaseAdmin.from('profiles').update({
           subscription_tier: 'free_trial',
           subscription_end_at: null,
           cancel_at_period_end: false,
           updated_at: new Date().toISOString()
-        }).eq('id', user.id);
+        }).eq('id', user.id).select().single();
+
+        if (updateError) throw updateError;
         
-        return new Response(JSON.stringify({ success: true, message: 'Assinatura encerrada detectada. Perfil atualizado.' }), {
+        return new Response(JSON.stringify({ success: true, message: 'Assinatura encerrada detectada. Perfil atualizado.', profile: updatedProfile }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200
         });
@@ -111,9 +113,10 @@ serve(async (req) => {
         updateData.subscription_tier = matchedPlan.id;
       }
 
-      await supabaseAdmin.from('profiles').update(updateData).eq('id', user.id);
+      const { data: updatedProfile, error: updateError } = await supabaseAdmin.from('profiles').update(updateData).eq('id', user.id).select().single();
+      if (updateError) throw updateError;
 
-      return new Response(JSON.stringify({ success: true, message: 'Assinatura sincronizada com sucesso!' }), {
+      return new Response(JSON.stringify({ success: true, message: 'Assinatura sincronizada com sucesso!', profile: updatedProfile }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });

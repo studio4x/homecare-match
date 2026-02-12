@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye, DollarSign } from "lucide-react";
+import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye, DollarSign, Video } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/ui/RichTextEditor";
@@ -43,7 +43,6 @@ import {
 } from '@dnd-kit/sortable';
 import SortableModule from "./SortableModule";
 
-// existing constants
 const HERO_DIR = "academy/hero";
 const MATERIALS_DIR = "materials";
 const PRIVATE_BUCKET = "academy-private";
@@ -216,7 +215,9 @@ const CoursesTab = () => {
     if (!selectedCourse) return;
     setIsSaving(true);
     try {
+      // Garante que as colunas existam
       await supabase.functions.invoke("academy-migrate", { body: { action: "create_tables" } });
+      
       const { error } = await supabase.from("academy_courses").upsert({
         ...selectedCourse,
         created_at: selectedCourse.created_at || new Date().toISOString(),
@@ -626,75 +627,159 @@ const CoursesTab = () => {
                 <RichTextEditor content={selectedCourse.description || ""} onChange={html => setSelectedCourse({...selectedCourse, description: html})} />
               </div>
 
+              {/* SEÇÃO DE VÍDEO DE DESTAQUE */}
               <div className="space-y-4 border rounded-lg p-4 bg-secondary/10">
                 <div className="flex items-center justify-between">
-                  <Label>Vídeo Principal</Label>
-                  <span className="text-[10px] text-muted-foreground">Será exibido antes do título</span>
+                  <Label className="flex items-center gap-2"><Video className="h-4 w-4 text-primary" /> Vídeo de Destaque (Hero)</Label>
+                  <span className="text-[10px] text-muted-foreground">Exibido no topo da página do curso</span>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Input 
-                    placeholder="https://..." 
-                    value={selectedCourse.video_url || ""} 
-                    onChange={(e) => setSelectedCourse(prev => prev ? {
-                      ...prev,
-                      video_url: e.target.value,
-                      video_source: "url"
-                    } : prev)} 
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => videoRef.current?.click()} 
-                    disabled={isUploading}
-                    className="gap-2"
-                  >
-                    {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-                    Enviar vídeo
-                  </Button>
+                
+                <div className="grid gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Origem do Vídeo</Label>
+                    <Select 
+                      value={selectedCourse.video_source || "url"} 
+                      onValueChange={(v) => setSelectedCourse(prev => prev ? { ...prev, video_source: v } : prev)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a origem" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="url">URL Externa (YouTube/Vimeo/Link Direto)</SelectItem>
+                        <SelectItem value="storage">Upload de Arquivo (Privado)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {selectedCourse.video_source === "url" ? (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">URL do Vídeo</Label>
+                      <Input 
+                        placeholder="https://www.youtube.com/watch?v=..." 
+                        value={selectedCourse.video_url || ""} 
+                        onChange={(e) => setSelectedCourse(prev => prev ? { ...prev, video_url: e.target.value } : prev)} 
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Arquivo de Vídeo</Label>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => videoRef.current?.click()} 
+                          disabled={isUploading}
+                          className="w-full gap-2"
+                        >
+                          {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
+                          {selectedCourse.video_storage_path ? "Substituir Vídeo" : "Subir Vídeo MP4"}
+                        </Button>
+                      </div>
+                      {selectedCourse.video_storage_path && (
+                        <p className="text-[10px] text-success font-medium flex items-center gap-1">
+                          <Eye className="h-3 w-3" /> Vídeo carregado com sucesso.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {selectedCourse.video_storage_path && (
-                  <p className="text-[10px] text-muted-foreground">
-                    Vídeo armazenado no bucket privado. Use o botão para atualizar.
-                  </p>
-                )}
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Team</Label>
-                  <Select value={selectedCourse.video_source || "url"} onValueChange={(v) => setSelectedCourse(prev => prev ? { ...prev, video_source: v } : prev)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="url">URL Externa</SelectItem>
-                      <SelectItem value="storage">Arquivo Privado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <div className="flex items-center justify-between rounded-lg border p-3"><span>Ativo</span><Switch checked={!!selectedCourse.is_active} onCheckedChange={(checked) => setSelectedCourse({ ...selectedCourse, is_active: checked })} /></div>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Capa (imagem)</Label>
+                  <Label>Capa (imagem 4:3)</Label>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => heroRef.current?.click()} disabled={isUploading}>{isUploading ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />} Enviar Capa</Button>
+                    <Button variant="outline" size="sm" onClick={() => heroRef.current?.click()} disabled={isUploading} className="w-full gap-2">
+                      {isUploading ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />} 
+                      {selectedCourse.hero_asset_url ? "Alterar Capa" : "Enviar Capa"}
+                    </Button>
                     <input ref={heroRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadHero(file); }} />
                   </div>
-                  {selectedCourse.hero_asset_url && <div className="mt-2 border rounded-md p-2 bg-secondary/20"><img src={selectedCourse.hero_asset_url} className="max-h-24 object-contain mx-auto" alt="Preview" /></div>}
+                  {selectedCourse.hero_asset_url && (
+                    <div className="mt-2 border rounded-md p-2 bg-secondary/20">
+                      <img src={selectedCourse.hero_asset_url} className="max-h-24 object-contain mx-auto" alt="Preview" />
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Status de Visibilidade</Label>
+                  <div className="flex items-center justify-between rounded-lg border p-3 h-10">
+                    <span className="text-sm">Curso Ativo</span>
+                    <Switch checked={!!selectedCourse.is_active} onCheckedChange={(checked) => setSelectedCourse({ ...selectedCourse, is_active: checked })} />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4">
                 <Button variant="ghost" onClick={() => setOpenDialog(false)}>Cancelar</Button>
-                <Button onClick={handleSaveCourse} disabled={isSaving}>Salvar</Button>
+                <Button onClick={handleSaveCourse} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Salvar Configurações
+                </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Conteúdo (Módulos e Aulas) */}
+      <Dialog open={openContentDialog} onOpenChange={attemptCloseContentDialog}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 border-b bg-card">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>Conteúdo do Curso: {selectedCourse?.title}</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-1">Arraste os itens para reordenar.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={addModule} className="gap-2"><Plus size={14} /> Novo Módulo</Button>
+                <Button size="sm" onClick={handleSaveContent} disabled={isSavingContent} className="gap-2">
+                  {isSavingContent ? <Loader2 size={14} className="animate-spin" /> : null} Salvar Alterações
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-secondary/5">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={modules.map(m => m.id)} strategy={verticalListSortingStrategy}>
+                {modules.map((m, mi) => (
+                  <SortableModule
+                    key={m.id}
+                    module={m}
+                    onUpdateTitle={(t) => {
+                      setModules(prev => {
+                        const next = [...prev];
+                        next[mi] = { ...next[mi], title: t };
+                        return next;
+                      });
+                      setIsContentDirty(true);
+                    }}
+                    onRemove={() => removeModule(mi)}
+                    onAddLesson={() => addLesson(mi)}
+                    onUpdateLesson={(li, data) => updateLessonData(mi, li, data)}
+                    onRemoveLesson={(li) => removeLesson(mi, li)}
+                    onUploadClick={(li) => {
+                      setSelectedModuleIdx(mi);
+                      setSelectedLessonIdx(li);
+                      materialRef.current?.click();
+                    }}
+                    uploadingLessonId={uploadingLessonId}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+
+            {modules.length === 0 && (
+              <div className="text-center py-20 border-2 border-dashed rounded-xl">
+                <p className="text-muted-foreground">Nenhum módulo criado ainda.</p>
+                <Button variant="outline" className="mt-4" onClick={addModule}>Criar Primeiro Módulo</Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <input ref={videoRef} type="file" className="hidden" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadVideo(file); }} />
       <input ref={materialRef} type="file" className="hidden" accept="video/*,application/pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadMaterial(file); }} />
 

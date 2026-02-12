@@ -13,14 +13,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   LifeBuoy, 
   Search, 
   MessageSquare, 
-  FileText, 
   Loader2, 
   Plus,
-  ArrowRight,
   ChevronRight,
   HelpCircle
 } from "lucide-react";
@@ -102,6 +101,7 @@ const Support = () => {
 
         <div className="grid gap-8 lg:grid-cols-12">
           <div className="lg:col-span-3 space-y-4">
+            {/* Desktop Sidebar Categories */}
             <div className="hidden lg:block space-y-1">
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 px-3">Categorias</h3>
               {categories.map(cat => (
@@ -121,7 +121,11 @@ const Support = () => {
               ))}
             </div>
 
-            <div className="lg:hidden">
+            {/* Mobile Category Selector */}
+            <div className="lg:hidden space-y-2">
+              <Label className="text-sm font-semibold text-muted-foreground px-1">
+                Selecione a categoria que deseja visualizar:
+              </Label>
               <select 
                 value={activeCategory || ""} 
                 onChange={(e) => { setActiveCategory(e.target.value); setSearch(""); }}
@@ -133,7 +137,8 @@ const Support = () => {
               </select>
             </div>
 
-            <Card className="bg-primary/5 border-primary/10 mt-6">
+            {/* Sidebar CTA (Desktop only, as mobile will have it at the bottom) */}
+            <Card className="hidden lg:block bg-primary/5 border-primary/10 mt-6">
               <CardContent className="pt-6">
                 <div className="flex flex-col items-center text-center space-y-3">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -204,6 +209,43 @@ const Support = () => {
                 </div>
               )}
             </section>
+
+            {/* Bottom CTA - Visible on all screens, but essential for mobile flow */}
+            <div className="mt-12 pt-8 border-t border-dashed">
+              <Card className="bg-primary/5 border-primary/10 overflow-hidden relative">
+                <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+                <CardContent className="pt-8 pb-8 px-6 sm:px-10">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+                    <div className="flex flex-col md:flex-row items-center gap-6">
+                      <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 rotate-3">
+                        <MessageSquare className="h-8 w-8 text-primary" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-xl font-bold">Não encontrou o que precisava?</h3>
+                        <p className="text-muted-foreground max-w-md">
+                          Se sua dúvida persiste, abra um chamado direto com nosso suporte técnico. Respondemos em até 24h úteis.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-3 w-full md:w-auto">
+                      <Button 
+                        variant="default" 
+                        size="lg"
+                        className="gap-2 shadow-lg h-14 px-8 text-lg" 
+                        onClick={() => setIsModalOpen(true)}
+                      >
+                        <Plus className="h-5 w-5" /> Abrir um Chamado
+                      </Button>
+                      {session && (
+                        <Link to="/dashboard/suporte" className="text-sm text-primary font-medium hover:underline">
+                          Ver histórico de chamados
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>

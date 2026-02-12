@@ -23,10 +23,12 @@ import {
   Settings,
   Lock,
   CreditCard,
-  EyeOff
+  EyeOff,
+  Calendar
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
-import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
+import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import PlanSelectionModal from "@/components/PlanSelectionModal";
@@ -145,7 +147,7 @@ const OverviewPage = () => {
     const rawDaysRemaining = differenceInDays(endDate, new Date());
     const daysRemaining = Math.max(0, rawDaysRemaining);
     const progress = Math.min(100, Math.max(0, ((30 - daysRemaining) / 30) * 100));
-    return { daysRemaining, progress, isExpired: daysRemaining <= 0 };
+    return { daysRemaining, progress, isExpired: daysRemaining <= 0, endDate };
   };
 
   const handleRetryVerification = async () => {
@@ -307,23 +309,53 @@ const OverviewPage = () => {
                 </div>
                 
                 {hasPaidPlan ? (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full gap-2" 
-                    onClick={handleManageBilling}
-                    disabled={isManagingBilling}
-                  >
-                    {isManagingBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                    Gerenciar Assinatura
-                  </Button>
+                  <div className="space-y-4">
+                    <div className={cn(
+                      "p-3 rounded-lg border text-xs flex items-start gap-3",
+                      profile.cancel_at_period_end 
+                        ? "bg-amber-50 border-amber-200 text-amber-800" 
+                        : "bg-secondary/30 border-border text-muted-foreground"
+                    )}>
+                      {profile.cancel_at_period_end ? (
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      ) : (
+                        <Calendar className="h-4 w-4 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        {profile.cancel_at_period_end ? (
+                          <>
+                            <p className="font-bold">Assinatura programada para cancelamento</p>
+                            <p className="mt-1">Seu acesso será encerrado em: <strong>{profile.subscription_end_at ? format(parseISO(profile.subscription_end_at), "dd/MM/yyyy") : "—"}</strong></p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-medium">Próxima renovação</p>
+                            <p className="mt-1">Sua assinatura renova em: <strong>{profile.subscription_end_at ? format(parseISO(profile.subscription_end_at), "dd/MM/yyyy") : "—"}</strong></p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full gap-2" 
+                      onClick={handleManageBilling}
+                      disabled={isManagingBilling}
+                    >
+                      {isManagingBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                      Gerenciar Assinatura
+                    </Button>
+                  </div>
                 ) : trial && (
                   <div className="space-y-2">
                     <Progress value={trial.progress} className="h-2" />
                     {trial.isExpired ? (
                       <p className="text-[10px] text-destructive font-medium">Período gratuito expirado. Escolha um plano para continuar visível.</p>
                     ) : (
-                      <p className="text-[10px] text-muted-foreground italic">* Plano de 30 dias aplicado automaticamente no cadastro.</p>
+                      <p className="text-[10px] text-muted-foreground italic">
+                        Seu teste grátis termina em: <strong>{format(trial.endDate, "dd/MM/yyyy")}</strong>
+                      </p>
                     )}
                     <Button 
                       size="sm" 

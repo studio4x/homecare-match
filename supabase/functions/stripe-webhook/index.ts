@@ -44,6 +44,31 @@ serve(async (req) => {
 
     console.log(`[stripe-webhook] Evento validado: \${event.type}`);
 
+    // Função auxiliar para atualizar dados da assinatura no perfil
+    const updateSubscriptionData = async (subscription) => {
+      const customer = await stripe.customers.retrieve(subscription.customer);
+      const email = customer.email;
+      
+      if (email) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (profile) {
+          await supabaseAdmin
+            .from('profiles')
+            .update({ 
+              subscription_end_at: new Date(subscription.current_period_end * 1000).toISOString(),
+              cancel_at_period_end: subscription.cancel_at_period_end,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', profile.id);
+        }
+      }
+    };
+
     // 1. Sucesso no Pagamento / Nova Assinatura
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
@@ -51,10 +76,14 @@ serve(async (req) => {
       const planId = session.metadata?.planId;
 
       if (userId && planId) {
+        const subscription = await stripe.subscriptions.retrieve(session.subscription);
+        
         await supabaseAdmin
           .from('profiles')
           .update({ 
             subscription_tier: planId,
+            subscription_end_at: new Date(subscription.current_period_end * 1000).toISOString(),
+            cancel_at_period_end: subscription.cancel_at_period_end,
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
@@ -62,12 +91,16 @@ serve(async (req) => {
       }
     }
 
-    // 2. Assinatura Cancelada ou Expirada
+    // 2. Atualização de Assinatura (ex: cancelamento programado)
+    if (event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object;
+      await updateSubscriptionData(subscription);
+    }
+
+    // 3. Assinatura Cancelada ou Expirada (Fim definitivo)
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object;
       const customerId = subscription.customer;
-      
-      // Busca o usuário pelo e-mail do cliente na Stripe
       const customer = await stripe.customers.retrieve(customerId);
       const email = customer.email;
 
@@ -83,10 +116,12 @@ serve(async (req) => {
             .from('profiles')
             .update({ 
               subscription_tier: 'free_trial',
+              subscription_end_at: null,
+              cancel_at_period_end: false,
               updated_at: new Date().toISOString()
             })
             .eq('id', profile.id);
-          console.log(`[stripe-webhook] REVERSÃO: Usuário \${email} voltou para free_trial após cancelamento.`);
+          console.log(`[stripe-webhook] REVERSÃO: Usuário \${email} voltou para free_trial após expiração.`);
         }
       }
     }

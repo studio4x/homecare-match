@@ -38,6 +38,11 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS gtm_enabled BOOLEAN DEFAULT true,
         ADD COLUMN IF NOT EXISTS fb_pixel_id TEXT,
         ADD COLUMN IF NOT EXISTS fb_pixel_enabled BOOLEAN DEFAULT true;
+
+      -- Colunas de controle de assinatura no perfil
+      ALTER TABLE public.profiles
+        ADD COLUMN IF NOT EXISTS subscription_end_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT false;
     `;
     await client.queryObject(sql);
 

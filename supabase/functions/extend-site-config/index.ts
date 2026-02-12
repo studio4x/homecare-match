@@ -25,8 +25,13 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS stripe_publishable_key_test TEXT,
         ADD COLUMN IF NOT EXISTS stripe_publishable_key_live TEXT;
 
-      -- IDs de preço separados por modo na tabela de planos
+      -- IDs de preço na tabela de planos
       ALTER TABLE public.plans 
+        ADD COLUMN IF NOT EXISTS stripe_price_id_test TEXT,
+        ADD COLUMN IF NOT EXISTS stripe_price_id_live TEXT;
+
+      -- IDs de preço na tabela de cursos (NOVO)
+      ALTER TABLE public.academy_courses
         ADD COLUMN IF NOT EXISTS stripe_price_id_test TEXT,
         ADD COLUMN IF NOT EXISTS stripe_price_id_live TEXT;
 

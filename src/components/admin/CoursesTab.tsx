@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye, DollarSign, Video } from "lucide-react";
+import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye, DollarSign, Video, FlaskConical, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/ui/RichTextEditor";
@@ -86,6 +86,8 @@ interface Course {
   video_url?: string;
   video_storage_path?: string;
   video_mime?: string;
+  stripe_price_id_test?: string;
+  stripe_price_id_live?: string;
 }
 
 const generateSlug = (text: string) => {
@@ -180,7 +182,9 @@ const CoursesTab = () => {
       video_source: "url",
       video_url: "",
       video_storage_path: "",
-      video_mime: ""
+      video_mime: "",
+      stripe_price_id_test: "",
+      stripe_price_id_live: ""
     });
     setOpenDialog(true);
   };
@@ -191,7 +195,9 @@ const CoursesTab = () => {
       video_source: c.video_source || "url",
       video_url: c.video_url || "",
       video_storage_path: c.video_storage_path || "",
-      video_mime: c.video_mime || ""
+      video_mime: c.video_mime || "",
+      stripe_price_id_test: c.stripe_price_id_test || "",
+      stripe_price_id_live: c.stripe_price_id_live || ""
     });
     setOpenDialog(true);
   };
@@ -216,7 +222,7 @@ const CoursesTab = () => {
     setIsSaving(true);
     try {
       // Garante que as colunas existam
-      await supabase.functions.invoke("academy-migrate", { body: { action: "create_tables" } });
+      await supabase.functions.invoke("extend-site-config");
       
       const { error } = await supabase.from("academy_courses").upsert({
         ...selectedCourse,
@@ -511,7 +517,7 @@ const CoursesTab = () => {
               variant="outline"
               onClick={async () => {
                 toast.info("Sincronizando estrutura...");
-                const { error } = await supabase.functions.invoke("academy-migrate", { body: { action: "create_tables" } });
+                const { error } = await supabase.functions.invoke("extend-site-config");
                 if (error) toast.error("Erro ao sincronizar."); else toast.success("Banco de dados atualizado!");
               }}
             >
@@ -610,6 +616,21 @@ const CoursesTab = () => {
                   </Select>
                 </div>
               </div>
+
+              {/* SEÇÃO STRIPE PARA CURSOS PAGOS */}
+              {selectedCourse.price && selectedCourse.price > 0 ? (
+                <div className="grid grid-cols-2 gap-4 p-4 bg-secondary/20 rounded-lg border">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-amber-600"><FlaskConical className="h-3 w-3" /> Stripe ID (Teste)</Label>
+                    <Input placeholder="price_..." value={selectedCourse.stripe_price_id_test || ''} onChange={e => setSelectedCourse({...selectedCourse, stripe_price_id_test: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-success"><Zap className="h-3 w-3" /> Stripe ID (Produção)</Label>
+                    <Input placeholder="price_..." value={selectedCourse.stripe_price_id_live || ''} onChange={e => setSelectedCourse({...selectedCourse, stripe_price_id_live: e.target.value})} />
+                  </div>
+                  <p className="col-span-2 text-[10px] text-muted-foreground italic">Necessário para processar o pagamento único deste curso.</p>
+                </div>
+              ) : null}
 
               <div className="space-y-2">
                 <Label>Duração Total (minutos)</Label>

@@ -37,32 +37,43 @@ serve(async (req) => {
     const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
     if (!user) throw new Error('Sessão inválida.');
 
-    const { planId } = await req.json();
-    const { data: plan } = await supabaseAdmin.from('plans').select('*').eq('id', planId).maybeSingle();
+    const { planId, courseSlug } = await req.json();
     
-    if (!plan) throw new Error(`Plano "${planId}" não encontrado.`);
+    let stripeId = "";
+    let metadata = { userId: user.id };
+    let checkoutMode = "subscription";
 
-    let stripeId = config?.stripe_mode === 'live' ? plan.stripe_price_id_live : plan.stripe_price_id_test;
+    if (courseSlug) {
+      // Pagamento de Curso
+      const { data: course } = await supabaseAdmin.from('academy_courses').select('*').eq('slug', courseSlug).maybeSingle();
+      if (!course) throw new Error(`Curso "${courseSlug}" não encontrado.`);
+      
+      stripeId = config?.stripe_mode === 'live' ? course.stripe_price_id_live : course.stripe_price_id_test;
+      metadata.courseSlug = courseSlug;
+      checkoutMode = "payment";
+    } else if (planId) {
+      // Pagamento de Assinatura
+      const { data: plan } = await supabaseAdmin.from('plans').select('*').eq('id', planId).maybeSingle();
+      if (!plan) throw new Error(`Plano "${planId}" não encontrado.`);
+      
+      stripeId = config?.stripe_mode === 'live' ? plan.stripe_price_id_live : plan.stripe_price_id_test;
+      metadata.planId = planId;
+      checkoutMode = "subscription";
+    } else {
+      throw new Error("Nenhum item selecionado para pagamento.");
+    }
     
     if (!stripeId) {
       throw new Error(`ID da Stripe não configurado para o modo ${mode}.`);
     }
 
-    let finalPriceId = stripeId;
-
-    if (stripeId.startsWith('prod_')) {
-      const product = await stripe.products.retrieve(stripeId);
-      if (!product.default_price) throw new Error("Produto sem preço padrão na Stripe.");
-      finalPriceId = typeof product.default_price === 'string' ? product.default_price : product.default_price.id;
-    }
-
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email,
-      line_items: [{ price: finalPriceId, quantity: 1 }],
-      mode: 'subscription',
+      line_items: [{ price: stripeId, quantity: 1 }],
+      mode: checkoutMode,
       success_url: `${req.headers.get('origin')}/dashboard?success=true`,
       cancel_url: `${req.headers.get('origin')}/dashboard?canceled=true`,
-      metadata: { userId: user.id, planId: planId }
+      metadata: metadata
     });
 
     return new Response(JSON.stringify({ url: session.url }), {

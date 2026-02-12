@@ -21,7 +21,8 @@ import {
   GraduationCap,
   ChevronRight,
   Eye,
-  Maximize2
+  Maximize2,
+  ShoppingCart
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -180,7 +181,32 @@ const CourseDetail = () => {
       navigate("/login");
       return;
     }
+
     setEnrollmentLoading(true);
+
+    // Se o curso for pago, redireciona para o checkout
+    if (course.price && course.price > 0) {
+      const toastId = toast.loading("Iniciando checkout...");
+      try {
+        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+          body: { courseSlug: slug }
+        });
+
+        if (error) throw error;
+        if (data?.url) {
+          window.location.href = data.url;
+          return;
+        }
+      } catch (err: any) {
+        toast.error(err.message || "Erro ao iniciar pagamento.");
+        toast.dismiss(toastId);
+      } finally {
+        setEnrollmentLoading(false);
+      }
+      return;
+    }
+
+    // Se for grátis, inscreve direto
     try {
       const { error } = await supabase.from("academy_enrollments").insert({
         user_id: user?.id,
@@ -305,11 +331,26 @@ const CourseDetail = () => {
                   <Badge variant="secondary" className="capitalize">{course.level}</Badge>
                   <span className="text-sm text-muted-foreground">{course.duration_minutes} min</span>
                 </div>
+                
                 {!isEnrolled ? (
-                  <Button onClick={handleEnroll} disabled={enrollmentLoading} className="w-full h-12 text-lg">
-                    {enrollmentLoading ? <Loader2 className="animate-spin mr-2" /> : <GraduationCap className="mr-2" />}
-                    Inscrever-se Grátis
-                  </Button>
+                  <div className="space-y-4">
+                    {course.price && course.price > 0 ? (
+                      <div className="text-center p-3 bg-secondary/20 rounded-lg border border-dashed">
+                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Investimento</p>
+                        <p className="text-2xl font-bold text-foreground">R$ {Number(course.price).toFixed(2).replace('.', ',')}</p>
+                      </div>
+                    ) : null}
+                    
+                    <Button onClick={handleEnroll} disabled={enrollmentLoading} className="w-full h-12 text-lg gap-2">
+                      {enrollmentLoading ? (
+                        <Loader2 className="animate-spin h-5 w-5" />
+                      ) : course.price && course.price > 0 ? (
+                        <><ShoppingCart className="h-5 w-5" /> Comprar Curso</>
+                      ) : (
+                        <><GraduationCap className="h-5 w-5" /> Inscrever-se Grátis</>
+                      )}
+                    </Button>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="space-y-2">

@@ -24,7 +24,10 @@ import {
   Lock,
   CreditCard,
   EyeOff,
-  Calendar
+  Calendar,
+  User,
+  Building2,
+  Home
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -165,6 +168,27 @@ const OverviewPage = () => {
     }
   };
 
+  const getRoleBadge = () => {
+    if (!profile?.role) return null;
+    
+    const roles: Record<string, { label: string, icon: any, color: string }> = {
+      professional: { label: "Profissional", icon: User, color: "bg-primary/10 text-primary border-primary/20" },
+      company: { label: "Empresa", icon: Building2, color: "bg-success/10 text-success border-success/20" },
+      family: { label: "Família", icon: Home, color: "bg-amber-100 text-amber-700 border-amber-200" },
+      admin: { label: "Administrador", icon: ShieldCheck, color: "bg-slate-100 text-slate-700 border-slate-200" }
+    };
+
+    const config = roles[profile.role] || { label: profile.role, icon: User, color: "bg-secondary text-secondary-foreground" };
+    const Icon = config.icon;
+
+    return (
+      <Badge variant="outline" className={cn("w-fit gap-1.5 py-1 px-3 text-[10px] uppercase font-bold tracking-wider mb-2", config.color)}>
+        <Icon className="h-3 w-3" />
+        {config.label}
+      </Badge>
+    );
+  };
+
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
 
   const completeness = getProfileCompleteness();
@@ -177,6 +201,7 @@ const OverviewPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
+        {getRoleBadge()}
         <h1 className="text-3xl font-bold tracking-tight">Olá, {firstName}!</h1>
         <p className="text-muted-foreground max-w-2xl">
           {isProfessional 

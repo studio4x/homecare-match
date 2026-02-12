@@ -196,7 +196,15 @@ const OverviewPage = () => {
   const isProfessional = profile?.role === 'professional';
   const isAdmin = profile?.is_admin || profile?.role === 'admin';
   const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
-  const hasPaidPlan = profile?.subscription_tier === 'monthly' || profile?.subscription_tier === 'yearly';
+  
+  // Identifica se o plano é pago (qualquer um que não seja free_trial ou nulo)
+  const hasPaidPlan = profile?.subscription_tier && profile?.subscription_tier !== 'free_trial';
+
+  const getPlanLabel = (tier: string) => {
+    if (tier === 'monthly') return 'Plano Mensal';
+    if (tier === 'yearly') return 'Plano Anual';
+    return tier;
+  };
 
   return (
     <div className="space-y-6">
@@ -326,7 +334,7 @@ const OverviewPage = () => {
               <CardContent>
                 <div className="flex items-center justify-between mb-4">
                   <Badge variant="outline" className="capitalize">
-                    {profile?.subscription_tier === 'free_trial' ? 'Teste Grátis' : profile?.subscription_tier === 'monthly' ? 'Mensal' : 'Anual'}
+                    {getPlanLabel(profile?.subscription_tier)}
                   </Badge>
                   {trial && !trial.isExpired && (
                     <span className="text-xs font-medium text-primary">{trial.daysRemaining} dias restantes</span>
@@ -349,7 +357,7 @@ const OverviewPage = () => {
                       <div>
                         {profile.cancel_at_period_end ? (
                           <>
-                            <p className="font-bold">Assinatura programada para cancelamento</p>
+                            <p className="font-bold">Assinatura cancelada</p>
                             <p className="mt-1">Seu acesso será encerrado em: <strong>{profile.subscription_end_at ? format(parseISO(profile.subscription_end_at), "dd/MM/yyyy") : "—"}</strong></p>
                           </>
                         ) : (
@@ -429,7 +437,7 @@ const OverviewPage = () => {
               )}
               {isProfessional && (
                 <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 hover:bg-primary/5">
-                  <Link to={`/profissional/\${user?.id}`}>
+                  <Link to={`/profissional/${user?.id}`}>
                     <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <Eye className="h-4 w-4 text-primary" />
                     </div>

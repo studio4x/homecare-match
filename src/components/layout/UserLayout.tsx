@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import ImpersonationBar from "../ImpersonationBar";
 
 const UserLayout = () => {
   const { user, signOut, loading: authLoading } = useAuth();
-  const location = useLocation();
+  const navigate = useNavigate();
   const [role, setRole] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -45,7 +45,14 @@ const UserLayout = () => {
           .select('*')
           .eq('id', user.id)
           .single();
+        
         if (data) {
+          // Se for admin, redireciona para o painel admin imediatamente
+          if (data.is_admin || data.role === 'admin') {
+            navigate('/admin', { replace: true });
+            return;
+          }
+          
           setRole(data.role);
           setProfile(data);
         }
@@ -56,7 +63,7 @@ const UserLayout = () => {
       }
     };
     fetchProfile();
-  }, [user]);
+  }, [user, navigate]);
 
   if (authLoading || loading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

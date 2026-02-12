@@ -17,7 +17,7 @@ const Navbar = () => {
   const { session, user } = useAuth();
   const { data: config } = useSiteConfig();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [profile, setProfile] = useState<{ avatar_url: string | null; full_name: string | null; role: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ avatar_url: string | null; full_name: string | null; role: string | null; is_admin: boolean | null } | null>(null);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -26,7 +26,7 @@ const Navbar = () => {
       const fetchProfile = async () => {
         const { data } = await supabase
           .from("profiles")
-          .select("avatar_url, full_name, role")
+          .select("avatar_url, full_name, role, is_admin")
           .eq("id", user.id)
           .single();
         
@@ -42,10 +42,13 @@ const Navbar = () => {
     ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() 
     : "??";
 
-  const canSeeSearch = !session || (session && profile && profile.role !== 'professional');
+  const isAdmin = profile?.is_admin || profile?.role === 'admin';
+  const canSeeSearch = !session || (session && profile && profile.role !== 'professional' && !isAdmin);
 
   const logoUrl = config?.logo_url || DEFAULT_LOGO;
   const logoHeight = config?.logo_height_px || 48;
+
+  const dashboardPath = isAdmin ? "/admin" : "/dashboard";
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -102,10 +105,10 @@ const Navbar = () => {
           {/* Desktop CTA */}
           <div className="hidden items-center gap-3 md:flex">
             {session ? (
-              <Link to="/dashboard" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+              <Link to={dashboardPath} className="flex items-center gap-3 transition-opacity hover:opacity-80">
                 <div className="flex flex-col items-end">
                   <span className="text-xs font-medium text-foreground leading-none">Minha Conta</span>
-                  <span className="text-[10px] text-muted-foreground">Dashboard</span>
+                  <span className="text-[10px] text-muted-foreground">{isAdmin ? "Painel Admin" : "Dashboard"}</span>
                 </div>
                 <Avatar className="h-9 w-9 border border-border shadow-sm">
                   <AvatarImage src={profile?.avatar_url || ""} />
@@ -185,12 +188,12 @@ const Navbar = () => {
               <div className="flex flex-col gap-2 pt-2 border-t border-border mt-2">
                 {session ? (
                   <Button variant="outline" asChild className="justify-start gap-3 h-12">
-                    <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                    <Link to={dashboardPath} onClick={() => setMobileMenuOpen(false)}>
                       <Avatar className="h-7 w-7">
                         <AvatarImage src={profile?.avatar_url || ""} />
                         <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
                       </Avatar>
-                      Meu Perfil
+                      {isAdmin ? "Painel Admin" : "Meu Perfil"}
                     </Link>
                   </Button>
                 ) : (

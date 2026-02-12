@@ -125,16 +125,16 @@ const Footer = () => {
               <li className="md:hidden">
                 <SuggestionDrawer variant="footer" />
               </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="h-4 w-4" />
+              <li className="flex items-center gap-2 text-sm text-muted-foreground break-all">
+                <Mail className="h-4 w-4 shrink-0" />
                 contato@homecarematch.com.br
               </li>
               <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4" />
+                <Phone className="h-4 w-4 shrink-0" />
                 (11) 99999-9999
               </li>
               <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4" />
+                <MapPin className="h-4 w-4 shrink-0" />
                 São Paulo, SP
               </li>
             </ul>

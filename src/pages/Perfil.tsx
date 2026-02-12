@@ -558,7 +558,7 @@ const Perfil = () => {
                 className="w-full h-14 text-lg font-semibold shadow-lg gap-2"
                 asChild
               >
-                <Link to="/dashboard">
+                <Link to="/dashboard/contatos">
                   <LayoutGrid className="h-5 w-5" />
                   Ir para o Painel
                 </Link>

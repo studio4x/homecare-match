@@ -73,7 +73,14 @@ const RecruiterProfile = () => {
     );
   }
 
-  const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase();
+  const initials = (profile.full_name || "")
+    .split(" ")
+    .filter(Boolean)
+    .map((n: string) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "??";
+
   const isCompany = profile.role === 'company';
 
   return (
@@ -111,7 +118,7 @@ const RecruiterProfile = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <h1 className="text-3xl font-bold text-foreground">{profile.full_name}</h1>
+                  <h1 className="text-3xl font-bold text-foreground">{profile.full_name || "Recrutador"}</h1>
                   <div className="mt-2 flex flex-wrap items-center gap-3">
                     <Badge variant={isCompany ? "secondary" : "outline"} className="capitalize flex items-center gap-1.5">
                       {isCompany ? <Building2 className="h-3 w-3" /> : <Home className="h-3 w-3" />}
@@ -119,7 +126,7 @@ const RecruiterProfile = () => {
                     </Badge>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <MapPin className="h-4 w-4 text-primary" />
-                      {profile.city && profile.state ? `\${profile.city} - \${profile.state}` : 'Localização não informada'}
+                      {profile.city && profile.state ? `${profile.city} - ${profile.state}` : 'Localização não informada'}
                     </div>
                   </div>
                 </div>

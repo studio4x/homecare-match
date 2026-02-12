@@ -208,7 +208,14 @@ const Perfil = () => {
     </Layout>
   );
 
-  const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase();
+  const initials = (profile.full_name || "")
+    .split(" ")
+    .filter(Boolean)
+    .map((n: string) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "??";
+
   const isPremium = profile.subscription_tier === 'yearly';
   const specialtyLabel = (profile.specialty || '').replace(/-/g, ' ');
   
@@ -256,7 +263,7 @@ const Perfil = () => {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3">
                       <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-                        {profile.full_name}
+                        {profile.full_name || "Profissional"}
                         {isPremium && (
                           <TooltipProvider>
                             <Tooltip>
@@ -300,23 +307,23 @@ const Perfil = () => {
                             </TooltipTrigger>
                             <TooltipContent>
                               Programa de Indicação: {referralStats.currentTier?.badge_label || "Embaixador"} • Indicações: {referralStats.count}
-                              {referralStats.nextTier ? ` • Próximo selo: \${referralStats.nextTier.badge_label} em \${referralStats.nextTier.threshold}` : ""}
+                              {referralStats.nextTier ? ` • Próximo selo: ${referralStats.nextTier.badge_label} em ${referralStats.nextTier.threshold}` : ""}
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       )}
                     </div>
                     <p className="mt-2 text-xl text-muted-foreground font-medium uppercase tracking-tight">
-                      {specialtyLabel}
+                      {specialtyLabel || "Especialidade não informada"}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4 text-primary" />
-                        {profile.neighborhood}, {profile.city} - {profile.state}
+                        {[profile.neighborhood, profile.city].filter(Boolean).join(", ")} {profile.state ? `- ${profile.state}` : ""}
                       </div>
                       <div className="flex items-center gap-1">
                         <Award className="h-4 w-4 text-primary" />
-                        {profile.registration}
+                        {profile.registration || "Sem registro informado"}
                       </div>
                     </div>
                   </div>

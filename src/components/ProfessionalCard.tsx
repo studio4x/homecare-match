@@ -28,12 +28,13 @@ const ProfessionalCard = ({
   isVerified = false,
   subscriptionTier = 'monthly'
 }: ProfessionalCardProps) => {
-  const initials = name
-    ?.split(" ")
+  const initials = (name || "")
+    .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .slice(0, 2)
-    .toUpperCase();
+    .toUpperCase() || "??";
 
   const isPremium = subscriptionTier === 'yearly';
 
@@ -56,7 +57,7 @@ const ProfessionalCard = ({
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-1">
-            <h3 className="font-semibold text-foreground line-clamp-1">{name}</h3>
+            <h3 className="font-semibold text-foreground line-clamp-1">{name || "Profissional"}</h3>
             {isPremium && <Star className="h-4 w-4 text-gold fill-gold" />}
             {isVerified && <ShieldCheck className="h-4 w-4 text-success" />}
           </div>

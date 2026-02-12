@@ -450,18 +450,16 @@ const OverviewPage = () => {
                         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                           {subStatus?.dateLabel || "Data"}
                         </p>
-                        {!profile.subscription_end_at && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 text-[10px] gap-1 text-primary hover:bg-primary/10"
-                            onClick={handleSyncStripe}
-                            disabled={isSyncingStripe}
-                          >
-                            {isSyncingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                            Sincronizar Agora
-                          </Button>
-                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[10px] gap-1 text-primary hover:bg-primary/10"
+                          onClick={handleSyncStripe}
+                          disabled={isSyncingStripe}
+                        >
+                          {isSyncingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                          Sincronizar Agora
+                        </Button>
                       </div>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-primary" />

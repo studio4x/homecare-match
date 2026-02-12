@@ -21,13 +21,14 @@ import {
   Eye,
   LifeBuoy,
   Settings,
-  Lock,
   CreditCard,
   EyeOff,
   Calendar,
   User,
   Building2,
-  Home
+  Home,
+  XCircle,
+  HelpCircle
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -189,6 +190,57 @@ const OverviewPage = () => {
     );
   };
 
+  // Helper para determinar status da assinatura
+  const getSubscriptionStatus = () => {
+    if (!profile) return null;
+    
+    // Se não tiver data de fim, assumimos que está processando ou é vitalício/manual
+    if (!profile.subscription_end_at) {
+      return {
+        label: "Ativa",
+        description: "Sincronizando data...",
+        icon: CheckCircle2,
+        color: "text-green-600",
+        bg: "bg-green-50 border-green-200",
+        dateLabel: "Renovação em"
+      };
+    }
+
+    const endDate = parseISO(profile.subscription_end_at);
+    const now = new Date();
+    const isExpired = endDate < now;
+
+    if (profile.cancel_at_period_end) {
+      if (isExpired) {
+        return {
+          label: "Expirada",
+          description: "Renove para continuar.",
+          icon: XCircle,
+          color: "text-red-600",
+          bg: "bg-red-50 border-red-200",
+          dateLabel: "Expirou em"
+        };
+      }
+      return {
+        label: "Cancelada",
+        description: "Acesso até o fim do ciclo.",
+        icon: AlertCircle,
+        color: "text-amber-600",
+        bg: "bg-amber-50 border-amber-200",
+        dateLabel: "Acesso até"
+      };
+    }
+
+    return {
+      label: "Ativa",
+      description: "Renovação automática.",
+      icon: CheckCircle2,
+      color: "text-green-600",
+      bg: "bg-green-50 border-green-200",
+      dateLabel: "Próxima renovação"
+    };
+  };
+
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
 
   const completeness = getProfileCompleteness();
@@ -197,8 +249,8 @@ const OverviewPage = () => {
   const isAdmin = profile?.is_admin || profile?.role === 'admin';
   const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
   
-  // Identifica se o plano é pago (qualquer um que não seja free_trial ou nulo)
   const hasPaidPlan = profile?.subscription_tier && profile?.subscription_tier !== 'free_trial';
+  const subStatus = getSubscriptionStatus();
 
   const getPlanLabel = (tier: string) => {
     if (tier === 'monthly') return 'Plano Mensal';
@@ -219,7 +271,6 @@ const OverviewPage = () => {
         </p>
       </div>
 
-      {/* Alerta de Perfil Oculto (Trial Expirado) */}
       {isProfessional && trial?.isExpired && (
         <Card className="border-destructive/50 bg-destructive/5 animate-pulse">
           <CardContent className="pt-6">
@@ -230,7 +281,7 @@ const OverviewPage = () => {
               <div className="space-y-3 flex-1">
                 <h3 className="font-bold text-destructive text-lg">Seu perfil está OCULTO nas buscas!</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Seu período de teste gratuito de 30 dias chegou ao fim. Para que empresas e famílias continuem encontrando seu perfil e entrando em contato com você, é necessário assinar um dos nossos planos.
+                  Seu período de teste gratuito chegou ao fim. Para continuar visível para empresas e famílias, escolha um plano.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button 
@@ -258,20 +309,19 @@ const OverviewPage = () => {
                 <AlertCircle className="h-6 w-6 text-primary" />
               </div>
               <div className="space-y-3 flex-1">
-                <h3 className="font-semibold text-primary">Seu perfil ainda não está completo</h3>
+                <h3 className="font-semibold text-primary">Perfil Incompleto</h3>
                 <p className="text-sm text-muted-foreground">
-                  Para uma melhor experiência na plataforma, complete os seguintes campos: 
-                  <span className="font-medium"> {completeness.missingFields.join(", ")}</span>.
+                  Complete: <span className="font-medium">{completeness.missingFields.join(", ")}</span>.
                 </p>
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs mb-1">
-                    <span>Progresso do Perfil</span>
+                    <span>Progresso</span>
                     <span>{completeness.progress}%</span>
                   </div>
                   <Progress value={completeness.progress} className="h-2" />
                 </div>
                 <Button asChild size="sm" className="gap-2">
-                  <Link to="/dashboard/perfil">Completar Perfil <ArrowRight className="h-4 w-4" /></Link>
+                  <Link to="/dashboard/perfil">Completar Agora <ArrowRight className="h-4 w-4" /></Link>
                 </Button>
               </div>
             </div>
@@ -317,7 +367,7 @@ const OverviewPage = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado e transmitir mais segurança.</p>
+                  <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
                   <Button asChild variant="outline" size="sm" className="w-full">
                     <Link to="/dashboard/perfil">Enviar Documentos</Link>
                   </Button>
@@ -333,11 +383,14 @@ const OverviewPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between mb-4">
-                  <Badge variant="outline" className="capitalize">
+                  <Badge variant="outline" className="capitalize text-base px-3 py-1">
                     {getPlanLabel(profile?.subscription_tier)}
                   </Badge>
-                  {trial && !trial.isExpired && (
-                    <span className="text-xs font-medium text-primary">{trial.daysRemaining} dias restantes</span>
+                  {subStatus && (
+                    <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium", subStatus.bg, subStatus.color)}>
+                      <subStatus.icon className="h-3.5 w-3.5" />
+                      {subStatus.label}
+                    </div>
                   )}
                 </div>
                 
@@ -372,7 +425,7 @@ const OverviewPage = () => {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="w-full gap-2" 
+                      className="w-full gap-2 h-10" 
                       onClick={handleManageBilling}
                       disabled={isManagingBilling}
                     >
@@ -381,22 +434,26 @@ const OverviewPage = () => {
                     </Button>
                   </div>
                 ) : trial && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-muted-foreground">Período de Teste</span>
+                      <span className={cn("font-medium", trial.daysRemaining <= 5 ? "text-destructive" : "text-primary")}>
+                        {trial.daysRemaining} dias restantes
+                      </span>
+                    </div>
                     <Progress value={trial.progress} className="h-2" />
-                    {trial.isExpired ? (
-                      <p className="text-[10px] text-destructive font-medium">Período gratuito expirado. Escolha um plano para continuar visível.</p>
-                    ) : (
-                      <p className="text-[10px] text-muted-foreground italic">
-                        Seu teste grátis termina em: <strong>{format(trial.endDate, "dd/MM/yyyy")}</strong>
-                      </p>
-                    )}
+                    
+                    <p className="text-[10px] text-muted-foreground italic text-center pt-1">
+                      Expira em: <strong>{format(trial.endDate, "dd/MM/yyyy")}</strong>
+                    </p>
+                    
                     <Button 
                       size="sm" 
                       className="w-full mt-2" 
                       variant={trial.isExpired ? "default" : "outline"}
                       onClick={() => setIsPlanModalOpen(true)}
                     >
-                      Ver Planos de Assinatura
+                      Assinar Agora
                     </Button>
                   </div>
                 )}

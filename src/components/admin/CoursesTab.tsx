@@ -262,7 +262,7 @@ const CoursesTab = () => {
       mod.lessons = [...mod.lessons, {
         id: crypto.randomUUID(),
         title: "Nova Aula",
-        type: "video",
+        type: "text", // Alterado de 'video' para 'text' como padrão
         duration_minutes: 0,
         resource_url: "",
         content: "",

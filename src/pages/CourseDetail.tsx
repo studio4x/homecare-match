@@ -346,7 +346,7 @@ const CourseDetail = () => {
       </div>
 
       <Dialog open={!!selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)}>
-        <DialogContent className="w-[95vw] max-w-4xl h-[92dvh] sm:h-auto sm:max-h-[90vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className="w-[95vw] max-w-5xl h-[92dvh] sm:h-auto sm:max-h-[95vh] flex flex-col p-0 overflow-hidden">
           {selectedLesson && (
             <>
               <DialogHeader className="p-4 sm:p-6 border-b bg-card shrink-0">
@@ -364,7 +364,7 @@ const CourseDetail = () => {
                     className={cn(
                       "max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words overflow-x-hidden",
                       selectedLesson.type === 'text' && "prose prose-slate",
-                      selectedLesson.type === 'html' && "p-0 min-h-[500px] sm:min-h-[600px]"
+                      selectedLesson.type === 'html' && "p-0 min-h-[70vh] flex flex-col [&>iframe]:flex-1 [&>iframe]:w-full [&>iframe]:min-h-[70vh]"
                     )} 
                     dangerouslySetInnerHTML={{ __html: selectedLesson.content }} 
                   />

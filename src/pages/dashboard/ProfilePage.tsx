@@ -35,7 +35,9 @@ import {
   ShieldCheck,
   KeyRound,
   AlertTriangle,
-  Check
+  Check,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -47,6 +49,11 @@ import {
   DialogFooter,
   DialogHeader
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 
 const ProfilePage = () => {
@@ -57,6 +64,7 @@ const ProfilePage = () => {
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
+  const [isDangerZoneOpen, setIsDangerZoneOpen] = useState(false);
   
   // Estados para o Modal de Exclusão
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
@@ -693,19 +701,38 @@ const ProfilePage = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-destructive/20">
-            <CardHeader>
-              <CardTitle className="text-base text-destructive flex items-center gap-2"><Trash2 className="h-4 w-4" /> Zona de Perigo</CardTitle>
-              <CardDescription className="text-[10px]">
+          <Collapsible
+            open={isDangerZoneOpen}
+            onOpenChange={setIsDangerZoneOpen}
+            className="border border-destructive/20 rounded-xl bg-card overflow-hidden"
+          >
+            <CollapsibleTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className="w-full flex items-center justify-between p-6 h-auto hover:bg-destructive/5 group"
+              >
+                <div className="flex items-center gap-2 text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                  <span className="font-semibold text-base">Zona de Perigo</span>
+                </div>
+                {isDangerZoneOpen ? <ChevronUp className="h-4 w-4 text-destructive" /> : <ChevronDown className="h-4 w-4 text-destructive" />}
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="px-6 pb-6 space-y-4 animate-accordion-down">
+              <p className="text-[10px] text-muted-foreground">
                 Ações irreversíveis relacionadas à exclusão definitiva da sua conta e de todos os seus dados.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/5 text-xs w-full justify-start" onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}>
+              </p>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                className="w-full justify-start gap-2 h-10" 
+                onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}
+              >
+                <Trash2 className="h-4 w-4" />
                 Excluir minha conta permanentemente
               </Button>
-            </CardContent>
-          </Card>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
       </div>
 

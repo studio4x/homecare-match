@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, LayoutDashboard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -234,67 +234,86 @@ const Courses = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Cursos de Capacitação</h1>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <h1 className="text-3xl font-bold">Cursos de Capacitação</h1>
+          <Button asChild variant="outline" className="hidden md:flex gap-2">
+            <Link to="/dashboard">
+              <LayoutDashboard className="h-4 w-4" />
+              Voltar ao Dashboard
+            </Link>
+          </Button>
+        </div>
 
         {loading ? (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" /> Carregando cursos...
           </div>
         ) : courses.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {courses.map((c) => (
-              <Card key={c.slug} className="overflow-hidden flex flex-col">
-                {c.hero_asset_url ? (
-                  <AspectRatio ratio={4/3} className="relative w-full bg-muted shrink-0">
-                    {isCompleted(c.slug) ? (
-                      <Badge className="absolute left-2 top-2 bg-success z-10">Concluído</Badge>
-                    ) : null}
-                    <img
-                      src={c.hero_asset_url}
-                      alt={c.title}
-                      className="h-full w-full object-cover rounded-t-md"
+          <>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {courses.map((c) => (
+                <Card key={c.slug} className="overflow-hidden flex flex-col">
+                  {c.hero_asset_url ? (
+                    <AspectRatio ratio={4/3} className="relative w-full bg-muted shrink-0">
+                      {isCompleted(c.slug) ? (
+                        <Badge className="absolute left-2 top-2 bg-success z-10">Concluído</Badge>
+                      ) : null}
+                      <img
+                        src={c.hero_asset_url}
+                        alt={c.title}
+                        className="h-full w-full object-cover rounded-t-md"
+                      />
+                    </AspectRatio>
+                  ) : null}
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between gap-2">
+                      <span className="line-clamp-2">{c.title}</span>
+                      <Badge variant="secondary" className="capitalize shrink-0">{c.level || "iniciante"}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 flex-1 flex flex-col">
+                    <div 
+                      className="text-sm text-muted-foreground prose prose-sm max-w-none line-clamp-4 flex-1"
+                      dangerouslySetInnerHTML={{ __html: c.description || "" }}
                     />
-                  </AspectRatio>
-                ) : null}
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between gap-2">
-                    <span className="line-clamp-2">{c.title}</span>
-                    <Badge variant="secondary" className="capitalize shrink-0">{c.level || "iniciante"}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 flex-1 flex flex-col">
-                  <div 
-                    className="text-sm text-muted-foreground prose prose-sm max-w-none line-clamp-4 flex-1"
-                    dangerouslySetInnerHTML={{ __html: c.description || "" }}
-                  />
-                  <div className="flex items-center justify-between pt-2">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      {c.duration_minutes ? `${c.duration_minutes} min` : ""}
-                    </span>
-                    <div className="flex gap-2">
-                      <Button asChild variant="outline" size="sm">
-                        <Link to={`/cursos/${c.slug}`}>Ver detalhes</Link>
-                      </Button>
-                      {isEnrolled(c.slug) ? (
-                        <Button 
-                          asChild 
-                          size="sm"
-                          className={cn(isCompleted(c.slug) && "bg-success hover:bg-success/90 border-none")}
-                        >
-                          <Link to={`/cursos/${c.slug}`}>{isCompleted(c.slug) ? "Rever Curso" : "Continuar"}</Link>
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        {c.duration_minutes ? `${c.duration_minutes} min` : ""}
+                      </span>
+                      <div className="flex gap-2">
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/cursos/${c.slug}`}>Ver detalhes</Link>
                         </Button>
-                      ) : (
-                        <Button size="sm" onClick={() => enroll(c.slug)} disabled={loadingEnroll}>
-                          {loadingEnroll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                          Inscrever-se
-                        </Button>
-                      )}
+                        {isEnrolled(c.slug) ? (
+                          <Button 
+                            asChild 
+                            size="sm"
+                            className={cn(isCompleted(c.slug) && "bg-success hover:bg-success/90 border-none")}
+                          >
+                            <Link to={`/cursos/${c.slug}`}>{isCompleted(c.slug) ? "Rever Curso" : "Continuar"}</Link>
+                          </Button>
+                        ) : (
+                          <Button size="sm" onClick={() => enroll(c.slug)} disabled={loadingEnroll}>
+                            {loadingEnroll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Inscrever-se
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            <div className="mt-12 flex md:hidden justify-center">
+              <Button asChild variant="outline" className="w-full max-w-xs gap-2 h-12">
+                <Link to="/dashboard">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Voltar ao Dashboard
+                </Link>
+              </Button>
+            </div>
+          </>
         ) : (
           <p className="text-muted-foreground">Nenhum curso disponível no momento.</p>
         )}

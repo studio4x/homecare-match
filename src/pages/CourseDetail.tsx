@@ -363,7 +363,8 @@ const CourseDetail = () => {
                   <div 
                     className={cn(
                       "max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words overflow-x-hidden",
-                      selectedLesson.type === 'text' && "prose prose-slate"
+                      selectedLesson.type === 'text' && "prose prose-slate",
+                      selectedLesson.type === 'html' && "p-0 min-h-[500px] sm:min-h-[600px]"
                     )} 
                     dangerouslySetInnerHTML={{ __html: selectedLesson.content }} 
                   />
@@ -431,9 +432,9 @@ const CourseDetail = () => {
                   }}
                 >
                   {progress[selectedLesson.id] === 'completed' ? (
-                    <><Check size={14} className="sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Aula Concluída</span><span className="xs:hidden">Concluída</span></>
+                    <><><Check size={14} className="sm:w-4 sm:h-4" /> <span className="hidden xs:inline">Aula Concluída</span><span className="xs:hidden">Concluída</span></></>
                   ) : (
-                    <><span className="hidden xs:inline">Marcar como Concluída</span><span className="xs:hidden">Concluir</span></>
+                    <><><span className="hidden xs:inline">Marcar como Concluída</span><span className="xs:hidden">Concluir</span></></>
                   )}
                 </Button>
               </div>

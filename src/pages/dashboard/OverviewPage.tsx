@@ -44,6 +44,7 @@ const OverviewPage = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncingStripe, setIsSyncingStripe] = useState(false);
   const [isManagingBilling, setIsManagingBilling] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
@@ -93,6 +94,27 @@ const OverviewPage = () => {
       };
     }
   }, [searchParams]);
+
+  const handleSyncStripe = async () => {
+    setIsSyncingStripe(true);
+    const toastId = toast.loading("Consultando Stripe...");
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-user-subscription');
+      if (error) throw error;
+      
+      if (data?.success) {
+        toast.success(data.message, { id: toastId });
+        await fetchProfile();
+      } else {
+        toast.info(data.message || "Nenhuma alteração encontrada.", { id: toastId });
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao sincronizar com Stripe.", { id: toastId });
+    } finally {
+      setIsSyncingStripe(false);
+    }
+  };
 
   const handleManageBilling = async () => {
     setIsManagingBilling(true);
@@ -412,9 +434,23 @@ const OverviewPage = () => {
                 {hasPaidPlan ? (
                   <div className="space-y-4">
                     <div className="p-4 rounded-lg border bg-secondary/10 flex flex-col gap-1">
-                      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">
-                        {subStatus?.dateLabel || "Data"}
-                      </p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                          {subStatus?.dateLabel || "Data"}
+                        </p>
+                        {!profile.subscription_end_at && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 text-[10px] gap-1 text-primary hover:bg-primary/10"
+                            onClick={handleSyncStripe}
+                            disabled={isSyncingStripe}
+                          >
+                            {isSyncingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                            Sincronizar Agora
+                          </Button>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-primary" />
                         <span className="text-sm font-bold text-foreground">
@@ -426,7 +462,7 @@ const OverviewPage = () => {
                       </div>
                       {!profile.subscription_end_at && (
                         <p className="text-[10px] text-muted-foreground mt-1 italic">
-                          A data será exibida assim que o pagamento for confirmado.
+                          Clique em sincronizar se você já realizou o pagamento.
                         </p>
                       )}
                       {profile.cancel_at_period_end && (

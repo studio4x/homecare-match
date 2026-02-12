@@ -31,26 +31,18 @@ serve(async (req) => {
       throw new Error('Usuário não autenticado ou sessão expirada.');
     }
 
-    console.log(`[sync-user-subscription] Sincronizando usuário: ${user.email} (${user.id})`);
-
     // 2. Configurar Stripe
-    const { data: config, error: configError } = await supabaseAdmin
+    const { data: config } = await supabaseAdmin
       .from('site_config')
       .select('stripe_mode')
       .eq('id', 1)
       .maybeSingle();
     
-    if (configError) {
-      console.error("[sync-user-subscription] Erro ao buscar site_config:", configError);
-    }
-
     const mode = config?.stripe_mode === 'live' ? 'LIVE' : 'TEST';
-    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${mode}`);
+    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_${mode}`);
     
-    console.log(`[sync-user-subscription] Modo Stripe: \${mode}`);
-
     if (!stripeSecret) {
-      throw new Error(`Configuração Stripe (Secret \${mode}) ausente no servidor.`);
+      throw new Error(`Configuração Stripe (Secret ${mode}) ausente no servidor.`);
     }
 
     const stripe = new Stripe(stripeSecret, {
@@ -59,11 +51,9 @@ serve(async (req) => {
     });
 
     // 3. Buscar Cliente no Stripe
-    console.log("[sync-user-subscription] Buscando cliente no Stripe...");
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
-      console.log("[sync-user-subscription] Nenhum cliente encontrado no Stripe para este e-mail.");
       return new Response(JSON.stringify({ success: false, message: 'Nenhum registro de pagamento encontrado no Stripe para seu e-mail.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
@@ -71,22 +61,27 @@ serve(async (req) => {
     }
 
     const customerId = customers.data[0].id;
-    console.log(`[sync-user-subscription] Cliente Stripe ID: \${customerId}`);
 
-    // 4. Buscar Assinaturas Ativas ou em Cancelamento
+    // 4. Buscar Assinaturas
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,
-      status: 'all', // Pega todas para verificar o estado atual
+      status: 'all',
       limit: 1,
     });
 
     if (subscriptions.data.length > 0) {
       const sub = subscriptions.data[0];
-      console.log(`[sync-user-subscription] Assinatura encontrada: \${sub.id} (Status: \${sub.status})`);
       
-      if (sub.status !== 'active' && sub.status !== 'trialing' && !sub.cancel_at_period_end) {
-        console.log("[sync-user-subscription] Assinatura não está ativa.");
-        return new Response(JSON.stringify({ success: false, message: `Sua assinatura está com status: \${sub.status}.` }), {
+      // Se a assinatura estiver cancelada e expirada, voltamos para o trial
+      if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
+        await supabaseAdmin.from('profiles').update({
+          subscription_tier: 'free_trial',
+          subscription_end_at: null,
+          cancel_at_period_end: false,
+          updated_at: new Date().toISOString()
+        }).eq('id', user.id);
+        
+        return new Response(JSON.stringify({ success: true, message: 'Assinatura encerrada detectada. Perfil atualizado.' }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200
         });
@@ -95,7 +90,6 @@ serve(async (req) => {
       const productId = sub.items.data[0].price.product;
       const priceId = sub.items.data[0].price.id;
 
-      // Busca o plano correspondente no nosso banco
       const { data: plans } = await supabaseAdmin
         .from('plans')
         .select('id, stripe_price_id_test, stripe_price_id_live');
@@ -115,31 +109,23 @@ serve(async (req) => {
 
       if (matchedPlan) {
         updateData.subscription_tier = matchedPlan.id;
-        console.log(`[sync-user-subscription] Plano identificado: \${matchedPlan.id}`);
       }
 
-      const { error: updateError } = await supabaseAdmin.from('profiles').update(updateData).eq('id', user.id);
-      
-      if (updateError) {
-        console.error("[sync-user-subscription] Erro ao atualizar perfil:", updateError);
-        throw new Error("Erro ao salvar dados no banco de dados.");
-      }
+      await supabaseAdmin.from('profiles').update(updateData).eq('id', user.id);
 
-      console.log("[sync-user-subscription] Sincronização concluída com sucesso.");
       return new Response(JSON.stringify({ success: true, message: 'Assinatura sincronizada com sucesso!' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });
     }
 
-    console.log("[sync-user-subscription] Nenhuma assinatura encontrada.");
-    return new Response(JSON.stringify({ success: false, message: 'Nenhuma assinatura ativa encontrada no Stripe.' }), {
+    return new Response(JSON.stringify({ success: false, message: 'Nenhuma assinatura encontrada no Stripe.' }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200
     });
 
   } catch (error) {
-    console.error("[sync-user-subscription] Erro Crítico:", error.message);
+    console.error("[sync-user-subscription] Erro:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

@@ -6,7 +6,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 serve(async (req) => {
   const signature = req.headers.get('stripe-signature');
   if (!signature) {
-    console.error("[stripe-webhook] Assinatura ausente.");
     return new Response('No signature', { status: 400 });
   }
 
@@ -23,7 +22,7 @@ serve(async (req) => {
     const webhookSecret = Deno.env.get(`STRIPE_WEBHOOK_SECRET_${mode}`);
 
     if (!webhookSecret) {
-      console.error(`[stripe-webhook] ERRO: STRIPE_WEBHOOK_SECRET_\${mode} não configurado.`);
+      console.error(`[stripe-webhook] ERRO: Webhook Secret ${mode} não configurado.`);
       return new Response('Webhook secret missing', { status: 500 });
     }
 
@@ -38,13 +37,11 @@ serve(async (req) => {
     try {
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (err) {
-      console.error(`[stripe-webhook] Falha na assinatura: \${err.message}`);
-      return new Response(`Webhook Error: \${err.message}`, { status: 400 });
+      return new Response(`Webhook Error: ${err.message}`, { status: 400 });
     }
 
-    console.log(`[stripe-webhook] Evento validado: \${event.type}`);
+    console.log(`[stripe-webhook] Evento: ${event.type}`);
 
-    // Função auxiliar para atualizar dados da assinatura no perfil
     const updateSubscriptionData = async (subscription) => {
       const customer = await stripe.customers.retrieve(subscription.customer);
       const email = customer.email;
@@ -69,7 +66,6 @@ serve(async (req) => {
       }
     };
 
-    // 1. Sucesso no Pagamento / Nova Assinatura
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const userId = session.metadata?.userId;
@@ -77,7 +73,6 @@ serve(async (req) => {
 
       if (userId && planId) {
         const subscription = await stripe.subscriptions.retrieve(session.subscription);
-        
         await supabaseAdmin
           .from('profiles')
           .update({ 
@@ -87,21 +82,16 @@ serve(async (req) => {
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
-        console.log(`[stripe-webhook] SUCESSO: Plano \${planId} liberado para \${userId}`);
       }
     }
 
-    // 2. Atualização de Assinatura (ex: cancelamento programado)
     if (event.type === 'customer.subscription.updated') {
-      const subscription = event.data.object;
-      await updateSubscriptionData(subscription);
+      await updateSubscriptionData(event.data.object);
     }
 
-    // 3. Assinatura Cancelada ou Expirada (Fim definitivo)
     if (event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object;
-      const customerId = subscription.customer;
-      const customer = await stripe.customers.retrieve(customerId);
+      const customer = await stripe.customers.retrieve(subscription.customer);
       const email = customer.email;
 
       if (email) {
@@ -121,7 +111,6 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             })
             .eq('id', profile.id);
-          console.log(`[stripe-webhook] REVERSÃO: Usuário \${email} voltou para free_trial após expiração.`);
         }
       }
     }
@@ -131,7 +120,6 @@ serve(async (req) => {
       status: 200 
     });
   } catch (err) {
-    console.error(`[stripe-webhook] Erro Crítico: \${err.message}`);
-    return new Response(`Error: \${err.message}`, { status: 400 });
+    return new Response(`Error: ${err.message}`, { status: 400 });
   }
 });

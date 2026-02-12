@@ -11,7 +11,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Edit2, Image as ImageIcon, Trash2, Eye, DollarSign, Video, FlaskConical, Zap } from "lucide-react";
+import { 
+  Loader2, 
+  Plus, 
+  Edit2, 
+  Image as ImageIcon, 
+  Trash2, 
+  Eye, 
+  DollarSign, 
+  Video, 
+  FlaskConical, 
+  Zap, 
+  RefreshCw,
+  CreditCard,
+  Save
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/ui/RichTextEditor";
@@ -108,6 +122,7 @@ const CoursesTab = () => {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [openDialog, setOpenDialog] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [isSyncingStripe, setIsSyncingStripe] = useState<string | null>(null);
 
   const [openContentDialog, setOpenContentDialog] = useState<boolean>(false);
   const [modules, setModules] = useState<Module[]>([]);
@@ -168,6 +183,44 @@ const CoursesTab = () => {
     }
   }, [modules]);
 
+  const handleSyncStripe = async (mode: 'test' | 'live') => {
+    if (!selectedCourse?.price || selectedCourse.price <= 0) {
+      toast.error("Defina um preço maior que zero para sincronizar.");
+      return;
+    }
+    if (!selectedCourse.slug || !selectedCourse.title) {
+      toast.error("Preencha o título e o slug antes de sincronizar.");
+      return;
+    }
+
+    setIsSyncingStripe(mode);
+    const toastId = toast.loading(`Sincronizando com Stripe (${mode})...`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-stripe-product', {
+        body: {
+          courseSlug: selectedCourse.slug,
+          title: selectedCourse.title,
+          price: selectedCourse.price,
+          mode
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.priceId) {
+        const field = mode === 'test' ? 'stripe_price_id_test' : 'stripe_price_id_live';
+        setSelectedCourse(prev => prev ? { ...prev, [field]: data.priceId } : null);
+        toast.success(`ID da Stripe (${mode}) gerado com sucesso!`, { id: toastId });
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Erro ao sincronizar: ${err.message}`, { id: toastId });
+    } finally {
+      setIsSyncingStripe(null);
+    }
+  };
+
   const handleNewCourse = () => {
     setSelectedCourse({
       slug: "",
@@ -221,7 +274,6 @@ const CoursesTab = () => {
     if (!selectedCourse) return;
     setIsSaving(true);
     try {
-      // Garante que as colunas existam
       await supabase.functions.invoke("extend-site-config");
       
       const { error } = await supabase.from("academy_courses").upsert({
@@ -619,16 +671,48 @@ const CoursesTab = () => {
 
               {/* SEÇÃO STRIPE PARA CURSOS PAGOS */}
               {selectedCourse.price && selectedCourse.price > 0 ? (
-                <div className="grid grid-cols-2 gap-4 p-4 bg-secondary/20 rounded-lg border">
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-amber-600"><FlaskConical className="h-3 w-3" /> Stripe ID (Teste)</Label>
-                    <Input placeholder="price_..." value={selectedCourse.stripe_price_id_test || ''} onChange={e => setSelectedCourse({...selectedCourse, stripe_price_id_test: e.target.value})} />
+                <div className="space-y-4 p-4 bg-secondary/20 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2 font-bold"><CreditCard size={16} /> Integração Stripe</Label>
+                    <Badge variant="outline" className="text-[10px]">Automático</Badge>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-success"><Zap className="h-3 w-3" /> Stripe ID (Produção)</Label>
-                    <Input placeholder="price_..." value={selectedCourse.stripe_price_id_live || ''} onChange={e => setSelectedCourse({...selectedCourse, stripe_price_id_live: e.target.value})} />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="flex items-center gap-2 text-amber-600 text-[10px] uppercase font-bold"><FlaskConical className="h-3 w-3" /> ID Teste</Label>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[9px] gap-1" 
+                          onClick={() => handleSyncStripe('test')}
+                          disabled={!!isSyncingStripe}
+                        >
+                          {isSyncingStripe === 'test' ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                          Gerar na Stripe
+                        </Button>
+                      </div>
+                      <Input placeholder="price_..." value={selectedCourse.stripe_price_id_test || ''} onChange={e => setSelectedCourse({...selectedCourse, stripe_price_id_test: e.target.value})} />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="flex items-center gap-2 text-success text-[10px] uppercase font-bold"><Zap className="h-3 w-3" /> ID Produção</Label>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[9px] gap-1" 
+                          onClick={() => handleSyncStripe('live')}
+                          disabled={!!isSyncingStripe}
+                        >
+                          {isSyncingStripe === 'live' ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                          Gerar na Stripe
+                        </Button>
+                      </div>
+                      <Input placeholder="price_..." value={selectedCourse.stripe_price_id_live || ''} onChange={e => setSelectedCourse({...selectedCourse, stripe_price_id_live: e.target.value})} />
+                    </div>
                   </div>
-                  <p className="col-span-2 text-[10px] text-muted-foreground italic">Necessário para processar o pagamento único deste curso.</p>
+                  <p className="text-[10px] text-muted-foreground italic">Clique em "Gerar na Stripe" para criar o produto e o preço automaticamente no seu painel da Stripe.</p>
                 </div>
               ) : null}
 
@@ -734,7 +818,7 @@ const CoursesTab = () => {
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="ghost" onClick={() => setOpenDialog(false)}>Cancelar</Button>
                 <Button onClick={handleSaveCourse} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                   Salvar Configurações
                 </Button>
               </div>
@@ -811,8 +895,8 @@ const CoursesTab = () => {
             <AlertDialogDescription>Isso apagará permanentemente o curso "{courseToDelete?.title}" e todo o seu conteúdo.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive" onClick={handleDeleteCourse}>Excluir</AlertDialogAction>
+            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDeleteCourse}>Excluir</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

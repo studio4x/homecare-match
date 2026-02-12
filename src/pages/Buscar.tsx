@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
-import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck } from "lucide-react";
+import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -29,7 +29,7 @@ const getInitialSpecialtyFromUrl = () => {
 };
 
 const Buscar = () => {
-  const { user, session } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const { data: config, isLoading: isLoadingConfig } = useSiteConfig();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [professionals, setProfessionals] = useState<any[]>([]);
@@ -47,21 +47,7 @@ const Buscar = () => {
 
   const [showFilters, setShowFilters] = useState(false);
 
-  const isLoggedOut = !session;
-
-  // 1. Verificação de Acesso (Deslogado)
-  if (isLoggedOut) {
-    return (
-      <Layout>
-        <AccessRestricted
-          description="A busca de profissionais é exclusiva para Empresas de Home Care e Famílias em busca de atendimento."
-          primaryAction={{ label: "Entrar", to: "/login" }}
-          secondaryAction={{ label: "Assinar Agora", to: "/login#auth-sign-up" }}
-        />
-      </Layout>
-    );
-  }
-
+  // 1. Hooks de efeito (Devem vir antes de qualquer return condicional)
   useEffect(() => {
     const checkRole = async () => {
       if (user) {
@@ -77,52 +63,75 @@ const Buscar = () => {
   }, [user]);
 
   useEffect(() => {
-    if (userRole && userRole !== 'professional' && !isLoadingConfig) {
-      fetchProfessionals();
-    }
-  }, [userRole, isLoadingConfig, config]);
+    const fetchProfessionals = async () => {
+      if (!userRole || userRole === 'professional' || isLoadingConfig) return;
+      
+      setLoading(true);
 
-  const fetchProfessionals = async () => {
-    setLoading(true);
+      // Se o admin desativou a lista globalmente
+      if (config && config.enable_professional_list === false) {
+        setProfessionals([]);
+        setLoading(false);
+        return;
+      }
 
-    // Se o admin desativou a lista globalmente
-    if (config && config.enable_professional_list === false) {
-      setProfessionals([]);
+      const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, hourly_rate, trial_started_at";
+      
+      const trialLimitDate = subDays(new Date(), 30).toISOString();
+
+      let query = supabase
+        .from("profiles")
+        .select(safePublicFields)
+        .eq("role", "professional")
+        .not("full_name", "is", null)
+        .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`)
+        .order('subscription_tier', { ascending: false })
+        .order('updated_at', { ascending: false });
+
+      if (filters.specialty) query = query.eq("specialty", filters.specialty);
+      if (filters.state) query = query.eq("state", filters.state);
+      if (filters.city) query = query.ilike("city", `%${filters.city}%`);
+      if (filters.neighborhood) query = query.ilike("neighborhood", `%${filters.neighborhood}%`);
+      if (filters.search) query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
+      if (filters.availability) query = query.contains('availability', [filters.availability]);
+      if (filters.patient_profile) query = query.contains('patient_profiles', [filters.patient_profile]);
+      
+      if (userRole === 'family' && filters.max_hourly_rate) {
+        query = query.lte('hourly_rate', parseFloat(filters.max_hourly_rate));
+      }
+
+      const { data } = await query;
+      setProfessionals(data || []);
       setLoading(false);
-      return;
-    }
+    };
 
-    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, hourly_rate, trial_started_at";
-    
-    const trialLimitDate = subDays(new Date(), 30).toISOString();
+    fetchProfessionals();
+  }, [userRole, isLoadingConfig, config, filters]);
 
-    let query = supabase
-      .from("profiles")
-      .select(safePublicFields)
-      .eq("role", "professional")
-      .not("full_name", "is", null)
-      .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`)
-      .order('subscription_tier', { ascending: false })
-      .order('updated_at', { ascending: false });
+  // 2. Verificações de Renderização (Returns condicionais APÓS os hooks)
+  
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex h-[60vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
-    if (filters.specialty) query = query.eq("specialty", filters.specialty);
-    if (filters.state) query = query.eq("state", filters.state);
-    if (filters.city) query = query.ilike("city", `%${filters.city}%`);
-    if (filters.neighborhood) query = query.ilike("neighborhood", `%${filters.neighborhood}%`);
-    if (filters.search) query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
-    if (filters.availability) query = query.contains('availability', [filters.availability]);
-    if (filters.patient_profile) query = query.contains('patient_profiles', [filters.patient_profile]);
-    
-    if (userRole === 'family' && filters.max_hourly_rate) {
-      query = query.lte('hourly_rate', parseFloat(filters.max_hourly_rate));
-    }
+  if (!session) {
+    return (
+      <Layout>
+        <AccessRestricted
+          description="A busca de profissionais é exclusiva para Empresas de Home Care e Famílias em busca de atendimento."
+          primaryAction={{ label: "Entrar", to: "/login" }}
+          secondaryAction={{ label: "Assinar Agora", to: "/login#auth-sign-up" }}
+        />
+      </Layout>
+    );
+  }
 
-    const { data } = await query;
-    setProfessionals(data || []);
-    setLoading(false);
-  };
-
-  // 2. Verificação de Acesso (Profissional tentando buscar outros profissionais)
   if (userRole === 'professional') {
     return (
       <Layout>
@@ -227,7 +236,7 @@ const Buscar = () => {
             <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="gap-2">
               <Filter className="h-4 w-4" /> Filtros
             </Button>
-            <Button className="gap-2" onClick={fetchProfessionals}>
+            <Button className="gap-2" onClick={() => setLoading(true)}>
               <Search className="h-4 w-4" /> Buscar
             </Button>
           </div>
@@ -319,7 +328,7 @@ const Buscar = () => {
           )}
         </div>
 
-        {/* Bloco de Concierge (Sempre visível no final ou quando não há resultados) */}
+        {/* Bloco de Concierge */}
         {!loading && (
           <div className="mt-16 py-12 text-center animate-fade-in bg-primary/5 border border-primary/10 rounded-3xl p-8">
             <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">

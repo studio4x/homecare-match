@@ -20,7 +20,8 @@ import {
   ArrowLeft,
   GraduationCap,
   ChevronRight,
-  Eye
+  Eye,
+  Maximize2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -55,6 +56,7 @@ const CourseDetail = () => {
   const [isIssuingCertificate, setIsIssuingCertificate] = useState(false);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   const fetchCourseData = async () => {
     setLoading(true);
@@ -267,6 +269,37 @@ const CourseDetail = () => {
               <AspectRatio ratio={4/3}>
                 <img src={course.hero_asset_url || "/placeholder.svg"} className="object-cover w-full h-full" alt={course.title} />
               </AspectRatio>
+
+              {/* Vídeo de Apresentação abaixo da capa */}
+              {videoToShow && (
+                <div className="p-4 border-t bg-secondary/5">
+                  <div className="relative group cursor-pointer" onClick={() => setIsVideoModalOpen(true)}>
+                    <AspectRatio ratio={16/9} className="overflow-hidden rounded-lg border bg-black">
+                      {isEmbeddedVideo ? (
+                        <div className="w-full h-full flex items-center justify-center bg-slate-900">
+                          <PlayCircle className="h-12 w-12 text-white/50 group-hover:text-white/80 transition-colors" />
+                        </div>
+                      ) : (
+                        <video src={videoToShow} className="w-full h-full object-cover opacity-60" />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="bg-primary/90 text-white p-2 rounded-full shadow-xl group-hover:scale-110 transition-transform">
+                          <PlayCircle className="h-8 w-8" />
+                        </div>
+                      </div>
+                    </AspectRatio>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-3 gap-2 h-9" 
+                    onClick={() => setIsVideoModalOpen(true)}
+                  >
+                    <Maximize2 className="h-4 w-4" /> Expandir Vídeo
+                  </Button>
+                </div>
+              )}
+
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-4">
                   <Badge variant="secondary" className="capitalize">{course.level}</Badge>
@@ -308,27 +341,6 @@ const CourseDetail = () => {
           </div>
 
           <div className="md:col-span-2 space-y-8">
-            {videoToShow && (
-              <div className="mb-6">
-                <AspectRatio ratio={4/3} className="overflow-hidden rounded-3xl border border-border bg-black">
-                  {isEmbeddedVideo ? (
-                    <iframe
-                      src={videoToShow}
-                      title="Vídeo do curso"
-                      className="h-full w-full"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      src={videoToShow}
-                      className="h-full w-full object-cover"
-                      controls
-                      autoPlay={false}
-                    />
-                  )}
-                </AspectRatio>
-              </div>
-            )}
             <div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4 break-words">{course.title}</h1>
               <div
@@ -400,6 +412,32 @@ const CourseDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal para o Vídeo de Apresentação */}
+      <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black border-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Vídeo de Apresentação</DialogTitle>
+          </DialogHeader>
+          <AspectRatio ratio={16/9}>
+            {isEmbeddedVideo ? (
+              <iframe
+                src={videoToShow!}
+                title="Vídeo de apresentação"
+                className="h-full w-full"
+                allowFullScreen
+              />
+            ) : (
+              <video
+                src={videoToShow!}
+                className="h-full w-full object-contain"
+                controls
+                autoPlay
+              />
+            )}
+          </AspectRatio>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)}>
         <DialogContent className="w-[95vw] max-w-5xl h-[92dvh] sm:h-auto sm:max-h-[95vh] flex flex-col p-0 overflow-hidden">

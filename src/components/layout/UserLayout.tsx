@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ const UserLayout = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isForbiddenAdmin, setIsForbiddenAdmin] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -47,8 +48,9 @@ const UserLayout = () => {
           .single();
         
         if (data) {
-          // Se for admin, redireciona para o painel admin imediatamente
+          // Se for admin, marca como proibido e redireciona IMEDIATAMENTE
           if (data.is_admin || data.role === 'admin') {
+            setIsForbiddenAdmin(true);
             navigate('/admin', { replace: true });
             return;
           }
@@ -65,8 +67,15 @@ const UserLayout = () => {
     fetchProfile();
   }, [user, navigate]);
 
-  if (authLoading || loading) {
-    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  if (authLoading || loading || isForbiddenAdmin) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          {isForbiddenAdmin && <p className="text-xs text-muted-foreground">Redirecionando para o Painel Admin...</p>}
+        </div>
+      </div>
+    );
   }
 
   const isProfessional = role === 'professional';

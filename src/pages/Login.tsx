@@ -35,6 +35,7 @@ const Login = () => {
             return;
           }
 
+          // Prioridade absoluta para o Admin
           if (data?.is_admin || data?.role === 'admin') {
             navigate('/admin', { replace: true });
           } else {
@@ -44,7 +45,7 @@ const Login = () => {
           console.error("[Login] Erro fatal no redirecionamento:", error);
           navigate('/dashboard', { replace: true });
         } finally {
-          // Timeout de segurança para garantir que o loader suma caso o navigate demore
+          // Timeout de segurança
           setTimeout(() => setIsRedirecting(false), 2000);
         }
       };
@@ -59,7 +60,7 @@ const Login = () => {
         <div className="flex h-[60vh] items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground animate-pulse">Autenticando...</p>
+            <p className="text-sm text-muted-foreground animate-pulse">Autenticando e direcionando...</p>
           </div>
         </div>
       </Layout>

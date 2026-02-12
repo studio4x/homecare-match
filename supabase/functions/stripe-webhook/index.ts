@@ -23,7 +23,7 @@ serve(async (req) => {
     const webhookSecret = Deno.env.get(`STRIPE_WEBHOOK_SECRET_${mode}`);
 
     if (!webhookSecret) {
-      console.error(`[stripe-webhook] ERRO: STRIPE_WEBHOOK_SECRET_${mode} não configurado.`);
+      console.error(`[stripe-webhook] ERRO: STRIPE_WEBHOOK_SECRET_\${mode} não configurado.`);
       return new Response('Webhook secret missing', { status: 500 });
     }
 
@@ -36,7 +36,6 @@ serve(async (req) => {
     let event;
 
     try {
-      // No Deno/Supabase, precisamos usar a versão ASYNC para evitar erros de Crypto
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (err) {
       console.error(`[stripe-webhook] Falha na assinatura: \${err.message}`);
@@ -45,27 +44,50 @@ serve(async (req) => {
 
     console.log(`[stripe-webhook] Evento validado: \${event.type}`);
 
+    // 1. Sucesso no Pagamento / Nova Assinatura
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const userId = session.metadata?.userId;
       const planId = session.metadata?.planId;
 
-      console.log(`[stripe-webhook] Processando: User=\${userId}, Plan=\${planId}`);
-
       if (userId && planId) {
-        const { error: updateError } = await supabaseAdmin
+        await supabaseAdmin
           .from('profiles')
           .update({ 
             subscription_tier: planId,
             updated_at: new Date().toISOString()
           })
           .eq('id', userId);
-
-        if (updateError) {
-          console.error(`[stripe-webhook] Erro DB: \${updateError.message}`);
-          throw updateError;
-        }
         console.log(`[stripe-webhook] SUCESSO: Plano \${planId} liberado para \${userId}`);
+      }
+    }
+
+    // 2. Assinatura Cancelada ou Expirada
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const customerId = subscription.customer;
+      
+      // Busca o usuário pelo e-mail do cliente na Stripe
+      const customer = await stripe.customers.retrieve(customerId);
+      const email = customer.email;
+
+      if (email) {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (profile) {
+          await supabaseAdmin
+            .from('profiles')
+            .update({ 
+              subscription_tier: 'free_trial',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', profile.id);
+          console.log(`[stripe-webhook] REVERSÃO: Usuário \${email} voltou para free_trial após cancelamento.`);
+        }
       }
     }
 

@@ -22,7 +22,8 @@ import {
   LifeBuoy,
   Settings,
   Lock,
-  CreditCard
+  CreditCard,
+  EyeOff
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
@@ -60,18 +61,15 @@ const OverviewPage = () => {
     fetchProfile();
   }, [user]);
 
-  // Lógica para detectar retorno do Stripe
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       toast.success("Pagamento processado! Atualizando seu plano...", {
         duration: 5000,
       });
       
-      // Tenta atualizar o perfil algumas vezes, pois o webhook pode demorar alguns segundos
       const interval = setInterval(fetchProfile, 3000);
       const timeout = setTimeout(() => {
         clearInterval(interval);
-        // Limpa a URL para não ficar disparando o toast
         searchParams.delete("success");
         setSearchParams(searchParams);
       }, 15000);
@@ -185,6 +183,37 @@ const OverviewPage = () => {
           }
         </p>
       </div>
+
+      {/* Alerta de Perfil Oculto (Trial Expirado) */}
+      {isProfessional && trial?.isExpired && (
+        <Card className="border-destructive/50 bg-destructive/5 animate-pulse">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <EyeOff className="h-6 w-6 text-destructive" />
+              </div>
+              <div className="space-y-3 flex-1">
+                <h3 className="font-bold text-destructive text-lg">Seu perfil está OCULTO nas buscas!</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Seu período de teste gratuito de 30 dias chegou ao fim. Para que empresas e famílias continuem encontrando seu perfil e entrando em contato com você, é necessário assinar um dos nossos planos.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Button 
+                    onClick={() => setIsPlanModalOpen(true)} 
+                    className="gap-2 bg-destructive hover:bg-destructive/90 text-white shadow-lg"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Escolher Plano Agora
+                  </Button>
+                  <Button variant="outline" asChild size="sm">
+                    <Link to="/suporte">Falar com Suporte</Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {!completeness.isComplete && (
         <Card className="border-primary/20 bg-primary/5">
@@ -343,7 +372,7 @@ const OverviewPage = () => {
               )}
               {isProfessional && (
                 <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 hover:bg-primary/5">
-                  <Link to={`/profissional/${user?.id}`}>
+                  <Link to={`/profissional/\${user?.id}`}>
                     <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <Eye className="h-4 w-4 text-primary" />
                     </div>

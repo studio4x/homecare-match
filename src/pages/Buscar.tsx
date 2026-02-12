@@ -21,6 +21,7 @@ import { Link } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { Badge } from "@/components/ui/badge";
 import AccessRestricted from "@/components/AccessRestricted";
+import { subDays } from "date-fns";
 
 // Configuração do limite mínimo para exibir a lista
 const MIN_RESULTS_TO_SHOW = 1;
@@ -51,7 +52,6 @@ const Buscar = () => {
 
   const isLoggedOut = !session;
 
-  // Retorno antecipado para deslogados (evita tela em branco)
   if (isLoggedOut) {
     return (
       <Layout>
@@ -82,7 +82,6 @@ const Buscar = () => {
   }, [user]);
 
   useEffect(() => {
-    // Só busca se tiver o papel definido E a configuração do site já tiver sido carregada
     if (userRole && userRole !== 'professional' && !isLoadingConfig && !isLoggedOut) {
       fetchProfessionals();
     }
@@ -91,20 +90,26 @@ const Buscar = () => {
   const fetchProfessionals = async () => {
     setLoading(true);
 
-    // Verificação Global de "Kill Switch"
     if (config && config.enable_professional_list === false) {
       setProfessionals([]);
       setLoading(false);
       return;
     }
 
-    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, hourly_rate";
+    const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, hourly_rate, trial_started_at";
     
+    // Data limite para o trial (30 dias atrás)
+    const trialLimitDate = subDays(new Date(), 30).toISOString();
+
     let query = supabase
       .from("profiles")
       .select(safePublicFields)
       .eq("role", "professional")
       .not("full_name", "is", null)
+      // Lógica de visibilidade:
+      // 1. Planos pagos (monthly/yearly) SEMPRE aparecem
+      // 2. Plano free_trial só aparece se trial_started_at for nos últimos 30 dias
+      .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.\${trialLimitDate})`)
       .order('subscription_tier', { ascending: false })
       .order('updated_at', { ascending: false });
 
@@ -145,11 +150,6 @@ const Buscar = () => {
     );
   }
 
-  const clearFilters = () => {
-    setFilters({ specialty: "", city: "", neighborhood: "", state: "", search: "", availability: "", patient_profile: "", max_hourly_rate: "" });
-    setTimeout(fetchProfessionals, 0); 
-  };
-
   const specialties = [
     { value: "assistente-social", label: "Assistente Social" },
     { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
@@ -185,33 +185,26 @@ const Buscar = () => {
 
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
   
-  // Lógica do Concierge
   const showConcierge = !loading && (isLoggedOut || userRole === 'professional' || professionals.length < MIN_RESULTS_TO_SHOW);
-
-  // Número do WhatsApp dinâmico
   const whatsappNumber = config?.whatsapp_number?.replace(/\D/g, '') || "5511999999999";
-
-  // Texto formatado (com quebras de linha) para o WhatsApp do Concierge
   const roleLabel = userRole === 'company' ? 'Empresa' : 'Família';
-  const requestedSpecialtyLabel = filters.specialty
-    ? (specialties.find(s => s.value === filters.specialty)?.label || filters.specialty)
-    : '';
+  const requestedSpecialtyLabel = filters.specialty ? (specialties.find(s => s.value === filters.specialty)?.label || filters.specialty) : '';
 
   const conciergeLines: string[] = [
     'Olá!',
     '',
-    `Sou uma *${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match.`,
+    `Sou uma *\${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match.`,
   ];
 
   const criteriaLines: string[] = [];
-  if (requestedSpecialtyLabel) criteriaLines.push(`• Especialidade: ${requestedSpecialtyLabel}`);
+  if (requestedSpecialtyLabel) criteriaLines.push(`• Especialidade: \${requestedSpecialtyLabel}`);
   if (filters.state || filters.city || filters.neighborhood) {
-    criteriaLines.push(`• Local: ${[filters.neighborhood, filters.city, filters.state].filter(Boolean).join(', ')}`);
+    criteriaLines.push(`• Local: \${[filters.neighborhood, filters.city, filters.state].filter(Boolean).join(', ')}`);
   }
-  if (filters.availability) criteriaLines.push(`• Disponibilidade: ${filters.availability}`);
-  if (filters.patient_profile) criteriaLines.push(`• Perfil do paciente: ${filters.patient_profile}`);
-  if (filters.search) criteriaLines.push(`• Busca: ${filters.search}`);
-  if (userRole === 'family' && filters.max_hourly_rate) criteriaLines.push(`• Valor máx/h: R$ ${filters.max_hourly_rate}`);
+  if (filters.availability) criteriaLines.push(`• Disponibilidade: \${filters.availability}`);
+  if (filters.patient_profile) criteriaLines.push(`• Perfil do paciente: \${filters.patient_profile}`);
+  if (filters.search) criteriaLines.push(`• Busca: \${filters.search}`);
+  if (userRole === 'family' && filters.max_hourly_rate) criteriaLines.push(`• Valor máx/h: R$ \${filters.max_hourly_rate}`);
 
   if (criteriaLines.length > 0) {
     conciergeLines.push('', '*Preferências:*', ...criteriaLines);
@@ -221,8 +214,6 @@ const Buscar = () => {
 
   return (
     <Layout>
-      {/* Conteúdo da página com cabeçalho e filtros permanece */}
-
       <div className="container mx-auto px-4">
         <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -233,7 +224,6 @@ const Buscar = () => {
             </p>
           </div>
 
-          {/* Legenda discreta no topo direito */}
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
               <Star className="h-3 w-3 text-amber-500 fill-current" />
@@ -335,7 +325,6 @@ const Buscar = () => {
           {loading || isLoadingConfig ? (
             Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
           ) : showConcierge ? (
-            // Concierge Panel (para poucos resultados, deslogados ou profissionais)
             <div className="col-span-full py-16 text-center animate-fade-in bg-card border border-border rounded-2xl shadow-card p-8">
               <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
                 <Headset className="h-10 w-10 text-primary" />
@@ -383,14 +372,14 @@ const Buscar = () => {
                 <>
                   <h3 className="text-2xl font-bold text-foreground mb-3">Busca Personalizada (Concierge)</h3>
                   <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-8">
-                    Para garantir a melhor experiência, nossa equipe realiza uma seleção manual dos melhores profissionais para o seu perfil. 
+                    Para garantir a melhor experiênca, nossa equipe realiza uma seleção manual dos melhores profissionais para o seu perfil. 
                     <br/><br/>
                     Temos profissionais disponíveis que correspondem aos seus critérios, mas que estão passando por nossa verificação de qualidade rigorosa neste momento.
                   </p>
                   <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                     <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
                       <a 
-                        href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
+                        href={`https://wa.me/\${whatsappNumber}?text=\${encodeURIComponent(conciergeMessage)}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                       >
@@ -414,7 +403,7 @@ const Buscar = () => {
                 photo={professional.avatar_url}
                 specialty={specialties.find(s => s.value === professional.specialty)?.label || professional.specialty}
                 registration={professional.registration}
-                location={`${professional.neighborhood || ""}, ${professional.city || ""} - ${professional.state || ""}`}
+                location={`\${professional.neighborhood || ""}, \${professional.city || ""} - \${professional.state || ""}`}
                 experience={professional.experience}
                 isVerified={professional.is_verified}
                 subscriptionTier={professional.subscription_tier}

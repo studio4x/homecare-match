@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap } from "lucide-react";
+import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -29,6 +29,7 @@ const SiteConfigTab = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isSyncingSupport, setIsSyncingSupport] = useState(false);
   const [isSyncingKYC, setIsSyncingKYC] = useState(false);
+  const [isSyncingAnalytics, setIsSyncingAnalytics] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -84,6 +85,19 @@ const SiteConfigTab = () => {
       toast.error("Erro ao configurar segurança.");
     } finally {
       setIsSyncingKYC(false);
+    }
+  };
+
+  const handleSyncAnalytics = async () => {
+    setIsSyncingAnalytics(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-analytics');
+      if (error) throw error;
+      toast.success("Estrutura de métricas configurada!");
+    } catch (error: any) {
+      toast.error("Erro ao configurar analytics.");
+    } finally {
+      setIsSyncingAnalytics(false);
     }
   };
 
@@ -294,6 +308,16 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncKYC} disabled={isSyncingKYC}>
               {isSyncingKYC ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Sincronizar Analytics</p>
+              <p className="text-xs text-amber-800/70">Cria tabelas para rastrear visualizações e cliques.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncAnalytics} disabled={isSyncingAnalytics}>
+              {isSyncingAnalytics ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
             </Button>
           </div>
         </CardContent>

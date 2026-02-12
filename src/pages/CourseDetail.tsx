@@ -353,7 +353,7 @@ const CourseDetail = () => {
                 <div className="flex items-center justify-between gap-4">
                   <DialogTitle className="text-lg sm:text-xl font-bold line-clamp-2">{selectedLesson.title}</DialogTitle>
                   <Badge variant="outline" className="uppercase text-[9px] sm:text-[10px] shrink-0">
-                    {selectedLesson.type} • {selectedLesson.duration_minutes} min
+                    {selectedLesson.duration_minutes} min
                   </Badge>
                 </div>
               </DialogHeader>

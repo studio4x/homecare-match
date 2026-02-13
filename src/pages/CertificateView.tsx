@@ -3,43 +3,79 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Award, Printer, ArrowLeft, ShieldCheck, Calendar, Clock, Info } from "lucide-react";
+import { Loader2, Award, Printer, ArrowLeft, ShieldCheck, Calendar, Clock, Info, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/hooks/use-site-config";
+import { toast } from "sonner";
 
 const CertificateView = () => {
   const { id } = useParams();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isFixing, setIsFixing] = useState(false);
   const { data: config } = useSiteConfig();
 
-  useEffect(() => {
-    const fetchCertificate = async () => {
-      try {
-        const { data: cert, error } = await supabase
-          .from("certificates")
-          .select(`
-            *,
-            course:academy_courses(title, level, duration_minutes),
-            user:profiles(full_name, registration)
-          `)
-          .eq("id", id)
-          .single();
+  const fetchCertificate = async () => {
+    try {
+      const { data: cert, error } = await supabase
+        .from("certificates")
+        .select(`
+          *,
+          course:academy_courses(title, level, duration_minutes, slug),
+          user:profiles(full_name, registration)
+        `)
+        .eq("id", id)
+        .single();
 
-        if (error) throw error;
-        setData(cert);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
+      if (error) throw error;
+
+      // Lógica de Auto-Correção: Se o código contiver a fórmula literal do bug anterior
+      if (cert.validation_code && cert.validation_code.includes("${")) {
+        console.log("[CertificateView] Detectado código corrompido. Iniciando correção...");
+        await fixCertificate(cert.course.slug);
+        return; // O fixCertificate vai chamar o fetch novamente
       }
-    };
-    fetchCertificate();
+
+      setData(cert);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fixCertificate = async (courseSlug: string) => {
+    setIsFixing(true);
+    try {
+      const { error } = await supabase.functions.invoke('issue-certificate', {
+        body: { course_slug: courseSlug }
+      });
+      
+      if (error) throw error;
+      
+      // Recarrega os dados agora corrigidos
+      await fetchCertificate();
+    } catch (err) {
+      console.error("[CertificateView] Falha ao auto-corrigir:", err);
+      setLoading(false);
+    } finally {
+      setIsFixing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id) fetchCertificate();
   }, [id]);
 
   const handlePrint = () => window.print();
 
-  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading || isFixing) return (
+    <div className="flex flex-col h-screen items-center justify-center gap-4">
+      <Loader2 className="animate-spin h-8 w-8 text-primary" />
+      {isFixing && <p className="text-sm text-muted-foreground animate-pulse">Atualizando informações do selo...</p>}
+    </div>
+  );
+
   if (!data) return <div className="text-center p-20">Selo não encontrado.</div>;
 
   const issueDate = new Date(data.issued_at).toLocaleDateString('pt-BR', {
@@ -114,7 +150,7 @@ const CertificateView = () => {
               </div>
             </div>
 
-            {/* Disclaimer Legal - Essencial para evitar problemas */}
+            {/* Disclaimer Legal */}
             <div className="max-w-2xl mx-auto p-3 bg-slate-50 border rounded-lg flex gap-3 items-start text-left mb-4">
               <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
               <p className="text-[8px] md:text-[9px] text-slate-500 leading-tight">

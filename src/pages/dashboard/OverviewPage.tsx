@@ -436,7 +436,7 @@ const OverviewPage = () => {
           {isProfessional && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" /> Plano Atual</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" /> Gerenciar Assinatura</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between mb-4">

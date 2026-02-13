@@ -3,21 +3,27 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Award, Printer, ArrowLeft, ShieldCheck, Calendar, Clock, Info, RefreshCw } from "lucide-react";
+import { Loader2, Award, Printer, ArrowLeft, ShieldCheck, Calendar, Clock, Info, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useSiteConfig } from "@/hooks/use-site-config";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 const CertificateView = () => {
   const { id } = useParams();
+  const { session } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isFixing, setIsFixing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { data: config } = useSiteConfig();
 
   const fetchCertificate = async () => {
     try {
-      const { data: cert, error } = await supabase
+      setError(null);
+      const { data: cert, error: fetchError } = await supabase
         .from("certificates")
         .select(`
           *,
@@ -25,38 +31,46 @@ const CertificateView = () => {
           user:profiles(full_name, registration)
         `)
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
 
-      // Lógica de Auto-Correção: Se o código contiver a fórmula literal do bug anterior
-      if (cert.validation_code && cert.validation_code.includes("${")) {
+      if (!cert) {
+        setLoading(false);
+        return;
+      }
+
+      // Lógica de Auto-Correção: Só tenta se o código estiver corrompido E o usuário estiver logado
+      if (cert.validation_code && cert.validation_code.includes("${") && session) {
         console.log("[CertificateView] Detectado código corrompido. Iniciando correção...");
-        await fixCertificate(cert.course.slug);
-        return; // O fixCertificate vai chamar o fetch novamente
+        await fixCertificate(cert.course.slug, cert);
+        return; 
       }
 
       setData(cert);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error("[CertificateView] Erro ao buscar:", e);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const fixCertificate = async (courseSlug: string) => {
+  const fixCertificate = async (courseSlug: string, currentData: any) => {
     setIsFixing(true);
     try {
-      const { error } = await supabase.functions.invoke('issue-certificate', {
+      const { error: invokeError } = await supabase.functions.invoke('issue-certificate', {
         body: { course_slug: courseSlug }
       });
       
-      if (error) throw error;
+      if (invokeError) throw invokeError;
       
       // Recarrega os dados agora corrigidos
       await fetchCertificate();
     } catch (err) {
       console.error("[CertificateView] Falha ao auto-corrigir:", err);
+      // Se falhar a correção (ex: permissão), mostra o que tem
+      setData(currentData);
       setLoading(false);
     } finally {
       setIsFixing(false);
@@ -65,7 +79,7 @@ const CertificateView = () => {
 
   useEffect(() => {
     if (id) fetchCertificate();
-  }, [id]);
+  }, [id, session]);
 
   const handlePrint = () => window.print();
 
@@ -76,7 +90,25 @@ const CertificateView = () => {
     </div>
   );
 
-  if (!data) return <div className="text-center p-20">Selo não encontrado.</div>;
+  if (error) return (
+    <div className="flex flex-col h-screen items-center justify-center gap-4 p-6 text-center">
+      <AlertTriangle className="h-12 w-12 text-destructive opacity-50" />
+      <h2 className="text-xl font-bold">Erro ao carregar selo</h2>
+      <p className="text-muted-foreground max-w-xs">{error}</p>
+      <Button variant="outline" onClick={() => window.location.reload()}>Tentar Novamente</Button>
+    </div>
+  );
+
+  if (!data) return (
+    <div className="flex flex-col h-screen items-center justify-center gap-4 p-6 text-center">
+      <Award className="h-12 w-12 text-muted-foreground opacity-20" />
+      <h2 className="text-xl font-bold">Selo não encontrado</h2>
+      <p className="text-muted-foreground max-w-xs">O link acessado pode estar incorreto ou o selo foi removido.</p>
+      <Button asChild variant="outline" className="mt-4">
+        <Link to="/">Voltar para o Início</Link>
+      </Button>
+    </div>
+  );
 
   const issueDate = new Date(data.issued_at).toLocaleDateString('pt-BR', {
     day: '2-digit', month: 'long', year: 'numeric'
@@ -92,6 +124,8 @@ const CertificateView = () => {
     return `${m} minutos`;
   };
 
+  const isCorrupted = data.validation_code?.includes("${");
+
   return (
     <div className="min-h-screen bg-secondary/10 py-6 px-4 print:p-0 print:m-0 print:bg-white">
       <div className="mx-auto max-w-[1100px] space-y-6 print:max-w-none print:space-y-0">
@@ -100,9 +134,16 @@ const CertificateView = () => {
           <Button variant="ghost" asChild className="gap-2">
             <Link to="/dashboard/cursos"><ArrowLeft size={16} /> Voltar</Link>
           </Button>
-          <Button onClick={handlePrint} className="gap-2 bg-primary">
-            <Printer size={16} /> Imprimir / Salvar PDF
-          </Button>
+          <div className="flex gap-2">
+            {isCorrupted && !session && (
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 hidden md:flex">
+                Aguardando atualização do proprietário
+              </Badge>
+            )}
+            <Button onClick={handlePrint} className="gap-2 bg-primary" disabled={isCorrupted}>
+              <Printer size={16} /> Imprimir / Salvar PDF
+            </Button>
+          </div>
         </div>
 
         {/* O Selo - Container A4 Paisagem */}
@@ -121,7 +162,7 @@ const CertificateView = () => {
 
           <p className="text-sm md:text-lg text-slate-600 mb-1">Reconhecemos que o(a) profissional</p>
           <h2 className="text-xl md:text-3xl font-bold text-slate-900 mb-1 border-b-2 border-slate-200 px-4 md:px-8 pb-1 inline-block">
-            {data.user.full_name}
+            {data.user?.full_name || "Profissional"}
           </h2>
           
           <div className="max-w-3xl w-full flex-1 flex flex-col justify-center">
@@ -129,7 +170,7 @@ const CertificateView = () => {
               concluiu com aproveitamento o conteúdo educativo de
             </p>
             <h3 className="text-lg md:text-xl font-bold text-primary mt-1 mb-4 md:mb-6 uppercase leading-tight">
-              {data.course.title}
+              {data.course?.title || "Curso"}
             </h3>
             
             <div className="flex items-center justify-center gap-4 md:gap-10 py-3 px-6 md:px-8 bg-secondary/30 rounded-xl border border-slate-200 mb-4 print:bg-slate-50">
@@ -162,8 +203,11 @@ const CertificateView = () => {
           <div className="w-full flex flex-row items-end justify-between gap-4 pt-4 border-t border-slate-100">
             <div className="text-left space-y-1">
               <p className="text-[8px] text-slate-400 font-mono uppercase tracking-tighter">Código de Validação:</p>
-              <p className="text-[10px] font-mono font-bold text-slate-700 bg-secondary/50 px-2 py-0.5 rounded print:bg-slate-100">
-                {data.validation_code}
+              <p className={cn(
+                "text-[10px] font-mono font-bold px-2 py-0.5 rounded print:bg-slate-100",
+                isCorrupted ? "text-amber-600 bg-amber-50" : "text-slate-700 bg-secondary/50"
+              )}>
+                {isCorrupted ? "AGUARDANDO ATUALIZAÇÃO" : data.validation_code}
               </p>
               <p className="text-[7px] text-slate-400">Valide em: homecarematch.com.br/validar</p>
             </div>

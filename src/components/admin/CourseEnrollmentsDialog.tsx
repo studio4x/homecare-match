@@ -55,7 +55,6 @@ const CourseEnrollmentsDialog = ({
     if (!courseSlug) return;
     setLoading(true);
     
-    // Limpa o slug para evitar problemas com hífens extras no final
     const cleanSlug = courseSlug.trim().replace(/-+$/, "");
 
     try {
@@ -75,11 +74,11 @@ const CourseEnrollmentsDialog = ({
         totalLessons = count || 0;
       }
 
-      // 2. Buscar matrículas (usando ilike para ser mais flexível com o slug)
+      // 2. Buscar matrículas
       const { data: enrData, error: enrError } = await supabase
         .from("academy_enrollments")
         .select("id, user_id, created_at, course_slug")
-        .ilike("course_slug", `\${cleanSlug}%`);
+        .ilike("course_slug", `${cleanSlug}%`);
 
       if (enrError) throw enrError;
 

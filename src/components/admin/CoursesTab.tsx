@@ -24,11 +24,13 @@ import {
   Zap, 
   RefreshCw,
   CreditCard,
-  Save
+  Save,
+  Users
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/ui/RichTextEditor";
+import CourseEnrollmentsDialog from "./CourseEnrollmentsDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -137,6 +139,10 @@ const CoursesTab = () => {
 
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+
+  // Estados para o diálogo de matrículas
+  const [enrollmentsDialogOpen, setEnrollmentsDialogOpen] = useState(false);
+  const [courseForEnrollments, setCourseForEnrollments] = useState<{slug: string, title: string} | null>(null);
 
   const heroRef = useRef<HTMLInputElement>(null);
   const materialRef = useRef<HTMLInputElement>(null);
@@ -609,6 +615,17 @@ const CoursesTab = () => {
                     )}
                   </TableCell>
                   <TableCell className="text-right flex justify-end gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2"
+                      onClick={() => {
+                        setCourseForEnrollments({ slug: c.slug, title: c.title });
+                        setEnrollmentsDialogOpen(true);
+                      }}
+                    >
+                      <Users size={14} /> Alunos
+                    </Button>
                     <Button variant="outline" size="sm" asChild className="gap-2">
                       <Link to={`/cursos/\${c.slug}`} target="_blank"><Eye size={14} /> Ver</Link>
                     </Button>
@@ -893,6 +910,16 @@ const CoursesTab = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo de Matrículas */}
+      {courseForEnrollments && (
+        <CourseEnrollmentsDialog
+          open={enrollmentsDialogOpen}
+          onOpenChange={setEnrollmentsDialogOpen}
+          courseSlug={courseForEnrollments.slug}
+          courseTitle={courseForEnrollments.title}
+        />
+      )}
 
       <input ref={videoRef} type="file" className="hidden" accept="video/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadVideo(file); }} />
       <input ref={materialRef} type="file" className="hidden" accept="video/*,application/pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadMaterial(file); }} />

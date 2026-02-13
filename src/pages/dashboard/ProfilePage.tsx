@@ -37,7 +37,8 @@ import {
   AlertTriangle,
   Check,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Mail
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -46,8 +47,8 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
+  DialogHeader,
   DialogFooter,
-  DialogHeader
 } from "@/components/ui/dialog";
 import {
   Collapsible,
@@ -413,6 +414,20 @@ const ProfilePage = () => {
                     placeholder="(11) 99999-9999" 
                   />
                 </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="flex items-center gap-2">
+                  <Mail className="h-3 w-3 text-muted-foreground" />
+                  E-mail de Acesso
+                </Label>
+                <input 
+                  className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={profile.email || ""} 
+                  disabled
+                  readOnly
+                />
+                <p className="text-[10px] text-muted-foreground italic">O e-mail é usado para login e não pode ser alterado diretamente.</p>
               </div>
 
               {isProfessional ? (

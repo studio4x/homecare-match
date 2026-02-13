@@ -42,7 +42,7 @@ const CertificateView = () => {
 
       setData(cert);
 
-      // Tenta auto-corrigir se estiver logado e for o dono (ou admin)
+      // Tenta auto-corrigir se estiver logado e for o dono
       const isCorrupted = cert.validation_code?.includes("${");
       const isOwner = user?.id === cert.user_id;
       
@@ -64,11 +64,19 @@ const CertificateView = () => {
     const toastId = toast.loading("Atualizando informações do selo...");
     
     try {
-      const { error: invokeError } = await supabase.functions.invoke('issue-certificate', {
+      const { data: responseData, error: invokeError } = await supabase.functions.invoke('issue-certificate', {
         body: { course_slug: courseSlug }
       });
       
-      if (invokeError) throw invokeError;
+      if (invokeError) {
+        // Tenta extrair a mensagem de erro do corpo da resposta
+        let msg = "Erro ao processar atualização.";
+        try {
+          const body = await invokeError.context?.json();
+          if (body?.error) msg = body.error;
+        } catch {}
+        throw new Error(msg);
+      }
       
       toast.success("Selo atualizado com sucesso!", { id: toastId });
       
@@ -86,7 +94,7 @@ const CertificateView = () => {
       if (updatedCert) setData(updatedCert);
     } catch (err: any) {
       console.error("[CertificateView] Falha ao corrigir:", err);
-      toast.error("Não foi possível atualizar o selo automaticamente.", { id: toastId });
+      toast.error(err.message || "Não foi possível atualizar o selo.", { id: toastId });
     } finally {
       setIsFixing(false);
     }

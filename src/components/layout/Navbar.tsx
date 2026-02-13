@@ -2,19 +2,34 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { 
+  Menu, 
+  X, 
+  LogOut, 
+  User as UserIcon, 
+  LayoutDashboard, 
+  Settings 
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/hooks/use-site-config";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Fallback logo
 const DEFAULT_LOGO = "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
 
 const Navbar = () => {
   const location = useLocation();
-  const { session, user } = useAuth();
+  const { session, user, signOut } = useAuth();
   const { data: config } = useSiteConfig();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState<{ avatar_url: string | null; full_name: string | null; role: string | null; is_admin: boolean | null } | null>(null);
@@ -102,21 +117,54 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Desktop CTA */}
+          {/* Desktop CTA / User Menu */}
           <div className="hidden items-center gap-3 md:flex">
             {session ? (
-              <Link to={dashboardPath} className="flex items-center gap-3 transition-opacity hover:opacity-80">
-                <div className="flex flex-col items-end">
-                  <span className="text-xs font-medium text-foreground leading-none">Minha Conta</span>
-                  <span className="text-[10px] text-muted-foreground">{isAdmin ? "Painel Admin" : "Dashboard"}</span>
-                </div>
-                <Avatar className="h-9 w-9 border border-border shadow-sm">
-                  <AvatarImage src={profile?.avatar_url || ""} />
-                  <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-3 transition-opacity hover:opacity-80 outline-none group">
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs font-medium text-foreground leading-none group-hover:text-primary transition-colors">Minha Conta</span>
+                      <span className="text-[10px] text-muted-foreground">{isAdmin ? "Painel Admin" : "Dashboard"}</span>
+                    </div>
+                    <Avatar className="h-9 w-9 border border-border shadow-sm group-hover:border-primary/50 transition-colors">
+                      <AvatarImage src={profile?.avatar_url || ""} />
+                      <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{profile?.full_name || "Usuário"}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to={dashboardPath} className="cursor-pointer flex items-center gap-2">
+                      <LayoutDashboard className="h-4 w-4" />
+                      <span>Meu Painel</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to={isAdmin ? "/admin/configuracoes" : "/dashboard/perfil"} className="cursor-pointer flex items-center gap-2">
+                      {isAdmin ? <Settings className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
+                      <span>{isAdmin ? "Configurações" : "Meu Perfil"}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-destructive focus:text-destructive cursor-pointer flex items-center gap-2"
+                    onClick={() => signOut()}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Sair da Conta</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <>
                 <Button variant="ghost" asChild size="sm">
@@ -187,15 +235,28 @@ const Navbar = () => {
               )}
               <div className="flex flex-col gap-2 pt-2 border-t border-border mt-2">
                 {session ? (
-                  <Button variant="outline" asChild className="justify-start gap-3 h-12">
-                    <Link to={dashboardPath} onClick={() => setMobileMenuOpen(false)}>
-                      <Avatar className="h-7 w-7">
-                        <AvatarImage src={profile?.avatar_url || ""} />
-                        <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
-                      </Avatar>
-                      {isAdmin ? "Painel Admin" : "Meu Perfil"}
-                    </Link>
-                  </Button>
+                  <>
+                    <Button variant="outline" asChild className="justify-start gap-3 h-12">
+                      <Link to={dashboardPath} onClick={() => setMobileMenuOpen(false)}>
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage src={profile?.avatar_url || ""} />
+                          <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                        </Avatar>
+                        {isAdmin ? "Painel Admin" : "Meu Perfil"}
+                      </Link>
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      className="justify-start gap-3 h-12 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        signOut();
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sair da Conta
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button asChild className="bg-success hover:bg-success/90 text-white">

@@ -44,11 +44,11 @@ serve(async (req) => {
       - Se os dados forem insuficientes ou de teste, crie um texto padrão profissional baseado na especialidade.
     `;
 
-    console.log("[generate-bio] Chamando Gemini API (v1 - gemini-2.0-flash)...");
+    console.log("[generate-bio] Chamando Gemini API (v1 - gemini-2.5-flash)...");
 
-    // Atualizado para o modelo gemini-2.0-flash
+    // Atualizado para o modelo gemini-2.5-flash
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

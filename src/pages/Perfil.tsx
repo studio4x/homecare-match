@@ -304,16 +304,16 @@ const Perfil = () => {
                             {isPremium ? "Verificado Premium" : "Verificado"}
                           </Badge>
                         )}
-                        {referralStats && (
+                        {referralStats && referralStats.currentTier && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Badge variant="secondary" className="ml-2 whitespace-nowrap">
-                                {referralStats.currentTier?.badge_label || "Embaixador"} • {referralStats.count}
+                              <Badge variant="secondary" className="ml-2 whitespace-nowrap bg-primary/10 text-primary border-primary/20 gap-1.5">
+                                <Award className="h-3 w-3" />
+                                {referralStats.currentTier.badge_label}
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
-                              Programa de Indicação: {referralStats.currentTier?.badge_label || "Embaixador"} • Indicações: {referralStats.count}
-                              {referralStats.nextTier ? ` • Próximo selo: ${referralStats.nextTier.badge_label} em ${referralStats.nextTier.threshold}` : ""}
+                              Programa de Indicação: {referralStats.currentTier.badge_label} • {referralStats.count} indicações confirmadas.
                             </TooltipContent>
                           </Tooltip>
                         )}
@@ -506,10 +506,10 @@ const Perfil = () => {
                       <ShieldCheck className="h-4 w-4 text-success" />
                       <span className="text-sm text-muted-foreground">Perfil Verificado</span>
                     </div>
-                    {referralStats && (
+                    {referralStats && referralStats.currentTier && (
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="whitespace-nowrap">
-                          {referralStats.currentTier?.badge_label || "Embaixador"}
+                        <Badge variant="secondary" className="whitespace-nowrap bg-primary/10 text-primary border-primary/20">
+                          {referralStats.currentTier.badge_label}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
                           Programa de Indicação • {referralStats.count} indicação{referralStats.count === 1 ? "" : "s"}

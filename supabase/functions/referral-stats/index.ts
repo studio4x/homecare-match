@@ -12,7 +12,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("[referral-stats] request");
+  console.log("[referral-stats] Iniciando busca de estatísticas...");
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -33,29 +33,38 @@ serve(async (req) => {
     });
   }
 
-  // 1. Lista arquivos de referrals/referrerId para contar indicações e pegar IDs
+  // 1. Lista arquivos de referrals/referrerId
   const { data: files, error: listError } = await supabaseAdmin.storage.from("uploads").list(`referrals/${referrerId}`, { limit: 1000 });
+  
   if (listError) {
-    console.error("[referral-stats] list error", listError);
+    console.error("[referral-stats] Erro ao listar storage:", listError);
     return new Response(JSON.stringify({ error: "list_failed" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
   
-  const count = (files || []).length;
-  const referredIds = (files || []).map(f => f.name.replace('.json', ''));
+  // Filtra apenas arquivos .json (ignora placeholders e pastas)
+  const referralFiles = (files || []).filter(f => f.name.endsWith('.json'));
+  const count = referralFiles.length;
+  const referredIds = referralFiles.map(f => f.name.replace('.json', ''));
+
+  console.log(`[referral-stats] Encontradas ${count} indicações para o usuário ${referrerId}`);
 
   // 2. Busca dados básicos dos usuários indicados que já possuem perfil
   let registeredUsers = [];
   if (referredIds.length > 0) {
-    const { data: profiles } = await supabaseAdmin
+    const { data: profiles, error: profilesError } = await supabaseAdmin
       .from('profiles')
       .select('full_name, created_at, role')
       .in('id', referredIds)
       .order('created_at', { ascending: false });
     
-    registeredUsers = profiles || [];
+    if (profilesError) {
+      console.error("[referral-stats] Erro ao buscar perfis:", profilesError);
+    } else {
+      registeredUsers = profiles || [];
+    }
   }
 
   // 3. Carrega tiers de configuração
@@ -66,13 +75,15 @@ serve(async (req) => {
       const text = await tiersFile.text();
       tiers = JSON.parse(text);
     } catch (e) {
-      console.warn("[referral-stats] tiers.json invalid", e);
+      console.warn("[referral-stats] tiers.json inválido ou inexistente");
     }
   }
 
-  // 4. Checa override manual
+  // 4. Determina Tier Atual e Próximo
   let currentTier = null;
   let nextTier = null;
+
+  // Checa override manual primeiro
   const { data: overrideFile } = await supabaseAdmin.storage.from("uploads").download(`referrals/overrides/${referrerId}.json`);
   if (overrideFile) {
     try {
@@ -86,6 +97,7 @@ serve(async (req) => {
     }
   }
 
+  // Se não houver override, calcula baseado nos tiers globais
   if (!currentTier && tiers && tiers.length > 0) {
     const sorted = [...tiers].sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
     for (const t of sorted) {
@@ -97,6 +109,7 @@ serve(async (req) => {
     }
   }
 
+  // Se ainda não definiu o próximo tier (ex: já está no último), tenta pegar o primeiro que o usuário ainda não atingiu
   if (!nextTier && tiers && tiers.length > 0) {
     const sorted = [...tiers].sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
     for (const t of sorted) {
@@ -107,7 +120,12 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ count, currentTier, nextTier, registeredUsers }), {
+  return new Response(JSON.stringify({ 
+    count, 
+    currentTier, 
+    nextTier, 
+    registeredUsers 
+  }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

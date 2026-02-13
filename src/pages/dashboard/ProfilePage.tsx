@@ -231,7 +231,7 @@ const ProfilePage = () => {
         setProfile(prev => ({ ...prev, bio: data.bio }));
         toast.success("Biografia gerada com sucesso!");
       } else {
-        throw new Error("A IA não retornou um texto válido.");
+        throw new Error(data?.error || "A IA não retornou um texto válido.");
       }
     } catch (err: any) {
       console.error("[ProfilePage] Erro na geração:", err);

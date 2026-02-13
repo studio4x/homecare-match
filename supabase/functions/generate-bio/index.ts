@@ -12,41 +12,40 @@ serve(async (req) => {
   }
 
   try {
-    console.log("[generate-bio] Requisição recebida.");
+    console.log("[generate-bio] Requisição iniciada.");
 
     const { name, specialty, experience, professional_experiences, city, state } = await req.json();
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     
     if (!GEMINI_API_KEY) {
-      console.error("[generate-bio] ERRO: GEMINI_API_KEY não encontrada nos Secrets do Supabase.");
+      console.error("[generate-bio] ERRO: GEMINI_API_KEY não encontrada nos Secrets.");
       return new Response(
-        JSON.stringify({ error: "A chave de API da IA não foi configurada no servidor." }),
+        JSON.stringify({ error: "A chave de API (GEMINI_API_KEY) não foi configurada nos Secrets do Supabase." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Prompt aprimorado para lidar melhor com dados curtos ou de teste
     const prompt = `
-      Você é um redator especializado em perfis profissionais de saúde para a plataforma HomeCare Match.
-      Sua tarefa é escrever uma biografia cativante, humanizada e profissional em terceira pessoa.
+      Você é um redator especializado em perfis profissionais de saúde.
+      Escreva uma biografia profissional e humanizada em terceira pessoa para o seguinte perfil:
       
-      Dados do Profissional:
-      - Nome: ${name}
-      - Especialidade: ${specialty}
-      - Formações: ${experience}
-      - Experiências Práticas: ${professional_experiences}
-      - Localização: ${city} - ${state}
+      Nome: ${name}
+      Especialidade: ${specialty}
+      Formações: ${experience}
+      Experiências: ${professional_experiences}
+      Localização: ${city} - ${state}
 
       Diretrizes:
-      1. Escreva em terceira pessoa.
-      2. O tom deve ser profissional, mas acolhedor (ideal para Home Care).
-      3. Destaque a experiência e o compromisso com o cuidado humanizado.
-      4. O texto deve ter entre 3 e 5 parágrafos curtos.
-      5. Não use placeholders como "[Nome]". Use os dados fornecidos.
-      6. Retorne APENAS o texto da biografia, sem introduções ou comentários.
+      - Escreva em terceira pessoa.
+      - Tom acolhedor e profissional.
+      - Destaque o compromisso com o cuidado.
+      - Retorne APENAS o texto da biografia.
+      - Se os dados forem insuficientes ou de teste, crie um texto padrão profissional baseado na especialidade.
     `;
 
-    console.log("[generate-bio] Chamando API do Gemini...");
+    console.log("[generate-bio] Chamando Gemini API...");
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -62,9 +61,10 @@ serve(async (req) => {
     const result = await response.json();
 
     if (!response.ok) {
-      console.error("[generate-bio] Erro na API do Gemini:", result);
+      console.error("[generate-bio] Erro retornado pelo Google:", result);
+      const googleError = result.error?.message || "Erro desconhecido na API do Google.";
       return new Response(
-        JSON.stringify({ error: "Erro na API de Inteligência Artificial.", details: result }),
+        JSON.stringify({ error: `Erro no Google Gemini: ${googleError}`, details: result }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -72,11 +72,14 @@ serve(async (req) => {
     const bio = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     if (!bio) {
-      console.error("[generate-bio] Resposta vazia do Gemini:", result);
-      throw new Error("A IA não retornou um conteúdo válido.");
+      console.error("[generate-bio] Resposta sem conteúdo:", result);
+      return new Response(
+        JSON.stringify({ error: "A IA não gerou conteúdo. Verifique se os dados inseridos são válidos." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log("[generate-bio] Biografia gerada com sucesso.");
+    console.log("[generate-bio] Sucesso!");
 
     return new Response(JSON.stringify({ bio: bio.trim() }), {
       status: 200,
@@ -85,7 +88,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("[generate-bio] Erro crítico:", error.message);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: `Erro interno: ${error.message}` }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

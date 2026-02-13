@@ -33,7 +33,7 @@ serve(async (req) => {
     });
   }
 
-  // Lista arquivos de referrals/referrerId para contar indicações
+  // 1. Lista arquivos de referrals/referrerId para contar indicações e pegar IDs
   const { data: files, error: listError } = await supabaseAdmin.storage.from("uploads").list(`referrals/${referrerId}`, { limit: 1000 });
   if (listError) {
     console.error("[referral-stats] list error", listError);
@@ -42,9 +42,23 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  
   const count = (files || []).length;
+  const referredIds = (files || []).map(f => f.name.replace('.json', ''));
 
-  // Carrega tiers
+  // 2. Busca dados básicos dos usuários indicados que já possuem perfil
+  let registeredUsers = [];
+  if (referredIds.length > 0) {
+    const { data: profiles } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name, created_at, role')
+      .in('id', referredIds)
+      .order('created_at', { ascending: false });
+    
+    registeredUsers = profiles || [];
+  }
+
+  // 3. Carrega tiers de configuração
   let tiers: any[] = [];
   const { data: tiersFile } = await supabaseAdmin.storage.from("uploads").download("referrals/tiers.json");
   if (tiersFile) {
@@ -56,7 +70,7 @@ serve(async (req) => {
     }
   }
 
-  // Checa override manual
+  // 4. Checa override manual
   let currentTier = null;
   let nextTier = null;
   const { data: overrideFile } = await supabaseAdmin.storage.from("uploads").download(`referrals/overrides/${referrerId}.json`);
@@ -83,7 +97,6 @@ serve(async (req) => {
     }
   }
 
-  // Se houver currentTier e ainda existir um próximo baseado na contagem, calcula
   if (!nextTier && tiers && tiers.length > 0) {
     const sorted = [...tiers].sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
     for (const t of sorted) {
@@ -94,7 +107,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ count, currentTier, nextTier }), {
+  return new Response(JSON.stringify({ count, currentTier, nextTier, registeredUsers }), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });

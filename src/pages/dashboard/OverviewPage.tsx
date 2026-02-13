@@ -29,7 +29,8 @@ import {
   Home,
   XCircle,
   HelpCircle,
-  RefreshCw
+  RefreshCw,
+  Mail
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -145,7 +146,7 @@ const OverviewPage = () => {
   };
 
   const getProfileCompleteness = () => {
-    if (!profile) return { progress: 0, missingFields: [], isComplete: false };
+    if (!profile) return { progress: 0, missingFields: [], iComplete: false };
     
     const requiredFields: { [key: string]: string } = {
       avatar_url: "Foto",
@@ -304,7 +305,13 @@ const OverviewPage = () => {
       <div className="flex flex-col gap-1">
         {getRoleBadge()}
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Olá, {firstName}!</h1>
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">Olá, {firstName}!</h1>
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5" />
+              {user?.email}
+            </p>
+          </div>
           <Button 
             variant="ghost" 
             size="sm" 
@@ -316,7 +323,7 @@ const OverviewPage = () => {
             <span className="hidden sm:inline">Atualizar Painel</span>
           </Button>
         </div>
-        <p className="text-muted-foreground max-w-2xl">
+        <p className="text-muted-foreground max-w-2xl mt-2">
           {isProfessional 
             ? "Gerencie seu perfil profissional, acompanhe suas verificações e acesse conteúdos educativos para impulsionar sua carreira no Home Care."
             : "Encontre os melhores profissionais para sua escala de atendimento, gerencie seus contatos salvos e acompanhe suas interações recentes."

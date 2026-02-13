@@ -17,7 +17,8 @@ import {
   Loader2,
   Search,
   LifeBuoy,
-  CreditCard
+  CreditCard,
+  Mail
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -126,13 +127,19 @@ const UserLayout = () => {
           <div className="flex flex-col h-full">
             <div className="p-6 border-b hidden lg:block">
               <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
+                <Avatar className="h-10 w-10 shrink-0">
                   <AvatarImage src={profile?.avatar_url} />
                   <AvatarFallback className="bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{profile?.full_name || "Usuário"}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{role === 'professional' ? "Profissional" : role === 'company' ? "Empresa" : "Família"}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                    {role === 'professional' ? "Profissional" : role === 'company' ? "Empresa" : "Família"}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate mt-0.5 flex items-center gap-1">
+                    <Mail className="h-2.5 w-2.5 shrink-0" />
+                    {user?.email}
+                  </p>
                 </div>
               </div>
             </div>
@@ -172,7 +179,10 @@ const UserLayout = () => {
             <button onClick={() => setSidebarOpen(true)}>
               <Menu className="h-6 w-6 text-muted-foreground" />
             </button>
-            <span className="font-semibold text-sm">Meu Painel</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold text-sm block truncate">Meu Painel</span>
+              <span className="text-[10px] text-muted-foreground block truncate">{user?.email}</span>
+            </div>
           </header>
           
           <div className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">

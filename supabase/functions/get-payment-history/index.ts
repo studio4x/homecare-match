@@ -27,7 +27,6 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
     if (userError || !user) {
-      console.error("[get-payment-history] Erro ao validar usuário:", userError);
       throw new Error('Usuário não autenticado ou sessão expirada.');
     }
 
@@ -42,7 +41,6 @@ serve(async (req) => {
     const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_${mode}`);
 
     if (!stripeSecret) {
-      console.error(`[get-payment-history] Chave STRIPE_SECRET_KEY_${mode} não encontrada.`);
       throw new Error(`Configuração de pagamento (Secret ${mode}) ausente no servidor.`);
     }
 
@@ -51,67 +49,73 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    // 3. Buscar Cliente no Stripe pelo e-mail
-    console.log(`[get-payment-history] Buscando cliente Stripe para: ${user.email}`);
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    // 3. Buscar TODOS os clientes associados a este e-mail (prevenção de duplicatas de registro)
+    const customers = await stripe.customers.list({ email: user.email });
     
     if (customers.data.length === 0) {
-      console.log("[get-payment-history] Cliente não possui registro no Stripe.");
       return new Response(JSON.stringify({ payments: [] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       });
     }
 
-    const customerId = customers.data[0].id;
-
-    // 4. Buscar Faturas (Assinaturas) e PaymentIntents (Cursos/Avulsos) em paralelo
-    console.log(`[get-payment-history] Buscando faturas e pagamentos para customer: ${customerId}`);
-    const [invoices, paymentIntents] = await Promise.all([
-      stripe.invoices.list({ customer: customerId, limit: 50 }),
-      stripe.paymentIntents.list({ customer: customerId, limit: 50 })
-    ]);
-
-    // 5. Formatar e Unificar
     const history = [];
 
-    // Adiciona faturas de assinaturas
-    invoices.data.forEach(inv => {
-      if (inv.total > 0) {
-        history.push({
-          id: inv.id,
-          date: inv.created * 1000,
-          amount: inv.amount_paid / 100,
-          currency: inv.currency,
-          status: inv.status,
-          description: inv.lines.data[0]?.description || "Assinatura HomeCare Match",
-          pdf_url: inv.invoice_pdf,
-          type: 'subscription'
-        });
-      }
-    });
+    // 4. Iterar por todos os IDs de cliente encontrados para este e-mail
+    for (const customer of customers.data) {
+      const customerId = customer.id;
+      
+      // Buscar Faturas e Pagamentos Únicos
+      const [invoices, paymentIntents] = await Promise.all([
+        stripe.invoices.list({ customer: customerId, limit: 50 }),
+        stripe.paymentIntents.list({ customer: customerId, limit: 50 })
+      ]);
 
-    // Adiciona pagamentos avulsos (como cursos) que não geraram fatura
-    paymentIntents.data.forEach(pi => {
-      const hasInvoice = invoices.data.some(inv => inv.payment_intent === pi.id);
-      if (!hasInvoice && pi.status === 'succeeded' && pi.amount > 0) {
-        history.push({
-          id: pi.id,
-          date: pi.created * 1000,
-          amount: pi.amount / 100,
-          currency: pi.currency,
-          status: 'paid',
-          description: pi.description || (pi.metadata?.courseSlug ? `Curso: ${pi.metadata.courseSlug}` : "Pagamento Avulso"),
-          pdf_url: null,
-          type: 'one_time'
-        });
-      }
-    });
+      // Processar Faturas (Assinaturas)
+      invoices.data.forEach(inv => {
+        if (inv.total > 0) {
+          history.push({
+            id: inv.id,
+            date: inv.created * 1000,
+            amount: inv.amount_paid / 100,
+            currency: inv.currency,
+            status: inv.status,
+            description: inv.lines.data[0]?.description || "Assinatura HomeCare Match",
+            pdf_url: inv.invoice_pdf,
+            type: 'subscription'
+          });
+        }
+      });
 
-    // Ordenar por data decrescente
-    const sortedHistory = history.sort((a, b) => b.date - a.date);
+      // Processar PaymentIntents (Cursos / Pagamentos Avulsos)
+      paymentIntents.data.forEach(pi => {
+        // Evita duplicar se o PI já estiver em uma fatura processada acima
+        const hasInvoice = invoices.data.some(inv => inv.payment_intent === pi.id);
+        if (!hasInvoice && (pi.status === 'succeeded' || pi.status === 'paid') && pi.amount > 0) {
+          
+          // Tenta extrair o nome do curso do metadata ou descrição
+          let description = pi.description || "Pagamento Avulso";
+          if (pi.metadata?.courseSlug) {
+            description = `Curso: ${pi.metadata.courseSlug.replace(/-/g, ' ')}`;
+          }
 
-    console.log(`[get-payment-history] Sucesso. Encontrados ${sortedHistory.length} registros.`);
+          history.push({
+            id: pi.id,
+            date: pi.created * 1000,
+            amount: pi.amount / 100,
+            currency: pi.currency,
+            status: 'paid',
+            description: description,
+            pdf_url: null, // PIs avulsos geralmente não geram PDF de fatura automático no Stripe
+            type: 'one_time'
+          });
+        }
+      });
+    }
+
+    // 5. Remover duplicatas de ID (caso o mesmo PI apareça em buscas diferentes) e ordenar
+    const uniqueHistory = Array.from(new Map(history.map(item => [item.id, item])).values());
+    const sortedHistory = uniqueHistory.sort((a, b) => b.date - a.date);
 
     return new Response(JSON.stringify({ payments: sortedHistory }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -119,7 +123,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("[get-payment-history] Erro crítico:", error.message);
+    console.error("[get-payment-history] Erro:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

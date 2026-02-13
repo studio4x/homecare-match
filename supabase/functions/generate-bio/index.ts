@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,36 +7,75 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json();
-    const name = body?.name || "";
-    const specialty = body?.specialty || "";
-    const experience = body?.experience || "";
-    const professional_experiences = body?.professional_experiences || "";
-    const city = body?.city || "";
-    const state = body?.state || "";
+    console.log("[generate-bio] Iniciando geração de biografia...");
 
-    // Simples geração local (exemplo), substitua por chamada ao provedor de IA se necessário.
-    const paragraphs: string[] = [];
-    paragraphs.push(`${name} é ${specialty.replace(/-/g, ' ')} atuante${city ? ` em ${city}${state ? `, ${state}` : ""}` : ""}.`);
-    if (experience) paragraphs.push(`Formações e qualificações: ${experience}.`);
-    if (professional_experiences) paragraphs.push(`Experiências práticas: ${professional_experiences}.`);
-    paragraphs.push(`Comprometido(a) com um atendimento humanizado e de alta qualidade.`);
+    const { name, specialty, experience, professional_experiences, city, state } = await req.json();
 
-    const bio = paragraphs.join(" ");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    
+    if (!GEMINI_API_KEY) {
+      console.error("[generate-bio] Erro: GEMINI_API_KEY não configurada.");
+      return new Response(
+        JSON.stringify({ error: "Configuração de IA ausente no servidor." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    return new Response(JSON.stringify({ bio }), {
+    const prompt = `
+      Você é um redator especializado em perfis profissionais de saúde para a plataforma HomeCare Match.
+      Sua tarefa é escrever uma biografia cativante, humanizada e profissional em terceira pessoa.
+      
+      Dados do Profissional:
+      - Nome: ${name}
+      - Especialidade: ${specialty}
+      - Formações: ${experience}
+      - Experiências Práticas: ${professional_experiences}
+      - Localização: ${city} - ${state}
+
+      Diretrizes:
+      1. Escreva em terceira pessoa.
+      2. O tom deve ser profissional, mas acolhedor (ideal para Home Care).
+      3. Destaque a experiência e o compromisso com o cuidado humanizado.
+      4. O texto deve ter entre 3 e 5 parágrafos curtos.
+      5. Não use placeholders como "[Nome]". Use os dados fornecidos.
+      6. Retorne APENAS o texto da biografia, sem introduções ou comentários.
+    `;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    const result = await response.json();
+    const bio = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    if (!bio) {
+      throw new Error("A IA não retornou um conteúdo válido.");
+    }
+
+    console.log("[generate-bio] Biografia gerada com sucesso.");
+
+    return new Response(JSON.stringify({ bio: bio.trim() }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: "Failed to generate bio" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  } catch (error) {
+    console.error("[generate-bio] Erro crítico:", error.message);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });

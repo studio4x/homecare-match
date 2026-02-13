@@ -217,10 +217,21 @@ const ProfilePage = () => {
           state: profile.state || ""
         }
       });
+
+      if (error) {
+        console.error("[ProfilePage] Erro ao invocar função:", error);
+        throw new Error("Falha na comunicação com o servidor de IA.");
+      }
+
       if (data?.bio) {
         setProfile(prev => ({ ...prev, bio: data.bio }));
-        toast.success("Biografia gerada!");
+        toast.success("Biografia gerada com sucesso!");
+      } else {
+        throw new Error("A IA não retornou um texto válido.");
       }
+    } catch (err: any) {
+      console.error("[ProfilePage] Erro na geração:", err);
+      toast.error(err.message || "Erro ao gerar biografia.");
     } finally {
       setIsGeneratingBio(false);
     }

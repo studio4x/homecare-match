@@ -54,12 +54,16 @@ const CourseEnrollmentsDialog = ({
   const fetchEnrollments = async () => {
     if (!courseSlug) return;
     setLoading(true);
+    
+    // Limpa o slug para evitar problemas com hífens extras no final
+    const cleanSlug = courseSlug.trim().replace(/-+$/, "");
+
     try {
       // 1. Buscar total de aulas do curso
       const { data: mods } = await supabase
         .from("academy_modules")
         .select("id")
-        .eq("course_slug", courseSlug);
+        .eq("course_slug", cleanSlug);
       
       const moduleIds = (mods || []).map(m => m.id);
       let totalLessons = 0;
@@ -71,11 +75,11 @@ const CourseEnrollmentsDialog = ({
         totalLessons = count || 0;
       }
 
-      // 2. Buscar matrículas (sem join para evitar PGRST200)
+      // 2. Buscar matrículas (usando ilike para ser mais flexível com o slug)
       const { data: enrData, error: enrError } = await supabase
         .from("academy_enrollments")
-        .select("id, user_id, created_at")
-        .eq("course_slug", courseSlug);
+        .select("id, user_id, created_at, course_slug")
+        .ilike("course_slug", `\${cleanSlug}%`);
 
       if (enrError) throw enrError;
 
@@ -102,7 +106,7 @@ const CourseEnrollmentsDialog = ({
           .from("academy_progress")
           .select("id", { count: "exact", head: true })
           .eq("user_id", enr.user_id)
-          .eq("course_slug", courseSlug)
+          .eq("course_slug", enr.course_slug)
           .eq("status", "completed");
 
         const pct = totalLessons > 0 ? Math.round(((done || 0) / totalLessons) * 100) : 0;
@@ -118,7 +122,7 @@ const CourseEnrollmentsDialog = ({
 
       setEnrollments(formatted.sort((a, b) => b.progress_pct - a.progress_pct));
     } catch (err) {
-      console.error(err);
+      console.error("[EnrollmentsDialog] Erro:", err);
       toast.error("Erro ao carregar matrículas.");
     } finally {
       setLoading(false);

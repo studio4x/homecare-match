@@ -108,12 +108,14 @@ interface Course {
 
 const generateSlug = (text: string) => {
   return text
+    .trim() // Trim primeiro para evitar espaços no final virarem hífens
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") 
     .replace(/[^\w\s-]/g, "") 
     .replace(/\s+/g, "-") 
     .replace(/--+/g, "-") 
+    .replace(/-+$/, "") // Remove hífens do final
     .trim();
 };
 
@@ -140,7 +142,6 @@ const CoursesTab = () => {
   const [courseToDelete, setCourseToDelete] = useState<Course | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
 
-  // Estados para o diálogo de matrículas
   const [enrollmentsDialogOpen, setEnrollmentsDialogOpen] = useState(false);
   const [courseForEnrollments, setCourseForEnrollments] = useState<{slug: string, title: string} | null>(null);
 
@@ -584,7 +585,7 @@ const CoursesTab = () => {
               variant="outline"
               onClick={async () => {
                 toast.info("Sincronizando estrutura...");
-                const { error } = await supabase.functions.invoke("extend-site-config");
+                const { error } = await supabase.functions.invoke("setup-reviews-table");
                 if (error) toast.error("Erro ao sincronizar."); else toast.success("Banco de dados atualizado!");
               }}
             >
@@ -695,7 +696,6 @@ const CoursesTab = () => {
                 </div>
               </div>
 
-              {/* SEÇÃO STRIPE PARA CURSOS PAGOS */}
               {selectedCourse.price && selectedCourse.price > 0 ? (
                 <div className="space-y-4 p-4 bg-secondary/20 rounded-lg border">
                   <div className="flex items-center justify-between">
@@ -738,7 +738,6 @@ const CoursesTab = () => {
                       <Input placeholder="price_..." value={selectedCourse.stripe_price_id_live || ''} onChange={e => setSelectedCourse({...selectedCourse, stripe_price_id_live: e.target.value})} />
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground italic">Clique em "Gerar na Stripe" para criar o produto e o preço automaticamente no seu painel da Stripe.</p>
                 </div>
               ) : null}
 
@@ -750,7 +749,6 @@ const CoursesTab = () => {
                   disabled 
                   className="bg-muted cursor-not-allowed"
                 />
-                <p className="text-[10px] text-muted-foreground italic">Calculado automaticamente com base na soma das aulas.</p>
               </div>
 
               <div className="space-y-2">
@@ -758,11 +756,9 @@ const CoursesTab = () => {
                 <RichTextEditor content={selectedCourse.description || ""} onChange={html => setSelectedCourse({...selectedCourse, description: html})} />
               </div>
 
-              {/* SEÇÃO DE VÍDEO DE DESTAQUE */}
               <div className="space-y-4 border rounded-lg p-4 bg-secondary/10">
                 <div className="flex items-center justify-between">
                   <Label className="flex items-center gap-2"><Video className="h-4 w-4 text-primary" /> Vídeo de Destaque (Hero)</Label>
-                  <span className="text-[10px] text-muted-foreground">Exibido no topo da página do curso</span>
                 </div>
                 
                 <div className="grid gap-4">
@@ -806,11 +802,6 @@ const CoursesTab = () => {
                           {selectedCourse.video_storage_path ? "Substituir Vídeo" : "Subir Vídeo MP4"}
                         </Button>
                       </div>
-                      {selectedCourse.video_storage_path && (
-                        <p className="text-[10px] text-success font-medium flex items-center gap-1">
-                          <Eye className="h-3 w-3" /> Vídeo carregado com sucesso.
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>
@@ -826,11 +817,6 @@ const CoursesTab = () => {
                     </Button>
                     <input ref={heroRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadHero(file); }} />
                   </div>
-                  {selectedCourse.hero_asset_url && (
-                    <div className="mt-2 border rounded-md p-2 bg-secondary/20">
-                      <img src={selectedCourse.hero_asset_url} className="max-h-24 object-contain mx-auto" alt="Preview" />
-                    </div>
-                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Status de Visibilidade</Label>
@@ -853,7 +839,6 @@ const CoursesTab = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Conteúdo (Módulos e Aulas) */}
       <Dialog open={openContentDialog} onOpenChange={attemptCloseContentDialog}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 border-b bg-card">
@@ -911,7 +896,6 @@ const CoursesTab = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de Matrículas */}
       {courseForEnrollments && (
         <CourseEnrollmentsDialog
           open={enrollmentsDialogOpen}

@@ -15,102 +15,61 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-sync] Iniciando sincronização profunda...");
+    console.log("[setup-sync] Iniciando sincronização de permissões...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
-    // 1. Tabelas base e extensões
     await client.queryObject(`
+      -- Garante que as tabelas existam
       CREATE TABLE IF NOT EXISTS public.academy_enrollments (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL,
-        course_slug TEXT NOT NULL,
+        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE (user_id, course_slug)
       );
 
-      -- Garante a FK com nome explícito
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'academy_enrollments_user_id_fkey') THEN
-          ALTER TABLE public.academy_enrollments 
-          ADD CONSTRAINT academy_enrollments_user_id_fkey 
-          FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
-        END IF;
-      END
-      $$;
-
       CREATE TABLE IF NOT EXISTS public.academy_progress (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-        course_slug TEXT NOT NULL,
-        lesson_id UUID NOT NULL,
+        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
+        lesson_id UUID NOT NULL REFERENCES public.academy_lessons(id) ON DELETE CASCADE,
         status TEXT NOT NULL DEFAULT 'in-progress',
         updated_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE (user_id, lesson_id)
       );
 
-      CREATE TABLE IF NOT EXISTS public.reviews (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        reviewer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-        subject_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-        rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-        comment TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE (reviewer_id, subject_id)
-      );
-
-      CREATE TABLE IF NOT EXISTS public.suggestions (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-        content TEXT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS public.reports (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        reporter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-        reported_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-        reason TEXT NOT NULL,
-        description TEXT,
-        status TEXT NOT NULL DEFAULT 'pending',
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
-
-    // 2. RLS e Policies
-    await client.queryObject(`
       ALTER TABLE public.academy_enrollments ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.academy_progress ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE public.suggestions ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 
+      -- Remove políticas antigas para evitar conflitos e recria com permissão total para Admin
+      DROP POLICY IF EXISTS "academy_enrollments_admin_select" ON public.academy_enrollments;
+      CREATE POLICY "academy_enrollments_admin_select" ON public.academy_enrollments 
+      FOR SELECT TO authenticated USING (check_is_admin());
+
+      DROP POLICY IF EXISTS "academy_progress_admin_select" ON public.academy_progress;
+      CREATE POLICY "academy_progress_admin_select" ON public.academy_progress 
+      FOR SELECT TO authenticated USING (check_is_admin());
+
+      -- Permissão para o próprio usuário ver suas matrículas (caso não exista)
       DO $$
       BEGIN
-        -- Policies para Academy (Admin)
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_enrollments_admin_select') THEN
-          CREATE POLICY "academy_enrollments_admin_select" ON public.academy_enrollments FOR SELECT TO authenticated USING (check_is_admin());
-        END IF;
-
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_progress_admin_select') THEN
-          CREATE POLICY "academy_progress_admin_select" ON public.academy_progress FOR SELECT TO authenticated USING (check_is_admin());
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_enrollments_self_select') THEN
+          CREATE POLICY "academy_enrollments_self_select" ON public.academy_enrollments 
+          FOR SELECT TO authenticated USING (auth.uid() = user_id);
         END IF;
       END
       $$;
     `);
 
     await client.end();
-    return new Response(JSON.stringify({ ok: true, message: "Sincronização concluída com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Permissões de administrador sincronizadas!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("[setup-sync] Erro crítico:", e);
-    if (client) {
-      try { await client.end(); } catch (err) { console.error("[setup-sync] Erro ao fechar cliente:", err); }
-    }
+    if (client) try { await client.end(); } catch {}
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

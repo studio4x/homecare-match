@@ -29,7 +29,7 @@ serve(async (req) => {
       const referrerId = folder.name;
       userIdsToFetch.add(referrerId);
 
-      const { data: files } = await supabase.storage.from("uploads").list(`referrals/\${referrerId}`, { limit: 100 });
+      const { data: files } = await supabase.storage.from("uploads").list(`referrals/${referrerId}`, { limit: 100 });
       
       if (files) {
         for (const file of files) {
@@ -62,7 +62,7 @@ serve(async (req) => {
 
     // 4. Formatar resultado final
     const formatted = allLinkReferrals.map(r => ({
-      id: `link-\${r.newUserId}`,
+      id: `link-${r.newUserId}`,
       referrer_id: r.referrerId,
       referred_name: profilesMap[r.newUserId]?.full_name || "Usuário em conclusão",
       referred_email: profilesMap[r.newUserId]?.email || "N/A",

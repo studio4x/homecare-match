@@ -65,8 +65,8 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
 
   const getWhatsappLink = (phone: string, name: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    const message = encodeURIComponent(`Olá \${name || 'profissional'}, sou da equipe HomeCare Match. Recebemos sua indicação e gostaríamos de te ajudar a se cadastrar na plataforma!`);
-    return `https://wa.me/\${cleanPhone}?text=\${message}`;
+    const message = encodeURIComponent(`Olá ${name || 'profissional'}, sou da equipe HomeCare Match. Recebemos sua indicação e gostaríamos de te ajudar a se cadastrar na plataforma!`);
+    return `https://wa.me/${cleanPhone}?text=${message}`;
   };
 
   return (
@@ -96,7 +96,7 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
                 </TableCell>
                 <TableCell>
                   {r.type === 'manual' ? (
-                    <a href={`https://wa.me/\${r.referred_phone}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">
+                    <a href={`https://wa.me/${r.referred_phone}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">
                       {r.referred_phone}
                     </a>
                   ) : (

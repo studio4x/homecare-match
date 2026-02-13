@@ -236,10 +236,10 @@ const AnalyticsPage = () => {
                       outerRadius={80}
                       paddingAngle={5}
                       dataKey="value"
-                      label={({ name, percent }) => `\${name} (\${(percent * 100).toFixed(0)}%)`}
+                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                     >
                       {stats.whatsappClicks.map((entry: any, index: number) => (
-                        <Cell key={`cell-\${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <RechartsTooltip />
@@ -266,10 +266,10 @@ const AnalyticsPage = () => {
                       cy="50%"
                       outerRadius={80}
                       dataKey="value"
-                      label={({ name, value }) => `\${name}: \${value}`}
+                      label={({ name, value }) => `${name}: ${value}`}
                     >
                       {stats.ticketsByUrgency.map((entry: any, index: number) => (
-                        <Cell key={`cell-\${index}`} fill={entry.name === 'Urgente' ? '#ef4444' : entry.name === 'Alta' ? '#f97316' : '#3b82f6'} />
+                        <Cell key={`cell-${index}`} fill={entry.name === 'Urgente' ? '#ef4444' : entry.name === 'Alta' ? '#f97316' : '#3b82f6'} />
                       ))}
                     </Pie>
                     <RechartsTooltip />

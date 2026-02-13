@@ -22,6 +22,11 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { 
   Loader2,
   Plus,
@@ -30,7 +35,11 @@ import {
   ShieldAlert,
   MessageSquare,
   Link as LinkIcon,
-  UserCheck
+  UserCheck,
+  ChevronDown,
+  ChevronUp,
+  Settings2,
+  Save
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -60,6 +69,8 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
   const [isLoadingTiers, setIsLoadingTiers] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [referralToDelete, setReferralToDelete] = useState<Referral | null>(null);
+  const [isTiersOpen, setIsTiersOpen] = useState(false);
+  const [isSavingTiers, setIsSavingTiers] = useState(false);
 
   useEffect(() => {
     const fetchTiers = async () => {
@@ -83,7 +94,6 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
         }
       } catch (error) {
         console.error("Error fetching referral tiers:", error);
-        toast.error("Failed to load referral tiers.");
       } finally {
         setIsLoadingTiers(false);
       }
@@ -92,13 +102,16 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
   }, []);
 
   const handleSaveTiers = async () => {
+    setIsSavingTiers(true);
     const { error } = await supabase.functions.invoke('referral-config', {
       body: { action: 'set', tiers: referralTiers }
     });
+    setIsSavingTiers(false);
     if (error) {
       toast.error("Erro ao salvar tiers.");
     } else {
-      toast.success("Tiers salvos!");
+      toast.success("Configurações de Tiers salvas com sucesso!");
+      setIsTiersOpen(false);
     }
   };
 
@@ -119,7 +132,109 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
   };
 
   return (
-    <>
+    <div className="space-y-6">
+      <Collapsible
+        open={isTiersOpen}
+        onOpenChange={setIsTiersOpen}
+        className="rounded-xl border bg-card shadow-sm overflow-hidden"
+      >
+        <CollapsibleTrigger asChild>
+          <Button 
+            variant="ghost" 
+            className="w-full flex items-center justify-between p-6 h-auto hover:bg-secondary/50 group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <Settings2 className="h-5 w-5" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-lg font-semibold">Configurar Tiers de Embaixador</h2>
+                <p className="text-xs text-muted-foreground">Defina as metas e rótulos para os selos de indicação.</p>
+              </div>
+            </div>
+            {isTiersOpen ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+          </Button>
+        </CollapsibleTrigger>
+        
+        <CollapsibleContent className="px-6 pb-6 space-y-6 border-t animate-accordion-down">
+          <div className="pt-6 flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Adicione ou remova níveis de conquista baseados no número de indicações.</p>
+            <Button size="sm" onClick={() => setReferralTiers(prev => [...prev, { name: '', threshold: 1, badge_label: '' }])} className="gap-2">
+              <Plus className="h-4 w-4" /> Novo Tier
+            </Button>
+          </div>
+
+          {isLoadingTiers ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" /> Carregando configurações...
+            </div>
+          ) : referralTiers.length > 0 ? (
+            <div className="grid gap-4">
+              {referralTiers.map((t, idx) => (
+                <div key={idx} className="grid md:grid-cols-12 gap-4 p-4 border rounded-lg bg-secondary/5 relative group">
+                  <div className="md:col-span-4 space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Nome Interno</Label>
+                    <Input 
+                      placeholder="Ex: Nível 1"
+                      value={t.name} 
+                      onChange={e => {
+                        const v = e.target.value;
+                        setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, name: v } : x));
+                      }} 
+                    />
+                  </div>
+                  <div className="md:col-span-3 space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Meta (Indicações)</Label>
+                    <Input 
+                      type="number" 
+                      value={t.threshold} 
+                      onChange={e => {
+                        const v = parseInt(e.target.value || '0', 10);
+                        setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, threshold: v } : x));
+                      }} 
+                    />
+                  </div>
+                  <div className="md:col-span-4 space-y-1.5">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Rótulo do Selo (Público)</Label>
+                    <Input 
+                      placeholder="Ex: Embaixador Bronze"
+                      value={t.badge_label} 
+                      onChange={e => {
+                        const v = e.target.value;
+                        setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, badge_label: v } : x));
+                      }} 
+                    />
+                  </div>
+                  <div className="md:col-span-1 flex items-end justify-end">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-destructive hover:bg-destructive/10"
+                      onClick={() => setReferralTiers(prev => prev.filter((_, i) => i !== idx))}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 border-2 border-dashed rounded-xl">
+              <Award className="h-10 w-10 mx-auto mb-2 text-muted-foreground opacity-20" />
+              <p className="text-sm text-muted-foreground">Nenhum tier configurado.</p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" onClick={() => setIsTiersOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveTiers} disabled={isSavingTiers}>
+              {isSavingTiers ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Salvar Configurações
+            </Button>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
       <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
         <Table>
           <TableHeader>
@@ -203,57 +318,6 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
           </TableBody>
         </Table>
       </div>
-      
-      {/* Configuração de Tiers (Apenas visível se não houver filtro de abas ou se for a aba principal) */}
-      <div className="rounded-xl border bg-card shadow-sm p-6 space-y-4 mt-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Award className="h-5 w-5 text-primary" />
-            Tiers de Embaixador
-          </h2>
-          <Button onClick={() => setReferralTiers(prev => [...prev, { name: '', threshold: 1, badge_label: '' }])} className="gap-2">
-            <Plus className="h-4 w-4" /> Novo Tier
-          </Button>
-        </div>
-        {isLoadingTiers ? (
-          <div className="flex items-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Carregando...</div>
-        ) : referralTiers.length > 0 ? (
-          <div className="space-y-3">
-            {referralTiers.map((t, idx) => (
-              <div key={idx} className="grid md:grid-cols-3 gap-3 p-4 border rounded-lg">
-                <div className="grid gap-2">
-                  <Label>Nome</Label>
-                  <Input value={t.name} onChange={e => {
-                    const v = e.target.value;
-                    setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, name: v } : x));
-                  }} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Quantidade (threshold)</Label>
-                  <Input type="number" value={t.threshold} onChange={e => {
-                    const v = parseInt(e.target.value || '0', 10);
-                    setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, threshold: v } : x));
-                  }} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Rótulo do Selo</Label>
-                  <Input value={t.badge_label} onChange={e => {
-                    const v = e.target.value;
-                    setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, badge_label: v } : x));
-                  }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-sm text-muted-foreground">Nenhum tier configurado ainda.</div>
-        )}
-        <div className="flex justify-end">
-          <Button onClick={handleSaveTiers}>
-            Salvar Tiers
-          </Button>
-        </div>
-      </div>
 
       {/* Modal de Confirmação de Exclusão */}
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
@@ -280,7 +344,7 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 

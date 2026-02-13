@@ -20,10 +20,10 @@ serve(async (req) => {
     const { data: config } = await supabaseAdmin.from('site_config').select('stripe_mode').eq('id', 1).maybeSingle();
     
     const mode = config?.stripe_mode === 'live' ? 'LIVE' : 'TEST';
-    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${mode}`);
+    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_${mode}`);
 
     if (!stripeSecret) {
-      throw new Error(`Configuração de pagamento ausente no servidor (Secret \${mode}).`);
+      throw new Error(`Configuração de pagamento ausente no servidor (Secret ${mode}).`);
     }
 
     const stripe = new Stripe(stripeSecret, {
@@ -39,21 +39,20 @@ serve(async (req) => {
     let stripeId = "";
     let metadata = { userId: user.id };
     let checkoutMode = "subscription";
-    let successUrl = `\${req.headers.get('origin')}/dashboard?success=true`;
+    let successUrl = `${req.headers.get('origin')}/dashboard?success=true`;
 
     if (courseSlug) {
       const { data: course } = await supabaseAdmin.from('academy_courses').select('*').eq('slug', courseSlug).maybeSingle();
       stripeId = config?.stripe_mode === 'live' ? course.stripe_price_id_live : course.stripe_price_id_test;
       metadata.courseSlug = courseSlug;
       checkoutMode = "payment";
-      // Redireciona direto para o curso após a compra
-      successUrl = `\${req.headers.get('origin')}/cursos/\${courseSlug}?success=true`;
+      successUrl = `${req.headers.get('origin')}/cursos/${courseSlug}?success=true`;
     } else if (planId) {
       const { data: plan } = await supabaseAdmin.from('plans').select('*').eq('id', planId).maybeSingle();
       stripeId = config?.stripe_mode === 'live' ? plan.stripe_price_id_live : plan.stripe_price_id_test;
       metadata.planId = planId;
       checkoutMode = "subscription";
-      successUrl = `\${req.headers.get('origin')}/dashboard?success=true`;
+      successUrl = `${req.headers.get('origin')}/dashboard?success=true`;
     }
     
     if (!stripeId) throw new Error("ID da Stripe não configurado para este item.");
@@ -63,7 +62,7 @@ serve(async (req) => {
       line_items: [{ price: stripeId, quantity: 1 }],
       mode: checkoutMode,
       success_url: successUrl,
-      cancel_url: `\${req.headers.get('origin')}/dashboard?canceled=true`,
+      cancel_url: `${req.headers.get('origin')}/dashboard?canceled=true`,
       metadata: metadata
     });
 

@@ -39,11 +39,11 @@ serve(async (req) => {
       .maybeSingle();
     
     const mode = config?.stripe_mode === 'live' ? 'LIVE' : 'TEST';
-    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${mode}`);
+    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_${mode}`);
 
     if (!stripeSecret) {
-      console.error(`[get-payment-history] Chave STRIPE_SECRET_KEY_\${mode} não encontrada.`);
-      throw new Error(`Configuração de pagamento (Secret \${mode}) ausente no servidor.`);
+      console.error(`[get-payment-history] Chave STRIPE_SECRET_KEY_${mode} não encontrada.`);
+      throw new Error(`Configuração de pagamento (Secret ${mode}) ausente no servidor.`);
     }
 
     const stripe = new Stripe(stripeSecret, {
@@ -52,7 +52,7 @@ serve(async (req) => {
     });
 
     // 3. Buscar Cliente no Stripe pelo e-mail
-    console.log(`[get-payment-history] Buscando cliente Stripe para: \${user.email}`);
+    console.log(`[get-payment-history] Buscando cliente Stripe para: ${user.email}`);
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
@@ -66,7 +66,7 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
 
     // 4. Buscar Faturas (Assinaturas) e PaymentIntents (Cursos/Avulsos) em paralelo
-    console.log(`[get-payment-history] Buscando faturas e pagamentos para customer: \${customerId}`);
+    console.log(`[get-payment-history] Buscando faturas e pagamentos para customer: ${customerId}`);
     const [invoices, paymentIntents] = await Promise.all([
       stripe.invoices.list({ customer: customerId, limit: 50 }),
       stripe.paymentIntents.list({ customer: customerId, limit: 50 })
@@ -77,7 +77,7 @@ serve(async (req) => {
 
     // Adiciona faturas de assinaturas
     invoices.data.forEach(inv => {
-      if (inv.total > 0) { // Ignora faturas de valor zero (trials) se desejar, ou mantém
+      if (inv.total > 0) {
         history.push({
           id: inv.id,
           date: inv.created * 1000,
@@ -101,7 +101,7 @@ serve(async (req) => {
           amount: pi.amount / 100,
           currency: pi.currency,
           status: 'paid',
-          description: pi.description || (pi.metadata?.courseSlug ? `Curso: \${pi.metadata.courseSlug}` : "Pagamento Avulso"),
+          description: pi.description || (pi.metadata?.courseSlug ? `Curso: ${pi.metadata.courseSlug}` : "Pagamento Avulso"),
           pdf_url: null,
           type: 'one_time'
         });
@@ -111,7 +111,7 @@ serve(async (req) => {
     // Ordenar por data decrescente
     const sortedHistory = history.sort((a, b) => b.date - a.date);
 
-    console.log(`[get-payment-history] Sucesso. Encontrados \${sortedHistory.length} registros.`);
+    console.log(`[get-payment-history] Sucesso. Encontrados ${sortedHistory.length} registros.`);
 
     return new Response(JSON.stringify({ payments: sortedHistory }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

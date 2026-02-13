@@ -51,23 +51,30 @@ serve(async (req) => {
 
   console.log(`[referral-stats] Encontradas ${count} indicações para o usuário ${referrerId}`);
 
-  // 2. Busca dados básicos dos usuários indicados que já possuem perfil
-  let registeredUsers = [];
+  // 2. Busca dados dos perfis
+  let profilesMap = new Map();
   if (referredIds.length > 0) {
-    const { data: profiles, error: profilesError } = await supabaseAdmin
+    const { data: profiles } = await supabaseAdmin
       .from('profiles')
-      .select('full_name, created_at, role')
-      .in('id', referredIds)
-      .order('created_at', { ascending: false });
+      .select('id, full_name, created_at, role')
+      .in('id', referredIds);
     
-    if (profilesError) {
-      console.error("[referral-stats] Erro ao buscar perfis:", profilesError);
-    } else {
-      registeredUsers = profiles || [];
-    }
+    profiles?.forEach(p => profilesMap.set(p.id, p));
   }
 
-  // 3. Carrega tiers de configuração
+  // 3. Monta a lista final garantindo que todos os IDs do storage apareçam
+  const registeredUsers = referralFiles.map(f => {
+    const id = f.name.replace('.json', '');
+    const profile = profilesMap.get(id);
+    
+    return {
+      full_name: profile?.full_name || "Usuário em conclusão",
+      created_at: profile?.created_at || f.created_at || new Date().toISOString(),
+      role: profile?.role || "professional"
+    };
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  // 4. Carrega tiers de configuração
   let tiers: any[] = [];
   const { data: tiersFile } = await supabaseAdmin.storage.from("uploads").download("referrals/tiers.json");
   if (tiersFile) {
@@ -79,7 +86,7 @@ serve(async (req) => {
     }
   }
 
-  // 4. Determina Tier Atual e Próximo
+  // 5. Determina Tier Atual e Próximo
   let currentTier = null;
   let nextTier = null;
 
@@ -109,7 +116,6 @@ serve(async (req) => {
     }
   }
 
-  // Se ainda não definiu o próximo tier (ex: já está no último), tenta pegar o primeiro que o usuário ainda não atingiu
   if (!nextTier && tiers && tiers.length > 0) {
     const sorted = [...tiers].sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
     for (const t of sorted) {

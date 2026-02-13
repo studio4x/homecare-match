@@ -11,7 +11,7 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  console.log("[get-payment-history] Iniciando busca de histórico...");
+  console.log("[get-payment-history] Iniciando busca profunda de histórico...");
 
   try {
     const supabaseAdmin = createClient(
@@ -19,61 +19,36 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 1. Validar Usuário
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('Cabeçalho de autorização ausente.');
-    
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader?.replace('Bearer ', '');
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
-    if (userError || !user) {
-      throw new Error('Usuário não autenticado ou sessão expirada.');
-    }
+    if (userError || !user) throw new Error('Usuário não autenticado.');
 
-    // 2. Configurar Stripe
-    const { data: config } = await supabaseAdmin
-      .from('site_config')
-      .select('stripe_mode')
-      .eq('id', 1)
-      .maybeSingle();
-    
+    const { data: config } = await supabaseAdmin.from('site_config').select('stripe_mode').eq('id', 1).maybeSingle();
     const mode = config?.stripe_mode === 'live' ? 'LIVE' : 'TEST';
     const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_${mode}`);
 
-    if (!stripeSecret) {
-      throw new Error(`Configuração de pagamento (Secret ${mode}) ausente no servidor.`);
-    }
+    if (!stripeSecret) throw new Error(`Configuração Stripe (${mode}) ausente.`);
 
     const stripe = new Stripe(stripeSecret, {
       apiVersion: '2023-10-16',
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    // 3. Buscar TODOS os clientes associados a este e-mail (prevenção de duplicatas de registro)
+    const history = [];
+    const processedIds = new Set();
+
+    // 1. Buscar Clientes por E-mail
     const customers = await stripe.customers.list({ email: user.email });
     
-    if (customers.data.length === 0) {
-      return new Response(JSON.stringify({ payments: [] }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      });
-    }
-
-    const history = [];
-
-    // 4. Iterar por todos os IDs de cliente encontrados para este e-mail
     for (const customer of customers.data) {
       const customerId = customer.id;
-      
-      // Buscar Faturas e Pagamentos Únicos
-      const [invoices, paymentIntents] = await Promise.all([
-        stripe.invoices.list({ customer: customerId, limit: 50 }),
-        stripe.paymentIntents.list({ customer: customerId, limit: 50 })
-      ]);
 
-      // Processar Faturas (Assinaturas)
+      // 2. Buscar Faturas (Assinaturas)
+      const invoices = await stripe.invoices.list({ customer: customerId, limit: 50 });
       invoices.data.forEach(inv => {
-        if (inv.total > 0) {
+        if (inv.total > 0 && !processedIds.has(inv.id)) {
           history.push({
             id: inv.id,
             date: inv.created * 1000,
@@ -84,21 +59,19 @@ serve(async (req) => {
             pdf_url: inv.invoice_pdf,
             type: 'subscription'
           });
+          processedIds.add(inv.id);
+          if (inv.payment_intent) processedIds.add(inv.payment_intent);
         }
       });
 
-      // Processar PaymentIntents (Cursos / Pagamentos Avulsos)
+      // 3. Buscar PaymentIntents (Pagamentos diretos)
+      const paymentIntents = await stripe.paymentIntents.list({ customer: customerId, limit: 50 });
       paymentIntents.data.forEach(pi => {
-        // Evita duplicar se o PI já estiver em uma fatura processada acima
-        const hasInvoice = invoices.data.some(inv => inv.payment_intent === pi.id);
-        if (!hasInvoice && (pi.status === 'succeeded' || pi.status === 'paid') && pi.amount > 0) {
-          
-          // Tenta extrair o nome do curso do metadata ou descrição
+        if (!processedIds.has(pi.id) && pi.status === 'succeeded' && pi.amount > 0) {
           let description = pi.description || "Pagamento Avulso";
           if (pi.metadata?.courseSlug) {
             description = `Curso: ${pi.metadata.courseSlug.replace(/-/g, ' ')}`;
           }
-
           history.push({
             id: pi.id,
             date: pi.created * 1000,
@@ -106,16 +79,47 @@ serve(async (req) => {
             currency: pi.currency,
             status: 'paid',
             description: description,
-            pdf_url: null, // PIs avulsos geralmente não geram PDF de fatura automático no Stripe
+            pdf_url: null,
             type: 'one_time'
           });
+          processedIds.add(pi.id);
         }
       });
     }
 
-    // 5. Remover duplicatas de ID (caso o mesmo PI apareça em buscas diferentes) e ordenar
-    const uniqueHistory = Array.from(new Map(history.map(item => [item.id, item])).values());
-    const sortedHistory = uniqueHistory.sort((a, b) => b.date - a.date);
+    // 4. BUSCA EXTRA: Sessões de Checkout (Muitas vezes o curso fica aqui se o customer não foi vinculado ao PI)
+    // Como não dá pra filtrar sessions por email direto na listagem, buscamos as recentes e filtramos manualmente
+    const sessions = await stripe.checkout.sessions.list({ limit: 100 });
+    const userSessions = sessions.data.filter(s => 
+      (s.customer_details?.email?.toLowerCase() === user.email.toLowerCase() || s.customer_email?.toLowerCase() === user.email.toLowerCase()) &&
+      s.payment_status === 'paid'
+    );
+
+    userSessions.forEach(session => {
+      const id = session.payment_intent || session.id;
+      if (!processedIds.has(id)) {
+        let description = "Compra de Curso";
+        if (session.metadata?.courseSlug) {
+          description = `Curso: ${session.metadata.courseSlug.replace(/-/g, ' ')}`;
+        } else if (session.metadata?.planId) {
+          description = `Plano: ${session.metadata.planId}`;
+        }
+
+        history.push({
+          id: id,
+          date: session.created * 1000,
+          amount: (session.amount_total || 0) / 100,
+          currency: session.currency || 'brl',
+          status: 'paid',
+          description: description,
+          pdf_url: null,
+          type: session.mode === 'subscription' ? 'subscription' : 'one_time'
+        });
+        processedIds.add(id);
+      }
+    });
+
+    const sortedHistory = history.sort((a, b) => b.date - a.date);
 
     return new Response(JSON.stringify({ payments: sortedHistory }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

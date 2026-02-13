@@ -7,22 +7,21 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log("[generate-bio] Iniciando geração de biografia...");
+    console.log("[generate-bio] Requisição recebida.");
 
     const { name, specialty, experience, professional_experiences, city, state } = await req.json();
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     
     if (!GEMINI_API_KEY) {
-      console.error("[generate-bio] Erro: GEMINI_API_KEY não configurada.");
+      console.error("[generate-bio] ERRO: GEMINI_API_KEY não encontrada nos Secrets do Supabase.");
       return new Response(
-        JSON.stringify({ error: "Configuração de IA ausente no servidor." }),
+        JSON.stringify({ error: "A chave de API da IA não foi configurada no servidor." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -47,6 +46,8 @@ serve(async (req) => {
       6. Retorne APENAS o texto da biografia, sem introduções ou comentários.
     `;
 
+    console.log("[generate-bio] Chamando API do Gemini...");
+
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -59,9 +60,19 @@ serve(async (req) => {
     );
 
     const result = await response.json();
+
+    if (!response.ok) {
+      console.error("[generate-bio] Erro na API do Gemini:", result);
+      return new Response(
+        JSON.stringify({ error: "Erro na API de Inteligência Artificial.", details: result }),
+        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const bio = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     if (!bio) {
+      console.error("[generate-bio] Resposta vazia do Gemini:", result);
       throw new Error("A IA não retornou um conteúdo válido.");
     }
 

@@ -219,8 +219,12 @@ const ProfilePage = () => {
       });
 
       if (error) {
-        console.error("[ProfilePage] Erro ao invocar função:", error);
-        throw new Error("Falha na comunicação com o servidor de IA.");
+        let msg = "Falha na comunicação com o servidor de IA.";
+        try {
+          const body = await error.context?.json();
+          if (body?.error) msg = body.error;
+        } catch {}
+        throw new Error(msg);
       }
 
       if (data?.bio) {

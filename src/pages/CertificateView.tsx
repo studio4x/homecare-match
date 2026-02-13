@@ -41,15 +41,6 @@ const CertificateView = () => {
       }
 
       setData(cert);
-
-      // Tenta auto-corrigir se estiver logado e for o dono
-      const isCorrupted = cert.validation_code?.includes("${");
-      const isOwner = user?.id === cert.user_id;
-      
-      if (isCorrupted && session && isOwner) {
-        console.log("[CertificateView] Iniciando auto-correção...");
-        fixCertificate(cert.course.slug);
-      }
     } catch (e: any) {
       console.error("[CertificateView] Erro ao buscar:", e);
       setError(e.message);
@@ -61,26 +52,15 @@ const CertificateView = () => {
   const fixCertificate = async (courseSlug: string) => {
     if (isFixing) return;
     setIsFixing(true);
-    const toastId = toast.loading("Atualizando informações do selo...");
     
     try {
-      const { data: responseData, error: invokeError } = await supabase.functions.invoke('issue-certificate', {
+      const { error: invokeError } = await supabase.functions.invoke('issue-certificate', {
         body: { course_slug: courseSlug }
       });
       
-      if (invokeError) {
-        // Tenta extrair a mensagem de erro do corpo da resposta
-        let msg = "Erro ao processar atualização.";
-        try {
-          const body = await invokeError.context?.json();
-          if (body?.error) msg = body.error;
-        } catch {}
-        throw new Error(msg);
-      }
+      if (invokeError) throw invokeError;
       
-      toast.success("Selo atualizado com sucesso!", { id: toastId });
-      
-      // Recarrega os dados
+      // Recarrega os dados atualizados
       const { data: updatedCert } = await supabase
         .from("certificates")
         .select(`
@@ -91,18 +71,33 @@ const CertificateView = () => {
         .eq("id", id)
         .single();
       
-      if (updatedCert) setData(updatedCert);
+      if (updatedCert) {
+        setData(updatedCert);
+        console.log("[CertificateView] Selo corrigido automaticamente.");
+      }
     } catch (err: any) {
-      console.error("[CertificateView] Falha ao corrigir:", err);
-      toast.error(err.message || "Não foi possível atualizar o selo.", { id: toastId });
+      console.error("[CertificateView] Falha na auto-correção:", err);
     } finally {
       setIsFixing(false);
     }
   };
 
+  // Efeito para carregar dados iniciais
   useEffect(() => {
     if (id) fetchCertificate();
-  }, [id, session?.user?.id]);
+  }, [id]);
+
+  // Efeito para AUTO-CORREÇÃO silenciosa
+  useEffect(() => {
+    if (data && session && user) {
+      const isCorrupted = data.validation_code?.includes("${");
+      const isOwner = user.id === data.user_id;
+      
+      if (isCorrupted && isOwner && !isFixing) {
+        fixCertificate(data.course.slug);
+      }
+    }
+  }, [data, session, user, isFixing]);
 
   const handlePrint = () => window.print();
 
@@ -148,7 +143,6 @@ const CertificateView = () => {
   };
 
   const isCorrupted = data.validation_code?.includes("${");
-  const isOwner = user?.id === data.user_id;
 
   return (
     <div className="min-h-screen bg-secondary/10 py-6 px-4 print:p-0 print:m-0 print:bg-white">
@@ -159,23 +153,13 @@ const CertificateView = () => {
             <Link to="/dashboard/cursos"><ArrowLeft size={16} /> Voltar</Link>
           </Button>
           <div className="flex gap-2">
-            {isCorrupted && isOwner && (
-              <Button 
-                variant="outline" 
-                className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 gap-2"
-                onClick={() => fixCertificate(data.course.slug)}
-                disabled={isFixing}
-              >
-                {isFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                Corrigir Selo Agora
-              </Button>
+            {isFixing && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-xs animate-pulse">
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                Atualizando código...
+              </div>
             )}
-            {isCorrupted && !isOwner && (
-              <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 hidden md:flex">
-                Aguardando atualização do proprietário
-              </Badge>
-            )}
-            <Button onClick={handlePrint} className="gap-2 bg-primary" disabled={isCorrupted}>
+            <Button onClick={handlePrint} className="gap-2 bg-primary" disabled={isCorrupted || isFixing}>
               <Printer size={16} /> Imprimir / Salvar PDF
             </Button>
           </div>
@@ -242,7 +226,7 @@ const CertificateView = () => {
                 "text-[10px] font-mono font-bold px-2 py-0.5 rounded print:bg-slate-100",
                 isCorrupted ? "text-amber-600 bg-amber-50" : "text-slate-700 bg-secondary/50"
               )}>
-                {isCorrupted ? "AGUARDANDO ATUALIZAÇÃO" : data.validation_code}
+                {isCorrupted ? "PROCESSANDO..." : data.validation_code}
               </p>
               <p className="text-[7px] text-slate-400">Valide em: homecarematch.com.br/validar</p>
             </div>

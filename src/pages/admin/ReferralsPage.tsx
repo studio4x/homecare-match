@@ -4,10 +4,11 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ReferralsTab from "@/components/admin/ReferralsTab";
 import ReferralTiersConfig from "@/components/admin/ReferralTiersConfig";
-import { Loader2, Award, Link as LinkIcon, UserPlus, Settings2 } from "lucide-react";
+import { Loader2, Award, Link as LinkIcon, UserPlus, Settings2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 const ReferralsPage = () => {
   const queryClient = useQueryClient();
@@ -59,7 +60,7 @@ const ReferralsPage = () => {
   });
 
   // Busca indicações via Link (Storage)
-  const { data: linkReferrals = [], isLoading: isLoadingLinks } = useQuery({
+  const { data: linkReferrals = [], isLoading: isLoadingLinks, refetch: refetchLinks, isRefetching: isRefetchingLinks } = useQuery({
     queryKey: ['admin-referrals-links'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('admin-get-all-referrals');
@@ -67,6 +68,16 @@ const ReferralsPage = () => {
       return data.referrals || [];
     }
   });
+
+  const handleSyncLinks = async () => {
+    const toastId = toast.loading("Sincronizando cadastros...");
+    try {
+      await refetchLinks();
+      toast.success("Dados sincronizados com sucesso!", { id: toastId });
+    } catch (err) {
+      toast.error("Falha ao sincronizar dados.", { id: toastId });
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (referralId: string) => {
@@ -93,7 +104,7 @@ const ReferralsPage = () => {
 
   const isLoading = isLoadingManual || isLoadingLinks;
 
-  if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
+  if (isLoading && !isRefetchingLinks) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
@@ -127,11 +138,21 @@ const ReferralsPage = () => {
         </TabsContent>
 
         <TabsContent value="links" className="space-y-6">
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-blue-50 border border-blue-200 p-4 rounded-lg">
             <p className="text-sm text-blue-800">
               Estes são usuários que criaram conta utilizando o link de indicação de um profissional. 
               Estes registros são automáticos e servem para o cálculo de selos de embaixador.
             </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="bg-white border-blue-300 text-blue-700 hover:bg-blue-50 gap-2 shrink-0"
+              onClick={handleSyncLinks}
+              disabled={isRefetchingLinks}
+            >
+              {isRefetchingLinks ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Sincronizar Agora
+            </Button>
           </div>
           <ReferralsTab 
             referrals={linkReferrals} 

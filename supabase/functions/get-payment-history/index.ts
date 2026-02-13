@@ -11,7 +11,7 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  console.log("[get-payment-history] Iniciando busca profunda por e-mail...");
+  console.log("[get-payment-history] Iniciando busca corrigida...");
 
   try {
     const supabaseAdmin = createClient(
@@ -39,58 +39,17 @@ serve(async (req) => {
     const history = [];
     const processedIds = new Set();
 
-    // 1. BUSCA PODEROSA: Pesquisar todas as cobranças (Charges) pelo e-mail do usuário
-    // Isso encontra tanto clientes registrados quanto convidados (Guest)
-    console.log(`[get-payment-history] Pesquisando cobranças para: ${user.email}`);
-    const chargeSearch = await stripe.charges.search({
+    // 1. Buscar Clientes pelo e-mail
+    // Usamos search para garantir que pegamos todos os clientes com este email
+    const customers = await stripe.customers.search({
       query: `email:"${user.email}"`,
+      limit: 10
     });
 
-    for (const charge of chargeSearch.data) {
-      if (charge.paid && charge.amount > 0) {
-        // Tenta identificar se é curso ou assinatura
-        let type = 'one_time';
-        let description = charge.description || "Pagamento HomeCare Match";
-        
-        // Se houver fatura, é provavelmente uma assinatura
-        if (charge.invoice) {
-          type = 'subscription';
-        }
-
-        // Tenta pegar detalhes do curso no metadata do PaymentIntent associado
-        if (charge.payment_intent) {
-          try {
-            const pi = await stripe.paymentIntents.retrieve(charge.payment_intent);
-            if (pi.metadata?.courseSlug) {
-              description = `Curso: ${pi.metadata.courseSlug.replace(/-/g, ' ')}`;
-            } else if (pi.metadata?.planId) {
-              description = `Plano: ${pi.metadata.planId}`;
-              type = 'subscription';
-            }
-          } catch (e) {
-            console.warn("[get-payment-history] Falha ao recuperar metadata do PI");
-          }
-        }
-
-        history.push({
-          id: charge.id,
-          date: charge.created * 1000,
-          amount: charge.amount / 100,
-          currency: charge.currency,
-          status: charge.status === 'succeeded' ? 'paid' : charge.status,
-          description: description,
-          pdf_url: charge.receipt_url, // Recibo direto do Stripe para pagamentos avulsos
-          type: type
-        });
-        processedIds.add(charge.id);
-        if (charge.payment_intent) processedIds.add(charge.payment_intent);
-      }
-    }
-
-    // 2. FALLBACK: Buscar faturas específicas (para garantir PDFs de faturas de assinatura)
-    const customers = await stripe.customers.list({ email: user.email, limit: 5 });
+    // Para cada cliente encontrado (pode haver mais de um se comprou como guest antes)
     for (const customer of customers.data) {
-      const invoices = await stripe.invoices.list({ customer: customer.id, limit: 20 });
+      // Buscar Faturas (Invoices) -> Principalmente para Assinaturas
+      const invoices = await stripe.invoices.list({ customer: customer.id, limit: 50 });
       invoices.data.forEach(inv => {
         if (inv.total > 0 && !processedIds.has(inv.id)) {
           history.push({
@@ -104,8 +63,67 @@ serve(async (req) => {
             type: 'subscription'
           });
           processedIds.add(inv.id);
+          if (inv.payment_intent) processedIds.add(inv.payment_intent);
         }
       });
+
+      // Buscar PaymentIntents vinculados ao Customer -> Para compras avulsas
+      const customerPIs = await stripe.paymentIntents.list({ customer: customer.id, limit: 50 });
+      customerPIs.data.forEach(pi => {
+        if (!processedIds.has(pi.id) && (pi.status === 'succeeded' || pi.status === 'paid') && pi.amount > 0) {
+          let description = pi.description || "Pagamento Avulso";
+          if (pi.metadata?.courseSlug) {
+            description = `Curso: ${pi.metadata.courseSlug.replace(/-/g, ' ')}`;
+          } else if (pi.metadata?.planId) {
+            description = `Plano: ${pi.metadata.planId}`;
+          }
+
+          history.push({
+            id: pi.id,
+            date: pi.created * 1000,
+            amount: pi.amount / 100,
+            currency: pi.currency,
+            status: 'paid',
+            description: description,
+            pdf_url: null,
+            type: 'one_time'
+          });
+          processedIds.add(pi.id);
+        }
+      });
+    }
+
+    // 2. Buscar PaymentIntents pelo 'receipt_email'
+    // Isso pega compras feitas como Guest (onde o email do recibo bate, mas talvez o customer não tenha sido linkado ou encontrado acima)
+    // O campo 'receipt_email' É suportado no paymentIntents.search
+    try {
+      const piSearch = await stripe.paymentIntents.search({
+        query: `status:'succeeded' AND receipt_email:"${user.email}"`,
+        limit: 20
+      });
+
+      piSearch.data.forEach(pi => {
+        if (!processedIds.has(pi.id) && pi.amount > 0) {
+          let description = pi.description || "Pagamento Avulso";
+          if (pi.metadata?.courseSlug) {
+            description = `Curso: ${pi.metadata.courseSlug.replace(/-/g, ' ')}`;
+          }
+
+          history.push({
+            id: pi.id,
+            date: pi.created * 1000,
+            amount: pi.amount / 100,
+            currency: pi.currency,
+            status: 'paid',
+            description: description,
+            pdf_url: null,
+            type: 'one_time'
+          });
+          processedIds.add(pi.id);
+        }
+      });
+    } catch (searchErr) {
+      console.warn("[get-payment-history] Erro na busca por receipt_email (pode não estar indexado ainda):", searchErr.message);
     }
 
     // Ordenar por data decrescente

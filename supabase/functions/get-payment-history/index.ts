@@ -11,7 +11,7 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  console.log("[get-payment-history] Iniciando busca corrigida...");
+  console.log("[get-payment-history] Iniciando busca profunda corrigida...");
 
   try {
     const supabaseAdmin = createClient(
@@ -38,17 +38,14 @@ serve(async (req) => {
 
     const history = [];
     const processedIds = new Set();
+    const userEmail = user.email.toLowerCase();
 
-    // 1. Buscar Clientes pelo e-mail
-    // Usamos search para garantir que pegamos todos os clientes com este email
-    const customers = await stripe.customers.search({
-      query: `email:"${user.email}"`,
-      limit: 10
-    });
-
-    // Para cada cliente encontrado (pode haver mais de um se comprou como guest antes)
+    // 1. Buscar Clientes e suas Faturas/Pagamentos (Para Assinaturas e Clientes Registrados)
+    // Usamos listagem direta para evitar delay de indexação da Search API
+    const customers = await stripe.customers.list({ email: user.email, limit: 10 });
+    
     for (const customer of customers.data) {
-      // Buscar Faturas (Invoices) -> Principalmente para Assinaturas
+      // Buscar Faturas (Invoices)
       const invoices = await stripe.invoices.list({ customer: customer.id, limit: 50 });
       invoices.data.forEach(inv => {
         if (inv.total > 0 && !processedIds.has(inv.id)) {
@@ -67,10 +64,10 @@ serve(async (req) => {
         }
       });
 
-      // Buscar PaymentIntents vinculados ao Customer -> Para compras avulsas
-      const customerPIs = await stripe.paymentIntents.list({ customer: customer.id, limit: 50 });
-      customerPIs.data.forEach(pi => {
-        if (!processedIds.has(pi.id) && (pi.status === 'succeeded' || pi.status === 'paid') && pi.amount > 0) {
+      // Buscar PaymentIntents diretos deste cliente
+      const paymentIntents = await stripe.paymentIntents.list({ customer: customer.id, limit: 50 });
+      paymentIntents.data.forEach(pi => {
+        if (!processedIds.has(pi.id) && pi.status === 'succeeded' && pi.amount > 0) {
           let description = pi.description || "Pagamento Avulso";
           if (pi.metadata?.courseSlug) {
             description = `Curso: ${pi.metadata.courseSlug.replace(/-/g, ' ')}`;
@@ -85,7 +82,7 @@ serve(async (req) => {
             currency: pi.currency,
             status: 'paid',
             description: description,
-            pdf_url: null,
+            pdf_url: null, // PaymentIntents puros não têm PDF fácil sem Invoice
             type: 'one_time'
           });
           processedIds.add(pi.id);
@@ -93,37 +90,47 @@ serve(async (req) => {
       });
     }
 
-    // 2. Buscar PaymentIntents pelo 'receipt_email'
-    // Isso pega compras feitas como Guest (onde o email do recibo bate, mas talvez o customer não tenha sido linkado ou encontrado acima)
-    // O campo 'receipt_email' É suportado no paymentIntents.search
-    try {
-      const piSearch = await stripe.paymentIntents.search({
-        query: `status:'succeeded' AND receipt_email:"${user.email}"`,
-        limit: 20
-      });
+    // 2. BUSCA "FORÇA BRUTA": Listar Checkout Sessions recentes e filtrar por e-mail manualmente
+    // Isso pega compras feitas como "Convidado" (Guest) que ainda não foram indexadas na busca ou não têm customer fixo
+    const sessions = await stripe.checkout.sessions.list({ limit: 100 });
+    
+    const matchedSessions = sessions.data.filter(s => {
+      const customerEmail = s.customer_details?.email || s.customer_email;
+      return customerEmail && customerEmail.toLowerCase() === userEmail && s.payment_status === 'paid';
+    });
 
-      piSearch.data.forEach(pi => {
-        if (!processedIds.has(pi.id) && pi.amount > 0) {
-          let description = pi.description || "Pagamento Avulso";
-          if (pi.metadata?.courseSlug) {
-            description = `Curso: ${pi.metadata.courseSlug.replace(/-/g, ' ')}`;
-          }
+    for (const session of matchedSessions) {
+      // Usa o ID do PaymentIntent ou da Sessão para evitar duplicatas
+      const uniqueId = session.payment_intent || session.id;
+      
+      if (!processedIds.has(uniqueId) && !processedIds.has(session.invoice)) {
+        let description = "Pagamento via Checkout";
+        let type = session.mode === 'subscription' ? 'subscription' : 'one_time';
 
-          history.push({
-            id: pi.id,
-            date: pi.created * 1000,
-            amount: pi.amount / 100,
-            currency: pi.currency,
-            status: 'paid',
-            description: description,
-            pdf_url: null,
-            type: 'one_time'
-          });
-          processedIds.add(pi.id);
+        if (session.metadata?.courseSlug) {
+          description = `Curso: ${session.metadata.courseSlug.replace(/-/g, ' ')}`;
+        } else if (session.metadata?.planId) {
+          description = `Plano: ${session.metadata.planId}`;
+        } else if (session.mode === 'payment') {
+           description = "Compra de Curso/Serviço";
         }
-      });
-    } catch (searchErr) {
-      console.warn("[get-payment-history] Erro na busca por receipt_email (pode não estar indexado ainda):", searchErr.message);
+
+        // Se for assinatura, tentamos pegar o PDF da fatura se disponível no objeto invoice (se expandido) ou deixamos null
+        // Checkout sessions geralmente não retornam a URL do PDF diretamente no list, mas o recibo sim se disponível no charge
+        // Para simplificar, assumimos recibo digital se não tivermos invoice object
+        
+        history.push({
+          id: uniqueId,
+          date: session.created * 1000,
+          amount: (session.amount_total || 0) / 100,
+          currency: session.currency || 'brl',
+          status: 'paid',
+          description: description,
+          pdf_url: null, // O front exibirá "Recibo Digital"
+          type: type
+        });
+        processedIds.add(uniqueId);
+      }
     }
 
     // Ordenar por data decrescente

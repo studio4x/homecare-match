@@ -8,6 +8,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Função auxiliar para traduzir termos comuns do Stripe
+const translateDescription = (desc: string) => {
+  if (!desc) return desc;
+  return desc
+    .replace(/\(at /g, '(por ')
+    .replace(/ \/ year\)/g, ' / ano)')
+    .replace(/ \/ month\)/g, ' / mês)')
+    .replace(/year/g, 'ano')
+    .replace(/month/g, 'mês');
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
@@ -40,8 +51,7 @@ serve(async (req) => {
     const processedIds = new Set();
     const userEmail = user.email.toLowerCase();
 
-    // 1. Buscar Clientes e suas Faturas/Pagamentos (Para Assinaturas e Clientes Registrados)
-    // Usamos listagem direta para evitar delay de indexação da Search API
+    // 1. Buscar Clientes e suas Faturas/Pagamentos
     const customers = await stripe.customers.list({ email: user.email, limit: 10 });
     
     for (const customer of customers.data) {
@@ -55,7 +65,7 @@ serve(async (req) => {
             amount: inv.amount_paid / 100,
             currency: inv.currency,
             status: inv.status,
-            description: inv.lines.data[0]?.description || "Assinatura HomeCare Match",
+            description: translateDescription(inv.lines.data[0]?.description || "Assinatura HomeCare Match"),
             pdf_url: inv.invoice_pdf,
             type: 'subscription'
           });
@@ -81,8 +91,8 @@ serve(async (req) => {
             amount: pi.amount / 100,
             currency: pi.currency,
             status: 'paid',
-            description: description,
-            pdf_url: null, // PaymentIntents puros não têm PDF fácil sem Invoice
+            description: translateDescription(description),
+            pdf_url: null,
             type: 'one_time'
           });
           processedIds.add(pi.id);
@@ -90,8 +100,7 @@ serve(async (req) => {
       });
     }
 
-    // 2. BUSCA "FORÇA BRUTA": Listar Checkout Sessions recentes e filtrar por e-mail manualmente
-    // Isso pega compras feitas como "Convidado" (Guest) que ainda não foram indexadas na busca ou não têm customer fixo
+    // 2. BUSCA "FORÇA BRUTA": Listar Checkout Sessions recentes
     const sessions = await stripe.checkout.sessions.list({ limit: 100 });
     
     const matchedSessions = sessions.data.filter(s => {
@@ -100,7 +109,6 @@ serve(async (req) => {
     });
 
     for (const session of matchedSessions) {
-      // Usa o ID do PaymentIntent ou da Sessão para evitar duplicatas
       const uniqueId = session.payment_intent || session.id;
       
       if (!processedIds.has(uniqueId) && !processedIds.has(session.invoice)) {
@@ -114,10 +122,6 @@ serve(async (req) => {
         } else if (session.mode === 'payment') {
            description = "Compra de Curso/Serviço";
         }
-
-        // Se for assinatura, tentamos pegar o PDF da fatura se disponível no objeto invoice (se expandido) ou deixamos null
-        // Checkout sessions geralmente não retornam a URL do PDF diretamente no list, mas o recibo sim se disponível no charge
-        // Para simplificar, assumimos recibo digital se não tivermos invoice object
         
         history.push({
           id: uniqueId,
@@ -125,15 +129,14 @@ serve(async (req) => {
           amount: (session.amount_total || 0) / 100,
           currency: session.currency || 'brl',
           status: 'paid',
-          description: description,
-          pdf_url: null, // O front exibirá "Recibo Digital"
+          description: translateDescription(description),
+          pdf_url: null,
           type: type
         });
         processedIds.add(uniqueId);
       }
     }
 
-    // Ordenar por data decrescente
     const sortedHistory = history.sort((a, b) => b.date - a.date);
 
     return new Response(JSON.stringify({ payments: sortedHistory }), {

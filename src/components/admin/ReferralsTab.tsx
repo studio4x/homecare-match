@@ -1,10 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
   Table, 
@@ -22,26 +19,14 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { 
   Loader2,
-  Plus,
-  Award,
   Trash2,
   ShieldAlert,
   MessageSquare,
   Link as LinkIcon,
-  UserCheck,
-  ChevronDown,
-  ChevronUp,
-  Settings2,
-  Save
+  UserCheck
 } from "lucide-react";
-import { toast } from "sonner";
 
 interface Referral {
   id: string;
@@ -65,55 +50,8 @@ interface ReferralsTabProps {
 }
 
 const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) => {
-  const [referralTiers, setReferralTiers] = useState<any[]>([]);
-  const [isLoadingTiers, setIsLoadingTiers] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [referralToDelete, setReferralToDelete] = useState<Referral | null>(null);
-  const [isTiersOpen, setIsTiersOpen] = useState(false);
-  const [isSavingTiers, setIsSavingTiers] = useState(false);
-
-  useEffect(() => {
-    const fetchTiers = async () => {
-      setIsLoadingTiers(true);
-      try {
-        const { data, error } = await supabase.functions.invoke('referral-config', {
-          body: { action: 'get' }
-        });
-        const defaultTiers = [
-          { name: "Promotor", threshold: 3, badge_label: "Promotor" },
-          { name: "Colaborador", threshold: 5, badge_label: "Colaborador" },
-          { name: "Embaixador", threshold: 10, badge_label: "Embaixador" },
-          { name: "Referência", threshold: 20, badge_label: "Referência" },
-          { name: "Sênior", threshold: 35, badge_label: "Sênior" },
-          { name: "Elite", threshold: 50, badge_label: "Elite" },
-        ];
-        if (!error && data?.tiers && Array.isArray(data.tiers) && data.tiers.length > 0) {
-          setReferralTiers(data.tiers);
-        } else {
-          setReferralTiers(defaultTiers);
-        }
-      } catch (error) {
-        console.error("Error fetching referral tiers:", error);
-      } finally {
-        setIsLoadingTiers(false);
-      }
-    };
-    fetchTiers();
-  }, []);
-
-  const handleSaveTiers = async () => {
-    setIsSavingTiers(true);
-    const { error } = await supabase.functions.invoke('referral-config', {
-      body: { action: 'set', tiers: referralTiers }
-    });
-    setIsSavingTiers(false);
-    if (error) {
-      toast.error("Erro ao salvar tiers.");
-    } else {
-      toast.success("Configurações de Tiers salvas com sucesso!");
-      setIsTiersOpen(false);
-    }
-  };
 
   const handleDeleteReferral = () => {
     if (!referralToDelete) return;
@@ -133,108 +71,6 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
 
   return (
     <div className="space-y-6">
-      <Collapsible
-        open={isTiersOpen}
-        onOpenChange={setIsTiersOpen}
-        className="rounded-xl border bg-card shadow-sm overflow-hidden"
-      >
-        <CollapsibleTrigger asChild>
-          <Button 
-            variant="ghost" 
-            className="w-full flex items-center justify-between p-6 h-auto hover:bg-secondary/50 group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <Settings2 className="h-5 w-5" />
-              </div>
-              <div className="text-left">
-                <h2 className="text-lg font-semibold">Configurar Tiers de Embaixador</h2>
-                <p className="text-xs text-muted-foreground">Defina as metas e rótulos para os selos de indicação.</p>
-              </div>
-            </div>
-            {isTiersOpen ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
-          </Button>
-        </CollapsibleTrigger>
-        
-        <CollapsibleContent className="px-6 pb-6 space-y-6 border-t animate-accordion-down">
-          <div className="pt-6 flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Adicione ou remova níveis de conquista baseados no número de indicações.</p>
-            <Button size="sm" onClick={() => setReferralTiers(prev => [...prev, { name: '', threshold: 1, badge_label: '' }])} className="gap-2">
-              <Plus className="h-4 w-4" /> Novo Tier
-            </Button>
-          </div>
-
-          {isLoadingTiers ? (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" /> Carregando configurações...
-            </div>
-          ) : referralTiers.length > 0 ? (
-            <div className="grid gap-4">
-              {referralTiers.map((t, idx) => (
-                <div key={idx} className="grid md:grid-cols-12 gap-4 p-4 border rounded-lg bg-secondary/5 relative group">
-                  <div className="md:col-span-4 space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Nome Interno</Label>
-                    <Input 
-                      placeholder="Ex: Nível 1"
-                      value={t.name} 
-                      onChange={e => {
-                        const v = e.target.value;
-                        setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, name: v } : x));
-                      }} 
-                    />
-                  </div>
-                  <div className="md:col-span-3 space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Meta (Indicações)</Label>
-                    <Input 
-                      type="number" 
-                      value={t.threshold} 
-                      onChange={e => {
-                        const v = parseInt(e.target.value || '0', 10);
-                        setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, threshold: v } : x));
-                      }} 
-                    />
-                  </div>
-                  <div className="md:col-span-4 space-y-1.5">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Rótulo do Selo (Público)</Label>
-                    <Input 
-                      placeholder="Ex: Embaixador Bronze"
-                      value={t.badge_label} 
-                      onChange={e => {
-                        const v = e.target.value;
-                        setReferralTiers(prev => prev.map((x, i) => i === idx ? { ...x, badge_label: v } : x));
-                      }} 
-                    />
-                  </div>
-                  <div className="md:col-span-1 flex items-end justify-end">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => setReferralTiers(prev => prev.filter((_, i) => i !== idx))}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-10 border-2 border-dashed rounded-xl">
-              <Award className="h-10 w-10 mx-auto mb-2 text-muted-foreground opacity-20" />
-              <p className="text-sm text-muted-foreground">Nenhum tier configurado.</p>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="ghost" onClick={() => setIsTiersOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveTiers} disabled={isSavingTiers}>
-              {isSavingTiers ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Salvar Configurações
-            </Button>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-
       <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
         <Table>
           <TableHeader>

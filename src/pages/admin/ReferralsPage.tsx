@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ReferralsTab from "@/components/admin/ReferralsTab";
-import { Loader2, Award, Link as LinkIcon, UserPlus } from "lucide-react";
+import ReferralTiersConfig from "@/components/admin/ReferralTiersConfig";
+import { Loader2, Award, Link as LinkIcon, UserPlus, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -102,7 +103,7 @@ const ReferralsPage = () => {
       </div>
 
       <Tabs defaultValue="manual" className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="manual" className="gap-2">
             <UserPlus className="h-4 w-4" />
             Indicações Manuais
@@ -110,6 +111,10 @@ const ReferralsPage = () => {
           <TabsTrigger value="links" className="gap-2">
             <LinkIcon className="h-4 w-4" />
             Cadastros via Link
+          </TabsTrigger>
+          <TabsTrigger value="config" className="gap-2">
+            <Settings2 className="h-4 w-4" />
+            Configurar Tiers
           </TabsTrigger>
         </TabsList>
 
@@ -133,6 +138,10 @@ const ReferralsPage = () => {
             onDelete={() => {}} // Desabilitado para links
             isDeleting={false}
           />
+        </TabsContent>
+
+        <TabsContent value="config" className="space-y-6">
+          <ReferralTiersConfig />
         </TabsContent>
       </Tabs>
     </div>

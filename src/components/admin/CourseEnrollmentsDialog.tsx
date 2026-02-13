@@ -71,14 +71,14 @@ const CourseEnrollmentsDialog = ({
         totalLessons = count || 0;
       }
 
-      // 2. Buscar matrículas e perfis
+      // 2. Buscar matrículas e perfis (Sintaxe simplificada para evitar PGRST200)
       const { data: enrData, error: enrError } = await supabase
         .from("academy_enrollments")
         .select(`
           id,
           user_id,
           created_at,
-          profile:profiles!academy_enrollments_user_id_fkey (full_name, email)
+          profiles (full_name, email)
         `)
         .eq("course_slug", courseSlug);
 
@@ -97,8 +97,10 @@ const CourseEnrollmentsDialog = ({
         const pct = totalLessons > 0 ? Math.round(((done || 0) / totalLessons) * 100) : 0;
         
         formatted.push({
-          ...enr,
-          profile: enr.profile as any,
+          id: enr.id,
+          user_id: enr.user_id,
+          created_at: enr.created_at,
+          profile: (enr as any).profiles,
           progress_pct: pct
         });
       }

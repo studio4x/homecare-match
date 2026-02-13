@@ -9,7 +9,6 @@ const corsHeaders = {
 const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL")!;
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -90,6 +89,15 @@ serve(async (req) => {
 
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reports_admin_all') THEN
           CREATE POLICY "reports_admin_all" ON public.reports FOR ALL TO authenticated USING (check_is_admin());
+        END IF;
+
+        -- Policies para Academy (Admin)
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_enrollments_admin_select') THEN
+          CREATE POLICY "academy_enrollments_admin_select" ON public.academy_enrollments FOR SELECT TO authenticated USING (check_is_admin());
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_progress_admin_select') THEN
+          CREATE POLICY "academy_progress_admin_select" ON public.academy_progress FOR SELECT TO authenticated USING (check_is_admin());
         END IF;
       END
       $$;

@@ -599,18 +599,10 @@ const ProfilePage = () => {
             <>
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Currículo e Biografia *</CardTitle>
-                      <CardDescription>
-                        Destaque suas competências e trajetória. Perfis detalhados têm 3x mais chances de atrair a atenção de recrutadores.
-                      </CardDescription>
-                    </div>
-                    <Button variant="outline" size="sm" className="gap-2" onClick={handleGenerateBio} disabled={isGeneratingBio}>
-                      {isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
-                      Gerar com IA
-                    </Button>
-                  </div>
+                  <CardTitle>Currículo e Biografia *</CardTitle>
+                  <CardDescription>
+                    Destaque suas competências e trajetória. Perfis detalhados têm 3x mais chances de atrair a atenção de recrutadores.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-2">
@@ -621,8 +613,21 @@ const ProfilePage = () => {
                     <Label>Experiências Profissionais *</Label>
                     <Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} placeholder="Locais onde trabalhou..." />
                   </div>
-                  <div className="grid gap-2">
-                    <Label>Biografia para o Perfil *</Label>
+                  
+                  <div className="pt-2 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Biografia para o Perfil *</Label>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-8 gap-2 text-xs" 
+                        onClick={handleGenerateBio} 
+                        disabled={isGeneratingBio}
+                      >
+                        {isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
+                        Gerar com IA
+                      </Button>
+                    </div>
                     <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} />
                   </div>
                 </CardContent>

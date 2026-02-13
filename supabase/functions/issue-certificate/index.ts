@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SUPABASE_URL = "https://rkjvtnadqkbwomgzyswr.supabase.co";
+const SUPABASE_URL = "https://rkjvtnadqkbomgzyswr.supabase.co";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 serve(async (req) => {
@@ -52,7 +52,7 @@ serve(async (req) => {
       .eq('course_slug', course_slug)
       .eq('status', 'completed');
 
-    console.log(`[issue-certificate] Progresso: \${completedCount}/\${totalLessons}`);
+    console.log(`[issue-certificate] Progresso: ${completedCount}/${totalLessons}`);
 
     if (!completedCount || completedCount < totalLessons) {
       return new Response(JSON.stringify({ 
@@ -66,7 +66,7 @@ serve(async (req) => {
     }
 
     // 3. Gerar código de validação único
-    const validationCode = `HCM-\${Math.random().toString(36).substring(2, 10).toUpperCase()}-\${Date.now().toString(36).toUpperCase()}`;
+    const validationCode = `HCM-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
 
     // 4. Inserir certificado (UPSERT para evitar duplicados)
     const { data: cert, error: certError } = await supabaseAdmin
@@ -86,7 +86,7 @@ serve(async (req) => {
       throw certError;
     }
 
-    console.log(`[issue-certificate] Selo gerado com sucesso: \${cert.id}`);
+    console.log(`[issue-certificate] Selo gerado com sucesso: ${cert.id}`);
 
     return new Response(JSON.stringify({ success: true, certificate_id: cert.id }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

@@ -66,7 +66,8 @@ serve(async (req) => {
       referrer_id: r.referrerId,
       referred_name: profilesMap[r.newUserId]?.full_name || "Usuário em conclusão",
       referred_email: profilesMap[r.newUserId]?.email || "N/A",
-      referred_role: profilesMap[r.newUserId]?.role || "N/A",
+      // Se for link, assumimos professional se o perfil ainda não existir ou não tiver role
+      referred_role: profilesMap[r.newUserId]?.role || "professional", 
       status: 'registered',
       created_at: r.created_at,
       type: 'link',

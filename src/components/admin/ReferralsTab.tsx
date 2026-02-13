@@ -69,6 +69,21 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
     return `https://wa.me/${cleanPhone}?text=${message}`;
   };
 
+  const getRoleBadge = (role: string | undefined) => {
+    if (!role) return null;
+    
+    if (role === 'professional') {
+      return <Badge variant="secondary" className="text-[8px] h-4 uppercase mt-1 bg-primary/10 text-primary border-primary/20">Profissional</Badge>;
+    }
+    if (role === 'company') {
+      return <Badge variant="secondary" className="text-[8px] h-4 uppercase mt-1">Empresa</Badge>;
+    }
+    if (role === 'family') {
+      return <Badge variant="outline" className="text-[8px] h-4 uppercase mt-1">Família</Badge>;
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
@@ -88,11 +103,7 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
               <TableRow key={r.id}>
                 <TableCell>
                   <div className="font-medium">{r.referred_name || 'Não informado'}</div>
-                  {r.type === 'link' && (
-                    <Badge variant="outline" className="text-[8px] h-4 uppercase mt-1">
-                      {r.referred_role === 'professional' ? 'Profissional' : r.referred_role === 'company' ? 'Empresa' : 'Família'}
-                    </Badge>
-                  )}
+                  {r.type === 'link' && getRoleBadge(r.referred_role)}
                 </TableCell>
                 <TableCell>
                   {r.type === 'manual' ? (

@@ -16,7 +16,8 @@ import {
   X,
   Loader2,
   Search,
-  LifeBuoy
+  LifeBuoy,
+  CreditCard
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -89,7 +90,8 @@ const UserLayout = () => {
   if (isProfessional) {
     navItems.push(
       { href: "/dashboard/cursos", label: "Cursos", icon: BookOpen },
-      { href: "/dashboard/indicacoes", label: "Indicações", icon: Award }
+      { href: "/dashboard/indicacoes", label: "Indicações", icon: Award },
+      { href: "/dashboard/pagamentos", label: "Pagamentos", icon: CreditCard }
     );
   } else {
     navItems.push({ href: "/buscar", label: "Buscar Profissionais", icon: Search });

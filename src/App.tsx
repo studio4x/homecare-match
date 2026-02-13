@@ -35,6 +35,7 @@ import AcademyPage from "./pages/dashboard/AcademyPage";
 import ReferralsPage from "./pages/dashboard/ReferralsPage";
 import SupportTicketsPage from "./pages/dashboard/SupportTicketsPage";
 import TicketDetailPage from "./pages/dashboard/TicketDetailPage";
+import PaymentsPage from "./pages/dashboard/PaymentsPage";
 
 // Admin Layout & Pages
 import AdminLayout from "./components/layout/AdminLayout";
@@ -88,6 +89,7 @@ const App = () => (
                 <Route path="contatos" element={<InteractionsPage />} />
                 <Route path="cursos" element={<AcademyPage />} />
                 <Route path="indicacoes" element={<ReferralsPage />} />
+                <Route path="pagamentos" element={<PaymentsPage />} />
                 <Route path="suporte" element={<SupportTicketsPage />} />
                 <Route path="suporte/:id" element={<TicketDetailPage />} />
               </Route>

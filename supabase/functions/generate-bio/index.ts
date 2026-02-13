@@ -26,7 +26,6 @@ serve(async (req) => {
       );
     }
 
-    // Prompt aprimorado para lidar melhor com dados curtos ou de teste
     const prompt = `
       Você é um redator especializado em perfis profissionais de saúde.
       Escreva uma biografia profissional e humanizada em terceira pessoa para o seguinte perfil:
@@ -45,10 +44,11 @@ serve(async (req) => {
       - Se os dados forem insuficientes ou de teste, crie um texto padrão profissional baseado na especialidade.
     `;
 
-    console.log("[generate-bio] Chamando Gemini API...");
+    console.log("[generate-bio] Chamando Gemini API (v1)...");
 
+    // Usando a versão estável v1 da API
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -64,7 +64,7 @@ serve(async (req) => {
       console.error("[generate-bio] Erro retornado pelo Google:", result);
       const googleError = result.error?.message || "Erro desconhecido na API do Google.";
       return new Response(
-        JSON.stringify({ error: `Erro no Google Gemini: ${googleError}`, details: result }),
+        JSON.stringify({ error: `Erro no Google Gemini: ${googleError}` }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

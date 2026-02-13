@@ -3,15 +3,17 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ReferralsTab from "@/components/admin/ReferralsTab";
-import { Loader2 } from "lucide-react";
+import { Loader2, Award, Link as LinkIcon, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ReferralsPage = () => {
   const queryClient = useQueryClient();
 
-  const { data: referrals = [], isLoading } = useQuery({
-    queryKey: ['admin-referrals'],
+  // Busca indicações manuais (Tabela)
+  const { data: manualReferrals = [], isLoading: isLoadingManual } = useQuery({
+    queryKey: ['admin-referrals-manual'],
     queryFn: async () => {
       const { data: referralsData, error: referralsError } = await supabase
         .from('referrals')
@@ -44,6 +46,7 @@ const ReferralsPage = () => {
           referred_phone: r.referred_phone,
           status: r.status,
           created_at: r.created_at,
+          type: 'manual',
           referrer: r.referrer_id ? {
             full_name: profilesMap.get(r.referrer_id)?.full_name || 'Usuário não encontrado',
             email: profilesMap.get(r.referrer_id)?.email || 'N/A'
@@ -54,8 +57,23 @@ const ReferralsPage = () => {
     }
   });
 
+  // Busca indicações via Link (Storage)
+  const { data: linkReferrals = [], isLoading: isLoadingLinks } = useQuery({
+    queryKey: ['admin-referrals-links'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('admin-get-all-referrals');
+      if (error) throw error;
+      return data.referrals || [];
+    }
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (referralId: string) => {
+      // Apenas indicações manuais podem ser excluídas da tabela
+      if (referralId.startsWith('link-')) {
+        toast.error("Indicações via link são registros de sistema e não podem ser excluídas por aqui.");
+        return;
+      }
       const { error } = await supabase
         .from('referrals')
         .delete()
@@ -64,7 +82,7 @@ const ReferralsPage = () => {
     },
     onSuccess: () => {
       toast.success("Indicação excluída com sucesso.");
-      queryClient.invalidateQueries({ queryKey: ['admin-referrals'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-referrals-manual'] });
     },
     onError: (error) => {
       console.error("Erro ao excluir indicação:", error);
@@ -72,19 +90,51 @@ const ReferralsPage = () => {
     }
   });
 
+  const isLoading = isLoadingManual || isLoadingLinks;
+
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Indicações</h1>
-        <p className="text-muted-foreground">Acompanhe o programa de "Indique e Ganhe".</p>
+        <h1 className="text-3xl font-bold tracking-tight">Programa de Indicações</h1>
+        <p className="text-muted-foreground">Gerencie indicações manuais e acompanhe cadastros via link.</p>
       </div>
-      <ReferralsTab 
-        referrals={referrals} 
-        onDelete={deleteMutation.mutate}
-        isDeleting={deleteMutation.isPending}
-      />
+
+      <Tabs defaultValue="manual" className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="manual" className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            Indicações Manuais
+          </TabsTrigger>
+          <TabsTrigger value="links" className="gap-2">
+            <LinkIcon className="h-4 w-4" />
+            Cadastros via Link
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="manual" className="space-y-6">
+          <ReferralsTab 
+            referrals={manualReferrals} 
+            onDelete={deleteMutation.mutate}
+            isDeleting={deleteMutation.isPending}
+          />
+        </TabsContent>
+
+        <TabsContent value="links" className="space-y-6">
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
+            <p className="text-sm text-blue-800">
+              Estes são usuários que criaram conta utilizando o link de indicação de um profissional. 
+              Estes registros são automáticos e servem para o cálculo de selos de embaixador.
+            </p>
+          </div>
+          <ReferralsTab 
+            referrals={linkReferrals} 
+            onDelete={() => {}} // Desabilitado para links
+            isDeleting={false}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

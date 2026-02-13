@@ -28,16 +28,21 @@ import {
   Award,
   Trash2,
   ShieldAlert,
-  MessageSquare
+  MessageSquare,
+  Link as LinkIcon,
+  UserCheck
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Referral {
   id: string;
   referred_name: string;
-  referred_phone: string;
+  referred_phone?: string;
+  referred_email?: string;
+  referred_role?: string;
   status: string;
   created_at: string;
+  type?: 'manual' | 'link';
   referrer: {
     full_name: string;
     email: string;
@@ -109,8 +114,8 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
 
   const getWhatsappLink = (phone: string, name: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    const message = encodeURIComponent(`Olá ${name || 'profissional'}, sou da equipe HomeCare Match. Recebemos sua indicação e gostaríamos de te ajudar a se cadastrar na plataforma!`);
-    return `https://wa.me/${cleanPhone}?text=${message}`;
+    const message = encodeURIComponent(`Olá \${name || 'profissional'}, sou da equipe HomeCare Match. Recebemos sua indicação e gostaríamos de te ajudar a se cadastrar na plataforma!`);
+    return `https://wa.me/\${cleanPhone}?text=\${message}`;
   };
 
   return (
@@ -120,7 +125,7 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
           <TableHeader>
             <TableRow>
               <TableHead>Indicado</TableHead>
-              <TableHead>WhatsApp</TableHead>
+              <TableHead>Contato / Info</TableHead>
               <TableHead>Indicador</TableHead>
               <TableHead>Data</TableHead>
               <TableHead>Status</TableHead>
@@ -130,50 +135,76 @@ const ReferralsTab = ({ referrals, onDelete, isDeleting }: ReferralsTabProps) =>
           <TableBody>
             {referrals.length > 0 ? referrals.map(r => (
               <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.referred_name || 'Não informado'}</TableCell>
                 <TableCell>
-                  <a href={`https://wa.me/${r.referred_phone}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                    {r.referred_phone}
-                  </a>
+                  <div className="font-medium">{r.referred_name || 'Não informado'}</div>
+                  {r.type === 'link' && (
+                    <Badge variant="outline" className="text-[8px] h-4 uppercase mt-1">
+                      {r.referred_role === 'professional' ? 'Profissional' : r.referred_role === 'company' ? 'Empresa' : 'Família'}
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
-                  <div className="font-medium">{r.referrer?.full_name || 'N/A'}</div>
-                  <div className="text-xs text-muted-foreground">{r.referrer?.email}</div>
+                  {r.type === 'manual' ? (
+                    <a href={`https://wa.me/\${r.referred_phone}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">
+                      {r.referred_phone}
+                    </a>
+                  ) : (
+                    <div className="text-xs text-muted-foreground truncate max-w-[150px]">
+                      {r.referred_email}
+                    </div>
+                  )}
                 </TableCell>
-                <TableCell>{new Date(r.created_at).toLocaleDateString('pt-BR')}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className="capitalize">{r.status}</Badge>
+                  <div className="font-medium text-sm">{r.referrer?.full_name || 'N/A'}</div>
+                  <div className="text-[10px] text-muted-foreground">{r.referrer?.email}</div>
+                </TableCell>
+                <TableCell className="text-xs">{new Date(r.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                <TableCell>
+                  <Badge variant={r.type === 'link' ? "default" : "secondary"} className="capitalize text-[10px] h-5">
+                    {r.type === 'link' ? <UserCheck className="h-3 w-3 mr-1" /> : null}
+                    {r.status === 'registered' ? 'Cadastrado' : r.status}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-right whitespace-nowrap">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-success hover:bg-success/10 mr-2 h-8 gap-1"
-                    asChild
-                  >
-                    <a 
-                      href={getWhatsappLink(r.referred_phone, r.referred_name || '')} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      WhatsApp
-                    </a>
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-destructive hover:bg-destructive/10 h-8"
-                    onClick={() => { setReferralToDelete(r); setDeleteModalOpen(true); }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {r.type === 'manual' && r.referred_phone ? (
+                    <>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-success hover:bg-success/10 mr-2 h-8 gap-1"
+                        asChild
+                      >
+                        <a 
+                          href={getWhatsappLink(r.referred_phone, r.referred_name || '')} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          WhatsApp
+                        </a>
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="text-destructive hover:bg-destructive/10 h-8"
+                        onClick={() => { setReferralToDelete(r); setDeleteModalOpen(true); }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Badge variant="outline" className="gap-1 text-[10px]">
+                      <LinkIcon className="h-3 w-3" /> Via Link
+                    </Badge>
+                  )}
                 </TableCell>
               </TableRow>
-            )) : <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">Nenhuma indicação pendente.</TableCell></TableRow>}
+            )) : <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground">Nenhuma indicação encontrada.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
+      
+      {/* Configuração de Tiers (Apenas visível se não houver filtro de abas ou se for a aba principal) */}
       <div className="rounded-xl border bg-card shadow-sm p-6 space-y-4 mt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold flex items-center gap-2">

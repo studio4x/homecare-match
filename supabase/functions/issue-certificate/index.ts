@@ -24,15 +24,25 @@ serve(async (req) => {
     const { course_slug } = await req.json();
     if (!course_slug) return new Response('Missing course_slug', { status: 400, headers: corsHeaders });
 
-    console.log(`[issue-certificate] Verificando conclusão para ${user.id} no curso ${course_slug}`);
+    console.log(`[issue-certificate] Iniciando verificação para ${user.id} no curso ${course_slug}`);
 
     // 1. Buscar todas as aulas do curso
     const { data: modules } = await supabaseAdmin.from('academy_modules').select('id').eq('course_slug', course_slug);
     const moduleIds = (modules || []).map(m => m.id);
     
+    if (moduleIds.length === 0) {
+      console.error(`[issue-certificate] Curso ${course_slug} não possui módulos.`);
+      return new Response(JSON.stringify({ error: 'Course has no content' }), { status: 400, headers: corsHeaders });
+    }
+
     const { data: lessons } = await supabaseAdmin.from('academy_lessons').select('id, duration_minutes').in('module_id', moduleIds);
     const totalLessons = lessons?.length || 0;
     const totalWorkload = lessons?.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0) || 0;
+
+    if (totalLessons === 0) {
+      console.error(`[issue-certificate] Curso ${course_slug} não possui aulas.`);
+      return new Response(JSON.stringify({ error: 'Course has no lessons' }), { status: 400, headers: corsHeaders });
+    }
 
     // 2. Buscar progresso do usuário
     const { count: completedCount } = await supabaseAdmin
@@ -42,15 +52,21 @@ serve(async (req) => {
       .eq('course_slug', course_slug)
       .eq('status', 'completed');
 
+    console.log(`[issue-certificate] Progresso: \${completedCount}/\${totalLessons}`);
+
     if (!completedCount || completedCount < totalLessons) {
-      return new Response(JSON.stringify({ error: 'Course not completed yet', current: completedCount, total: totalLessons }), { 
+      return new Response(JSON.stringify({ 
+        error: 'Course not completed yet', 
+        current: completedCount || 0, 
+        total: totalLessons 
+      }), { 
         status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
 
     // 3. Gerar código de validação único
-    const validationCode = `HCM-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+    const validationCode = `HCM-\${Math.random().toString(36).substring(2, 10).toUpperCase()}-\${Date.now().toString(36).toUpperCase()}`;
 
     // 4. Inserir certificado (UPSERT para evitar duplicados)
     const { data: cert, error: certError } = await supabaseAdmin
@@ -65,14 +81,19 @@ serve(async (req) => {
       .select('id')
       .single();
 
-    if (certError) throw certError;
+    if (certError) {
+      console.error(`[issue-certificate] Erro ao salvar certificado:`, certError);
+      throw certError;
+    }
+
+    console.log(`[issue-certificate] Selo gerado com sucesso: \${cert.id}`);
 
     return new Response(JSON.stringify({ success: true, certificate_id: cert.id }), { 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
 
   } catch (error) {
-    console.error("[issue-certificate] Erro:", error.message);
+    console.error("[issue-certificate] Erro crítico:", error.message);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
   }
 });

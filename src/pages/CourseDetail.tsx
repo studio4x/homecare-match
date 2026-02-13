@@ -194,11 +194,12 @@ const CourseDetail = () => {
     };
   }, [course, progress]);
 
+  // Dispara a geração do selo apenas quando a contagem for exata
   useEffect(() => {
-    if (!loading && isEnrolled && stats.pct === 100 && !certificateId && !isIssuingCertificate) {
+    if (!loading && isEnrolled && stats.total > 0 && stats.done === stats.total && !certificateId && !isIssuingCertificate) {
       issueCertificate();
     }
-  }, [loading, isEnrolled, stats.pct, certificateId]);
+  }, [loading, isEnrolled, stats.done, stats.total, certificateId]);
 
   const handleEnroll = async () => {
     if (!session) {
@@ -278,7 +279,14 @@ const CourseDetail = () => {
         body: { course_slug: slug }
       });
       
-      if (error) throw error;
+      if (error) {
+        let msg = "Erro ao gerar selo.";
+        try {
+          const body = await error.context?.json();
+          if (body?.error) msg = body.error;
+        } catch {}
+        throw new Error(msg);
+      }
       
       if (data?.certificate_id) {
         setCertificateId(data.certificate_id);
@@ -287,8 +295,12 @@ const CourseDetail = () => {
           icon: <Award className="text-yellow-600" />
         });
       }
-    } catch (err) {
-      console.error("[CourseDetail] Erro ao emitir selo:", err);
+    } catch (err: any) {
+      console.error("[CourseDetail] Erro ao emitir selo:", err.message);
+      // Não mostramos erro se for apenas "não concluído ainda" para evitar spam
+      if (!err.message.includes("not completed yet")) {
+        toast.error("Não foi possível gerar seu selo automaticamente. Tente atualizar a página.");
+      }
     } finally {
       setIsIssuingCertificate(false);
     }

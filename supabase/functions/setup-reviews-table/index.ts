@@ -24,17 +24,28 @@ serve(async (req) => {
     await client.queryObject(`
       CREATE TABLE IF NOT EXISTS public.academy_enrollments (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
+        user_id UUID NOT NULL,
+        course_slug TEXT NOT NULL,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE (user_id, course_slug)
       );
 
+      -- Garante a FK com nome explícito
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'academy_enrollments_user_id_fkey') THEN
+          ALTER TABLE public.academy_enrollments 
+          ADD CONSTRAINT academy_enrollments_user_id_fkey 
+          FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+        END IF;
+      END
+      $$;
+
       CREATE TABLE IF NOT EXISTS public.academy_progress (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
-        lesson_id UUID NOT NULL REFERENCES public.academy_lessons(id) ON DELETE CASCADE,
+        course_slug TEXT NOT NULL,
+        lesson_id UUID NOT NULL,
         status TEXT NOT NULL DEFAULT 'in-progress',
         updated_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE (user_id, lesson_id)
@@ -78,19 +89,6 @@ serve(async (req) => {
 
       DO $$
       BEGIN
-        -- Policies para Reports
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reports_insert_policy') THEN
-          CREATE POLICY "reports_insert_policy" ON public.reports FOR INSERT TO authenticated WITH CHECK (auth.uid() = reporter_id);
-        END IF;
-        
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reports_admin_select') THEN
-          CREATE POLICY "reports_admin_select" ON public.reports FOR SELECT TO authenticated USING (check_is_admin());
-        END IF;
-
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'reports_admin_all') THEN
-          CREATE POLICY "reports_admin_all" ON public.reports FOR ALL TO authenticated USING (check_is_admin());
-        END IF;
-
         -- Policies para Academy (Admin)
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_enrollments_admin_select') THEN
           CREATE POLICY "academy_enrollments_admin_select" ON public.academy_enrollments FOR SELECT TO authenticated USING (check_is_admin());

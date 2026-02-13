@@ -30,7 +30,7 @@ interface Enrollment {
   profile: {
     full_name: string;
     email: string;
-  };
+  } | null;
   progress_pct: number;
 }
 
@@ -71,22 +71,33 @@ const CourseEnrollmentsDialog = ({
         totalLessons = count || 0;
       }
 
-      // 2. Buscar matrículas e perfis (Sintaxe simplificada para evitar PGRST200)
+      // 2. Buscar matrículas (sem join para evitar PGRST200)
       const { data: enrData, error: enrError } = await supabase
         .from("academy_enrollments")
-        .select(`
-          id,
-          user_id,
-          created_at,
-          profiles (full_name, email)
-        `)
+        .select("id, user_id, created_at")
         .eq("course_slug", courseSlug);
 
       if (enrError) throw enrError;
 
-      // 3. Buscar progresso de cada aluno
+      if (!enrData || enrData.length === 0) {
+        setEnrollments([]);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Buscar perfis dos usuários matriculados
+      const userIds = enrData.map(e => e.user_id);
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      const profilesMap = new Map();
+      profilesData?.forEach(p => profilesMap.set(p.id, p));
+
+      // 4. Buscar progresso de cada aluno
       const formatted: Enrollment[] = [];
-      for (const enr of (enrData || [])) {
+      for (const enr of enrData) {
         const { count: done } = await supabase
           .from("academy_progress")
           .select("id", { count: "exact", head: true })
@@ -100,7 +111,7 @@ const CourseEnrollmentsDialog = ({
           id: enr.id,
           user_id: enr.user_id,
           created_at: enr.created_at,
-          profile: (enr as any).profiles,
+          profile: profilesMap.get(enr.user_id) || null,
           progress_pct: pct
         });
       }
@@ -118,8 +129,8 @@ const CourseEnrollmentsDialog = ({
     if (open) fetchEnrollments();
   }, [open, courseSlug]);
 
-  const handleRemoveEnrollment = async (enrollmentId: string, userId: string) => {
-    if (!confirm("Tem certeza que deseja remover a matrícula deste aluno? O progresso dele será mantido no banco, mas ele perderá o acesso ao curso.")) return;
+  const handleRemoveEnrollment = async (enrollmentId: string) => {
+    if (!confirm("Tem certeza que deseja remover a matrícula deste aluno?")) return;
     
     setIsRemoving(enrollmentId);
     try {
@@ -130,7 +141,7 @@ const CourseEnrollmentsDialog = ({
 
       if (error) throw error;
 
-      toast.success("Matrícula removida com sucesso.");
+      toast.success("Matrícula removida.");
       setEnrollments(prev => prev.filter(e => e.id !== enrollmentId));
     } catch (err) {
       toast.error("Erro ao remover matrícula.");
@@ -178,9 +189,9 @@ const CourseEnrollmentsDialog = ({
                     <TableRow key={e.id}>
                       <TableCell>
                         <div className="space-y-0.5">
-                          <p className="text-sm font-bold">{e.profile?.full_name || "Usuário"}</p>
+                          <p className="text-sm font-bold">{e.profile?.full_name || "Usuário Desconhecido"}</p>
                           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                            <Mail className="h-3 w-3" /> {e.profile?.email}
+                            <Mail className="h-3 w-3" /> {e.profile?.email || "N/A"}
                           </div>
                         </div>
                       </TableCell>
@@ -204,7 +215,7 @@ const CourseEnrollmentsDialog = ({
                           variant="ghost"
                           size="icon"
                           className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                          onClick={() => handleRemoveEnrollment(e.id, e.user_id)}
+                          onClick={() => handleRemoveEnrollment(e.id)}
                           disabled={isRemoving === e.id}
                         >
                           {isRemoving === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}

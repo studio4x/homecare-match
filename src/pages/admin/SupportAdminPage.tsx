@@ -218,7 +218,7 @@ const SupportAdminPage = () => {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="sm" asChild className="gap-2">
-                          <Link to={`/dashboard/suporte/${t.id}`}>
+                          <Link to={`/admin/suporte/${t.id}`}>
                             <Eye className="h-4 w-4" /> Responder
                           </Link>
                         </Button>

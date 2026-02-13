@@ -227,12 +227,67 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
-    if (!user) return;
-    const cleanPhone = profile.phone.replace(/\D/g, "");
-    if (!profile.phone || cleanPhone.length < 10) {
-      toast.error("WhatsApp inválido. Inclua DDD.");
+    if (!user || !profile) return;
+
+    const isProfessional = profile.role === 'professional';
+    const cleanPhone = profile.phone?.replace(/\D/g, "") || "";
+
+    // Validações de campos obrigatórios
+    if (!profile.avatar_url) {
+      toast.error("A foto de perfil é obrigatória.");
       return;
     }
+    if (!profile.full_name?.trim()) {
+      toast.error("O nome completo é obrigatório.");
+      return;
+    }
+    if (cleanPhone.length < 10) {
+      toast.error("Um número de WhatsApp válido é obrigatório.");
+      return;
+    }
+    if (isProfessional && !profile.specialty) {
+      toast.error("A especialidade é obrigatória.");
+      return;
+    }
+
+    // Validação de Endereço
+    if (!profile.address_zip || !profile.address_street || !profile.neighborhood || !profile.city || !profile.state) {
+      toast.error("Todos os campos de endereço são obrigatórios.");
+      return;
+    }
+
+    // Validação de Currículo e Bio
+    if (!profile.bio?.trim()) {
+      toast.error("A biografia/descrição é obrigatória.");
+      return;
+    }
+    if (isProfessional) {
+      if (!profile.experience?.trim()) {
+        toast.error("O campo de formações é obrigatório.");
+        return;
+      }
+      if (!profile.professional_experiences?.trim()) {
+        toast.error("O campo de experiências profissionais é obrigatório.");
+        return;
+      }
+    }
+
+    // Validação de Detalhes do Atendimento
+    if (isProfessional) {
+      if (!profile.hourly_rate || parseFloat(profile.hourly_rate) <= 0) {
+        toast.error("O valor por hora é obrigatório.");
+        return;
+      }
+      if (!profile.availability || profile.availability.length === 0) {
+        toast.error("Selecione pelo menos uma opção de disponibilidade.");
+        return;
+      }
+      if (!profile.patient_profiles || profile.patient_profiles.length === 0) {
+        toast.error("Selecione pelo menos um perfil de paciente.");
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       const { error } = await supabase.from("profiles").update({
@@ -255,9 +310,14 @@ const ProfilePage = () => {
         address_street: profile.address_street,
         address_number: profile.address_number,
         address_complement: profile.address_complement,
+        updated_at: new Date().toISOString()
       }).eq("id", user.id);
+
       if (error) throw error;
-      toast.success("Perfil salvo!");
+      toast.success("Perfil salvo com sucesso!");
+    } catch (err: any) {
+      console.error("[ProfileSave] Erro:", err);
+      toast.error("Erro ao salvar perfil: " + (err.message || "Erro desconhecido"));
     } finally {
       setIsSaving(false);
     }
@@ -391,14 +451,14 @@ const ProfilePage = () => {
                   <input type="file" ref={avatarRef} className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'avatar')} />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="font-medium">Foto de Perfil</h4>
+                  <h4 className="font-medium">Foto de Perfil *</h4>
                   <p className="text-xs text-muted-foreground">Recomendado: Quadrada, máx. 2MB.</p>
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label>Nome Completo</Label>
+                  <Label>Nome Completo *</Label>
                   <input 
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={profile.full_name || ""} 
@@ -406,7 +466,7 @@ const ProfilePage = () => {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>WhatsApp</Label>
+                  <Label>WhatsApp *</Label>
                   <input 
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={profile.phone || ""} 
@@ -433,7 +493,7 @@ const ProfilePage = () => {
               {isProfessional ? (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2">
-                    <Label>Especialidade</Label>
+                    <Label>Especialidade *</Label>
                     <Select value={profile.specialty} onValueChange={v => setProfile({...profile, specialty: v})}>
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                       <SelectContent>
@@ -477,7 +537,7 @@ const ProfilePage = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Endereço e Localização</CardTitle>
+              <CardTitle>Endereço e Localização *</CardTitle>
               <CardDescription>
                 Sua localização é usada para te conectar a oportunidades próximas, facilitando o deslocamento e otimizando sua rotina.
               </CardDescription>
@@ -485,7 +545,7 @@ const ProfilePage = () => {
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
-                  <Label>CEP</Label>
+                  <Label>CEP *</Label>
                   <div className="relative">
                     <input 
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -497,7 +557,7 @@ const ProfilePage = () => {
                   </div>
                 </div>
                 <div className="grid gap-2 md:col-span-2">
-                  <Label>Rua</Label>
+                  <Label>Rua *</Label>
                   <input 
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={profile.address_street || ""} 
@@ -507,7 +567,7 @@ const ProfilePage = () => {
               </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
-                  <Label>Bairro</Label>
+                  <Label>Bairro *</Label>
                   <input 
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={profile.neighborhood || ""} 
@@ -515,7 +575,7 @@ const ProfilePage = () => {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Cidade</Label>
+                  <Label>Cidade *</Label>
                   <input 
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={profile.city || ""} 
@@ -523,7 +583,7 @@ const ProfilePage = () => {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>Estado (UF)</Label>
+                  <Label>Estado (UF) *</Label>
                   <input 
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={profile.state || ""} 
@@ -541,7 +601,7 @@ const ProfilePage = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle>Currículo e Biografia</CardTitle>
+                      <CardTitle>Currículo e Biografia *</CardTitle>
                       <CardDescription>
                         Destaque suas competências e trajetória. Perfis detalhados têm 3x mais chances de atrair a atenção de recrutadores.
                       </CardDescription>
@@ -554,15 +614,15 @@ const ProfilePage = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-2">
-                    <Label>Formações</Label>
+                    <Label>Formações *</Label>
                     <Textarea value={profile.experience || ""} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} placeholder="Cursos e especializações..." />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Experiências Profissionais</Label>
+                    <Label>Experiências Profissionais *</Label>
                     <Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} placeholder="Locais onde trabalhou..." />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Biografia para o Perfil</Label>
+                    <Label>Biografia para o Perfil *</Label>
                     <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} />
                   </div>
                 </CardContent>
@@ -570,14 +630,14 @@ const ProfilePage = () => {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Detalhes do Atendimento</CardTitle>
+                  <CardTitle>Detalhes do Atendimento *</CardTitle>
                   <CardDescription>
                     Defina suas preferências e valores para receber propostas que realmente se encaixam no seu perfil de trabalho.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid gap-2">
-                    <Label>Valor/Hora (R$)</Label>
+                    <Label>Valor/Hora (R$) *</Label>
                     <input 
                       type="number" 
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -589,7 +649,7 @@ const ProfilePage = () => {
                   </div>
                   <Separator />
                   <div className="space-y-3">
-                    <Label className="text-xs uppercase">Disponibilidade</Label>
+                    <Label className="text-xs uppercase">Disponibilidade *</Label>
                     <div className="grid gap-2">
                       {availabilityOptions.map(opt => (
                         <div key={opt} className="flex items-center gap-2">
@@ -601,7 +661,7 @@ const ProfilePage = () => {
                   </div>
                   <Separator />
                   <div className="space-y-3">
-                    <Label className="text-xs uppercase">Público-alvo</Label>
+                    <Label className="text-xs uppercase">Público-alvo *</Label>
                     <div className="grid gap-2">
                       {patientProfileOptions.map(opt => (
                         <div key={opt} className="flex items-center gap-2">
@@ -619,7 +679,7 @@ const ProfilePage = () => {
           {!isProfessional && (
             <Card>
               <CardHeader>
-                <CardTitle>{profile.role === 'company' ? "Sobre a Empresa" : "Sobre a Família"}</CardTitle>
+                <CardTitle>{profile.role === 'company' ? "Sobre a Empresa *" : "Sobre a Família *"}</CardTitle>
                 <CardDescription>
                   Conte um pouco sobre suas necessidades e o perfil de atendimento que busca.
                 </CardDescription>

@@ -295,6 +295,7 @@ const OverviewPage = () => {
   const getPlanLabel = (tier: string) => {
     if (tier === 'monthly') return 'Plano Mensal';
     if (tier === 'yearly') return 'Plano Anual';
+    if (tier === 'free_trial') return 'Período de 30 dias Gratuitos';
     return tier;
   };
 

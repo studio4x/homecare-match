@@ -559,14 +559,14 @@ const CourseDetail = () => {
                       {selectedLesson.type === 'pdf' ? <FileSearch className="h-10 w-10 text-primary" /> : <ExternalLink className="h-10 w-10 text-primary" />}
                     </div>
                     <div className="space-y-2">
-                      <h3 className="text-lg font-semibold">Material Complementar</h3>
+                      <h3 className="text-lg font-semibold">Conteúdo Externo</h3>
                       <p className="text-sm text-muted-foreground max-w-xs">
-                        Este conteúdo está disponível em um arquivo externo ou link dedicado.
+                        Este conteúdo está hospedado em uma plataforma externa ou arquivo dedicado.
                       </p>
                     </div>
                     <Button asChild size="lg" className="gap-2">
                       <a href={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} target="_blank" rel="noopener noreferrer">
-                        {selectedLesson.type === 'pdf' ? 'Abrir PDF em nova aba' : 'Acessar Link Externo'}
+                        {selectedLesson.type === 'pdf' ? 'Abrir PDF em nova aba' : 'Acessar Conteúdo'}
                         <ExternalLink size={16} />
                       </a>
                     </Button>

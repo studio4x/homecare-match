@@ -11,7 +11,7 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  console.log("[get-payment-history] Iniciando busca profunda de histórico...");
+  console.log("[get-payment-history] Iniciando busca profunda por e-mail...");
 
   try {
     const supabaseAdmin = createClient(
@@ -39,14 +39,58 @@ serve(async (req) => {
     const history = [];
     const processedIds = new Set();
 
-    // 1. Buscar Clientes por E-mail
-    const customers = await stripe.customers.list({ email: user.email });
-    
-    for (const customer of customers.data) {
-      const customerId = customer.id;
+    // 1. BUSCA PODEROSA: Pesquisar todas as cobranças (Charges) pelo e-mail do usuário
+    // Isso encontra tanto clientes registrados quanto convidados (Guest)
+    console.log(`[get-payment-history] Pesquisando cobranças para: ${user.email}`);
+    const chargeSearch = await stripe.charges.search({
+      query: `email:"${user.email}"`,
+    });
 
-      // 2. Buscar Faturas (Assinaturas)
-      const invoices = await stripe.invoices.list({ customer: customerId, limit: 50 });
+    for (const charge of chargeSearch.data) {
+      if (charge.paid && charge.amount > 0) {
+        // Tenta identificar se é curso ou assinatura
+        let type = 'one_time';
+        let description = charge.description || "Pagamento HomeCare Match";
+        
+        // Se houver fatura, é provavelmente uma assinatura
+        if (charge.invoice) {
+          type = 'subscription';
+        }
+
+        // Tenta pegar detalhes do curso no metadata do PaymentIntent associado
+        if (charge.payment_intent) {
+          try {
+            const pi = await stripe.paymentIntents.retrieve(charge.payment_intent);
+            if (pi.metadata?.courseSlug) {
+              description = `Curso: ${pi.metadata.courseSlug.replace(/-/g, ' ')}`;
+            } else if (pi.metadata?.planId) {
+              description = `Plano: ${pi.metadata.planId}`;
+              type = 'subscription';
+            }
+          } catch (e) {
+            console.warn("[get-payment-history] Falha ao recuperar metadata do PI");
+          }
+        }
+
+        history.push({
+          id: charge.id,
+          date: charge.created * 1000,
+          amount: charge.amount / 100,
+          currency: charge.currency,
+          status: charge.status === 'succeeded' ? 'paid' : charge.status,
+          description: description,
+          pdf_url: charge.receipt_url, // Recibo direto do Stripe para pagamentos avulsos
+          type: type
+        });
+        processedIds.add(charge.id);
+        if (charge.payment_intent) processedIds.add(charge.payment_intent);
+      }
+    }
+
+    // 2. FALLBACK: Buscar faturas específicas (para garantir PDFs de faturas de assinatura)
+    const customers = await stripe.customers.list({ email: user.email, limit: 5 });
+    for (const customer of customers.data) {
+      const invoices = await stripe.invoices.list({ customer: customer.id, limit: 20 });
       invoices.data.forEach(inv => {
         if (inv.total > 0 && !processedIds.has(inv.id)) {
           history.push({
@@ -60,65 +104,11 @@ serve(async (req) => {
             type: 'subscription'
           });
           processedIds.add(inv.id);
-          if (inv.payment_intent) processedIds.add(inv.payment_intent);
-        }
-      });
-
-      // 3. Buscar PaymentIntents (Pagamentos diretos)
-      const paymentIntents = await stripe.paymentIntents.list({ customer: customerId, limit: 50 });
-      paymentIntents.data.forEach(pi => {
-        if (!processedIds.has(pi.id) && pi.status === 'succeeded' && pi.amount > 0) {
-          let description = pi.description || "Pagamento Avulso";
-          if (pi.metadata?.courseSlug) {
-            description = `Curso: ${pi.metadata.courseSlug.replace(/-/g, ' ')}`;
-          }
-          history.push({
-            id: pi.id,
-            date: pi.created * 1000,
-            amount: pi.amount / 100,
-            currency: pi.currency,
-            status: 'paid',
-            description: description,
-            pdf_url: null,
-            type: 'one_time'
-          });
-          processedIds.add(pi.id);
         }
       });
     }
 
-    // 4. BUSCA EXTRA: Sessões de Checkout (Muitas vezes o curso fica aqui se o customer não foi vinculado ao PI)
-    // Como não dá pra filtrar sessions por email direto na listagem, buscamos as recentes e filtramos manualmente
-    const sessions = await stripe.checkout.sessions.list({ limit: 100 });
-    const userSessions = sessions.data.filter(s => 
-      (s.customer_details?.email?.toLowerCase() === user.email.toLowerCase() || s.customer_email?.toLowerCase() === user.email.toLowerCase()) &&
-      s.payment_status === 'paid'
-    );
-
-    userSessions.forEach(session => {
-      const id = session.payment_intent || session.id;
-      if (!processedIds.has(id)) {
-        let description = "Compra de Curso";
-        if (session.metadata?.courseSlug) {
-          description = `Curso: ${session.metadata.courseSlug.replace(/-/g, ' ')}`;
-        } else if (session.metadata?.planId) {
-          description = `Plano: ${session.metadata.planId}`;
-        }
-
-        history.push({
-          id: id,
-          date: session.created * 1000,
-          amount: (session.amount_total || 0) / 100,
-          currency: session.currency || 'brl',
-          status: 'paid',
-          description: description,
-          pdf_url: null,
-          type: session.mode === 'subscription' ? 'subscription' : 'one_time'
-        });
-        processedIds.add(id);
-      }
-    });
-
+    // Ordenar por data decrescente
     const sortedHistory = history.sort((a, b) => b.date - a.date);
 
     return new Response(JSON.stringify({ payments: sortedHistory }), {

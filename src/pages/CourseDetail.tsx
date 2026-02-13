@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ const CourseDetail = () => {
   const { user, session } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [course, setCourse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -59,8 +60,8 @@ const CourseDetail = () => {
   const [videoLoading, setVideoLoading] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
-  const fetchCourseData = async () => {
-    setLoading(true);
+  const fetchCourseData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data: c, error: cErr } = await supabase.from("academy_courses").select("*").eq("slug", slug).single();
       if (cErr) throw cErr;
@@ -118,16 +119,40 @@ const CourseDetail = () => {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Curso não encontrado.");
-      navigate("/cursos");
+      if (!silent) {
+        toast.error("Curso não encontrado.");
+        navigate("/cursos");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     if (slug) fetchCourseData();
   }, [slug, user]);
+
+  // Detecta sucesso de pagamento
+  useEffect(() => {
+    if (searchParams.get("success") === "true") {
+      toast.success("Pagamento confirmado! Sua matrícula está sendo liberada...", {
+        duration: 5000,
+      });
+      
+      // Tenta atualizar os dados algumas vezes até a matrícula aparecer (webhook delay)
+      const interval = setInterval(() => fetchCourseData(true), 3000);
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+        searchParams.delete("success");
+        setSearchParams(searchParams);
+      }, 15000);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!course) {
@@ -184,7 +209,6 @@ const CourseDetail = () => {
 
     setEnrollmentLoading(true);
 
-    // Se o curso for pago, redireciona para o checkout
     if (course.price && course.price > 0) {
       const toastId = toast.loading("Iniciando checkout...");
       try {
@@ -206,7 +230,6 @@ const CourseDetail = () => {
       return;
     }
 
-    // Se for grátis, inscreve direto
     try {
       const { error } = await supabase.from("academy_enrollments").insert({
         user_id: user?.id,
@@ -296,7 +319,6 @@ const CourseDetail = () => {
                 <img src={course.hero_asset_url || "/placeholder.svg"} className="object-cover w-full h-full" alt={course.title} />
               </AspectRatio>
 
-              {/* Vídeo de Apresentação abaixo da capa */}
               {videoToShow && (
                 <div className="p-4 border-t bg-secondary/5">
                   <div className="relative group cursor-pointer" onClick={() => setIsVideoModalOpen(true)}>
@@ -367,7 +389,7 @@ const CourseDetail = () => {
                       </div>
                     ) : certificateId ? (
                       <Button asChild className="w-full bg-yellow-600 hover:bg-yellow-700 gap-2 shadow-lg animate-scale-in">
-                        <Link to={`/certificado/${certificateId}`} target="_blank"><Award size={18} /> Ver Selo de Conclusão</Link>
+                        <Link to={`/certificado/\${certificateId}`} target="_blank"><Award size={18} /> Ver Selo de Conclusão</Link>
                       </Button>
                     ) : null}
 
@@ -454,7 +476,6 @@ const CourseDetail = () => {
         </div>
       </div>
 
-      {/* Modal para o Vídeo de Apresentação */}
       <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black border-none">
           <DialogHeader className="sr-only">

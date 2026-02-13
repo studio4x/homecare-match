@@ -1,18 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, LayoutDashboard } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { 
+  Loader2, 
+  LayoutDashboard, 
+  Filter, 
+  X, 
+  Search,
+  BookOpen
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import AccessRestricted from "@/components/AccessRestricted";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
 
@@ -43,6 +58,7 @@ interface Course {
   hero_asset_url?: string;
   content_url?: string;
   created_at?: string;
+  price?: number;
   modules?: Module[];
 }
 
@@ -60,6 +76,10 @@ const Courses = () => {
   const [userRole, setUserRole] = useState<string>("guest");
   const [roleLoading, setRoleLoading] = useState<boolean>(true);
   const [completedSlugs, setCompletedSlugs] = useState<string[]>([]);
+
+  // Estados dos Filtros
+  const [filterLevel, setFilterLevel] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
 
   // Carrega papel do usuário
   useEffect(() => {
@@ -125,7 +145,7 @@ const Courses = () => {
     loadEnrollment();
   }, [user]);
 
-  // Checa conclusão dos cursos do usuário (100% aulas concluídas)
+  // Checa conclusão dos cursos do usuário
   useEffect(() => {
     const checkCompletion = async () => {
       if (!user || courses.length === 0) {
@@ -166,6 +186,19 @@ const Courses = () => {
     checkCompletion();
   }, [user, courses]);
 
+  // Lógica de Filtragem
+  const filteredCourses = useMemo(() => {
+    return courses.filter(c => {
+      const matchesLevel = filterLevel === "all" || c.level === filterLevel;
+      const isFree = !c.price || c.price === 0;
+      const matchesType = filterType === "all" || 
+                         (filterType === "free" && isFree) || 
+                         (filterType === "paid" && !isFree);
+      
+      return matchesLevel && matchesType;
+    });
+  }, [courses, filterLevel, filterType]);
+
   const isEnrolled = (slug: string) => enrollments.enrolledSlugs.includes(slug);
   const isCompleted = (slug: string) => completedSlugs.includes(slug);
 
@@ -193,7 +226,11 @@ const Courses = () => {
     }
   };
 
-  // Estado de carregamento do papel (evita decisões antes de saber se é profissional)
+  const clearFilters = () => {
+    setFilterLevel("all");
+    setFilterType("all");
+  };
+
   if (roleLoading) {
     return (
       <Layout>
@@ -206,7 +243,6 @@ const Courses = () => {
     );
   }
 
-  // Acesso restrito para deslogados
   if (!session) {
     return (
       <Layout>
@@ -219,7 +255,6 @@ const Courses = () => {
     );
   }
 
-  // Acesso restrito para papéis que não são profissionais
   if (session && userRole !== "professional") {
     return (
       <Layout>
@@ -235,7 +270,13 @@ const Courses = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <h1 className="text-3xl font-bold">Cursos de Capacitação</h1>
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <BookOpen className="h-8 w-8 text-primary" />
+              Cursos de Capacitação
+            </h1>
+            <p className="text-muted-foreground">Aprimore seus conhecimentos e conquiste novos selos para seu perfil.</p>
+          </div>
           <Button asChild variant="outline" className="hidden md:flex gap-2">
             <Link to="/dashboard">
               <LayoutDashboard className="h-4 w-4" />
@@ -244,61 +285,113 @@ const Courses = () => {
           </Button>
         </div>
 
-        {loading ? (
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /> Carregando cursos...
+        {/* Barra de Filtros */}
+        <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex flex-col md:flex-row items-end gap-4">
+            <div className="grid gap-2 w-full md:w-64">
+              <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                <Filter className="h-3 w-3" /> Nível do Curso
+              </Label>
+              <Select value={filterLevel} onValueChange={setFilterLevel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os níveis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os níveis</SelectItem>
+                  <SelectItem value="iniciante">Iniciante</SelectItem>
+                  <SelectItem value="intermediario">Intermediário</SelectItem>
+                  <SelectItem value="avancado">Avançado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2 w-full md:w-64">
+              <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                <Filter className="h-3 w-3" /> Tipo de Inscrição
+              </Label>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os tipos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  <SelectItem value="free">Gratuito</SelectItem>
+                  <SelectItem value="paid">Pago</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(filterLevel !== "all" || filterType !== "all") && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" /> Limpar Filtros
+              </Button>
+            )}
           </div>
-        ) : courses.length > 0 ? (
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p>Carregando catálogo de cursos...</p>
+          </div>
+        ) : filteredCourses.length > 0 ? (
           <>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {courses.map((c) => (
-                <Card key={c.slug} className="overflow-hidden flex flex-col">
+              {filteredCourses.map((c) => (
+                <Card key={c.slug} className="overflow-hidden flex flex-col group hover:shadow-md transition-all border-primary/5">
                   {c.hero_asset_url ? (
-                    <AspectRatio ratio={4/3} className="relative w-full bg-muted shrink-0">
+                    <AspectRatio ratio={4/3} className="relative w-full bg-muted shrink-0 overflow-hidden">
                       {isCompleted(c.slug) ? (
-                        <Badge className="absolute left-2 top-2 bg-success z-10">Concluído</Badge>
+                        <Badge className="absolute left-2 top-2 bg-success z-10 shadow-sm">Concluído</Badge>
                       ) : null}
                       <img
                         src={c.hero_asset_url}
                         alt={c.title}
-                        className="h-full w-full object-cover rounded-t-md"
+                        className="h-full w-full object-cover rounded-t-md group-hover:scale-105 transition-transform duration-500"
                       />
-                    </AspectRatio>
-                  ) : null}
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between gap-2">
-                      <span className="line-clamp-2">{c.title}</span>
-                      <Badge variant="secondary" className="capitalize shrink-0">{c.level || "iniciante"}</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 flex-1 flex flex-col">
-                    <div 
-                      className="text-sm text-muted-foreground prose prose-sm max-w-none line-clamp-4 flex-1"
-                      dangerouslySetInnerHTML={{ __html: c.description || "" }}
-                    />
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        {c.duration_minutes ? `${c.duration_minutes} min` : ""}
-                      </span>
-                      <div className="flex gap-2">
-                        <Button asChild variant="outline" size="sm">
-                          <Link to={`/cursos/${c.slug}`}>Ver detalhes</Link>
-                        </Button>
-                        {isEnrolled(c.slug) ? (
-                          <Button 
-                            asChild 
-                            size="sm"
-                            className={cn(isCompleted(c.slug) && "bg-success hover:bg-success/90 border-none")}
-                          >
-                            <Link to={`/cursos/${c.slug}`}>{isCompleted(c.slug) ? "Rever Curso" : "Continuar"}</Link>
-                          </Button>
+                      <div className="absolute bottom-2 right-2">
+                        {(!c.price || c.price === 0) ? (
+                          <Badge className="bg-success/90 text-white border-none">Grátis</Badge>
                         ) : (
-                          <Button size="sm" onClick={() => enroll(c.slug)} disabled={loadingEnroll}>
-                            {loadingEnroll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            Inscrever-se
-                          </Button>
+                          <Badge className="bg-primary/90 text-white border-none">R$ {Number(c.price).toFixed(2).replace('.', ',')}</Badge>
                         )}
                       </div>
+                    </AspectRatio>
+                  ) : null}
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-start justify-between gap-2 text-lg">
+                      <span className="line-clamp-2 leading-tight">{c.title}</span>
+                    </CardTitle>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary" className="capitalize text-[10px] h-5">{c.level || "iniciante"}</Badge>
+                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                        {c.duration_minutes ? `${c.duration_minutes} min` : ""}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4 flex-1 flex flex-col pt-0">
+                    <div 
+                      className="text-sm text-muted-foreground prose prose-sm max-w-none line-clamp-3 flex-1"
+                      dangerouslySetInnerHTML={{ __html: c.description || "" }}
+                    />
+                    <div className="flex gap-2 pt-2">
+                      <Button asChild variant="outline" size="sm" className="flex-1">
+                        <Link to={`/cursos/${c.slug}`}>Ver detalhes</Link>
+                      </Button>
+                      {isEnrolled(c.slug) ? (
+                        <Button 
+                          asChild 
+                          size="sm"
+                          className={cn("flex-1", isCompleted(c.slug) && "bg-success hover:bg-success/90 border-none")}
+                        >
+                          <Link to={`/cursos/${c.slug}`}>{isCompleted(c.slug) ? "Rever Curso" : "Continuar"}</Link>
+                        </Button>
+                      ) : (
+                        <Button size="sm" onClick={() => enroll(c.slug)} disabled={loadingEnroll} className="flex-1">
+                          {loadingEnroll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          Inscrever-se
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -315,7 +408,12 @@ const Courses = () => {
             </div>
           </>
         ) : (
-          <p className="text-muted-foreground">Nenhum curso disponível no momento.</p>
+          <div className="text-center py-20 bg-secondary/10 rounded-3xl border border-dashed">
+            <Search className="h-12 w-12 mx-auto mb-4 opacity-20" />
+            <h3 className="text-lg font-semibold">Nenhum curso encontrado</h3>
+            <p className="text-muted-foreground">Tente ajustar os filtros para encontrar o que procura.</p>
+            <Button variant="link" onClick={clearFilters} className="mt-2">Limpar todos os filtros</Button>
+          </div>
         )}
       </div>
     </Layout>

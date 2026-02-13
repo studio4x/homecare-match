@@ -401,7 +401,7 @@ const CourseDetail = () => {
                       </div>
                     ) : certificateId ? (
                       <Button asChild className="w-full bg-yellow-600 hover:bg-yellow-700 gap-2 shadow-lg animate-scale-in">
-                        <Link to={`/certificado/\${certificateId}`} target="_blank"><Award size={18} /> Ver Selo de Conclusão</Link>
+                        <Link to={`/certificado/${certificateId}`} target="_blank"><Award size={18} /> Ver Selo de Conclusão</Link>
                       </Button>
                     ) : null}
 

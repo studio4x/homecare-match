@@ -33,11 +33,13 @@ import {
   Trash2,
   Calendar,
   LogIn,
-  ShieldAlert
+  ShieldAlert,
+  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, addDays } from "date-fns";
 import { translateAuthError } from "@/lib/error-utils";
+import { Link } from "react-router-dom";
 
 interface UsersTabProps {
   allUsers: any[];
@@ -62,6 +64,12 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       case 'yearly': return 'Anual';
       default: return tier;
     }
+  };
+
+  const getProfileLink = (u: any) => {
+    if (u.role === 'professional') return `/profissional/${u.id}`;
+    if (u.role === 'company' || u.role === 'family') return `/recruiter/${u.id}`;
+    return null;
   };
 
   const handleUpdateRole = async (profileId: string, newRole: string) => {
@@ -182,9 +190,26 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
           <TableBody>
             {allUsers.map(u => {
               const daysLeft = getTrialStatus(u);
+              const profileLink = getProfileLink(u);
               return (
                 <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.full_name || "Sem nome"}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {profileLink ? (
+                        <Link 
+                          to={profileLink} 
+                          target="_blank" 
+                          className="text-primary hover:text-primary/80 transition-colors"
+                          title="Ver Perfil Público"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Link>
+                      ) : (
+                        <div className="w-4 h-4" /> // Espaçador para manter alinhamento
+                      )}
+                      <span>{u.full_name || "Sem nome"}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
                     {isUpdatingRole === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (

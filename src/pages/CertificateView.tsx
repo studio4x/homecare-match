@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Award, Printer, ArrowLeft, ShieldCheck, Calendar, Clock, Info, AlertTriangle } from "lucide-react";
+import { Loader2, Award, Printer, ArrowLeft, ShieldCheck, Calendar, Clock, Info, AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 const CertificateView = () => {
   const { id } = useParams();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isFixing, setIsFixing] = useState(false);
@@ -28,7 +28,7 @@ const CertificateView = () => {
         .select(`
           *,
           course:academy_courses(title, level, duration_minutes, slug),
-          user:profiles(full_name, registration)
+          user:profiles(id, full_name, registration)
         `)
         .eq("id", id)
         .maybeSingle();
@@ -40,14 +40,16 @@ const CertificateView = () => {
         return;
       }
 
-      // Lógica de Auto-Correção: Só tenta se o código estiver corrompido E o usuário estiver logado
-      if (cert.validation_code && cert.validation_code.includes("${") && session) {
-        console.log("[CertificateView] Detectado código corrompido. Iniciando correção...");
-        await fixCertificate(cert.course.slug, cert);
-        return; 
-      }
-
       setData(cert);
+
+      // Tenta auto-corrigir se estiver logado e for o dono (ou admin)
+      const isCorrupted = cert.validation_code?.includes("${");
+      const isOwner = user?.id === cert.user_id;
+      
+      if (isCorrupted && session && isOwner) {
+        console.log("[CertificateView] Iniciando auto-correção...");
+        fixCertificate(cert.course.slug);
+      }
     } catch (e: any) {
       console.error("[CertificateView] Erro ao buscar:", e);
       setError(e.message);
@@ -56,8 +58,11 @@ const CertificateView = () => {
     }
   };
 
-  const fixCertificate = async (courseSlug: string, currentData: any) => {
+  const fixCertificate = async (courseSlug: string) => {
+    if (isFixing) return;
     setIsFixing(true);
+    const toastId = toast.loading("Atualizando informações do selo...");
+    
     try {
       const { error: invokeError } = await supabase.functions.invoke('issue-certificate', {
         body: { course_slug: courseSlug }
@@ -65,13 +70,23 @@ const CertificateView = () => {
       
       if (invokeError) throw invokeError;
       
-      // Recarrega os dados agora corrigidos
-      await fetchCertificate();
-    } catch (err) {
-      console.error("[CertificateView] Falha ao auto-corrigir:", err);
-      // Se falhar a correção (ex: permissão), mostra o que tem
-      setData(currentData);
-      setLoading(false);
+      toast.success("Selo atualizado com sucesso!", { id: toastId });
+      
+      // Recarrega os dados
+      const { data: updatedCert } = await supabase
+        .from("certificates")
+        .select(`
+          *,
+          course:academy_courses(title, level, duration_minutes, slug),
+          user:profiles(id, full_name, registration)
+        `)
+        .eq("id", id)
+        .single();
+      
+      if (updatedCert) setData(updatedCert);
+    } catch (err: any) {
+      console.error("[CertificateView] Falha ao corrigir:", err);
+      toast.error("Não foi possível atualizar o selo automaticamente.", { id: toastId });
     } finally {
       setIsFixing(false);
     }
@@ -79,14 +94,14 @@ const CertificateView = () => {
 
   useEffect(() => {
     if (id) fetchCertificate();
-  }, [id, session]);
+  }, [id, session?.user?.id]);
 
   const handlePrint = () => window.print();
 
-  if (loading || isFixing) return (
+  if (loading) return (
     <div className="flex flex-col h-screen items-center justify-center gap-4">
       <Loader2 className="animate-spin h-8 w-8 text-primary" />
-      {isFixing && <p className="text-sm text-muted-foreground animate-pulse">Atualizando informações do selo...</p>}
+      <p className="text-sm text-muted-foreground">Carregando selo...</p>
     </div>
   );
 
@@ -125,6 +140,7 @@ const CertificateView = () => {
   };
 
   const isCorrupted = data.validation_code?.includes("${");
+  const isOwner = user?.id === data.user_id;
 
   return (
     <div className="min-h-screen bg-secondary/10 py-6 px-4 print:p-0 print:m-0 print:bg-white">
@@ -135,7 +151,18 @@ const CertificateView = () => {
             <Link to="/dashboard/cursos"><ArrowLeft size={16} /> Voltar</Link>
           </Button>
           <div className="flex gap-2">
-            {isCorrupted && !session && (
+            {isCorrupted && isOwner && (
+              <Button 
+                variant="outline" 
+                className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 gap-2"
+                onClick={() => fixCertificate(data.course.slug)}
+                disabled={isFixing}
+              >
+                {isFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Corrigir Selo Agora
+              </Button>
+            )}
+            {isCorrupted && !isOwner && (
               <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 hidden md:flex">
                 Aguardando atualização do proprietário
               </Badge>

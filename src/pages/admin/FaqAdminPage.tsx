@@ -77,8 +77,14 @@ const FaqAdminPage = () => {
 
   const categories = useMemo(() => Object.keys(groupedFaqs).sort(), [groupedFaqs]);
 
-  const handleNewFaq = () => {
-    setSelectedFaq({ question: "", answer: "", category: categories[0] || "geral", position: faqs.length, is_published: true });
+  const handleNewFaq = (category?: string) => {
+    setSelectedFaq({ 
+      question: "", 
+      answer: "", 
+      category: category || categories[0] || "geral", 
+      position: faqs.length, 
+      is_published: true 
+    });
     setNewCategoryMode(false);
     setCustomCategory("");
     setOpenDialog(true);
@@ -136,7 +142,7 @@ const FaqAdminPage = () => {
           <h1 className="text-3xl font-bold tracking-tight">Base de Conhecimento</h1>
           <p className="text-muted-foreground">Gerencie as perguntas frequentes organizadas por categorias.</p>
         </div>
-        <Button onClick={handleNewFaq} className="gap-2">
+        <Button onClick={() => handleNewFaq()} className="gap-2">
           <Plus className="h-4 w-4" /> Nova FAQ
         </Button>
       </div>
@@ -147,12 +153,20 @@ const FaqAdminPage = () => {
         <div className="space-y-8">
           {categories.map(category => (
             <Card key={category} className="border-none shadow-sm bg-card/50">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2 uppercase tracking-wider text-primary">
                   <FolderOpen className="h-5 w-5" />
                   {category}
                   <Badge variant="secondary" className="ml-2 font-mono">{groupedFaqs[category].length}</Badge>
                 </CardTitle>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 gap-2 border-primary/20 hover:bg-primary/5 text-primary"
+                  onClick={() => handleNewFaq(category)}
+                >
+                  <Plus className="h-3 w-3" /> Adicionar nesta categoria
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border bg-card">
@@ -192,7 +206,7 @@ const FaqAdminPage = () => {
         <Card className="p-12 text-center text-muted-foreground">
           <Tag className="h-12 w-12 mx-auto mb-4 opacity-20" />
           <p>Nenhuma FAQ cadastrada ainda.</p>
-          <Button variant="outline" className="mt-4" onClick={handleNewFaq}>Criar Primeira Pergunta</Button>
+          <Button variant="outline" className="mt-4" onClick={() => handleNewFaq()}>Criar Primeira Pergunta</Button>
         </Card>
       )}
 

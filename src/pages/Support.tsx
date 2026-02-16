@@ -136,33 +136,6 @@ const Support = () => {
                 ))}
               </select>
             </div>
-
-            {/* Sidebar CTA (Desktop only, as mobile will have it at the bottom) */}
-            <Card className="hidden lg:block bg-primary/5 border-primary/10 mt-6">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center space-y-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold">Ainda com dúvidas?</p>
-                    <p className="text-xs text-muted-foreground">Nossa equipe está pronta para te ouvir.</p>
-                  </div>
-                  <Button 
-                    variant="default" 
-                    className="w-full gap-2 shadow-md" 
-                    onClick={() => setIsModalOpen(true)}
-                  >
-                    <Plus className="h-4 w-4" /> Abrir Chamado
-                  </Button>
-                  {session && (
-                    <Button variant="link" size="sm" className="text-xs text-muted-foreground" asChild>
-                      <Link to="/dashboard/suporte">Ver meus chamados</Link>
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           <div className="lg:col-span-9 space-y-8">

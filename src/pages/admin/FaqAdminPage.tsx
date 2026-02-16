@@ -38,6 +38,7 @@ import { Switch } from "@/components/ui/switch";
 const FaqAdminPage = () => {
   const [faqs, setFaqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedFaq, setSelectedFaq] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -48,8 +49,10 @@ const FaqAdminPage = () => {
     fetchFaqs();
   }, []);
 
-  const fetchFaqs = async () => {
-    setLoading(true);
+  const fetchFaqs = async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
+    
     try {
       const { data, error } = await supabase
         .from("support_faqs")
@@ -61,6 +64,7 @@ const FaqAdminPage = () => {
       console.error(err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -113,9 +117,11 @@ const FaqAdminPage = () => {
         .from("support_faqs")
         .upsert(payload);
       if (error) throw error;
+      
       toast.success("FAQ salva!");
       setOpenDialog(false);
-      fetchFaqs();
+      // Atualização silenciosa para manter a posição do scroll
+      fetchFaqs(true);
     } catch (err) {
       toast.error("Erro ao salvar FAQ.");
     } finally {
@@ -129,7 +135,7 @@ const FaqAdminPage = () => {
       const { error } = await supabase.from("support_faqs").delete().eq("id", id);
       if (error) throw error;
       toast.success("FAQ removida.");
-      fetchFaqs();
+      fetchFaqs(true);
     } catch (err) {
       toast.error("Erro ao excluir.");
     }
@@ -142,9 +148,12 @@ const FaqAdminPage = () => {
           <h1 className="text-3xl font-bold tracking-tight">Base de Conhecimento</h1>
           <p className="text-muted-foreground">Gerencie as perguntas frequentes organizadas por categorias.</p>
         </div>
-        <Button onClick={() => handleNewFaq()} className="gap-2">
-          <Plus className="h-4 w-4" /> Nova FAQ
-        </Button>
+        <div className="flex items-center gap-3">
+          {isRefreshing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          <Button onClick={() => handleNewFaq()} className="gap-2">
+            <Plus className="h-4 w-4" /> Nova FAQ
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -152,7 +161,11 @@ const FaqAdminPage = () => {
       ) : categories.length > 0 ? (
         <div className="space-y-8">
           {categories.map(category => (
-            <Card key={category} className="border-none shadow-sm bg-card/50">
+            <Card 
+              key={category} 
+              id={`category-\${category.toLowerCase().replace(/\s+/g, '-')}`}
+              className="border-none shadow-sm bg-card/50 scroll-mt-20"
+            >
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2 uppercase tracking-wider text-primary">
                   <FolderOpen className="h-5 w-5" />

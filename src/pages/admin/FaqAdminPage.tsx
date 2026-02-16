@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Edit2, Trash2, Tag, FolderOpen } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, Tag, FolderOpen, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 
@@ -39,11 +39,19 @@ const FaqAdminPage = () => {
   const [faqs, setFaqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Estados para FAQ individual
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedFaq, setSelectedFaq] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Estados para Categorias
   const [newCategoryMode, setNewCategoryMode] = useState(false);
   const [customCategory, setCustomCategory] = useState("");
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [categoryToRename, setCategoryToRename] = useState("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
 
   useEffect(() => {
     fetchFaqs();
@@ -68,7 +76,6 @@ const FaqAdminPage = () => {
     }
   };
 
-  // Agrupa FAQs por categoria para exibição organizada
   const groupedFaqs = useMemo(() => {
     const groups: Record<string, any[]> = {};
     faqs.forEach(faq => {
@@ -120,12 +127,37 @@ const FaqAdminPage = () => {
       
       toast.success("FAQ salva!");
       setOpenDialog(false);
-      // Atualização silenciosa para manter a posição do scroll
       fetchFaqs(true);
     } catch (err) {
       toast.error("Erro ao salvar FAQ.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRenameCategory = async () => {
+    if (!newCategoryName.trim() || newCategoryName === categoryToRename) {
+      setRenameDialogOpen(false);
+      return;
+    }
+
+    setIsRenaming(true);
+    try {
+      const { error, count } = await supabase
+        .from("support_faqs")
+        .update({ category: newCategoryName.trim() })
+        .eq("category", categoryToRename);
+
+      if (error) throw error;
+
+      toast.success(`Categoria renomeada! ${count} perguntas atualizadas.`);
+      setRenameDialogOpen(false);
+      fetchFaqs(true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao renomear categoria.");
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -163,15 +195,30 @@ const FaqAdminPage = () => {
           {categories.map(category => (
             <Card 
               key={category} 
-              id={`category-\${category.toLowerCase().replace(/\s+/g, '-')}`}
+              id={`category-${category.toLowerCase().replace(/\s+/g, '-')}`}
               className="border-none shadow-sm bg-card/50 scroll-mt-20"
             >
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2 uppercase tracking-wider text-primary">
-                  <FolderOpen className="h-5 w-5" />
-                  {category}
-                  <Badge variant="secondary" className="ml-2 font-mono">{groupedFaqs[category].length}</Badge>
-                </CardTitle>
+              <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg flex items-center gap-2 uppercase tracking-wider text-primary">
+                    <FolderOpen className="h-5 w-5" />
+                    {category}
+                    <Badge variant="secondary" className="ml-2 font-mono">{groupedFaqs[category].length}</Badge>
+                  </CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                    onClick={() => {
+                      setCategoryToRename(category);
+                      setNewCategoryName(category);
+                      setRenameDialogOpen(true);
+                    }}
+                    title="Renomear Categoria"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -223,6 +270,7 @@ const FaqAdminPage = () => {
         </Card>
       )}
 
+      {/* Modal de FAQ Individual */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -302,6 +350,43 @@ const FaqAdminPage = () => {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Renomear Categoria */}
+      <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Renomear Categoria</DialogTitle>
+            <DialogDescription>
+              Isso atualizará o nome da categoria em todas as perguntas vinculadas a ela.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nome Atual</Label>
+              <Input value={categoryToRename} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label>Novo Nome</Label>
+              <Input 
+                value={newCategoryName} 
+                onChange={e => setNewCategoryName(e.target.value)} 
+                placeholder="Digite o novo nome..."
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRenameDialogOpen(false)}>Cancelar</Button>
+            <Button 
+              onClick={handleRenameCategory} 
+              disabled={isRenaming || !newCategoryName.trim() || newCategoryName === categoryToRename}
+            >
+              {isRenaming ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirmar Alteração
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

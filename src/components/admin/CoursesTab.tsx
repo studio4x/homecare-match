@@ -25,7 +25,8 @@ import {
   RefreshCw,
   CreditCard,
   Save,
-  Users
+  Users,
+  X
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -810,12 +811,29 @@ const CoursesTab = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Capa (imagem 4:3)</Label>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => heroRef.current?.click()} disabled={isUploading} className="w-full gap-2">
-                      {isUploading ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />} 
-                      {selectedCourse.hero_asset_url ? "Alterar Capa" : "Enviar Capa"}
-                    </Button>
-                    <input ref={heroRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadHero(file); }} />
+                  <div className="space-y-3">
+                    {selectedCourse.hero_asset_url && (
+                      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border bg-muted group">
+                        <img 
+                          src={selectedCourse.hero_asset_url} 
+                          alt="Preview da capa" 
+                          className="h-full w-full object-cover"
+                        />
+                        <button 
+                          onClick={() => setSelectedCourse({...selectedCourse, hero_asset_url: ""})}
+                          className="absolute top-2 right-2 p-1 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => heroRef.current?.click()} disabled={isUploading} className="w-full gap-2">
+                        {isUploading ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />} 
+                        {selectedCourse.hero_asset_url ? "Alterar Capa" : "Enviar Capa"}
+                      </Button>
+                      <input ref={heroRef} type="file" className="hidden" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleUploadHero(file); }} />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">

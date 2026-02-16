@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin, LifeBuoy } from "lucide-react";
+import { Mail, MapPin, LifeBuoy } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import SuggestionDrawer from "../SuggestionDrawer";
 
@@ -128,10 +128,6 @@ const Footer = () => {
               <li className="flex items-center gap-2 text-sm text-muted-foreground break-all">
                 <Mail className="h-4 w-4 shrink-0" />
                 contato@homecarematch.com.br
-              </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="h-4 w-4 shrink-0" />
-                (11) 99999-9999
               </li>
               <li className="flex items-center gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4 shrink-0" />

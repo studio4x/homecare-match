@@ -388,12 +388,22 @@ const Buscar = () => {
         </div>
 
         <div className="mb-8">
-          <ProfessionalMap 
-            userLocation={hasLocation ? { lat: Number(userProfile.lat), lng: Number(userProfile.lng) } : null}
-            professionals={allProfessionals}
-            onProfessionalClick={setSelectedProfessional}
-            onBoundsChange={setMapBounds}
-          />
+          {/* CORREÇÃO: Só renderiza o mapa se a chave de API estiver disponível para evitar erro de Loader */}
+          {!isLoadingConfig && config?.google_maps_api_key ? (
+            <ProfessionalMap 
+              userLocation={hasLocation ? { lat: Number(userProfile.lat), lng: Number(userProfile.lng) } : null}
+              professionals={allProfessionals}
+              onProfessionalClick={setSelectedProfessional}
+              onBoundsChange={setMapBounds}
+            />
+          ) : (
+            <div className="w-full h-[450px] bg-secondary/20 rounded-3xl flex flex-col items-center justify-center gap-3 border border-dashed">
+              <MapPin className="h-8 w-8 text-muted-foreground/50" />
+              <p className="text-sm text-muted-foreground">
+                {isLoadingConfig ? "Carregando configurações..." : "Mapa indisponível. Configure a chave de API no Painel Admin."}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className={cn(

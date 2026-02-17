@@ -44,19 +44,21 @@ export async function getCoordinates(addressData: {
     });
 
     if (error) {
-      // Fallback para busca apenas por CEP se o endereço completo falhar
-      console.warn("[GeoUtils] Erro no endereço completo, tentando apenas CEP...");
-      const { data: retryData, error: retryError } = await supabase.functions.invoke('geocode-address', {
-        body: { address: `CEP \${addressData.zip}, Brasil` }
-      });
+      // Tenta extrair a mensagem de erro real do corpo da resposta da Edge Function
+      let errorMsg = "Erro desconhecido na função.";
+      try {
+        const body = await error.context?.json();
+        if (body?.details) errorMsg = body.details;
+        else if (body?.error) errorMsg = body.error;
+      } catch {}
       
-      if (retryError) throw retryError;
-      return { lat: retryData.lat, lng: retryData.lng };
+      console.error(`[GeoUtils] Erro na Edge Function: \${errorMsg}`);
+      throw new Error(errorMsg);
     }
 
     return { lat: data.lat, lng: data.lng };
-  } catch (error) {
-    console.error("[GeoUtils] Falha na geocodificação Google:", error);
-    return null;
+  } catch (error: any) {
+    console.error("[GeoUtils] Falha na geocodificação Google:", error.message);
+    throw error; // Repassa o erro para ser exibido no toast da página
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -146,10 +146,37 @@ const ProfilePage = () => {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numbers = e.target.value.replace(/\D/g, '').slice(0, 11);
     let formatted = numbers;
-    if (numbers.length > 2) formatted = `(\${numbers.slice(0, 2)}) \${numbers.slice(2)}`;
-    if (numbers.length > 7) formatted = `(\${numbers.slice(0, 2)}) \${numbers.slice(2, 7)}-\${numbers.slice(7)}`;
+    if (numbers.length > 2) formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length > 7) formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
     setProfile({ ...profile, phone: formatted });
   };
+
+  // Função centralizada para validar localização
+  const handleValidateLocation = useCallback(async (currentProfile?: any) => {
+    const p = currentProfile || profile;
+    if (!p.address_street || !p.city || !p.state || !p.address_zip) return;
+
+    setIsGeocoding(true);
+    try {
+      const coords = await getCoordinates({
+        street: p.address_street,
+        number: p.address_number,
+        neighborhood: p.neighborhood,
+        city: p.city,
+        state: p.state,
+        zip: p.address_zip
+      });
+
+      if (coords) {
+        setProfile(prev => ({ ...prev, lat: coords.lat, lng: coords.lng }));
+        toast.success("Localização detectada automaticamente!");
+      }
+    } catch (err) {
+      console.warn("[AutoGeocode] Falha silenciosa na detecção automática.");
+    } finally {
+      setIsGeocoding(false);
+    }
+  }, [profile]);
 
   const handleCepBlur = async () => {
     if (!profile.address_zip) return;
@@ -157,52 +184,25 @@ const ProfilePage = () => {
     if (cep.length !== 8) return;
     setIsLoadingCep(true);
     try {
-      const response = await fetch(`https://viacep.com.br/ws/\${cep}/json/`);
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await response.json();
       if (!data.erro) {
-        setProfile(prev => ({
-          ...prev,
+        const updatedProfile = {
+          ...profile,
           address_street: data.logradouro,
           neighborhood: data.bairro,
           city: data.localidade,
           state: data.uf
-        }));
+        };
+        setProfile(updatedProfile);
+        
+        // Se já tiver número, tenta geocodificar imediatamente
+        if (updatedProfile.address_number) {
+          handleValidateLocation(updatedProfile);
+        }
       }
     } finally {
       setIsLoadingCep(false);
-    }
-  };
-
-  const handleValidateLocation = async () => {
-    if (!profile.address_street || !profile.city || !profile.state || !profile.address_zip) {
-      toast.error("Preencha rua, cidade, estado e CEP para validar a localização.");
-      return;
-    }
-
-    setIsGeocoding(true);
-    try {
-      const coords = await getCoordinates({
-        street: profile.address_street,
-        number: profile.address_number,
-        neighborhood: profile.neighborhood,
-        city: profile.city,
-        state: profile.state,
-        zip: profile.address_zip
-      });
-
-      if (coords) {
-        setProfile(prev => ({ ...prev, lat: coords.lat, lng: coords.lng }));
-        toast.success("Localização detectada com sucesso!");
-      } else {
-        toast.error("Não foi possível encontrar as coordenadas para este endereço.");
-      }
-    } catch (err: any) {
-      // Exibe o erro detalhado vindo da Edge Function
-      toast.error("Erro na localização", {
-        description: err.message || "Verifique os dados e tente novamente."
-      });
-    } finally {
-      setIsGeocoding(false);
     }
   };
 
@@ -213,7 +213,7 @@ const ProfilePage = () => {
     
     const fileExt = file.name.split('.').pop();
     const bucket = type === 'avatar' ? 'avatars' : 'documents';
-    const filePath = `\${user.id}/\${Math.random()}.\${fileExt}`;
+    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
     
     try {
       const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
@@ -327,7 +327,7 @@ const ProfilePage = () => {
 
     setIsSaving(true);
     try {
-      // Geocodificação automática antes de salvar se não houver lat/lng
+      // Geocodificação final de segurança antes de salvar se ainda não houver lat/lng
       let finalLat = profile.lat;
       let finalLng = profile.lng;
 
@@ -669,6 +669,7 @@ const ProfilePage = () => {
                   <Input 
                     value={profile.address_number || ""} 
                     onChange={e => setProfile({...profile, address_number: e.target.value})} 
+                    onBlur={() => handleValidateLocation()}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -687,17 +688,17 @@ const ProfilePage = () => {
                       <Navigation className="h-4 w-4 text-primary" />
                       Coordenadas Geográficas
                     </Label>
-                    <p className="text-[10px] text-muted-foreground">Necessárias para o cálculo de distância na busca.</p>
+                    <p className="text-[10px] text-muted-foreground">Detectadas automaticamente com base no seu endereço.</p>
                   </div>
                   <Button 
                     variant="outline" 
                     size="sm" 
                     className="gap-2 h-8 text-xs"
-                    onClick={handleValidateLocation}
+                    onClick={() => handleValidateLocation()}
                     disabled={isGeocoding}
                   >
                     {isGeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                    Validar Localização
+                    Recalcular Localização
                   </Button>
                 </div>
 
@@ -708,7 +709,7 @@ const ProfilePage = () => {
                       value={profile.lat || ""} 
                       readOnly 
                       className="bg-muted font-mono text-xs h-8" 
-                      placeholder="Aguardando validação..."
+                      placeholder="Aguardando endereço..."
                     />
                   </div>
                   <div className="grid gap-1.5">
@@ -717,7 +718,7 @@ const ProfilePage = () => {
                       value={profile.lng || ""} 
                       readOnly 
                       className="bg-muted font-mono text-xs h-8" 
-                      placeholder="Aguardando validação..."
+                      placeholder="Aguardando endereço..."
                     />
                   </div>
                 </div>
@@ -725,12 +726,12 @@ const ProfilePage = () => {
                 {profile.lat && profile.lng ? (
                   <div className="flex items-center gap-2 text-[10px] text-success font-medium bg-success/5 p-2 rounded border border-success/10">
                     <CheckCircle2 className="h-3 w-3" />
-                    Localização validada e pronta para uso!
+                    Localização detectada e pronta para uso!
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-[10px] text-amber-600 font-medium bg-amber-50 p-2 rounded border border-amber-100">
                     <AlertCircle className="h-3 w-3" />
-                    Clique em "Validar Localização" para gerar as coordenadas.
+                    Preencha o endereço completo para detectar as coordenadas.
                   </div>
                 )}
               </div>

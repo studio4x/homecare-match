@@ -432,13 +432,13 @@ const Index = () => {
                   <div className="flex items-start gap-3">
                     <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
                     <p className="text-sm">
-                      <strong>Plano Mensal:</strong> Você tem acesso ao catálogo completo e pode adquirir cursos individualmente conforme sua necessidade.
+                      <strong>Plano Mensal:</strong> Você tem acesso ao catálogo completo e pode adquirir cursos pagos individualmente conforme sua necessidade.
                     </p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="mt-1 h-2 w-2 rounded-full bg-success shrink-0" />
                     <p className="text-sm">
-                      <strong>Plano Anual:</strong> Acesso <strong>ILIMITADO e GRATUITO</strong> a todos os cursos da plataforma. Estude o quanto quiser sem pagar nada a mais.
+                      <strong>Plano Anual:</strong> Além de poder adquirir cursos pagos, você ganha acesso <strong>exclusivo e gratuito</strong> a todos os cursos marcados como "Gratuitos" na plataforma.
                     </p>
                   </div>
                 </div>

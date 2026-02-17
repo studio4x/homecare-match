@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, MapPin, LifeBuoy } from "lucide-react";
+import { Mail, MapPin, LifeBuoy, LayoutGrid } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import SuggestionDrawer from "../SuggestionDrawer";
 
@@ -116,6 +116,12 @@ const Footer = () => {
           <div className="space-y-4 col-span-1">
             <h4 className="font-semibold text-foreground">Suporte e Contato</h4>
             <ul className="space-y-3">
+              <li>
+                <Link to="/funcionalidades" className="flex items-center gap-2 text-sm text-primary font-medium hover:underline">
+                  <LayoutGrid className="h-4 w-4" />
+                  Funcionalidades
+                </Link>
+              </li>
               <li>
                 <Link to="/suporte" className="flex items-center gap-2 text-sm text-primary font-medium hover:underline">
                   <LifeBuoy className="h-4 w-4" />

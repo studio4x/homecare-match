@@ -25,6 +25,7 @@ import ValidateCertificate from "./pages/ValidateCertificate";
 import Support from "./pages/Support";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiePolicy from "./pages/CookiePolicy";
+import Funcionalidades from "./pages/Funcionalidades";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="/suporte" element={<Support />} />
               <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
               <Route path="/politica-de-cookies" element={<CookiePolicy />} />
+              <Route path="/funcionalidades" element={<Funcionalidades />} />
 
               {/* Novo Painel do Usuário (Aninhado) */}
               <Route path="/dashboard" element={<UserLayout />}>

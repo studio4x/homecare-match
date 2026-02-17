@@ -105,6 +105,14 @@ const Navbar = () => {
             >
               Para Famílias
             </Link>
+            <Link
+              to="/funcionalidades"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive("/funcionalidades") ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              Funcionalidades
+            </Link>
             {canSeeSearch && (
               <Link
                 to="/buscar"
@@ -221,6 +229,15 @@ const Navbar = () => {
                 }`}
               >
                 Para Famílias
+              </Link>
+              <Link
+                to="/funcionalidades"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`text-sm font-medium ${
+                  isActive("/funcionalidades") ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                Funcionalidades
               </Link>
               {canSeeSearch && (
                 <Link

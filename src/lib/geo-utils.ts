@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 /**
  * Calcula a distância entre dois pontos geográficos em quilômetros.
  */
@@ -21,7 +23,7 @@ function deg2rad(deg: number): number {
 }
 
 /**
- * Busca coordenadas a partir de um endereço com múltiplas tentativas de fallback.
+ * Busca coordenadas via Google Maps (através de Edge Function segura).
  */
 export async function getCoordinates(addressData: {
   street: string;
@@ -32,47 +34,29 @@ export async function getCoordinates(addressData: {
   zip: string;
 }): Promise<{ lat: number; lng: number } | null> {
   
-  // Lista de tentativas da mais específica para a mais genérica
-  const queries = [
-    // 1. Endereço completo com CEP
-    `${addressData.street}, ${addressData.number || ""}, ${addressData.city} - ${addressData.state}, ${addressData.zip}, Brasil`,
-    // 2. Rua, Número e Cidade (sem bairro/cep que podem confundir)
-    `${addressData.street}, ${addressData.number || ""}, ${addressData.city}, Brasil`,
-    // 3. Apenas o CEP (muito preciso no Brasil para nível de rua/bloco)
-    `${addressData.zip}, Brasil`,
-    // 4. Cidade e Estado (último recurso)
-    `${addressData.city}, ${addressData.state}, Brasil`
-  ];
+  const fullAddress = `\${addressData.street}, \${addressData.number || ""}, \${addressData.neighborhood || ""}, \${addressData.city} - \${addressData.state}, \${addressData.zip}, Brasil`;
 
-  for (const query of queries) {
-    try {
-      console.log(`[GeoUtils] Tentando geocodificar: \${query}`);
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=\${encodeURIComponent(query)}&limit=1`,
-        {
-          headers: {
-            'Accept-Language': 'pt-BR',
-            'User-Agent': 'HomeCareMatch-App'
-          }
-        }
-      );
-      
-      const data = await response.json();
-      
-      if (data && data.length > 0) {
-        console.log(`[GeoUtils] Sucesso com a query: \${query}`);
-        return {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon)
-        };
-      }
-    } catch (error) {
-      console.error("Erro na tentativa de geocodificação:", error);
-    }
+  try {
+    console.log(`[GeoUtils] Solicitando geocodificação via Google...`);
     
-    // Pequeno delay entre tentativas para respeitar rate limit do serviço gratuito
-    await new Promise(resolve => setTimeout(resolve, 300));
-  }
+    const { data, error } = await supabase.functions.invoke('geocode-address', {
+      body: { address: fullAddress }
+    });
 
-  return null;
+    if (error) {
+      // Fallback para busca apenas por CEP se o endereço completo falhar
+      console.warn("[GeoUtils] Erro no endereço completo, tentando apenas CEP...");
+      const { data: retryData, error: retryError } = await supabase.functions.invoke('geocode-address', {
+        body: { address: `CEP \${addressData.zip}, Brasil` }
+      });
+      
+      if (retryError) throw retryError;
+      return { lat: retryData.lat, lng: retryData.lng };
+    }
+
+    return { lat: data.lat, lng: data.lng };
+  } catch (error) {
+    console.error("[GeoUtils] Falha na geocodificação Google:", error);
+    return null;
+  }
 }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Eye, Star, CheckCircle2, Loader2, Clock, AlertCircle } from "lucide-react";
+import { Users, Eye, Star, CheckCircle2, Loader2, Clock, AlertCircle, Info, CheckCircle } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -22,7 +22,18 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ReviewForm from "./ReviewForm";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +94,12 @@ const InteractionHistory = ({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [reviewedProfiles, setReviewedProfiles] = useState<string[]>([]);
 
+  // Novos estados para o fluxo de confirmação
+  const [explanationModalOpen, setExplanationModalOpen] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [statusInfoModalOpen, setStatusInfoModalOpen] = useState(false);
+  const [activeInteraction, setActiveInteraction] = useState<Interaction | null>(null);
+
   useEffect(() => {
     const fetchReviews = async () => {
       if (!user) return;
@@ -98,8 +115,15 @@ const InteractionHistory = ({
     fetchReviews();
   }, [user, reviewModalOpen]);
 
-  const handleStatusUpdate = async (interactionId: string, currentStatus: string) => {
+  const handleStatusUpdate = async () => {
+    if (!activeInteraction?.id) return;
+    
+    const interactionId = activeInteraction.id;
+    const currentStatus = activeInteraction.status || 'pending';
+    
     setIsUpdatingStatus(interactionId);
+    setConfirmDialogOpen(false);
+    setExplanationModalOpen(false);
     
     let newStatus = 'pending';
     const isProf = viewerRole === 'professional';
@@ -125,6 +149,7 @@ const InteractionHistory = ({
       toast.error("Erro ao atualizar status.");
     } finally {
       setIsUpdatingStatus(null);
+      setActiveInteraction(null);
     }
   };
 
@@ -150,8 +175,6 @@ const InteractionHistory = ({
 
   const maskPhone = (phone: string | undefined) => {
     if (!phone) return "Não informado";
-    // Mantém o DDD e os últimos 4 dígitos, mascarando o meio
-    // Ex: (11) 99999-1234 -> (11) *****-1234
     if (phone.includes('(') && phone.includes(')')) {
       const parts = phone.split(')');
       const ddd = parts[0] + ')';
@@ -165,7 +188,6 @@ const InteractionHistory = ({
   const handleWhatsAppClick = async (contact: Interaction['profile']) => {
     if (!user) return;
     
-    // Registrar clique para analytics
     supabase.from('whatsapp_clicks').insert({
       profile_id: contact.id,
       clicker_id: user.id,
@@ -184,7 +206,6 @@ const InteractionHistory = ({
   const renderStatusButton = (interaction: Interaction) => {
     const status = interaction.status || 'pending';
     const isProf = viewerRole === 'professional';
-    const interactionId = interaction.id!;
     const hasReviewed = reviewedProfiles.includes(interaction.profile.id);
 
     if (status === 'completed') {
@@ -213,17 +234,25 @@ const InteractionHistory = ({
 
     if (isProf && status === 'professional_confirmed') {
       return (
-        <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 h-8">
-          <Clock className="h-3 w-3 mr-1" /> Aguardando Contratante
-        </Badge>
+        <Button 
+          variant="outline" 
+          className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5"
+          onClick={() => { setActiveInteraction(interaction); setStatusInfoModalOpen(true); }}
+        >
+          <Clock className="h-3 w-3" /> <span className="text-xs">Aguardando Contratante</span>
+        </Button>
       );
     }
 
     if (!isProf && status === 'sender_confirmed') {
       return (
-        <Badge variant="outline" className="border-primary/30 text-primary bg-primary/5 h-8">
-          <Clock className="h-3 w-3 mr-1" /> Aguardando Profissional
-        </Badge>
+        <Button 
+          variant="outline" 
+          className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5"
+          onClick={() => { setActiveInteraction(interaction); setStatusInfoModalOpen(true); }}
+        >
+          <Clock className="h-3 w-3" /> <span className="text-xs">Aguardando Profissional</span>
+        </Button>
       );
     }
 
@@ -233,14 +262,21 @@ const InteractionHistory = ({
       <Button 
         variant={needsMyConfirmation ? "default" : "outline"}
         size="sm" 
-        onClick={() => handleStatusUpdate(interactionId, status)} 
-        disabled={isUpdatingStatus === interactionId}
+        onClick={() => {
+          setActiveInteraction(interaction);
+          if (needsMyConfirmation) {
+            setConfirmDialogOpen(true);
+          } else {
+            setExplanationModalOpen(true);
+          }
+        }} 
+        disabled={isUpdatingStatus === interaction.id}
         className={cn(
           "gap-1.5 h-8",
           needsMyConfirmation ? "bg-primary" : "border-success/30 text-success hover:bg-success/5"
         )}
       >
-        {isUpdatingStatus === interactionId ? (
+        {isUpdatingStatus === interaction.id ? (
           <Loader2 className="h-3 w-3 animate-spin" />
         ) : needsMyConfirmation ? (
           <AlertCircle className="h-3 w-3" />
@@ -248,7 +284,7 @@ const InteractionHistory = ({
           <CheckCircle2 className="h-3 w-3" />
         )}
         <span className="text-xs">
-          {needsMyConfirmation ? "Confirmar Atendimento" : "Atendimento Realizado"}
+          {needsMyConfirmation ? "Confirmar Atendimento" : "Atendimento Realizado?"}
         </span>
       </Button>
     );
@@ -332,6 +368,88 @@ const InteractionHistory = ({
           </CardFooter>
         )}
       </Card>
+
+      {/* Modal de Explicação da Importância */}
+      <Dialog open={explanationModalOpen} onOpenChange={setExplanationModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Info className="h-6 w-6 text-primary" />
+            </div>
+            <DialogTitle className="text-center">Por que marcar como realizado?</DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              Confirmar o atendimento é fundamental para manter a qualidade da plataforma.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg">
+              <CheckCircle className="h-5 w-5 text-success shrink-0 mt-0.5" />
+              <p className="text-sm text-muted-foreground">
+                <strong>Segurança:</strong> Ajuda a plataforma a saber que o contato resultou em um serviço real.
+              </p>
+            </div>
+            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg">
+              <Star className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-muted-foreground">
+                <strong>Avaliações:</strong> Somente após a confirmação mútua você poderá avaliar a experiência.
+              </p>
+            </div>
+            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg">
+              <Users className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <p className="text-sm text-muted-foreground">
+                <strong>Reputação:</strong> Profissionais com mais atendimentos confirmados ganham mais destaque.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setExplanationModalOpen(false)} className="w-full sm:w-auto">Agora não</Button>
+            <Button onClick={() => setConfirmDialogOpen(true)} className="w-full sm:w-auto">Marcar como Realizado</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alerta de Confirmação Final */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Atendimento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Você confirma que o atendimento com <strong>{activeInteraction?.profile.full_name}</strong> foi efetivamente realizado?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStatusUpdate}>Sim, foi realizado</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de Informação de Status (Aguardando...) */}
+      <Dialog open={statusInfoModalOpen} onOpenChange={setStatusInfoModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto h-12 w-12 rounded-full bg-amber-50 flex items-center justify-center mb-4">
+              <Clock className="h-6 w-6 text-amber-600" />
+            </div>
+            <DialogTitle className="text-center">Aguardando Confirmação</DialogTitle>
+            <DialogDescription className="text-center pt-2">
+              Você já marcou este atendimento como realizado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-6 text-center space-y-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Para que o atendimento seja finalizado e as avaliações sejam liberadas, 
+              <strong> {activeInteraction?.profile.full_name}</strong> também precisa confirmar a realização no painel dele(a).
+            </p>
+            <div className="p-4 border rounded-xl bg-secondary/10">
+              <p className="text-xs font-medium text-foreground">Dica: Você pode enviar uma mensagem no WhatsApp lembrando a outra parte de confirmar o atendimento na HomeCare Match!</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setStatusInfoModalOpen(false)} className="w-full">Entendido</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={contactModalOpen} onOpenChange={setContactModalOpen}>
         <DialogContent>

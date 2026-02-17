@@ -30,7 +30,7 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS stripe_price_id_test TEXT,
         ADD COLUMN IF NOT EXISTS stripe_price_id_live TEXT;
 
-      -- IDs de preço na tabela de cursos (NOVO)
+      -- IDs de preço na tabela de cursos
       ALTER TABLE public.academy_courses
         ADD COLUMN IF NOT EXISTS stripe_price_id_test TEXT,
         ADD COLUMN IF NOT EXISTS stripe_price_id_live TEXT;
@@ -48,6 +48,12 @@ serve(async (req) => {
       ALTER TABLE public.profiles
         ADD COLUMN IF NOT EXISTS subscription_end_at TIMESTAMPTZ,
         ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT false;
+
+      -- NOVAS COLUNAS PARA VÍDEOS DAS LANDING PAGES
+      ALTER TABLE public.site_config
+        ADD COLUMN IF NOT EXISTS video_url_professionals TEXT,
+        ADD COLUMN IF NOT EXISTS video_url_companies TEXT,
+        ADD COLUMN IF NOT EXISTS video_url_families TEXT;
     `;
     await client.queryObject(sql);
 

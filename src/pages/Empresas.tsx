@@ -24,8 +24,12 @@ import {
 } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteConfig } from "@/hooks/use-site-config";
+import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 
 const Empresas = () => {
+  const { data: config } = useSiteConfig();
+  
   const { data: locationData, isLoading: isLoadingLocations } = useQuery({
     queryKey: ["professional-locations-summary"],
     queryFn: async () => {
@@ -39,7 +43,6 @@ const Empresas = () => {
 
       if (error) throw error;
 
-      // Filtra locais únicos e remove nulos/vazios
       const uniqueLocations = Array.from(
         new Set(
           (data || [])
@@ -51,7 +54,7 @@ const Empresas = () => {
               return loc.join(" - ");
             })
         )
-      ).slice(0, 4); // Mostra até 4 localizações diferentes
+      ).slice(0, 4);
 
       return {
         total: count || 0,
@@ -125,7 +128,6 @@ const Empresas = () => {
     <Layout>
       {/* Hero Section */}
       <section className="gradient-hero relative overflow-hidden py-20 lg:py-28">
-        {/* Background decoration */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-success/5" />
           <div className="absolute -bottom-40 -right-40 h-80 w-80 rounded-full bg-primary/5" />
@@ -166,6 +168,20 @@ const Empresas = () => {
           </div>
         </div>
       </section>
+
+      {/* Seção de Vídeo de Apresentação */}
+      {config?.video_url_companies && (
+        <section className="py-12 bg-secondary/10">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              <LandingVideoPlayer 
+                url={config.video_url_companies} 
+                title="Apresentação para Empresas"
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Features Section */}
       <section className="py-20">

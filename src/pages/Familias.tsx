@@ -21,8 +21,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useSiteConfig } from "@/hooks/use-site-config";
+import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 
 const Familias = () => {
+  const { data: config } = useSiteConfig();
+  
   const features = [
     {
       icon: ShieldCheck,
@@ -140,6 +144,20 @@ const Familias = () => {
           </div>
         </div>
       </section>
+
+      {/* Seção de Vídeo de Apresentação */}
+      {config?.video_url_families && (
+        <section className="py-12 bg-secondary/10">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              <LandingVideoPlayer 
+                url={config.video_url_families} 
+                title="Apresentação para Famílias"
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Features Section */}
       <section className="py-20">

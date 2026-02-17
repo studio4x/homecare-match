@@ -22,7 +22,8 @@ import {
   LifeBuoy,
   HelpCircle,
   AlertTriangle,
-  TrendingUp
+  TrendingUp,
+  Video
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -35,7 +36,6 @@ const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const hasVerifiedOnce = useRef(false);
   
-  // Verifica se existe algum admin cadastrado (para liberar cadastro se não houver)
   const [adminExists, setAdminExists] = useState(true);
 
   useEffect(() => {
@@ -59,7 +59,6 @@ const AdminLayout = () => {
       }
       
       try {
-        // Só mostra o loader de tela cheia na primeira vez
         if (!hasVerifiedOnce.current) {
           setLoading(true);
         }
@@ -122,6 +121,7 @@ const AdminLayout = () => {
     { href: "/admin/planos", label: "Planos", icon: CreditCard },
     { href: "/admin/indicacoes", label: "Indicações", icon: Award },
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
+    { href: "/admin/videos", label: "Vídeos do Site", icon: Video },
     { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },
     { href: "/admin/suporte", label: "Tickets", icon: LifeBuoy },
     { href: "/admin/faq", label: "FAQ / Ajuda", icon: HelpCircle },

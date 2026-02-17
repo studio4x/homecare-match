@@ -20,6 +20,10 @@ export interface SiteConfig {
   gtm_enabled?: boolean;
   fb_pixel_id?: string | null;
   fb_pixel_enabled?: boolean;
+  // Video fields
+  video_url_professionals?: string | null;
+  video_url_companies?: string | null;
+  video_url_families?: string | null;
 }
 
 export const useSiteConfig = () => {

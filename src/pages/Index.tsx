@@ -28,56 +28,47 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useState } from "react";
+import { useSiteConfig } from "@/hooks/use-site-config";
+import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 
 const Index = () => {
   const { session } = useAuth();
+  const { data: config } = useSiteConfig();
   const navigate = useNavigate();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handleSubscribe = async (planId: string) => {
-    console.log("Botão clicado! ID do plano:", planId);
-    
     if (!session) {
-      console.log("Usuário não logado. Redirecionando...");
       toast.info("Por favor, crie uma conta ou faça login para continuar.");
       navigate("/login#auth-sign-up");
       return;
     }
 
     if (planId === 'free') {
-      console.log("Plano gratuito selecionado.");
       navigate("/dashboard");
       return;
     }
 
-    // Feedback visual imediato
     const toastId = toast.loading("Iniciando checkout...");
     setLoadingPlan(planId);
 
     try {
-      console.log("Chamando Edge Function 'create-checkout-session'...");
       const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { planId }
       });
 
-      console.log("Resposta da função:", { data, error });
-
       if (error) {
-        // Tenta extrair a mensagem de erro do corpo da resposta
         let errorMessage = "Erro ao iniciar checkout.";
-        
         if (error.context?.json) {
           const body = await error.context.json();
           errorMessage = body.error || errorMessage;
         } else if (error.message) {
           errorMessage = error.message;
         }
-        
         throw new Error(errorMessage);
       }
 
       if (data?.url) {
-        console.log("Redirecionando para Stripe:", data.url);
         toast.dismiss(toastId);
         toast.success("Redirecionando para pagamento...");
         window.location.href = data.url;
@@ -85,16 +76,9 @@ const Index = () => {
         throw new Error("URL de checkout não retornada pelo servidor.");
       }
     } catch (err: any) {
-      console.error("[Checkout Error Completo]", err);
       toast.dismiss(toastId);
-      
       const cleanMessage = err.message?.replace("Edge Function returned a non-2xx status code", "").trim();
-      
-      if (cleanMessage.includes("Failed to fetch")) {
-        toast.error("Erro de conexão. Verifique sua internet ou tente novamente.");
-      } else {
-        toast.error(`Erro: ${cleanMessage || "Falha ao iniciar pagamento."}`);
-      }
+      toast.error(`Erro: \${cleanMessage || "Falha ao iniciar pagamento."}`);
     } finally {
       setLoadingPlan(null);
     }
@@ -150,7 +134,6 @@ const Index = () => {
     }
   ];
 
-  // Tipagem dos planos do banco
   interface DbPlan {
     id: string;
     name: string;
@@ -162,19 +145,14 @@ const Index = () => {
     savings?: string;
   }
 
-  // Busca planos do Admin automaticamente
-  const { data: remotePlans, error: plansError } = useQuery({
+  const { data: remotePlans } = useQuery({
     queryKey: ["plans"],
     queryFn: async (): Promise<DbPlan[]> => {
-      console.log("Buscando planos no banco...");
       const { data, error } = await supabase
         .from("plans")
         .select("*")
         .order("price", { ascending: true });
-      if (error) {
-        console.error("Erro ao buscar planos:", error);
-        throw error;
-      }
+      if (error) throw error;
       return (data || []).map((p: any) => ({
         id: p.id,
         name: p.name,
@@ -279,24 +257,23 @@ const Index = () => {
                 <Link to="/empresas">Sou uma Empresa</Link>
               </Button>
             </div>
-
-            <div className="animate-slide-up mt-16 grid grid-cols-1 sm:grid-cols-3 gap-8" style={{ animationDelay: "0.3s" }}>
-              <div className="flex items-center justify-center gap-3 text-center">
-                <Shield className="h-5 w-5 text-primary" />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Perfis verificados</span>
-              </div>
-              <div className="flex items-center justify-center gap-3 text-center">
-                <Award className="h-5 w-5 text-success" />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Parcerias com empresas líderes</span>
-              </div>
-              <div className="flex items-center justify-center gap-3 text-center">
-                <Heart className="h-5 w-5 text-primary" />
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Foco total em Home Care</span>
-              </div>
-            </div>
           </div>
         </div>
       </section>
+
+      {/* Seção de Vídeo de Apresentação */}
+      {config?.video_url_professionals && (
+        <section className="py-12 bg-secondary/10">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              <LandingVideoPlayer 
+                url={config.video_url_professionals} 
+                title="Apresentação para Profissionais"
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="py-20">
         <div className="container mx-auto px-4">

@@ -37,7 +37,6 @@ const Buscar = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [allProfessionals, setAllProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [selectedProfessional, setSelectedProfessional] = useState<any | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);

@@ -15,7 +15,8 @@ import {
   Search,
   BookOpen,
   Lock,
-  Zap
+  Zap,
+  ShoppingCart
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -208,7 +209,7 @@ const Courses = () => {
 
   const isEnrolled = (slug: string) => enrollments.enrolledSlugs.includes(slug);
   const isCompleted = (slug: string) => completedSlugs.includes(slug);
-  const isYearlyPlan = userProfile?.subscription_tier === 'yearly';
+  const isYearlyPlan = userProfile?.subscription_tier === 'yearly' || userProfile?.is_admin || userProfile?.role === 'admin';
 
   const enroll = async (course: Course) => {
     if (!user) {
@@ -217,6 +218,8 @@ const Courses = () => {
     }
 
     const isFree = !course.price || course.price === 0;
+    
+    // Se for gratuito, exige plano anual
     if (isFree && !isYearlyPlan) {
       toast.error("Acesso restrito!", {
         description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
@@ -226,6 +229,30 @@ const Courses = () => {
     }
 
     setLoadingEnroll(true);
+
+    // Se for pago, inicia o checkout da Stripe
+    if (!isFree) {
+      const toastId = toast.loading("Iniciando checkout...");
+      try {
+        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
+          body: { courseSlug: course.slug }
+        });
+
+        if (error) throw error;
+        if (data?.url) {
+          window.location.href = data.url;
+          return;
+        }
+      } catch (err: any) {
+        toast.error(err.message || "Erro ao iniciar pagamento.");
+        toast.dismiss(toastId);
+      } finally {
+        setLoadingEnroll(false);
+      }
+      return;
+    }
+
+    // Se for gratuito e tiver o plano correto, inscreve direto
     try {
       const { error } = await supabase
         .from("academy_enrollments")
@@ -393,7 +420,7 @@ const Courses = () => {
                     </CardHeader>
                     <CardContent className="space-y-4 flex-1 flex flex-col pt-0">
                       <div 
-                        className="text-sm text-muted-foreground prose prose-sm max-w-none line-clamp-3 flex-1"
+                        className="text-sm text-muted-foreground prose prose-sm max-none line-clamp-3 flex-1"
                         dangerouslySetInnerHTML={{ __html: c.description || "" }}
                       />
                       
@@ -426,9 +453,9 @@ const Courses = () => {
                             Assinar Anual
                           </Button>
                         ) : (
-                          <Button size="sm" onClick={() => enroll(c)} disabled={loadingEnroll} className="flex-1">
-                            {loadingEnroll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            Inscrever-se
+                          <Button size="sm" onClick={() => enroll(c)} disabled={loadingEnroll} className="flex-1 gap-2">
+                            {loadingEnroll ? <Loader2 className="h-4 w-4 animate-spin" /> : isFree ? <BookOpen className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+                            {isFree ? "Inscrever-se" : "Comprar"}
                           </Button>
                         )}
                       </div>

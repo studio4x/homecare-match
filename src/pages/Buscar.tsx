@@ -138,12 +138,17 @@ const Buscar = () => {
 
   // Lógica de filtragem automática por região do mapa
   const displayedProfessionals = useMemo(() => {
-    if (!mapBounds) return allProfessionals;
+    // Se o mapa não carregou ou não temos limites, mostra todos
+    if (!mapBounds || typeof google === 'undefined') return allProfessionals;
 
     return allProfessionals.filter(p => {
       if (!p.lat || !p.lng) return false;
-      const latLng = new google.maps.LatLng(Number(p.lat), Number(p.lng));
-      return mapBounds.contains(latLng);
+      try {
+        const latLng = new google.maps.LatLng(Number(p.lat), Number(p.lng));
+        return mapBounds.contains(latLng);
+      } catch (e) {
+        return true; // Fallback em caso de erro na lib do Google
+      }
     });
   }, [allProfessionals, mapBounds]);
 

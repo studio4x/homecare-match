@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Video, Upload, Trash2, Play, CheckCircle2, RefreshCw } from "lucide-react";
+import { Loader2, Video, Upload, Trash2, Play, CheckCircle2, RefreshCw, Database } from "lucide-react";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ const VideosTab = () => {
   const { data: config, isLoading } = useSiteConfig();
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeField, setActiveField] = useState<string | null>(null);
 
@@ -24,6 +25,20 @@ const VideosTab = () => {
     { id: "video_url_families", label: "Landing Page: Famílias", description: "Vídeo exibido na página de soluções para famílias." },
     { id: "video_url_onboarding", label: "Dashboard: Onboarding Profissional", description: "Vídeo de boas-vindas exibido no primeiro acesso do profissional." },
   ];
+
+  const handleSyncDatabase = async () => {
+    setIsSyncing(true);
+    try {
+      const { error } = await supabase.functions.invoke('extend-site-config');
+      if (error) throw error;
+      toast.success("Banco de dados sincronizado! Agora você pode subir os vídeos.");
+      await queryClient.invalidateQueries({ queryKey: ["site-config"] });
+    } catch (error: any) {
+      toast.error("Erro ao sincronizar banco.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -55,13 +70,18 @@ const VideosTab = () => {
         .update({ [activeField]: publicUrl })
         .eq('id', 1);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        if (dbError.message.includes("column") && dbError.message.includes("does not exist")) {
+          throw new Error("Coluna não encontrada. Clique no botão 'Sincronizar Banco' no topo da página.");
+        }
+        throw dbError;
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       toast.success("Vídeo atualizado com sucesso!");
     } catch (error: any) {
       console.error(error);
-      toast.error("Erro ao enviar vídeo.");
+      toast.error(error.message || "Erro ao enviar vídeo.");
     } finally {
       setIsUploading(null);
       setActiveField(null);
@@ -91,6 +111,19 @@ const VideosTab = () => {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-2 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+          onClick={handleSyncDatabase}
+          disabled={isSyncing}
+        >
+          {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+          Sincronizar Banco (Correção de Erros)
+        </Button>
+      </div>
+
       <div className="grid gap-6">
         {videoFields.map((field) => {
           const currentUrl = (config as any)?.[field.id];

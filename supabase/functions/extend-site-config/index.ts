@@ -24,9 +24,13 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS lat NUMERIC,
         ADD COLUMN IF NOT EXISTS lng NUMERIC;
 
-      -- Coluna para cache de indicações (melhora performance da busca)
+      -- Coluna para cache de indicações
       ALTER TABLE public.profiles
         ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
+
+      -- Coluna para Chave de API do Google Maps (Lado do Cliente)
+      ALTER TABLE public.site_config
+        ADD COLUMN IF NOT EXISTS google_maps_api_key TEXT;
 
       -- Notifica o PostgREST para recarregar o esquema
       NOTIFY pgrst, 'reload schema';

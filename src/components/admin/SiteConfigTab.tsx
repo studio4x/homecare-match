@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3 } from "lucide-react";
+import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -22,7 +22,8 @@ const SiteConfigTab = () => {
     enable_professional_list: true,
     stripe_mode: "test",
     stripe_publishable_key_test: "",
-    stripe_publishable_key_live: ""
+    stripe_publishable_key_live: "",
+    google_maps_api_key: ""
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -43,7 +44,8 @@ const SiteConfigTab = () => {
         enable_professional_list: config.enable_professional_list ?? true,
         stripe_mode: config.stripe_mode || "test",
         stripe_publishable_key_test: config.stripe_publishable_key_test || "",
-        stripe_publishable_key_live: config.stripe_publishable_key_live || ""
+        stripe_publishable_key_live: config.stripe_publishable_key_live || "",
+        google_maps_api_key: config.google_maps_api_key || ""
       });
     }
   }, [config]);
@@ -55,6 +57,7 @@ const SiteConfigTab = () => {
       const { error } = await supabase.functions.invoke('setup-reviews-table');
       if (error) throw error;
       toast.success("Banco de dados sincronizado!");
+      queryClient.invalidateQueries({ queryKey: ["site-config"] });
     } catch (error: any) {
       toast.error("Erro ao sincronizar banco.");
     } finally {
@@ -145,6 +148,7 @@ const SiteConfigTab = () => {
           stripe_mode: formData.stripe_mode,
           stripe_publishable_key_test: formData.stripe_publishable_key_test,
           stripe_publishable_key_live: formData.stripe_publishable_key_live,
+          google_maps_api_key: formData.google_maps_api_key,
           updated_at: new Date().toISOString()
         })
         .eq('id', 1);
@@ -163,6 +167,29 @@ const SiteConfigTab = () => {
 
   return (
     <div className="space-y-6">
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MapIcon className="h-5 w-5 text-primary" />
+            Google Maps
+          </CardTitle>
+          <CardDescription>Configure a chave de API para o mapa interativo de busca.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Chave de API do Google Maps (Browser)</Label>
+            <Input 
+              placeholder="AIza..."
+              value={formData.google_maps_api_key} 
+              onChange={(e) => setFormData({...formData, google_maps_api_key: e.target.value})} 
+            />
+            <p className="text-[10px] text-muted-foreground italic">
+              Esta chave deve ter permissão para "Maps JavaScript API".
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

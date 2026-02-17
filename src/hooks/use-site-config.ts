@@ -13,6 +13,7 @@ export interface SiteConfig {
   stripe_mode?: string | null;
   stripe_publishable_key_test?: string | null;
   stripe_publishable_key_live?: string | null;
+  google_maps_api_key?: string | null;
   // Marketing fields
   ga_measurement_id?: string | null;
   ga_enabled?: boolean;

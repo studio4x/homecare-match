@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useCallback, useState, useMemo } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
-import { Loader2, MapPin } from 'lucide-react';
+import React, { useCallback, useState, useMemo, useEffect } from 'react';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { Loader2, MapPin, AlertCircle } from 'lucide-react';
 import { useSiteConfig } from '@/hooks/use-site-config';
 
 interface ProfessionalMapProps {
   userLocation: { lat: number; lng: number } | null;
   professionals: any[];
   onProfessionalClick: (professional: any) => void;
+  onBoundsChange?: (bounds: google.maps.LatLngBounds | null) => void;
 }
 
 const mapContainerStyle = {
@@ -16,16 +17,15 @@ const mapContainerStyle = {
   height: '450px',
 };
 
-const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick }: ProfessionalMapProps) => {
+const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onBoundsChange }: ProfessionalMapProps) => {
   const { data: config } = useSiteConfig();
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "", // Fallback para env se necessário
+    googleMapsApiKey: config?.google_maps_api_key || "",
   });
 
-  // Centro padrão (Brasil) caso não haja localização do usuário
   const defaultCenter = useMemo(() => ({
     lat: -15.7942,
     lng: -47.8822
@@ -47,11 +47,39 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick }: P
     setMap(null);
   }, []);
 
-  if (!isLoaded) {
+  const handleIdle = () => {
+    if (map && onBoundsChange) {
+      onBoundsChange(map.getBounds() || null);
+    }
+  };
+
+  if (loadError) {
+    return (
+      <div className="w-full h-[450px] bg-destructive/5 rounded-3xl flex flex-col items-center justify-center gap-3 border border-destructive/20 p-8 text-center">
+        <AlertCircle className="h-10 w-10 text-destructive" />
+        <h3 className="font-bold text-destructive">Erro ao carregar o mapa</h3>
+        <p className="text-sm text-muted-foreground max-w-md">
+          A chave de API do Google Maps não foi configurada ou é inválida. 
+          Acesse o Painel Admin {'>'} Configurações para resolver.
+        </p>
+      </div>
+    );
+  }
+
+  if (!isLoaded || !config?.google_maps_api_key) {
     return (
       <div className="w-full h-[450px] bg-secondary/20 rounded-3xl flex flex-col items-center justify-center gap-3 border border-dashed">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Carregando mapa interativo...</p>
+        {!config?.google_maps_api_key ? (
+          <>
+            <MapPin className="h-8 w-8 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">Aguardando configuração da API do Google Maps...</p>
+          </>
+        ) : (
+          <>
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Carregando mapa interativo...</p>
+          </>
+        )}
       </div>
     );
   }
@@ -64,6 +92,7 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick }: P
         zoom={userLocation ? 12 : 4}
         onLoad={onLoad}
         onUnmount={onUnmount}
+        onIdle={handleIdle}
         options={{
           disableDefaultUI: false,
           zoomControl: true,
@@ -79,7 +108,6 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick }: P
           ]
         }}
       >
-        {/* Marcador do Usuário (Empresa/Família) */}
         {userLocation && (
           <Marker
             position={userLocation}
@@ -90,7 +118,6 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick }: P
           />
         )}
 
-        {/* Marcadores dos Profissionais */}
         {professionals.map((p) => {
           if (!p.lat || !p.lng) return null;
           

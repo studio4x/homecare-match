@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,10 +35,11 @@ const Buscar = () => {
   const { user, session, loading: authLoading } = useAuth();
   const { data: config, isLoading: isLoadingConfig } = useSiteConfig();
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [professionals, setProfessionals] = useState<any[]>([]);
+  const [allProfessionals, setAllProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
   const [selectedProfessional, setSelectedProfessional] = useState<any | null>(null);
+  const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   
   const [filters, setFilters] = useState({
     specialty: getInitialSpecialtyFromUrl(),
@@ -79,25 +80,26 @@ const Buscar = () => {
       setLoading(true);
 
       if (config && config.enable_professional_list === false) {
-        setProfessionals([]);
+        setAllProfessionals([]);
         setLoading(false);
         return;
       }
 
       const trialLimitDate = subDays(new Date(), 30).toISOString();
 
+      // CORREÇÃO: Removido o escape da variável trialLimitDate na string da consulta
       let query = supabase
         .from("profiles")
         .select("*")
         .eq("role", "professional")
         .not("full_name", "is", null)
-        .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.\${trialLimitDate})`);
+        .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`);
 
       if (filters.specialty) query = query.eq("specialty", filters.specialty);
       if (filters.state) query = query.eq("state", filters.state);
       if (filters.city) query = query.ilike("city", `%${filters.city}%`);
       if (filters.neighborhood) query = query.ilike("neighborhood", `%${filters.neighborhood}%`);
-      if (filters.search) query = query.or(`full_name.ilike.%\${filters.search}%,experience.ilike.%\${filters.search}%`);
+      if (filters.search) query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
       if (filters.availability) query = query.contains('availability', [filters.availability]);
       if (filters.patient_profile) query = query.contains('patient_profiles', [filters.patient_profile]);
       
@@ -109,11 +111,11 @@ const Buscar = () => {
       
       if (error) {
         console.error("[Buscar] Erro na consulta:", error);
-        setProfessionals([]);
+        setAllProfessionals([]);
       } else if (data) {
         const processed = data.map(p => {
           const dist = (userProfile.lat && userProfile.lng && p.lat && p.lng)
-            ? calculateDistance(userProfile.lat, userProfile.lng, p.lat, p.lng)
+            ? calculateDistance(Number(userProfile.lat), Number(userProfile.lng), Number(p.lat), Number(p.lng))
             : 9999;
           
           const isPremium = p.subscription_tier === 'yearly';
@@ -125,7 +127,7 @@ const Buscar = () => {
         });
 
         processed.sort((a, b) => b.rankingScore - a.rankingScore);
-        setProfessionals(processed);
+        setAllProfessionals(processed);
       }
       
       setLoading(false);
@@ -133,6 +135,17 @@ const Buscar = () => {
 
     fetchProfessionals();
   }, [userProfile, isLoadingConfig, config, filters]);
+
+  // Lógica de filtragem automática por região do mapa
+  const displayedProfessionals = useMemo(() => {
+    if (!mapBounds) return allProfessionals;
+
+    return allProfessionals.filter(p => {
+      if (!p.lat || !p.lng) return false;
+      const latLng = new google.maps.LatLng(Number(p.lat), Number(p.lng));
+      return mapBounds.contains(latLng);
+    });
+  }, [allProfessionals, mapBounds]);
 
   if (authLoading) {
     return (
@@ -213,11 +226,11 @@ const Buscar = () => {
 
   const conciergeMessage = [
     'Olá!', '',
-    `Sou uma *\${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match para encontrar profissionais.`,
+    `Sou uma *${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match para encontrar profissionais.`,
     '',
-    filters.specialty ? `• Especialidade: \${requestedSpecialtyLabel}` : '',
-    filters.city ? `• Cidade: \${filters.city}` : '',
-    filters.state ? `• Estado: \${filters.state}` : '',
+    filters.specialty ? `• Especialidade: ${requestedSpecialtyLabel}` : '',
+    filters.city ? `• Cidade: ${filters.city}` : '',
+    filters.state ? `• Estado: ${filters.state}` : '',
   ].filter(Boolean).join('\n');
 
   const hasLocation = userProfile?.lat && userProfile?.lng;
@@ -268,7 +281,6 @@ const Buscar = () => {
           </div>
         </div>
 
-        {/* Aviso de Localização Ausente */}
         {!hasLocation && !loading && (
           <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-4 animate-fade-in">
             <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
@@ -288,7 +300,6 @@ const Buscar = () => {
           </div>
         )}
 
-        {/* Filtros */}
         <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-card">
           <div className="flex flex-col gap-4 md:flex-row md:items-end">
             <div className="flex-1">
@@ -371,24 +382,23 @@ const Buscar = () => {
           )}
         </div>
 
-        {/* Mapa Interativo */}
         <div className="mb-8">
           <ProfessionalMap 
             userLocation={hasLocation ? { lat: Number(userProfile.lat), lng: Number(userProfile.lng) } : null}
-            professionals={professionals}
+            professionals={allProfessionals}
             onProfessionalClick={setSelectedProfessional}
+            onBoundsChange={setMapBounds}
           />
         </div>
 
-        {/* Resultados Grid */}
         <div className={cn(
           "grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-          viewMode === 'map' && "hidden md:grid" // No desktop mostra os dois se quiser, mas aqui vamos respeitar o toggle
+          viewMode === 'map' && "hidden md:grid"
         )}>
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
-          ) : professionals.length > 0 ? (
-            professionals.map((p) => (
+          ) : displayedProfessionals.length > 0 ? (
+            displayedProfessionals.map((p) => (
               <ProfessionalCard
                 key={p.id}
                 id={p.id}
@@ -396,7 +406,7 @@ const Buscar = () => {
                 photo={p.avatar_url}
                 specialty={specialties.find(s => s.value === p.specialty)?.label || p.specialty}
                 registration={p.registration}
-                location={`\${p.neighborhood || ""}, \${p.city || ""} - \${p.state || ""}`}
+                location={`${p.neighborhood || ""}, ${p.city || ""} - ${p.state || ""}`}
                 experience={p.experience}
                 isVerified={p.is_verified}
                 subscriptionTier={p.subscription_tier}
@@ -406,13 +416,12 @@ const Buscar = () => {
           ) : (
             <div className="col-span-full py-12 text-center bg-secondary/10 rounded-2xl border border-dashed">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <h3 className="text-lg font-semibold">Nenhum profissional encontrado</h3>
-              <p className="text-muted-foreground">Tente ajustar seus filtros ou use o serviço de Concierge abaixo.</p>
+              <h3 className="text-lg font-semibold">Nenhum profissional nesta região</h3>
+              <p className="text-muted-foreground">Tente mover o mapa ou ajustar seus filtros.</p>
             </div>
           )}
         </div>
 
-        {/* Bloco de Concierge */}
         {!loading && (
           <div className="mt-16 py-12 text-center animate-fade-in bg-primary/5 border border-primary/10 rounded-3xl p-8">
             <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
@@ -426,7 +435,7 @@ const Buscar = () => {
             </p>
             <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
               <a 
-                href={`https://wa.me/\${whatsappNumber}?text=\${encodeURIComponent(conciergeMessage)}`} 
+                href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
                 target="_blank" 
                 rel="noopener noreferrer"
               >

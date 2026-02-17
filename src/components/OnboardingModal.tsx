@@ -53,33 +53,37 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
   const professionalSteps = [
     {
       title: "Bem-vindo à HomeCare Match!",
-      description: "Assista ao vídeo abaixo para entender como nossa plataforma vai impulsionar sua carreira.",
+      headerDescription: "Assista ao vídeo abaixo para entender como nossa plataforma vai impulsionar sua carreira.",
       type: "video",
     },
     {
       title: "Complete seu Perfil",
-      description: "Perfis com foto profissional e biografia detalhada recebem até 3x mais propostas. Vá em 'Meus Dados' e capriche!",
+      headerDescription: "Um perfil completo atrai até 3x mais propostas de trabalho.",
+      sliderContent: "Vá em 'Meus Dados' e adicione sua melhor foto, biografia e experiências detalhadas para se destacar.",
       icon: UserCheck,
       color: "text-blue-500",
       bg: "bg-blue-50",
     },
     {
       title: "Ganhe o Selo de Verificado",
-      description: "Envie seus documentos para análise. O selo de verificação transmite total confiança para empresas e famílias.",
+      headerDescription: "Transmita total confiança para empresas e famílias recrutadoras.",
+      sliderContent: "Envie fotos do seu RG/CNH e registro profissional para nossa equipe validar sua conta e ativar seu selo.",
       icon: ShieldCheck,
       color: "text-green-500",
       bg: "bg-green-50",
     },
     {
       title: "Suba no Ranking",
-      description: "Use seu Link de Indicação! Quanto mais colegas você trouxer, maior será seu destaque e visibilidade nas buscas.",
+      headerDescription: "Aumente sua visibilidade e apareça no topo das buscas.",
+      sliderContent: "Use seu Link de Indicação! Quanto mais colegas você trouxer, maior será seu destaque e pontuação na plataforma.",
       icon: Award,
       color: "text-amber-500",
       bg: "bg-amber-50",
     },
     {
       title: "Suporte e Academy",
-      description: "Precisa de ajuda? Abra um Ticket em 'Suporte'. Quer se capacitar? Explore nossa 'Academy' com cursos exclusivos.",
+      headerDescription: "Estamos aqui para ajudar na sua jornada e evolução profissional.",
+      sliderContent: "Abra tickets de suporte para tirar dúvidas e explore a Academy para conquistar novos certificados e selos.",
       icon: LifeBuoy,
       color: "text-purple-500",
       bg: "bg-purple-50",
@@ -88,34 +92,38 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
 
   const companySteps = [
     {
-      title: "Bem-vindo ao seu Painel de Recrutamento!",
-      description: "Assista ao vídeo para aprender a encontrar os melhores profissionais para sua equipe em tempo recorde.",
+      title: "Bem-vindo ao seu Painel!",
+      headerDescription: "Aprenda a encontrar os melhores profissionais para sua equipe em tempo recorde.",
       type: "video",
     },
     {
       title: "Identidade da Empresa",
-      description: "Complete os dados da sua empresa em 'Meus Dados'. Perfis transparentes geram mais interesse dos profissionais qualificados.",
+      headerDescription: "Perfis transparentes geram muito mais interesse dos candidatos.",
+      sliderContent: "Complete os dados da sua empresa em 'Meus Dados' para passar credibilidade e atrair os melhores talentos.",
       icon: Building2,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
       title: "Busca Inteligente",
-      description: "Use os filtros avançados para encontrar profissionais por bairro, especialidade e disponibilidade imediata.",
+      headerDescription: "Encontre exatamente o profissional que sua escala precisa.",
+      sliderContent: "Use os filtros avançados para selecionar especialistas por bairro, especialidade e disponibilidade imediata.",
       icon: Search,
       color: "text-green-600",
       bg: "bg-green-50",
     },
     {
       title: "Gestão de Contatos",
-      description: "Todos os profissionais que você contatar ficam salvos em 'Contatos'. Você pode ver o WhatsApp e o histórico a qualquer momento.",
+      headerDescription: "Organize seu processo de recrutamento em um só lugar.",
+      sliderContent: "Todos os profissionais que você contatar ficam salvos em 'Contatos' com histórico e link direto para o WhatsApp.",
       icon: Users,
       color: "text-amber-600",
       bg: "bg-amber-50",
     },
     {
       title: "Central de Atendimento",
-      description: "Dúvidas sobre a plataforma? Nossa equipe está pronta para ajudar através do sistema de Tickets em 'Suporte'.",
+      headerDescription: "Suporte dedicado para ajudar sua empresa a crescer.",
+      sliderContent: "Dúvidas sobre a plataforma? Nossa equipe está pronta para ajudar através do sistema de Tickets em 'Suporte'.",
       icon: MessageSquare,
       color: "text-purple-600",
       bg: "bg-purple-50",
@@ -125,33 +133,37 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
   const familySteps = [
     {
       title: "Bem-vindo à HomeCare Match!",
-      description: "Assista ao vídeo para aprender como encontrar o melhor cuidado para quem você ama.",
+      headerDescription: "Aprenda como encontrar o melhor cuidado para quem você ama.",
       type: "video",
     },
     {
       title: "Sua Localização",
-      description: "Mantenha seu endereço atualizado em 'Meus Dados'. Isso ajuda a encontrar profissionais que moram perto de você.",
+      headerDescription: "Encontre profissionais que moram perto da sua residência.",
+      sliderContent: "Mantenha seu endereço atualizado em 'Meus Dados' para visualizar especialistas que atendem na sua região.",
       icon: MapPin,
       color: "text-rose-600",
       bg: "bg-rose-50",
     },
     {
       title: "Busca por Especialidade",
-      description: "Filtre por cuidadores, enfermeiros ou fisioterapeutas. Veja o valor por hora e a experiência de cada um.",
+      headerDescription: "Cuidadores, enfermeiros e terapeutas qualificados.",
+      sliderContent: "Filtre por especialidade, veja o valor por hora e a experiência de cada profissional antes de iniciar o contato.",
       icon: Search,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
       title: "Segurança e Confiança",
-      description: "Dê preferência a profissionais com o Selo de Verificado. Eles tiveram seus documentos analisados por nossa equipe.",
+      headerDescription: "Dê preferência a profissionais que possuem o Selo de Verificado.",
+      sliderContent: "Estes perfis tiveram seus documentos e registros analisados manualmente por nossa equipe de segurança.",
       icon: ShieldCheck,
       color: "text-green-600",
       bg: "bg-green-50",
     },
     {
       title: "Contato Direto",
-      description: "Fale direto no WhatsApp do profissional. Sem taxas de agenciamento e sem intermediários.",
+      headerDescription: "Fale direto no WhatsApp do profissional escolhido.",
+      sliderContent: "Inicie conversas sem intermediários e sem taxas de agenciamento. Combine valores e horários diretamente.",
       icon: MessageSquare,
       color: "text-amber-600",
       bg: "bg-amber-50",
@@ -240,7 +252,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
             <div className="text-center space-y-2">
               <DialogTitle className="text-2xl font-bold">{step.title}</DialogTitle>
               <DialogDescription className="text-base">
-                {step.description}
+                {(step as any).headerDescription}
               </DialogDescription>
             </div>
 
@@ -268,7 +280,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
                   </div>
                   <div className="max-w-xs px-4">
                     <p className="text-sm font-medium text-foreground/80 leading-relaxed">
-                      {step.description}
+                      {(step as any).sliderContent}
                     </p>
                   </div>
                 </div>

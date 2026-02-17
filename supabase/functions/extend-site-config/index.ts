@@ -59,6 +59,9 @@ serve(async (req) => {
       -- CONTROLE DE ONBOARDING NO PERFIL
       ALTER TABLE public.profiles
         ADD COLUMN IF NOT EXISTS has_seen_onboarding BOOLEAN DEFAULT false;
+        
+      -- Notifica o PostgREST para recarregar o esquema (Schema Cache)
+      NOTIFY pgrst, 'reload schema';
     `;
     await client.queryObject(sql);
 
@@ -71,7 +74,7 @@ serve(async (req) => {
     });
   } catch (e) {
     try { await client?.end(); } catch {}
-    return new Response(JSON.stringify({ error: "Failed to extend schema" }), {
+    return new Response(JSON.stringify({ error: "Failed to extend schema", details: e.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

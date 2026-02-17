@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { 
   Search, 
@@ -14,15 +15,41 @@ import {
   MapPin,
   UserCheck,
   LayoutGrid,
-  CheckCircle2
+  CheckCircle2,
+  GraduationCap,
+  ArrowRight,
+  Loader2
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
 
 const Funcionalidades = () => {
+  const { session, user, loading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (user) {
+        setProfileLoading(true);
+        const { data } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        
+        if (data) setProfile(data);
+        setProfileLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [user]);
+
   const features = [
     {
       title: "Busca Inteligente de Profissionais",
@@ -131,6 +158,64 @@ const Funcionalidades = () => {
     }
   };
 
+  const getCtaContent = () => {
+    if (authLoading || profileLoading) {
+      return {
+        title: "Carregando...",
+        description: "Estamos preparando as melhores opções para você.",
+        buttons: <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      };
+    }
+
+    if (!session) {
+      return {
+        title: "Pronto para começar?",
+        description: "Seja você um profissional em busca de plantões ou um recrutador precisando fechar escalas, temos a solução ideal.",
+        buttons: (
+          <div className="flex flex-wrap gap-4">
+            <Button size="lg" asChild className="shadow-lg">
+              <Link to="/login#auth-sign-up">Criar Minha Conta</Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild>
+              <Link to="/buscar">Explorar Profissionais</Link>
+            </Button>
+          </div>
+        )
+      };
+    }
+
+    if (profile?.role === 'professional') {
+      return {
+        title: "Sua evolução não para!",
+        description: "Acesse a Academy para conquistar novos selos e certificados que darão ainda mais destaque ao seu perfil profissional.",
+        buttons: (
+          <Button size="lg" asChild className="gap-2 shadow-lg">
+            <Link to="/cursos">
+              <GraduationCap className="h-5 w-5" />
+              Explorar Catálogo de Cursos
+            </Link>
+          </Button>
+        )
+      };
+    }
+
+    // Empresa ou Família
+    return {
+      title: "Precisa fechar sua escala?",
+      description: "Acesse nossa base de especialistas verificados e encontre o profissional ideal para sua necessidade agora mesmo.",
+      buttons: (
+        <Button size="lg" asChild className="gap-2 shadow-lg">
+          <Link to="/buscar">
+            <Search className="h-5 w-5" />
+            Explorar Profissionais
+          </Link>
+        </Button>
+      )
+    };
+  };
+
+  const cta = getCtaContent();
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12">
@@ -171,18 +256,11 @@ const Funcionalidades = () => {
         <div className="mt-20 bg-primary/5 rounded-3xl p-8 md:p-12 border border-primary/10">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
-              <h2 className="text-3xl font-bold">Pronto para começar?</h2>
+              <h2 className="text-3xl font-bold">{cta.title}</h2>
               <p className="text-muted-foreground text-lg">
-                Seja você um profissional em busca de plantões ou um recrutador precisando fechar escalas, temos a solução ideal.
+                {cta.description}
               </p>
-              <div className="flex flex-wrap gap-4">
-                <Button size="lg" asChild>
-                  <Link to="/login#auth-sign-up">Criar Minha Conta</Link>
-                </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <Link to="/buscar">Explorar Profissionais</Link>
-                </Button>
-              </div>
+              {cta.buttons}
             </div>
             <div className="grid gap-4">
               <div className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm border">

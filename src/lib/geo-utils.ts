@@ -34,31 +34,26 @@ export async function getCoordinates(addressData: {
   zip: string;
 }): Promise<{ lat: number; lng: number } | null> {
   
-  const fullAddress = `\${addressData.street}, \${addressData.number || ""}, \${addressData.neighborhood || ""}, \${addressData.city} - \${addressData.state}, \${addressData.zip}, Brasil`;
+  const fullAddress = `${addressData.street}, ${addressData.number || ""}, ${addressData.neighborhood || ""}, ${addressData.city} - ${addressData.state}, ${addressData.zip}, Brasil`;
 
   try {
-    console.log(`[GeoUtils] Solicitando geocodificação via Google...`);
-    
     const { data, error } = await supabase.functions.invoke('geocode-address', {
       body: { address: fullAddress }
     });
 
     if (error) {
-      // Tenta extrair a mensagem de erro real do corpo da resposta da Edge Function
       let errorMsg = "Erro desconhecido na função.";
       try {
         const body = await error.context?.json();
-        if (body?.details) errorMsg = body.details;
-        else if (body?.error) errorMsg = body.error;
+        errorMsg = body?.details || body?.error || errorMsg;
       } catch {}
       
-      console.error(`[GeoUtils] Erro na Edge Function: \${errorMsg}`);
       throw new Error(errorMsg);
     }
 
     return { lat: data.lat, lng: data.lng };
   } catch (error: any) {
-    console.error("[GeoUtils] Falha na geocodificação Google:", error.message);
-    throw error; // Repassa o erro para ser exibido no toast da página
+    console.error("[GeoUtils] Erro:", error.message);
+    throw error;
   }
 }

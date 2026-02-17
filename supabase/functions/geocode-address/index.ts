@@ -6,66 +6,54 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Resposta imediata para preflight CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const { address } = await req.json()
-    const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+    // Limpa espaços extras que podem ter vindo ao colar a chave nos Secrets
+    const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')?.trim()
 
     if (!apiKey) {
-      console.error("[geocode-address] ERRO: Variável GOOGLE_MAPS_API_KEY não encontrada nos Secrets do Supabase.")
       return new Response(
         JSON.stringify({ 
           error: 'Configuração Ausente', 
-          details: 'A chave GOOGLE_MAPS_API_KEY não foi configurada nos Secrets do projeto Supabase.' 
+          details: 'A chave GOOGLE_MAPS_API_KEY não foi encontrada nos Secrets do Supabase.' 
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log(`[geocode-address] Solicitando geocodificação para: \${address}`)
-
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=\${encodeURIComponent(address)}&key=\${apiKey}&language=pt-BR`
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}&language=pt-BR`
     const response = await fetch(url)
     const data = await response.json()
 
     if (data.status !== 'OK') {
-      console.error(`[geocode-address] Google API retornou erro: \${data.status}`, data.error_message || '')
+      let details = data.error_message || `Erro: ${data.status}`;
       
-      // Mapeia erros comuns do Google para mensagens amigáveis
-      let userFriendlyError = `Erro no Google: \${data.status}`
-      if (data.status === 'REQUEST_DENIED') userFriendlyError = "Acesso Negado: Verifique se a Geocoding API está ativa no Google Cloud e se a chave não tem restrições de IP/Referer incompatíveis."
-      if (data.status === 'OVER_QUERY_LIMIT') userFriendlyError = "Limite Excedido: Verifique se o faturamento (billing) está ativo no seu projeto Google Cloud."
+      if (data.status === 'REQUEST_DENIED') {
+        details = "Chave Inválida ou Geocoding API desativada no Google Cloud Console.";
+      }
 
       return new Response(
-        JSON.stringify({ 
-          error: data.status, 
-          details: data.error_message || userFriendlyError 
-        }),
+        JSON.stringify({ error: data.status, details }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     const result = data.results[0]
-    const location = result.geometry.location
-
-    console.log(`[geocode-address] Sucesso! Coordenadas encontradas: \${location.lat}, \${location.lng}`)
-
     return new Response(
       JSON.stringify({ 
-        lat: location.lat, 
-        lng: location.lng,
+        lat: result.geometry.location.lat, 
+        lng: result.geometry.location.lng,
         formatted_address: result.formatted_address 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error("[geocode-address] Erro crítico na execução:", error.message)
     return new Response(
-      JSON.stringify({ error: 'Internal Server Error', details: error.message }),
+      JSON.stringify({ error: 'Internal Error', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

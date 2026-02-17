@@ -15,63 +15,79 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-sync] Iniciando sincronização de permissões administrativas...");
+    console.log("[setup-sync] Iniciando sincronização robusta de permissões...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
     await client.queryObject(`
-      -- Garante que as tabelas existam
-      CREATE TABLE IF NOT EXISTS public.academy_enrollments (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE (user_id, course_slug)
-      );
+      -- 1. Garantir que as tabelas existam com RLS ativado
+      ALTER TABLE IF EXISTS public.academy_enrollments ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE IF EXISTS public.academy_progress ENABLE ROW LEVEL SECURITY;
 
-      CREATE TABLE IF NOT EXISTS public.academy_progress (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-        course_slug TEXT NOT NULL REFERENCES public.academy_courses(slug) ON DELETE CASCADE,
-        lesson_id UUID NOT NULL REFERENCES public.academy_lessons(id) ON DELETE CASCADE,
-        status TEXT NOT NULL DEFAULT 'in-progress',
-        updated_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE (user_id, lesson_id)
-      );
-
-      ALTER TABLE public.academy_enrollments ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE public.academy_progress ENABLE ROW LEVEL SECURITY;
-
-      -- Remove políticas antigas restritivas para Admin
-      DROP POLICY IF EXISTS "academy_enrollments_admin_select" ON public.academy_enrollments;
+      -- 2. Limpeza total de políticas antigas para evitar conflitos
       DROP POLICY IF EXISTS "academy_enrollments_admin_all" ON public.academy_enrollments;
+      DROP POLICY IF EXISTS "academy_enrollments_admin_select" ON public.academy_enrollments;
+      DROP POLICY IF EXISTS "academy_enrollments_self_select" ON public.academy_enrollments;
+      DROP POLICY IF EXISTS "academy_enrollments_owner" ON public.academy_enrollments;
       
-      -- Cria política de acesso TOTAL para Admin em Matrículas
-      CREATE POLICY "academy_enrollments_admin_all" ON public.academy_enrollments 
-      FOR ALL TO authenticated USING (check_is_admin());
-
-      -- Remove políticas antigas restritivas para Admin em Progresso
-      DROP POLICY IF EXISTS "academy_progress_admin_select" ON public.academy_progress;
       DROP POLICY IF EXISTS "academy_progress_admin_all" ON public.academy_progress;
-      
-      -- Cria política de acesso TOTAL para Admin em Progresso
-      CREATE POLICY "academy_progress_admin_all" ON public.academy_progress 
-      FOR ALL TO authenticated USING (check_is_admin());
+      DROP POLICY IF EXISTS "academy_progress_admin_select" ON public.academy_progress;
+      DROP POLICY IF EXISTS "academy_progress_owner" ON public.academy_progress;
 
-      -- Garante permissão para o próprio usuário ver suas matrículas
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_enrollments_self_select') THEN
-          CREATE POLICY "academy_enrollments_self_select" ON public.academy_enrollments 
-          FOR SELECT TO authenticated USING (auth.uid() = user_id);
-        END IF;
-      END
-      $$;
+      -- 3. Criar política de acesso TOTAL para Administradores (usando verificação direta no banco)
+      -- Matrículas
+      CREATE POLICY "admin_manage_enrollments" ON public.academy_enrollments
+      FOR ALL TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles
+          WHERE profiles.id = auth.uid()
+          AND (profiles.is_admin = true OR profiles.role = 'admin')
+        )
+      )
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM public.profiles
+          WHERE profiles.id = auth.uid()
+          AND (profiles.is_admin = true OR profiles.role = 'admin')
+        )
+      );
+
+      -- Progresso
+      CREATE POLICY "admin_manage_progress" ON public.academy_progress
+      FOR ALL TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles
+          WHERE profiles.id = auth.uid()
+          AND (profiles.is_admin = true OR profiles.role = 'admin')
+        )
+      )
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM public.profiles
+          WHERE profiles.id = auth.uid()
+          AND (profiles.is_admin = true OR profiles.role = 'admin')
+        )
+      );
+
+      -- 4. Restaurar políticas básicas para usuários comuns
+      CREATE POLICY "users_view_own_enrollments" ON public.academy_enrollments
+      FOR SELECT TO authenticated
+      USING (auth.uid() = user_id);
+
+      CREATE POLICY "users_manage_own_progress" ON public.academy_progress
+      FOR ALL TO authenticated
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+
+      -- 5. Notificar recarregamento de esquema
+      NOTIFY pgrst, 'reload schema';
     `);
 
     await client.end();
-    return new Response(JSON.stringify({ ok: true, message: "Permissões de administrador sincronizadas com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Permissões administrativas resetadas e configuradas com sucesso!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

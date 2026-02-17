@@ -55,7 +55,7 @@ const CourseEnrollmentsDialog = ({
     if (!courseSlug) return;
     setLoading(true);
     
-    const cleanSlug = courseSlug.trim().replace(/-+$/, "");
+    const cleanSlug = courseSlug.trim();
 
     try {
       // 1. Buscar total de aulas do curso
@@ -74,11 +74,11 @@ const CourseEnrollmentsDialog = ({
         totalLessons = count || 0;
       }
 
-      // 2. Buscar matrículas
+      // 2. Buscar matrículas (usando eq exato para evitar slugs similares)
       const { data: enrData, error: enrError } = await supabase
         .from("academy_enrollments")
         .select("id, user_id, created_at, course_slug")
-        .ilike("course_slug", `${cleanSlug}%`);
+        .eq("course_slug", cleanSlug);
 
       if (enrError) throw enrError;
 
@@ -137,17 +137,23 @@ const CourseEnrollmentsDialog = ({
     
     setIsRemoving(enrollmentId);
     try {
-      const { error } = await supabase
+      // Tenta excluir e solicita o retorno para confirmar que a linha foi afetada
+      const { error, count } = await supabase
         .from("academy_enrollments")
-        .delete()
+        .delete({ count: 'exact' })
         .eq("id", enrollmentId);
 
       if (error) throw error;
 
-      toast.success("Matrícula removida.");
+      if (count === 0) {
+        throw new Error("A exclusão foi bloqueada pelo servidor. Verifique as permissões de administrador.");
+      }
+
+      toast.success("Matrícula removida com sucesso.");
       setEnrollments(prev => prev.filter(e => e.id !== enrollmentId));
-    } catch (err) {
-      toast.error("Erro ao remover matrícula.");
+    } catch (err: any) {
+      console.error("[EnrollmentsDialog] Erro ao excluir:", err);
+      toast.error(err.message || "Erro ao remover matrícula.");
     } finally {
       setIsRemoving(null);
     }

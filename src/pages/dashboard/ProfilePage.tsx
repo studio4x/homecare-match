@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -146,8 +146,8 @@ const ProfilePage = () => {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numbers = e.target.value.replace(/\D/g, '').slice(0, 11);
     let formatted = numbers;
-    if (numbers.length > 2) formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-    if (numbers.length > 7) formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    if (numbers.length > 2) formatted = `(\${numbers.slice(0, 2)}) \${numbers.slice(2)}`;
+    if (numbers.length > 7) formatted = `(\${numbers.slice(0, 2)}) \${numbers.slice(2, 7)}-\${numbers.slice(7)}`;
     setProfile({ ...profile, phone: formatted });
   };
 
@@ -157,7 +157,7 @@ const ProfilePage = () => {
     if (cep.length !== 8) return;
     setIsLoadingCep(true);
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const response = await fetch(`https://viacep.com.br/ws/\${cep}/json/`);
       const data = await response.json();
       if (!data.erro) {
         setProfile(prev => ({
@@ -174,15 +174,21 @@ const ProfilePage = () => {
   };
 
   const handleValidateLocation = async () => {
-    if (!profile.address_street || !profile.city || !profile.state) {
-      toast.error("Preencha rua, cidade e estado para validar a localização.");
+    if (!profile.address_street || !profile.city || !profile.state || !profile.address_zip) {
+      toast.error("Preencha rua, cidade, estado e CEP para validar a localização.");
       return;
     }
 
     setIsGeocoding(true);
     try {
-      const fullAddress = `${profile.address_street}, ${profile.address_number || ""}, ${profile.neighborhood}, ${profile.city} - ${profile.state}, Brasil`;
-      const coords = await getCoordinates(fullAddress);
+      const coords = await getCoordinates({
+        street: profile.address_street,
+        number: profile.address_number,
+        neighborhood: profile.neighborhood,
+        city: profile.city,
+        state: profile.state,
+        zip: profile.address_zip
+      });
 
       if (coords) {
         setProfile(prev => ({ ...prev, lat: coords.lat, lng: coords.lng }));
@@ -204,7 +210,7 @@ const ProfilePage = () => {
     
     const fileExt = file.name.split('.').pop();
     const bucket = type === 'avatar' ? 'avatars' : 'documents';
-    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+    const filePath = `\${user.id}/\${Math.random()}.\${fileExt}`;
     
     try {
       const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
@@ -323,8 +329,14 @@ const ProfilePage = () => {
       let finalLng = profile.lng;
 
       if (!finalLat || !finalLng) {
-        const fullAddress = `${profile.address_street}, ${profile.address_number || ""}, ${profile.neighborhood}, ${profile.city} - ${profile.state}, Brasil`;
-        const coords = await getCoordinates(fullAddress);
+        const coords = await getCoordinates({
+          street: profile.address_street,
+          number: profile.address_number,
+          neighborhood: profile.neighborhood,
+          city: profile.city,
+          state: profile.state,
+          zip: profile.address_zip
+        });
         if (coords) {
           finalLat = coords.lat;
           finalLng = coords.lng;

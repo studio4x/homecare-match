@@ -15,7 +15,7 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-sync] Iniciando sincronização de permissões...");
+    console.log("[setup-sync] Iniciando sincronização de permissões administrativas...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
@@ -43,16 +43,23 @@ serve(async (req) => {
       ALTER TABLE public.academy_enrollments ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.academy_progress ENABLE ROW LEVEL SECURITY;
 
-      -- Remove políticas antigas para evitar conflitos e recria com permissão total para Admin
+      -- Remove políticas antigas restritivas para Admin
       DROP POLICY IF EXISTS "academy_enrollments_admin_select" ON public.academy_enrollments;
-      CREATE POLICY "academy_enrollments_admin_select" ON public.academy_enrollments 
-      FOR SELECT TO authenticated USING (check_is_admin());
+      DROP POLICY IF EXISTS "academy_enrollments_admin_all" ON public.academy_enrollments;
+      
+      -- Cria política de acesso TOTAL para Admin em Matrículas
+      CREATE POLICY "academy_enrollments_admin_all" ON public.academy_enrollments 
+      FOR ALL TO authenticated USING (check_is_admin());
 
+      -- Remove políticas antigas restritivas para Admin em Progresso
       DROP POLICY IF EXISTS "academy_progress_admin_select" ON public.academy_progress;
-      CREATE POLICY "academy_progress_admin_select" ON public.academy_progress 
-      FOR SELECT TO authenticated USING (check_is_admin());
+      DROP POLICY IF EXISTS "academy_progress_admin_all" ON public.academy_progress;
+      
+      -- Cria política de acesso TOTAL para Admin em Progresso
+      CREATE POLICY "academy_progress_admin_all" ON public.academy_progress 
+      FOR ALL TO authenticated USING (check_is_admin());
 
-      -- Permissão para o próprio usuário ver suas matrículas (caso não exista)
+      -- Garante permissão para o próprio usuário ver suas matrículas
       DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'academy_enrollments_self_select') THEN
@@ -64,7 +71,7 @@ serve(async (req) => {
     `);
 
     await client.end();
-    return new Response(JSON.stringify({ ok: true, message: "Permissões de administrador sincronizadas!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Permissões de administrador sincronizadas com sucesso!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

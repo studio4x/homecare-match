@@ -207,6 +207,7 @@ const Index = () => {
         "Tudo do plano Mensal",
         "Destaque no topo das buscas",
         "Selo dourado de verificação",
+        "Acesso gratuito aos cursos da Academy",
         "Suporte prioritário",
         "Economia de R$ 120/ano",
       ],

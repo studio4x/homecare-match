@@ -22,7 +22,8 @@ import {
   ChevronRight,
   Eye,
   Maximize2,
-  ShoppingCart
+  ShoppingCart,
+  Zap
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -35,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import PlanSelectionModal from "@/components/PlanSelectionModal";
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -52,6 +54,8 @@ const CourseDetail = () => {
   const [progress, setProgress] = useState<Record<string, string>>({});
   const [certificateId, setCertificateId] = useState<string | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
   const [videoEnded, setVideoEnded] = useState(false);
@@ -86,6 +90,9 @@ const CourseDetail = () => {
       setCourse({ ...c, modules: modsWithLessons });
 
       if (user) {
+        const { data: prof } = await supabase.from("profiles").select("subscription_tier, is_admin, role").eq("id", user.id).single();
+        setUserProfile(prof);
+
         const { data: enr } = await supabase.from("academy_enrollments").select("id").eq("user_id", user.id).eq("course_slug", slug).maybeSingle();
         setIsEnrolled(!!enr);
 
@@ -139,7 +146,6 @@ const CourseDetail = () => {
         duration: 5000,
       });
       
-      // Tenta atualizar os dados algumas vezes até a matrícula aparecer (webhook delay)
       const interval = setInterval(() => fetchCourseData(true), 3000);
       const timeout = setTimeout(() => {
         clearInterval(interval);
@@ -194,17 +200,27 @@ const CourseDetail = () => {
     };
   }, [course, progress]);
 
-  // Dispara a geração do selo apenas quando a contagem for exata
   useEffect(() => {
     if (!loading && isEnrolled && stats.total > 0 && stats.done === stats.total && !certificateId && !isIssuingCertificate) {
       issueCertificate();
     }
   }, [loading, isEnrolled, stats.done, stats.total, certificateId]);
 
+  const isYearlyPlan = userProfile?.subscription_tier === 'yearly' || userProfile?.is_admin || userProfile?.role === 'admin';
+
   const handleEnroll = async () => {
     if (!session) {
       toast.info("Faça login para se inscrever.");
       navigate("/login");
+      return;
+    }
+
+    const isFree = !course.price || course.price === 0;
+    if (isFree && !isYearlyPlan) {
+      toast.error("Acesso restrito!", {
+        description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
+      });
+      setIsPlanModalOpen(true);
       return;
     }
 
@@ -297,7 +313,6 @@ const CourseDetail = () => {
       }
     } catch (err: any) {
       console.error("[CourseDetail] Erro ao emitir selo:", err.message);
-      // Não mostramos erro se for apenas "não concluído ainda" para evitar spam
       if (!err.message.includes("not completed yet")) {
         toast.error("Não foi possível gerar seu selo automaticamente. Tente atualizar a página.");
       }
@@ -308,6 +323,16 @@ const CourseDetail = () => {
 
   const handleOpenLesson = (lesson: any) => {
     if (!isEnrolled) return;
+    
+    const isFree = !course.price || course.price === 0;
+    if (isFree && !isYearlyPlan) {
+      toast.error("Acesso restrito!", {
+        description: "Sua assinatura atual não permite o acesso a este conteúdo gratuito."
+      });
+      setIsPlanModalOpen(true);
+      return;
+    }
+
     setSelectedLesson(lesson);
     setVideoEnded(false);
   };
@@ -373,13 +398,22 @@ const CourseDetail = () => {
                         <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Investimento</p>
                         <p className="text-2xl font-bold text-destructive">R$ {Number(course.price).toFixed(2).replace('.', ',')}</p>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-start gap-3">
+                        <Lock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-amber-800 leading-relaxed">
+                          Este curso é <strong>gratuito</strong>, mas o acesso é exclusivo para assinantes do <strong>Plano Anual</strong>.
+                        </p>
+                      </div>
+                    )}
                     
                     <Button onClick={handleEnroll} disabled={enrollmentLoading} className="w-full h-12 text-lg gap-2">
                       {enrollmentLoading ? (
                         <Loader2 className="animate-spin h-5 w-5" />
                       ) : course.price && course.price > 0 ? (
                         <><ShoppingCart className="h-5 w-5" /> Comprar Curso</>
+                      ) : !isYearlyPlan ? (
+                        <><Zap className="h-5 w-5 fill-current" /> Assinar Plano Anual</>
                       ) : (
                         <><GraduationCap className="h-5 w-5" /> Inscrever-se Grátis</>
                       )}
@@ -436,13 +470,15 @@ const CourseDetail = () => {
                       <div className="divide-y">
                         {m.lessons?.map((l: any) => {
                           const status = progress[l.id] || 'pending';
+                          const isFree = !course.price || course.price === 0;
+                          const isLocked = isFree && !isYearlyPlan && !isEnrolled;
                           
                           return (
                             <div
                               key={l.id}
                               className={cn(
                                 "p-3 sm:p-4 flex items-center justify-between gap-2 sm:gap-4 transition-colors",
-                                isEnrolled ? "hover:bg-secondary/30 cursor-pointer" : "cursor-not-allowed"
+                                isEnrolled && !isLocked ? "hover:bg-secondary/30 cursor-pointer" : "cursor-not-allowed"
                               )}
                               onClick={() => handleOpenLesson(l)}
                             >
@@ -460,7 +496,7 @@ const CourseDetail = () => {
                               </div>
                               
                               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                                {isEnrolled ? (
+                                {isEnrolled && !isLocked ? (
                                   <>
                                     <Button
                                       variant="outline"
@@ -610,6 +646,11 @@ const CourseDetail = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <PlanSelectionModal 
+        open={isPlanModalOpen} 
+        onOpenChange={setIsPlanModalOpen} 
+      />
     </Layout>
   );
 };

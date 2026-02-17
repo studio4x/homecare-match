@@ -13,7 +13,9 @@ import {
   Filter, 
   X, 
   Search,
-  BookOpen
+  BookOpen,
+  Lock,
+  Zap
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -28,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import PlanSelectionModal from "@/components/PlanSelectionModal";
 
 type CourseLevel = "iniciante" | "intermediario" | "avancado";
 
@@ -74,9 +77,11 @@ const Courses = () => {
   const [enrollments, setEnrollments] = useState<EnrollmentData>({ enrolledSlugs: [], progress: {} });
   const [loading, setLoading] = useState(true);
   const [loadingEnroll, setLoadingEnroll] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>("guest");
   const [roleLoading, setRoleLoading] = useState<boolean>(true);
   const [completedSlugs, setCompletedSlugs] = useState<string[]>([]);
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
   // Estados dos Filtros
   const [filterLevel, setFilterLevel] = useState<string>("all");
@@ -89,9 +94,10 @@ const Courses = () => {
         if (user) {
           const { data } = await supabase
             .from("profiles")
-            .select("role")
+            .select("role, subscription_tier")
             .eq("id", user.id)
             .single();
+          setUserProfile(data);
           setUserRole(data?.role || "professional");
         } else {
           setUserRole("guest");
@@ -202,20 +208,31 @@ const Courses = () => {
 
   const isEnrolled = (slug: string) => enrollments.enrolledSlugs.includes(slug);
   const isCompleted = (slug: string) => completedSlugs.includes(slug);
+  const isYearlyPlan = userProfile?.subscription_tier === 'yearly';
 
-  const enroll = async (slug: string) => {
+  const enroll = async (course: Course) => {
     if (!user) {
       toast.error("Entre na sua conta para se inscrever.");
       return;
     }
+
+    const isFree = !course.price || course.price === 0;
+    if (isFree && !isYearlyPlan) {
+      toast.error("Acesso restrito!", {
+        description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
+      });
+      setIsPlanModalOpen(true);
+      return;
+    }
+
     setLoadingEnroll(true);
     try {
       const { error } = await supabase
         .from("academy_enrollments")
-        .upsert({ user_id: user.id, course_slug: slug }, { onConflict: "user_id,course_slug" });
+        .upsert({ user_id: user.id, course_slug: course.slug }, { onConflict: "user_id,course_slug" });
       if (error) throw error;
       setEnrollments((prev) => ({
-        enrolledSlugs: Array.from(new Set([...(prev.enrolledSlugs || []), slug])),
+        enrolledSlugs: Array.from(new Set([...(prev.enrolledSlugs || []), course.slug])),
         progress: prev.progress || {},
       }));
       toast.success("Inscrição realizada!");
@@ -338,65 +355,87 @@ const Courses = () => {
         ) : filteredCourses.length > 0 ? (
           <>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredCourses.map((c) => (
-                <Card key={c.slug} className="overflow-hidden flex flex-col group hover:shadow-md transition-all border-primary/5">
-                  {c.hero_asset_url ? (
-                    <AspectRatio ratio={4/3} className="relative w-full bg-muted shrink-0 overflow-hidden">
-                      {isCompleted(c.slug) ? (
-                        <Badge className="absolute left-2 top-2 bg-success z-10 shadow-sm">Concluído</Badge>
-                      ) : null}
-                      <img
-                        src={c.hero_asset_url}
-                        alt={c.title}
-                        className="h-full w-full object-cover rounded-t-md group-hover:scale-105 transition-transform duration-500"
+              {filteredCourses.map((c) => {
+                const isFree = !c.price || c.price === 0;
+                const needsYearly = isFree && !isYearlyPlan && !isEnrolled(c.slug);
+
+                return (
+                  <Card key={c.slug} className="overflow-hidden flex flex-col group hover:shadow-md transition-all border-primary/5">
+                    {c.hero_asset_url ? (
+                      <AspectRatio ratio={4/3} className="relative w-full bg-muted shrink-0 overflow-hidden">
+                        {isCompleted(c.slug) ? (
+                          <Badge className="absolute left-2 top-2 bg-success z-10 shadow-sm">Concluído</Badge>
+                        ) : null}
+                        <img
+                          src={c.hero_asset_url}
+                          alt={c.title}
+                          className="h-full w-full object-cover rounded-t-md group-hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute bottom-2 right-2">
+                          {isFree ? (
+                            <Badge className="bg-success/90 text-white border-none">Grátis</Badge>
+                          ) : (
+                            <Badge className="bg-destructive text-white border-none">R$ {Number(c.price).toFixed(2).replace('.', ',')}</Badge>
+                          )}
+                        </div>
+                      </AspectRatio>
+                    ) : null}
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-start justify-between gap-2 text-lg">
+                        <span className="line-clamp-2 leading-tight">{c.title}</span>
+                      </CardTitle>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="capitalize text-[10px] h-5">{c.level || "iniciante"}</Badge>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                          {c.duration_minutes ? `${c.duration_minutes} min` : ""}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4 flex-1 flex flex-col pt-0">
+                      <div 
+                        className="text-sm text-muted-foreground prose prose-sm max-w-none line-clamp-3 flex-1"
+                        dangerouslySetInnerHTML={{ __html: c.description || "" }}
                       />
-                      <div className="absolute bottom-2 right-2">
-                        {(!c.price || c.price === 0) ? (
-                          <Badge className="bg-success/90 text-white border-none">Grátis</Badge>
+                      
+                      {needsYearly && (
+                        <div className="bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center gap-2 text-[10px] text-amber-700 font-medium">
+                          <Lock className="h-3 w-3" />
+                          Exclusivo para Plano Anual
+                        </div>
+                      )}
+
+                      <div className="flex gap-2 pt-2">
+                        <Button asChild variant="outline" size="sm" className="flex-1">
+                          <Link to={`/cursos/${c.slug}`}>Ver detalhes</Link>
+                        </Button>
+                        {isEnrolled(c.slug) ? (
+                          <Button 
+                            asChild 
+                            size="sm"
+                            className={cn("flex-1", isCompleted(c.slug) && "bg-success hover:bg-success/90 border-none")}
+                          >
+                            <Link to={`/cursos/${c.slug}`}>{isCompleted(c.slug) ? "Rever Curso" : "Continuar"}</Link>
+                          </Button>
+                        ) : needsYearly ? (
+                          <Button 
+                            size="sm" 
+                            className="flex-1 gap-2 bg-amber-500 hover:bg-amber-600 border-none"
+                            onClick={() => setIsPlanModalOpen(true)}
+                          >
+                            <Zap className="h-3 w-3 fill-current" />
+                            Assinar Anual
+                          </Button>
                         ) : (
-                          <Badge className="bg-destructive text-white border-none">R$ {Number(c.price).toFixed(2).replace('.', ',')}</Badge>
+                          <Button size="sm" onClick={() => enroll(c)} disabled={loadingEnroll} className="flex-1">
+                            {loadingEnroll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            Inscrever-se
+                          </Button>
                         )}
                       </div>
-                    </AspectRatio>
-                  ) : null}
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-start justify-between gap-2 text-lg">
-                      <span className="line-clamp-2 leading-tight">{c.title}</span>
-                    </CardTitle>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="secondary" className="capitalize text-[10px] h-5">{c.level || "iniciante"}</Badge>
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                        {c.duration_minutes ? `${c.duration_minutes} min` : ""}
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4 flex-1 flex flex-col pt-0">
-                    <div 
-                      className="text-sm text-muted-foreground prose prose-sm max-w-none line-clamp-3 flex-1"
-                      dangerouslySetInnerHTML={{ __html: c.description || "" }}
-                    />
-                    <div className="flex gap-2 pt-2">
-                      <Button asChild variant="outline" size="sm" className="flex-1">
-                        <Link to={`/cursos/${c.slug}`}>Ver detalhes</Link>
-                      </Button>
-                      {isEnrolled(c.slug) ? (
-                        <Button 
-                          asChild 
-                          size="sm"
-                          className={cn("flex-1", isCompleted(c.slug) && "bg-success hover:bg-success/90 border-none")}
-                        >
-                          <Link to={`/cursos/${c.slug}`}>{isCompleted(c.slug) ? "Rever Curso" : "Continuar"}</Link>
-                        </Button>
-                      ) : (
-                        <Button size="sm" onClick={() => enroll(c.slug)} disabled={loadingEnroll} className="flex-1">
-                          {loadingEnroll ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                          Inscrever-se
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
             
             <div className="mt-12 flex md:hidden justify-center">
@@ -417,6 +456,11 @@ const Courses = () => {
           </div>
         )}
       </div>
+
+      <PlanSelectionModal 
+        open={isPlanModalOpen} 
+        onOpenChange={setIsPlanModalOpen} 
+      />
     </Layout>
   );
 };

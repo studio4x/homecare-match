@@ -15,14 +15,14 @@ serve(async (req) => {
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
 
     if (!apiKey) {
-      console.error("[geocode-address] Erro: GOOGLE_MAPS_API_KEY não configurada nos Secrets.")
+      console.error("[geocode-address] ERRO: GOOGLE_MAPS_API_KEY não configurada nos Secrets.");
       return new Response(
         JSON.stringify({ error: 'Chave do Google Maps não configurada no servidor.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log(`[geocode-address] Buscando: \${address}`)
+    console.log(`[geocode-address] Buscando endereço: \${address}`);
 
     const response = await fetch(
       `https://maps.googleapis.com/maps/api/geocode/json?address=\${encodeURIComponent(address)}&key=\${apiKey}&language=pt-BR`
@@ -31,15 +31,20 @@ serve(async (req) => {
     const data = await response.json()
 
     if (data.status !== 'OK') {
-      console.error("[geocode-address] Erro Google:", data.status, data.error_message)
+      console.error(`[geocode-address] Erro retornado pelo Google. Status: \${data.status}`, data);
       return new Response(
-        JSON.stringify({ error: `Erro no Google: \${data.status}`, details: data.error_message }),
+        JSON.stringify({ 
+          error: `Erro no Google: \${data.status}`, 
+          details: data.error_message || "Nenhum detalhe fornecido pelo Google." 
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     const result = data.results[0]
     const location = result.geometry.location
+
+    console.log(`[geocode-address] Sucesso! Coordenadas: \${location.lat}, \${location.lng}`);
 
     return new Response(
       JSON.stringify({ 
@@ -50,7 +55,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error("[geocode-address] Erro crítico:", error.message)
+    console.error("[geocode-address] Erro crítico na execução da função:", error.message);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

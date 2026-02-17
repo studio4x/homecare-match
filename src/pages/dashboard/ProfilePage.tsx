@@ -146,8 +146,8 @@ const ProfilePage = () => {
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numbers = e.target.value.replace(/\D/g, '').slice(0, 11);
     let formatted = numbers;
-    if (numbers.length > 2) formatted = `(\${numbers.slice(0, 2)}) \${numbers.slice(2)}`;
-    if (numbers.length > 7) formatted = `(\${numbers.slice(0, 2)}) \${numbers.slice(2, 7)}-\${numbers.slice(7)}`;
+    if (numbers.length > 2) formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    if (numbers.length > 7) formatted = `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
     setProfile({ ...profile, phone: formatted });
   };
 
@@ -157,7 +157,7 @@ const ProfilePage = () => {
     if (cep.length !== 8) return;
     setIsLoadingCep(true);
     try {
-      const response = await fetch(`https://viacep.com.br/ws/\${cep}/json/`);
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await response.json();
       if (!data.erro) {
         setProfile(prev => ({
@@ -181,6 +181,7 @@ const ProfilePage = () => {
 
     setIsGeocoding(true);
     try {
+      // CORREÇÃO: Passando o objeto esperado pela função getCoordinates
       const coords = await getCoordinates({
         street: profile.address_street,
         number: profile.address_number,
@@ -210,7 +211,7 @@ const ProfilePage = () => {
     
     const fileExt = file.name.split('.').pop();
     const bucket = type === 'avatar' ? 'avatars' : 'documents';
-    const filePath = `\${user.id}/\${Math.random()}.\${fileExt}`;
+    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
     
     try {
       const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);

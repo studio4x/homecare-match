@@ -35,12 +35,15 @@ import {
   ShieldCheck,
   KeyRound,
   AlertTriangle,
+  AlertCircle,
   Check,
   ChevronDown,
   ChevronUp,
   Mail,
   PlayCircle,
-  HelpCircle
+  HelpCircle,
+  MapPin,
+  Navigation
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -69,6 +72,7 @@ const ProfilePage = () => {
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [isDangerZoneOpen, setIsDangerZoneOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   
@@ -166,6 +170,30 @@ const ProfilePage = () => {
       }
     } finally {
       setIsLoadingCep(false);
+    }
+  };
+
+  const handleValidateLocation = async () => {
+    if (!profile.address_street || !profile.city || !profile.state) {
+      toast.error("Preencha rua, cidade e estado para validar a localização.");
+      return;
+    }
+
+    setIsGeocoding(true);
+    try {
+      const fullAddress = `${profile.address_street}, ${profile.address_number || ""}, ${profile.neighborhood}, ${profile.city} - ${profile.state}, Brasil`;
+      const coords = await getCoordinates(fullAddress);
+
+      if (coords) {
+        setProfile(prev => ({ ...prev, lat: coords.lat, lng: coords.lng }));
+        toast.success("Localização detectada com sucesso!");
+      } else {
+        toast.error("Não foi possível encontrar as coordenadas para este endereço. Verifique se os dados estão corretos.");
+      }
+    } catch (err) {
+      toast.error("Erro ao buscar coordenadas.");
+    } finally {
+      setIsGeocoding(false);
     }
   };
 
@@ -290,9 +318,18 @@ const ProfilePage = () => {
 
     setIsSaving(true);
     try {
-      // Geocodificação automática antes de salvar
-      const fullAddress = `${profile.address_street}, ${profile.address_number || ""}, ${profile.neighborhood}, ${profile.city} - ${profile.state}, Brasil`;
-      const coords = await getCoordinates(fullAddress);
+      // Geocodificação automática antes de salvar se não houver lat/lng
+      let finalLat = profile.lat;
+      let finalLng = profile.lng;
+
+      if (!finalLat || !finalLng) {
+        const fullAddress = `${profile.address_street}, ${profile.address_number || ""}, ${profile.neighborhood}, ${profile.city} - ${profile.state}, Brasil`;
+        const coords = await getCoordinates(fullAddress);
+        if (coords) {
+          finalLat = coords.lat;
+          finalLng = coords.lng;
+        }
+      }
 
       const { error } = await supabase.from("profiles").update({
         full_name: profile.full_name,
@@ -314,13 +351,14 @@ const ProfilePage = () => {
         address_street: profile.address_street,
         address_number: profile.address_number,
         address_complement: profile.address_complement,
-        lat: coords?.lat || profile.lat,
-        lng: coords?.lng || profile.lng,
+        lat: finalLat,
+        lng: finalLng,
         updated_at: new Date().toISOString()
       }).eq("id", user.id);
 
       if (error) throw error;
       toast.success("Perfil salvo com sucesso!");
+      fetchProfile();
     } catch (err: any) {
       console.error("[ProfileSave] Erro:", err);
       toast.error("Erro ao salvar perfil: " + (err.message || "Erro desconhecido"));
@@ -487,16 +525,14 @@ const ProfilePage = () => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label>Nome Completo *</Label>
-                  <input 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  <Input 
                     value={profile.full_name || ""} 
                     onChange={e => setProfile({...profile, full_name: e.target.value})} 
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>WhatsApp *</Label>
-                  <input 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  <Input 
                     value={profile.phone || ""} 
                     onChange={handlePhoneChange} 
                     placeholder="(11) 99999-9999" 
@@ -509,11 +545,11 @@ const ProfilePage = () => {
                   <Mail className="h-3 w-3 text-muted-foreground" />
                   E-mail de Acesso
                 </Label>
-                <input 
-                  className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                <Input 
                   value={profile.email || ""} 
                   disabled
                   readOnly
+                  className="bg-muted"
                 />
                 <p className="text-[10px] text-muted-foreground italic">O e-mail é usado para login e não pode ser alterado diretamente.</p>
               </div>
@@ -531,8 +567,7 @@ const ProfilePage = () => {
                   </div>
                   <div className="grid gap-2">
                     <Label>Registro (COREN/CREFITO)</Label>
-                    <input 
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <Input 
                       value={profile.registration || ""} 
                       onChange={e => setProfile({...profile, registration: e.target.value})} 
                     />
@@ -542,8 +577,7 @@ const ProfilePage = () => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2">
                     <Label>{profile.role === 'company' ? "Razão Social" : "Nome do Responsável"}</Label>
-                    <input 
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <Input 
                       value={profile.company_name || ""} 
                       onChange={e => setProfile({...profile, company_name: e.target.value})} 
                     />
@@ -551,8 +585,7 @@ const ProfilePage = () => {
                   {profile.role === 'company' && (
                     <div className="grid gap-2">
                       <Label>CNPJ</Label>
-                      <input 
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      <Input 
                         value={profile.cnpj || ""} 
                         onChange={e => setProfile({...profile, cnpj: e.target.value})} 
                       />
@@ -570,13 +603,12 @@ const ProfilePage = () => {
                 Sua localização é usada para te conectar a oportunidades próximas, facilitando o deslocamento e otimizando sua rotina.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
                   <Label>CEP *</Label>
                   <div className="relative">
-                    <input 
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <Input 
                       value={profile.address_zip || ""} 
                       onChange={e => setProfile({...profile, address_zip: e.target.value})} 
                       onBlur={handleCepBlur} 
@@ -586,8 +618,7 @@ const ProfilePage = () => {
                 </div>
                 <div className="grid gap-2 md:col-span-2">
                   <Label>Rua *</Label>
-                  <input 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  <Input 
                     value={profile.address_street || ""} 
                     onChange={e => setProfile({...profile, address_street: e.target.value})} 
                   />
@@ -596,47 +627,97 @@ const ProfilePage = () => {
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
                   <Label>Bairro *</Label>
-                  <input 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  <Input 
                     value={profile.neighborhood || ""} 
                     onChange={e => setProfile({...profile, neighborhood: e.target.value})} 
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Cidade *</Label>
-                  <input 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  <Input 
                     value={profile.city || ""} 
                     onChange={e => setProfile({...profile, city: e.target.value})} 
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>Estado (UF) *</Label>
-                  <input 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  <Input 
                     value={profile.state || ""} 
                     onChange={e => setProfile({...profile, state: e.target.value})} 
                     maxLength={2} 
                   />
                 </div>
               </div>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label>Número</Label>
-                  <input 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  <Input 
                     value={profile.address_number || ""} 
                     onChange={e => setProfile({...profile, address_number: e.target.value})} 
                   />
                 </div>
-                <div className="grid gap-2 md:col-span-2">
+                <div className="grid gap-2">
                   <Label>Complemento</Label>
-                  <input 
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  <Input 
                     value={profile.address_complement || ""} 
                     onChange={e => setProfile({...profile, address_complement: e.target.value})} 
                   />
                 </div>
+              </div>
+
+              <div className="pt-4 border-t space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="flex items-center gap-2">
+                      <Navigation className="h-4 w-4 text-primary" />
+                      Coordenadas Geográficas
+                    </Label>
+                    <p className="text-[10px] text-muted-foreground">Necessárias para o cálculo de distância na busca.</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 h-8 text-xs"
+                    onClick={handleValidateLocation}
+                    disabled={isGeocoding}
+                  >
+                    {isGeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                    Validar Localização
+                  </Button>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Latitude</Label>
+                    <Input 
+                      value={profile.lat || ""} 
+                      readOnly 
+                      className="bg-muted font-mono text-xs h-8" 
+                      placeholder="Aguardando validação..."
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Longitude</Label>
+                    <Input 
+                      value={profile.lng || ""} 
+                      readOnly 
+                      className="bg-muted font-mono text-xs h-8" 
+                      placeholder="Aguardando validação..."
+                    />
+                  </div>
+                </div>
+
+                {profile.lat && profile.lng ? (
+                  <div className="flex items-center gap-2 text-[10px] text-success font-medium bg-success/5 p-2 rounded border border-success/10">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Localização validada e pronta para uso!
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-[10px] text-amber-600 font-medium bg-amber-50 p-2 rounded border border-amber-100">
+                    <AlertCircle className="h-3 w-3" />
+                    Clique em "Validar Localização" para gerar as coordenadas.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -689,9 +770,8 @@ const ProfilePage = () => {
                 <CardContent className="space-y-6">
                   <div className="grid gap-2">
                     <Label>Valor/Hora (R$) *</Label>
-                    <input 
+                    <Input 
                       type="number" 
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       value={profile.hourly_rate || ""} 
                       onChange={e => setProfile({...profile, hourly_rate: e.target.value})} 
                       placeholder="0.00" 

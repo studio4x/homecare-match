@@ -22,12 +22,10 @@ import {
   LifeBuoy,
   CheckCircle2,
   Loader2,
-  X,
   Search,
   Users,
   Building2,
   MessageSquare,
-  Heart,
   MapPin
 } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -227,13 +225,6 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-none shadow-2xl">
-        <button 
-          onClick={() => onOpenChange(false)}
-          className="absolute right-4 top-4 z-50 p-2 rounded-full bg-black/10 hover:bg-black/20 transition-colors"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
         <div className="flex flex-col h-full">
           {/* Header Progress */}
           <div className="flex h-1.5 w-full bg-secondary">

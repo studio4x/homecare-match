@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Select,
   SelectContent,
@@ -37,7 +38,8 @@ import {
   ShieldAlert,
   ExternalLink,
   Eye,
-  EyeOff
+  EyeOff,
+  User
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, addDays, isAfter, subDays } from "date-fns";
@@ -206,12 +208,16 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     return isPaid || isTrialActive;
   };
 
+  const getInitials = (name: string) =>
+    name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
+
   return (
     <>
       <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[80px]">Foto</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead>Função</TableHead>
@@ -229,6 +235,14 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
               
               return (
                 <TableRow key={u.id}>
+                  <TableCell>
+                    <Avatar className="h-10 w-10 border">
+                      <AvatarImage src={u.avatar_url} />
+                      <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">
+                        {getInitials(u.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       {profileLink ? (

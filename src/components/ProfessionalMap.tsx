@@ -39,6 +39,37 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
     return defaultCenter;
   }, [userLocation, professionals, defaultCenter]);
 
+  // Efeito para enquadrar todos os marcadores quando a lista de profissionais mudar
+  useEffect(() => {
+    if (map && professionals.length > 0 && typeof google !== 'undefined') {
+      const bounds = new google.maps.LatLngBounds();
+      let hasValidPoints = false;
+
+      if (userLocation) {
+        bounds.extend(userLocation);
+        hasValidPoints = true;
+      }
+
+      professionals.forEach(p => {
+        if (p.lat && p.lng) {
+          bounds.extend({ lat: Number(p.lat), lng: Number(p.lng) });
+          hasValidPoints = true;
+        }
+      });
+
+      if (hasValidPoints) {
+        map.fitBounds(bounds);
+        // Evita zoom excessivo se houver apenas um ponto
+        if (professionals.length === 1 && !userLocation) {
+          const listener = google.maps.event.addListener(map, 'idle', () => {
+            map.setZoom(12);
+            google.maps.event.removeListener(listener);
+          });
+        }
+      }
+    }
+  }, [map, professionals, userLocation]);
+
   const onLoad = useCallback((map: google.maps.Map) => {
     setMap(map);
   }, []);

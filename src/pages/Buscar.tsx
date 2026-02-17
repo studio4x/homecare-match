@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
-import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck, Loader2 } from "lucide-react";
+import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck, Loader2, MapPin, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -50,7 +50,6 @@ const Buscar = () => {
   useEffect(() => {
     const fetchMyProfile = async () => {
       if (user) {
-        // Usamos select("*") para evitar erro 400 se lat/lng ainda não existirem
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
@@ -60,7 +59,6 @@ const Buscar = () => {
         if (!error && data) {
           setUserProfile(data);
         } else {
-          // Fallback mínimo para não travar a página
           setUserProfile({ role: 'guest' });
         }
       }
@@ -82,7 +80,6 @@ const Buscar = () => {
 
       const trialLimitDate = subDays(new Date(), 30).toISOString();
 
-      // Buscamos todos os campos (*) para evitar erro de coluna inexistente
       let query = supabase
         .from("profiles")
         .select("*")
@@ -108,7 +105,6 @@ const Buscar = () => {
         console.error("[Buscar] Erro na consulta:", error);
         setProfessionals([]);
       } else if (data) {
-        // Lógica de Cálculo de Distância e Ranking
         const processed = data.map(p => {
           const dist = (userProfile.lat && userProfile.lng && p.lat && p.lng)
             ? calculateDistance(userProfile.lat, userProfile.lng, p.lat, p.lng)
@@ -117,13 +113,11 @@ const Buscar = () => {
           const isPremium = p.subscription_tier === 'yearly';
           const referrals = p.referral_count || 0;
           
-          // Score de Ranking
           const score = (isPremium ? 10000 : 0) + (referrals * 100) - (dist * 2);
 
           return { ...p, distance: dist, rankingScore: score };
         });
 
-        // Ordena pelo Score (Maior primeiro)
         processed.sort((a, b) => b.rankingScore - a.rankingScore);
         setProfessionals(processed);
       }
@@ -220,6 +214,8 @@ const Buscar = () => {
     filters.state ? `• Estado: ${filters.state}` : '',
   ].filter(Boolean).join('\n');
 
+  const hasLocation = userProfile?.lat && userProfile?.lng;
+
   return (
     <Layout>
       <div className="container mx-auto px-4">
@@ -243,6 +239,26 @@ const Buscar = () => {
             </div>
           </div>
         </div>
+
+        {/* Aviso de Localização Ausente */}
+        {!hasLocation && !loading && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-4 animate-fade-in">
+            <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+              <MapPin className="h-5 w-5 text-amber-600" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <h4 className="font-bold text-amber-900 text-sm">Sua localização não foi detectada</h4>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Para visualizar a distância dos profissionais e ver os resultados mais próximos primeiro, você precisa salvar seu endereço completo em seu perfil.
+              </p>
+              <Button asChild variant="link" size="sm" className="p-0 h-auto text-amber-700 font-bold hover:text-amber-900">
+                <Link to="/dashboard/perfil" className="gap-1">
+                  Atualizar meu endereço agora <ArrowRight className="h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Filtros */}
         <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-card">

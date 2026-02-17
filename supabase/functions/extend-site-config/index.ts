@@ -19,50 +19,16 @@ serve(async (req) => {
     await client.connect();
 
     const sql = `
-      -- Configuração do modo Stripe
-      ALTER TABLE public.site_config 
-        ADD COLUMN IF NOT EXISTS stripe_mode TEXT DEFAULT 'test',
-        ADD COLUMN IF NOT EXISTS stripe_publishable_key_test TEXT,
-        ADD COLUMN IF NOT EXISTS stripe_publishable_key_live TEXT;
+      -- Colunas de geolocalização
+      ALTER TABLE public.profiles 
+        ADD COLUMN IF NOT EXISTS lat NUMERIC,
+        ADD COLUMN IF NOT EXISTS lng NUMERIC;
 
-      -- IDs de preço na tabela de planos
-      ALTER TABLE public.plans 
-        ADD COLUMN IF NOT EXISTS stripe_price_id_test TEXT,
-        ADD COLUMN IF NOT EXISTS stripe_price_id_live TEXT;
-
-      -- IDs de preço na tabela de cursos
-      ALTER TABLE public.academy_courses
-        ADD COLUMN IF NOT EXISTS stripe_price_id_test TEXT,
-        ADD COLUMN IF NOT EXISTS stripe_price_id_live TEXT;
-
-      -- Colunas de marketing
-      ALTER TABLE public.site_config
-        ADD COLUMN IF NOT EXISTS ga_measurement_id TEXT,
-        ADD COLUMN IF NOT EXISTS ga_enabled BOOLEAN DEFAULT true,
-        ADD COLUMN IF NOT EXISTS gtm_container_id TEXT,
-        ADD COLUMN IF NOT EXISTS gtm_enabled BOOLEAN DEFAULT true,
-        ADD COLUMN IF NOT EXISTS fb_pixel_id TEXT,
-        ADD COLUMN IF NOT EXISTS fb_pixel_enabled BOOLEAN DEFAULT true;
-
-      -- Colunas de controle de assinatura no perfil
+      -- Coluna para cache de indicações (melhora performance da busca)
       ALTER TABLE public.profiles
-        ADD COLUMN IF NOT EXISTS subscription_end_at TIMESTAMPTZ,
-        ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT false;
+        ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
 
-      -- NOVAS COLUNAS PARA VÍDEOS DAS LANDING PAGES E ONBOARDING
-      ALTER TABLE public.site_config
-        ADD COLUMN IF NOT EXISTS video_url_professionals TEXT,
-        ADD COLUMN IF NOT EXISTS video_url_companies TEXT,
-        ADD COLUMN IF NOT EXISTS video_url_families TEXT,
-        ADD COLUMN IF NOT EXISTS video_url_onboarding TEXT,
-        ADD COLUMN IF NOT EXISTS video_url_onboarding_company TEXT,
-        ADD COLUMN IF NOT EXISTS video_url_onboarding_family TEXT;
-
-      -- CONTROLE DE ONBOARDING NO PERFIL
-      ALTER TABLE public.profiles
-        ADD COLUMN IF NOT EXISTS has_seen_onboarding BOOLEAN DEFAULT false;
-        
-      -- Notifica o PostgREST para recarregar o esquema (Schema Cache)
+      -- Notifica o PostgREST para recarregar o esquema
       NOTIFY pgrst, 'reload schema';
     `;
     await client.queryObject(sql);

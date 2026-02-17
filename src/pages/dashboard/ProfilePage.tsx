@@ -59,6 +59,7 @@ import {
 } from "@/components/ui/collapsible";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import OnboardingModal from "@/components/OnboardingModal";
+import { getCoordinates } from "@/lib/geo-utils";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -71,7 +72,6 @@ const ProfilePage = () => {
   const [isDangerZoneOpen, setIsDangerZoneOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   
-  // Estados para o Modal de Exclusão
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
@@ -251,7 +251,6 @@ const ProfilePage = () => {
     const isProfessional = profile.role === 'professional';
     const cleanPhone = profile.phone?.replace(/\D/g, "") || "";
 
-    // Validações de campos obrigatórios
     if (!profile.avatar_url) {
       toast.error("A foto de perfil é obrigatória.");
       return;
@@ -269,13 +268,11 @@ const ProfilePage = () => {
       return;
     }
 
-    // Validação de Endereço
     if (!profile.address_zip || !profile.address_street || !profile.neighborhood || !profile.city || !profile.state) {
       toast.error("Todos os campos de endereço são obrigatórios.");
       return;
     }
 
-    // Validação de Currículo e Bio
     if (!profile.bio?.trim()) {
       toast.error("A biografia/descrição é obrigatória.");
       return;
@@ -293,6 +290,10 @@ const ProfilePage = () => {
 
     setIsSaving(true);
     try {
+      // Geocodificação automática antes de salvar
+      const fullAddress = `${profile.address_street}, ${profile.address_number || ""}, ${profile.neighborhood}, ${profile.city} - ${profile.state}, Brasil`;
+      const coords = await getCoordinates(fullAddress);
+
       const { error } = await supabase.from("profiles").update({
         full_name: profile.full_name,
         phone: profile.phone,
@@ -313,6 +314,8 @@ const ProfilePage = () => {
         address_street: profile.address_street,
         address_number: profile.address_number,
         address_complement: profile.address_complement,
+        lat: coords?.lat || profile.lat,
+        lng: coords?.lng || profile.lng,
         updated_at: new Date().toISOString()
       }).eq("id", user.id);
 
@@ -339,8 +342,6 @@ const ProfilePage = () => {
       if (error) throw error;
       
       toast.success("Sua conta foi excluída permanentemente.");
-      
-      // O signOut já faz o redirecionamento para a home ('/')
       await signOut();
     } catch (err) {
       console.error("[ProfilePage] Erro ao excluir conta:", err);
@@ -395,7 +396,6 @@ const ProfilePage = () => {
   const doc1Label = isCompany ? "Cartão CNPJ" : isFamily ? "RG ou CNH do Responsável" : "RG ou CNH";
   const doc2Label = isCompany ? "RG ou CNH do Responsável" : "Registro (COREN/CREFITO)";
 
-  // Benefícios por papel
   const getBenefits = () => {
     if (isProfessional) return [
       "Visibilidade para centenas de empresas de Home Care.",
@@ -428,7 +428,6 @@ const ProfilePage = () => {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {/* Quadro de Ajuda/Tutorial - Visível para Profissionais e Empresas */}
           {(isProfessional || isCompany || isFamily) && (
             <Card className="border-primary/20 bg-primary/5 overflow-hidden">
               <CardContent className="p-6">
@@ -621,6 +620,24 @@ const ProfilePage = () => {
                   />
                 </div>
               </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-2">
+                  <Label>Número</Label>
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={profile.address_number || ""} 
+                    onChange={e => setProfile({...profile, address_number: e.target.value})} 
+                  />
+                </div>
+                <div className="grid gap-2 md:col-span-2">
+                  <Label>Complemento</Label>
+                  <input 
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={profile.address_complement || ""} 
+                    onChange={e => setProfile({...profile, address_complement: e.target.value})} 
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -756,12 +773,12 @@ const ProfilePage = () => {
               {profile.is_verified ? (
                 <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center">
                   <CheckCircle2 className="h-8 w-8 text-success mb-2" />
-                  <p className="text-sm font-semibold text-success">Perfil Verificado</p>
+                  <p className="font-semibold text-success">Perfil Verificado</p>
                 </div>
               ) : profile.verification_sent ? (
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
                   <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
-                  <p className="text-sm font-semibold text-primary">Documentos em Análise</p>
+                  <p className="font-semibold text-primary">Documentos em Análise</p>
                 </div>
               ) : (
                 <div className="space-y-3">

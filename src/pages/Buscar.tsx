@@ -19,9 +19,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Link } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
-import { Badge } from "@/components/ui/badge";
 import AccessRestricted from "@/components/AccessRestricted";
 import { subDays } from "date-fns";
+import { calculateDistance } from "@/lib/geo-utils";
 
 const getInitialSpecialtyFromUrl = () => {
   const value = new URLSearchParams(window.location.search).get("specialty");
@@ -31,7 +31,7 @@ const getInitialSpecialtyFromUrl = () => {
 const Buscar = () => {
   const { user, session, loading: authLoading } = useAuth();
   const { data: config, isLoading: isLoadingConfig } = useSiteConfig();
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -47,35 +47,33 @@ const Buscar = () => {
 
   const [showFilters, setShowFilters] = useState(false);
 
-  // 1. Hooks de efeito (Devem vir antes de qualquer return condicional)
   useEffect(() => {
-    const checkRole = async () => {
+    const fetchMyProfile = async () => {
       if (user) {
         const { data } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, lat, lng")
           .eq("id", user.id)
           .single();
-        setUserRole(data?.role || 'professional');
+        setUserProfile(data);
       }
     };
-    checkRole();
+    fetchMyProfile();
   }, [user]);
 
   useEffect(() => {
     const fetchProfessionals = async () => {
-      if (!userRole || userRole === 'professional' || isLoadingConfig) return;
+      if (!userProfile || userProfile.role === 'professional' || isLoadingConfig) return;
       
       setLoading(true);
 
-      // Se o admin desativou a lista globalmente
       if (config && config.enable_professional_list === false) {
         setProfessionals([]);
         setLoading(false);
         return;
       }
 
-      const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, hourly_rate, trial_started_at";
+      const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, hourly_rate, trial_started_at, lat, lng, referral_count";
       
       const trialLimitDate = subDays(new Date(), 30).toISOString();
 
@@ -84,9 +82,7 @@ const Buscar = () => {
         .select(safePublicFields)
         .eq("role", "professional")
         .not("full_name", "is", null)
-        .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`)
-        .order('subscription_tier', { ascending: false })
-        .order('updated_at', { ascending: false });
+        .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`);
 
       if (filters.specialty) query = query.eq("specialty", filters.specialty);
       if (filters.state) query = query.eq("state", filters.state);
@@ -96,25 +92,49 @@ const Buscar = () => {
       if (filters.availability) query = query.contains('availability', [filters.availability]);
       if (filters.patient_profile) query = query.contains('patient_profiles', [filters.patient_profile]);
       
-      if (userRole === 'family' && filters.max_hourly_rate) {
+      if (userProfile.role === 'family' && filters.max_hourly_rate) {
         query = query.lte('hourly_rate', parseFloat(filters.max_hourly_rate));
       }
 
       const { data } = await query;
-      setProfessionals(data || []);
+      
+      if (data) {
+        // Lógica de Cálculo de Distância e Ranking
+        const processed = data.map(p => {
+          const dist = (userProfile.lat && userProfile.lng && p.lat && p.lng)
+            ? calculateDistance(userProfile.lat, userProfile.lng, p.lat, p.lng)
+            : 9999;
+          
+          // Cálculo do Score de Ranking:
+          // 1. Premium (Anual) ganha 10.000 pontos
+          // 2. Cada indicação ganha 100 pontos
+          // 3. Distância subtrai pontos (mais perto = maior score)
+          const isPremium = p.subscription_tier === 'yearly';
+          const referrals = p.referral_count || 0;
+          const score = (isPremium ? 10000 : 0) + (referrals * 100) - (dist * 2);
+
+          return { ...p, distance: dist, rankingScore: score };
+        });
+
+        // Ordena pelo Score (Maior primeiro)
+        processed.sort((a, b) => b.rankingScore - a.rankingScore);
+        setProfessionals(processed);
+      }
+      
       setLoading(false);
     };
 
     fetchProfessionals();
-  }, [userRole, isLoadingConfig, config, filters]);
+  }, [userProfile, isLoadingConfig, config, filters]);
 
-  // 2. Verificações de Renderização (Returns condicionais APÓS os hooks)
-  
   if (authLoading) {
     return (
       <Layout>
         <div className="flex h-[60vh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Carregando base de profissionais...</p>
+          </div>
         </div>
       </Layout>
     );
@@ -132,7 +152,7 @@ const Buscar = () => {
     );
   }
 
-  if (userRole === 'professional') {
+  if (userProfile?.role === 'professional') {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-20 text-center">
@@ -181,7 +201,7 @@ const Buscar = () => {
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
   
   const whatsappNumber = config?.whatsapp_number?.replace(/\D/g, '') || "5511999999999";
-  const roleLabel = userRole === 'company' ? 'Empresa' : 'Família';
+  const roleLabel = userProfile?.role === 'company' ? 'Empresa' : 'Família';
   const requestedSpecialtyLabel = filters.specialty ? (specialties.find(s => s.value === filters.specialty)?.label || filters.specialty) : '';
 
   const conciergeMessage = [
@@ -200,8 +220,8 @@ const Buscar = () => {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Buscar Profissionais</h1>
             <p className="mt-2 text-muted-foreground flex items-center gap-2">
-              {userRole === 'company' ? <Building2 className="h-4 w-4" /> : <Home className="h-4 w-4" />}
-              {userRole === 'company' ? 'Painel de Recrutamento para Empresa' : 'Painel de Recrutamento para Família'}
+              {userProfile?.role === 'company' ? <Building2 className="h-4 w-4" /> : <Home className="h-4 w-4" />}
+              {userProfile?.role === 'company' ? 'Painel de Recrutamento para Empresa' : 'Painel de Recrutamento para Família'}
             </p>
           </div>
 
@@ -280,7 +300,7 @@ const Buscar = () => {
                     <SelectContent>{patientProfileOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                {userRole === 'family' && (
+                {userProfile?.role === 'family' && (
                   <div className="grid gap-2 lg:col-span-2">
                     <Label>Valor Máximo por Hora (R$)</Label>
                     <div className="relative">
@@ -317,6 +337,7 @@ const Buscar = () => {
                 experience={p.experience}
                 isVerified={p.is_verified}
                 subscriptionTier={p.subscription_tier}
+                distance={p.distance}
               />
             ))
           ) : (
@@ -351,7 +372,7 @@ const Buscar = () => {
               </a>
             </Button>
             <p className="mt-6 text-sm text-muted-foreground">
-              Serviço gratuito para {userRole === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
+              Serviço gratuito para {userProfile?.role === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
             </p>
           </div>
         )}

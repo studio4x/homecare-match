@@ -416,13 +416,13 @@ const Buscar = () => {
                 distance={p.distance}
               />
             ))
-          ) : (
+          ) : config?.enable_professional_list !== false ? (
             <div className="col-span-full py-12 text-center bg-secondary/10 rounded-2xl border border-dashed">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
               <h3 className="text-lg font-semibold">Nenhum profissional nesta região</h3>
               <p className="text-muted-foreground">Tente mover o mapa ou ajustar seus filtros.</p>
             </div>
-          )}
+          ) : null}
         </div>
 
         {!loading && (

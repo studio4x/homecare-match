@@ -29,8 +29,8 @@ import {
   Plus,
   FlaskConical,
   Zap,
-  AlertCircle,
-  Info
+  Info,
+  Settings2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,12 +44,38 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
 
+  // Busca o plano de trial no array vindo do banco
+  const dbFreeTrial = plans.find(p => p.id === 'free_trial');
+
   const getTierLabel = (tier: string) => {
     switch (tier.toLowerCase()) {
       case 'monthly': return 'Mensal';
       case 'yearly': return 'Anual';
+      case 'free_trial': return 'Teste Grátis (Sistema)';
       default: return tier;
     }
+  };
+
+  const handleEditFreeTrial = () => {
+    if (dbFreeTrial) {
+      setSelectedPlan({ 
+        ...dbFreeTrial, 
+        features: Array.isArray(dbFreeTrial.features) ? dbFreeTrial.features.join('\n') : '' 
+      });
+    } else {
+      // Valores padrão caso ainda não exista no banco
+      setSelectedPlan({
+        id: 'free_trial',
+        name: 'Teste Grátis (Sistema)',
+        price: 'R$ 0,00',
+        period: '30 dias',
+        description: 'Plano Padrão de Cadastro',
+        features: 'Perfil básico\nVisibilidade limitada\nSuporte por email',
+        stripe_price_id_test: '',
+        stripe_price_id_live: ''
+      });
+    }
+    setPlanModalOpen(true);
   };
 
   const handleSavePlan = async (e: React.FormEvent) => {
@@ -91,18 +117,28 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow>
+            {/* Linha do Plano de Teste (Editável) */}
+            <TableRow className="bg-muted/30">
               <TableCell>
-                <div className="font-medium">Teste Grátis (Sistema)</div>
-                <div className="text-xs text-muted-foreground text-primary">Plano Padrão de Cadastro</div>
+                <div className="font-medium">{dbFreeTrial?.name || "Teste Grátis (Sistema)"}</div>
+                <div className="text-xs text-muted-foreground text-primary">
+                  {dbFreeTrial?.description || "Plano Padrão de Cadastro"}
+                </div>
               </TableCell>
-              <TableCell>R$ 0,00/30 dias</TableCell>
-              <TableCell><Badge variant="outline">Automático</Badge></TableCell>
+              <TableCell>{dbFreeTrial?.price || "R$ 0,00"}/{dbFreeTrial?.period || "30 dias"}</TableCell>
+              <TableCell>
+                <Badge variant="outline" className="gap-1">
+                  <Settings2 className="h-3 w-3" /> Automático
+                </Badge>
+              </TableCell>
               <TableCell className="text-right">
-                <span className="text-xs text-muted-foreground px-2">Gerido pelo sistema</span>
+                <Button variant="ghost" size="sm" onClick={handleEditFreeTrial} title="Editar textos do plano de sistema">
+                  <Edit2 className="h-4 w-4" />
+                </Button>
               </TableCell>
             </TableRow>
-            {plans.length > 0 ? plans.map(p => (
+
+            {plans.filter(p => p.id !== 'free_trial').map(p => (
               <TableRow key={p.id}>
                 <TableCell>
                   <div className="font-medium">{getTierLabel(p.name)}</div>
@@ -131,7 +167,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                   </Button>
                 </TableCell>
               </TableRow>
-            )) : null}
+            ))}
           </TableBody>
         </Table>
       </div>
@@ -139,37 +175,52 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
       <Dialog open={planModalOpen} onOpenChange={setPlanModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{selectedPlan?.created_at ? "Editar Plano" : "Novo Plano"}</DialogTitle>
+            <DialogTitle>
+              {selectedPlan?.id === 'free_trial' ? "Editar Plano de Sistema" : selectedPlan?.created_at ? "Editar Plano" : "Novo Plano"}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSavePlan} className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg flex gap-3 items-start">
-              <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-blue-800">
-                <strong>Dica:</strong> Você pode usar tanto o <strong>ID do Preço</strong> (<code>price_...</code>) quanto o <strong>ID do Produto</strong> (<code>prod_...</code>). Se usar o ID do produto, certifique-se de que ele tenha um <strong>Preço Padrão</strong> definido na Stripe.
-              </p>
-            </div>
+            {selectedPlan?.id === 'free_trial' && (
+              <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex gap-3 items-start">
+                <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800">
+                  Este é o plano aplicado automaticamente a novos profissionais. Você pode alterar os textos exibidos, mas o ID <strong>free_trial</strong> e a lógica de 30 dias são mantidos pelo sistema.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>ID do Plano (Slug)</Label>
-                <Input value={selectedPlan?.id || ''} onChange={e => setSelectedPlan({...selectedPlan, id: e.target.value})} disabled={!!selectedPlan?.created_at} />
+                <Input 
+                  value={selectedPlan?.id || ''} 
+                  onChange={e => setSelectedPlan({...selectedPlan, id: e.target.value})} 
+                  disabled={!!selectedPlan?.created_at || selectedPlan?.id === 'free_trial'} 
+                />
               </div>
               <div className="space-y-2">
-                <Label>Nome</Label>
+                <Label>Nome Exibido</Label>
                 <Input value={selectedPlan?.name || ''} onChange={e => setSelectedPlan({...selectedPlan, name: e.target.value})} />
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4 p-4 bg-secondary/20 rounded-lg border">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-amber-600"><FlaskConical className="h-3 w-3" /> Stripe ID (Teste)</Label>
-                <Input placeholder="price_... ou prod_..." value={selectedPlan?.stripe_price_id_test || ''} onChange={e => setSelectedPlan({...selectedPlan, stripe_price_id_test: e.target.value})} />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2 text-success"><Zap className="h-3 w-3" /> Stripe ID (Produção)</Label>
-                <Input placeholder="price_... ou prod_..." value={selectedPlan?.stripe_price_id_live || ''} onChange={e => setSelectedPlan({...selectedPlan, stripe_price_id_live: e.target.value})} />
-              </div>
+
+            <div className="space-y-2">
+              <Label>Subtítulo / Descrição Curta</Label>
+              <Input value={selectedPlan?.description || ''} onChange={e => setSelectedPlan({...selectedPlan, description: e.target.value})} />
             </div>
+            
+            {selectedPlan?.id !== 'free_trial' && (
+              <div className="grid grid-cols-2 gap-4 p-4 bg-secondary/20 rounded-lg border">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-amber-600"><FlaskConical className="h-3 w-3" /> Stripe ID (Teste)</Label>
+                  <Input placeholder="price_... ou prod_..." value={selectedPlan?.stripe_price_id_test || ''} onChange={e => setSelectedPlan({...selectedPlan, stripe_price_id_test: e.target.value})} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2 text-success"><Zap className="h-3 w-3" /> Stripe ID (Produção)</Label>
+                  <Input placeholder="price_... ou prod_..." value={selectedPlan?.stripe_price_id_live || ''} onChange={e => setSelectedPlan({...selectedPlan, stripe_price_id_live: e.target.value})} />
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -185,10 +236,14 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
               <Label>Recursos (um por linha)</Label>
               <Textarea value={selectedPlan?.features || ''} onChange={e => setSelectedPlan({...selectedPlan, features: e.target.value})} rows={5} />
             </div>
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <Label>Plano Popular</Label>
-              <Switch checked={!!selectedPlan?.popular} onCheckedChange={c => setSelectedPlan({...selectedPlan, popular: c})} />
-            </div>
+            
+            {selectedPlan?.id !== 'free_trial' && (
+              <div className="flex items-center justify-between p-4 border rounded-lg">
+                <Label>Plano Popular</Label>
+                <Switch checked={!!selectedPlan?.popular} onCheckedChange={c => setSelectedPlan({...selectedPlan, popular: c})} />
+              </div>
+            )}
+
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setPlanModalOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={isSavingPlan}>{isSavingPlan ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null} Salvar</Button>

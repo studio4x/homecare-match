@@ -44,7 +44,7 @@ const Index = () => {
       return;
     }
 
-    if (planId === 'free') {
+    if (planId === 'free' || planId === 'free_trial') {
       navigate("/dashboard");
       return;
     }
@@ -78,7 +78,7 @@ const Index = () => {
     } catch (err: any) {
       toast.dismiss(toastId);
       const cleanMessage = err.message?.replace("Edge Function returned a non-2xx status code", "").trim();
-      toast.error(`Erro: ${cleanMessage || "Falha ao iniciar pagamento."}`);
+      toast.error(`Erro: \${cleanMessage || "Falha ao iniciar pagamento."}`);
     } finally {
       setLoadingPlan(null);
     }
@@ -167,8 +167,9 @@ const Index = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  const freePlan: DbPlan = {
-    id: "free",
+  // Fallback para o plano gratuito se não estiver no banco
+  const defaultFreePlan: DbPlan = {
+    id: "free_trial",
     name: "Plano Gratuito",
     price: "R$ 0,00",
     period: "mês",
@@ -216,7 +217,25 @@ const Index = () => {
     },
   ];
 
-  const allPlans: DbPlan[] = [freePlan, ...((remotePlans && remotePlans.length > 0) ? remotePlans : defaultPlans)];
+  // Lógica para montar a lista final de planos
+  const allPlans = (() => {
+    if (!remotePlans || remotePlans.length === 0) {
+      return [defaultFreePlan, ...defaultPlans];
+    }
+
+    // Se o free_trial estiver no banco, ele será usado. Caso contrário, usa o default.
+    const hasRemoteFree = remotePlans.some(p => p.id === 'free_trial');
+    const base = hasRemoteFree ? [] : [defaultFreePlan];
+    
+    // Ordena para que o free_trial seja sempre o primeiro
+    const sortedRemote = [...remotePlans].sort((a, b) => {
+      if (a.id === 'free_trial') return -1;
+      if (b.id === 'free_trial') return 1;
+      return 0;
+    });
+
+    return [...base, ...sortedRemote];
+  })();
 
   return (
     <Layout>
@@ -385,7 +404,7 @@ const Index = () => {
             {faqs.map((faq, index) => (
               <AccordionItem 
                 key={index} 
-                value={`item-${index}`} 
+                value={`item-\${index}`} 
                 className="border rounded-xl px-6 bg-card shadow-sm border-primary/5"
               >
                 <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">

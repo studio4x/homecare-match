@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Loader2, Video, Upload, Trash2, Play, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Video, Upload, Trash2, Play, CheckCircle2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
@@ -27,7 +28,6 @@ const VideosTab = () => {
     const file = event.target.files?.[0];
     if (!file || !activeField) return;
 
-    // Limite de 50MB para vídeos no storage público (ajustável)
     if (file.size > 50 * 1024 * 1024) {
       toast.error("O vídeo é muito grande. Limite máximo: 50MB.");
       return;
@@ -35,23 +35,20 @@ const VideosTab = () => {
 
     setIsUploading(activeField);
     const fileExt = file.name.split('.').pop();
-    const fileName = `landing_${activeField}_${Date.now()}.${fileExt}`;
-    const filePath = `site-videos/${fileName}`;
+    const fileName = `landing_\${activeField}_\${Date.now()}.\${fileExt}`;
+    const filePath = `site-videos/\${fileName}`;
 
     try {
-      // 1. Upload para o bucket 'uploads'
       const { error: uploadError } = await supabase.storage
         .from('uploads')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // 2. Pegar URL pública
       const { data: { publicUrl } } = supabase.storage
         .from('uploads')
         .getPublicUrl(filePath);
 
-      // 3. Salvar no site_config
       const { error: dbError } = await supabase
         .from('site_config')
         .update({ [activeField]: publicUrl })

@@ -54,7 +54,8 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS video_url_professionals TEXT,
         ADD COLUMN IF NOT EXISTS video_url_companies TEXT,
         ADD COLUMN IF NOT EXISTS video_url_families TEXT,
-        ADD COLUMN IF NOT EXISTS video_url_onboarding TEXT;
+        ADD COLUMN IF NOT EXISTS video_url_onboarding TEXT,
+        ADD COLUMN IF NOT EXISTS video_url_onboarding_company TEXT;
 
       -- CONTROLE DE ONBOARDING NO PERFIL
       ALTER TABLE public.profiles

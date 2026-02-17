@@ -67,8 +67,8 @@ const OverviewPage = () => {
       if (error) throw error;
       setProfile(data);
       
-      // Dispara onboarding se for profissional e ainda não viu
-      if (data.role === 'professional' && !data.has_seen_onboarding) {
+      // Dispara onboarding se for profissional ou empresa e ainda não viu
+      if ((data.role === 'professional' || data.role === 'company' || data.role === 'family') && !data.has_seen_onboarding) {
         setIsOnboardingOpen(true);
       }
 
@@ -672,6 +672,7 @@ const OverviewPage = () => {
       <OnboardingModal 
         open={isOnboardingOpen} 
         onOpenChange={setIsOnboardingOpen} 
+        role={profile?.role}
       />
     </div>
   );

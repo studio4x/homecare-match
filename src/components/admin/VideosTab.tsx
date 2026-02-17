@@ -24,6 +24,7 @@ const VideosTab = () => {
     { id: "video_url_companies", label: "Landing Page: Empresas", description: "Vídeo exibido na página de soluções para empresas." },
     { id: "video_url_families", label: "Landing Page: Famílias", description: "Vídeo exibido na página de soluções para famílias." },
     { id: "video_url_onboarding", label: "Dashboard: Onboarding Profissional", description: "Vídeo de boas-vindas exibido no primeiro acesso do profissional." },
+    { id: "video_url_onboarding_company", label: "Dashboard: Onboarding Empresa", description: "Vídeo de boas-vindas exibido no primeiro acesso da empresa." },
   ];
 
   const handleSyncDatabase = async () => {

@@ -22,7 +22,11 @@ import {
   LifeBuoy,
   CheckCircle2,
   Loader2,
-  X
+  X,
+  Search,
+  Users,
+  Building2,
+  MessageSquare
 } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,16 +38,17 @@ interface OnboardingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   forceShow?: boolean;
+  role?: 'professional' | 'company' | 'family';
 }
 
-const OnboardingModal = ({ open, onOpenChange, forceShow = false }: OnboardingModalProps) => {
+const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'professional' }: OnboardingModalProps) => {
   const { user } = useAuth();
   const { data: config } = useSiteConfig();
   const [currentStep, setCurrentStep] = useState(0);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const steps = [
+  const professionalSteps = [
     {
       title: "Bem-vindo à HomeCare Match!",
       description: "Assista ao vídeo abaixo para entender como nossa plataforma vai impulsionar sua carreira.",
@@ -79,6 +84,45 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false }: OnboardingMo
     }
   ];
 
+  const companySteps = [
+    {
+      title: "Bem-vindo ao seu Painel de Recrutamento!",
+      description: "Assista ao vídeo para aprender a encontrar os melhores profissionais para sua equipe em tempo recorde.",
+      type: "video",
+    },
+    {
+      title: "Identidade da Empresa",
+      description: "Complete os dados da sua empresa em 'Meus Dados'. Perfis transparentes geram mais interesse dos profissionais qualificados.",
+      icon: Building2,
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+    },
+    {
+      title: "Busca Inteligente",
+      description: "Use os filtros avançados para encontrar profissionais por bairro, especialidade e disponibilidade imediata.",
+      icon: Search,
+      color: "text-green-600",
+      bg: "bg-green-50",
+    },
+    {
+      title: "Gestão de Contatos",
+      description: "Todos os profissionais que você contatar ficam salvos em 'Contatos'. Você pode ver o WhatsApp e o histórico a qualquer momento.",
+      icon: Users,
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+    },
+    {
+      title: "Central de Atendimento",
+      description: "Dúvidas sobre a plataforma? Nossa equipe está pronta para ajudar através do sistema de Tickets em 'Suporte'.",
+      icon: MessageSquare,
+      color: "text-purple-600",
+      bg: "bg-purple-50",
+    }
+  ];
+
+  const steps = role === 'professional' ? professionalSteps : companySteps;
+  const videoUrl = role === 'professional' ? config?.video_url_onboarding : config?.video_url_onboarding_company;
+
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
@@ -87,7 +131,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false }: OnboardingMo
 
   const handlePrev = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 0);
+      setCurrentStep(currentStep - 1);
     }
   };
 
@@ -105,7 +149,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false }: OnboardingMo
         if (error) throw error;
       }
       
-      toast.success("Tutorial concluído! Boa sorte na sua jornada.");
+      toast.success("Tutorial concluído! Boas contratações.");
       onOpenChange(false);
     } catch (err) {
       console.error(err);
@@ -116,7 +160,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false }: OnboardingMo
   };
 
   const step = steps[currentStep];
-  const Icon = step.icon;
+  const Icon = (step as any).icon;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -153,9 +197,9 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false }: OnboardingMo
             <div className="min-h-[300px] flex items-center justify-center">
               {step.type === "video" ? (
                 <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg border border-border/50">
-                  {config?.video_url_onboarding ? (
+                  {videoUrl ? (
                     <video 
-                      src={config.video_url_onboarding} 
+                      src={videoUrl} 
                       className="w-full h-full object-contain"
                       controls
                       autoPlay
@@ -168,8 +212,8 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false }: OnboardingMo
                   )}
                 </div>
               ) : (
-                <div className={cn("w-full py-12 rounded-3xl flex flex-col items-center justify-center text-center space-y-6 animate-scale-in", step.bg)}>
-                  <div className={cn("h-24 w-24 rounded-full bg-white shadow-sm flex items-center justify-center", step.color)}>
+                <div className={cn("w-full py-12 rounded-3xl flex flex-col items-center justify-center text-center space-y-6 animate-scale-in", (step as any).bg)}>
+                  <div className={cn("h-24 w-24 rounded-full bg-white shadow-sm flex items-center justify-center", (step as any).color)}>
                     {Icon && <Icon className="h-12 w-12" />}
                   </div>
                   <div className="max-w-xs px-4">
@@ -184,7 +228,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false }: OnboardingMo
             <div className="flex items-center justify-between pt-4">
               <Button 
                 variant="ghost" 
-                onClick={() => setCurrentStep(prev => Math.max(0, prev - 1))}
+                onClick={handlePrev}
                 disabled={currentStep === 0}
                 className="gap-2"
               >

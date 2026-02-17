@@ -291,22 +291,6 @@ const ProfilePage = () => {
       }
     }
 
-    // Validação de Detalhes do Atendimento
-    if (isProfessional) {
-      if (!profile.hourly_rate || parseFloat(profile.hourly_rate) <= 0) {
-        toast.error("O valor por hora é obrigatório.");
-        return;
-      }
-      if (!profile.availability || profile.availability.length === 0) {
-        toast.error("Selecione pelo menos uma opção de disponibilidade.");
-        return;
-      }
-      if (!profile.patient_profiles || profile.patient_profiles.length === 0) {
-        toast.error("Selecione pelo menos um perfil de paciente.");
-        return;
-      }
-    }
-
     setIsSaving(true);
     try {
       const { error } = await supabase.from("profiles").update({
@@ -444,8 +428,8 @@ const ProfilePage = () => {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {/* Quadro de Ajuda/Tutorial */}
-          {isProfessional && (
+          {/* Quadro de Ajuda/Tutorial - Visível para Profissionais e Empresas */}
+          {(isProfessional || isCompany || isFamily) && (
             <Card className="border-primary/20 bg-primary/5 overflow-hidden">
               <CardContent className="p-6">
                 <div className="flex flex-col md:flex-row items-center gap-6">
@@ -957,6 +941,7 @@ const ProfilePage = () => {
         open={isOnboardingOpen} 
         onOpenChange={setIsOnboardingOpen} 
         forceShow={true}
+        role={profile?.role}
       />
     </div>
   );

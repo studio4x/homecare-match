@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { 
   Select,
   SelectContent,
@@ -34,10 +35,12 @@ import {
   Calendar,
   LogIn,
   ShieldAlert,
-  ExternalLink
+  ExternalLink,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { toast } from "sonner";
-import { differenceInDays, addDays } from "date-fns";
+import { differenceInDays, addDays, isAfter, subDays } from "date-fns";
 import { translateAuthError } from "@/lib/error-utils";
 import { Link } from "react-router-dom";
 
@@ -54,6 +57,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
   const [isUpdatingPlan, setIsUpdatingPlan] = useState<string | null>(null);
+  const [isUpdatingVerified, setIsUpdatingVerified] = useState<string | null>(null);
   const [isImpersonating, setIsImpersonating] = useState<string | null>(null);
 
   const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
@@ -109,6 +113,24 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       console.error(err);
     } finally {
       setIsUpdatingPlan(null);
+    }
+  };
+
+  const handleToggleVerified = async (profileId: string, currentStatus: boolean) => {
+    setIsUpdatingVerified(profileId);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_verified: !currentStatus })
+        .eq("id", profileId);
+      
+      if (error) throw error;
+      toast.success(currentStatus ? "Selo de verificado removido." : "Usuário verificado com sucesso!");
+      refetchData();
+    } catch (err) {
+      toast.error("Erro ao atualizar status de verificação.");
+    } finally {
+      setIsUpdatingVerified(null);
     }
   };
 
@@ -173,6 +195,17 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     return differenceInDays(endDate, new Date());
   };
 
+  const checkVisibility = (u: any) => {
+    if (u.role !== 'professional') return false;
+    if (!u.full_name) return false;
+    
+    const isPaid = ['monthly', 'yearly'].includes(u.subscription_tier);
+    const trialLimitDate = subDays(new Date(), 30);
+    const isTrialActive = u.subscription_tier === 'free_trial' && u.trial_started_at && isAfter(new Date(u.trial_started_at), trialLimitDate);
+    
+    return isPaid || isTrialActive;
+  };
+
   return (
     <>
       <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
@@ -184,6 +217,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
               <TableHead>Função</TableHead>
               <TableHead>Plano / Status</TableHead>
               <TableHead>Verificado</TableHead>
+              <TableHead>Busca</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -191,6 +225,8 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
             {allUsers.map(u => {
               const daysLeft = getTrialStatus(u);
               const profileLink = getProfileLink(u);
+              const isVisible = checkVisibility(u);
+              
               return (
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">
@@ -205,12 +241,12 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                           <ExternalLink className="h-4 w-4" />
                         </Link>
                       ) : (
-                        <div className="w-4 h-4" /> // Espaçador para manter alinhamento
+                        <div className="w-4 h-4" />
                       )}
-                      <span>{u.full_name || "Sem nome"}</span>
+                      <span className="truncate max-w-[120px]">{u.full_name || "Sem nome"}</span>
                     </div>
                   </TableCell>
-                  <TableCell>{u.email}</TableCell>
+                  <TableCell className="text-xs">{u.email}</TableCell>
                   <TableCell>
                     {isUpdatingRole === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                       <Select 
@@ -218,7 +254,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                         onValueChange={(value) => handleUpdateRole(u.id, value)}
                         disabled={u.email === MASTER_ADMIN_EMAIL}
                       >
-                        <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-[130px] h-8 text-[10px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="professional">Profissional</SelectItem>
                           <SelectItem value="company">Empresa</SelectItem>
@@ -236,7 +272,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                           onValueChange={(value) => handleUpdatePlan(u.id, value)}
                           disabled={u.role !== 'professional'}
                         >
-                          <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="w-[130px] h-8 text-[10px]"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="free_trial">Teste Grátis</SelectItem>
                             {plans.map(plan => (
@@ -246,26 +282,54 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                         </Select>
                       )}
                       {daysLeft !== null && (
-                        <div className={`text-[10px] font-medium flex items-center gap-1 ${daysLeft <= 0 ? 'text-destructive' : 'text-primary'}`}>
+                        <div className={`text-[9px] font-medium flex items-center gap-1 ${daysLeft <= 0 ? 'text-destructive' : 'text-primary'}`}>
                           <Calendar className="h-3 w-3" />
-                          {daysLeft <= 0 ? 'Expirado' : `${daysLeft} dias restantes`}
+                          {daysLeft <= 0 ? 'Expirado' : `${daysLeft}d restantes`}
                         </div>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>{u.is_verified ? <Badge className="bg-success">Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center">
+                      {isUpdatingVerified === u.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <Switch 
+                          checked={!!u.is_verified} 
+                          onCheckedChange={() => handleToggleVerified(u.id, !!u.is_verified)}
+                          className="data-[state=checked]:bg-success"
+                        />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {u.role === 'professional' ? (
+                      isVisible ? (
+                        <Badge className="bg-success/10 text-success border-success/20 gap-1 text-[9px] h-5">
+                          <Eye className="h-3 w-3" /> Visível
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="gap-1 text-[9px] h-5 opacity-60">
+                          <EyeOff className="h-3 w-3" /> Oculto
+                        </Badge>
+                      )
+                    ) : (
+                      <span className="text-[9px] text-muted-foreground italic">N/A</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
-                    {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
-                      <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => { setUserToDelete(u); setDeleteModalOpen(true); }}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {u.id !== user?.id && (
-                      <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10 ml-2" onClick={() => handleImpersonate(u.id)} disabled={isImpersonating === u.id}>
-                        {isImpersonating === u.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <LogIn className="h-4 w-4 mr-1" />}
-                        Entrar como
-                      </Button>
-                    )}
+                    <div className="flex justify-end gap-1">
+                      {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => { setUserToDelete(u); setDeleteModalOpen(true); }}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {u.id !== user?.id && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => handleImpersonate(u.id)} disabled={isImpersonating === u.id}>
+                          {isImpersonating === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );

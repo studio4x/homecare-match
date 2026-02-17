@@ -35,8 +35,8 @@ const VideosTab = () => {
 
     setIsUploading(activeField);
     const fileExt = file.name.split('.').pop();
-    const fileName = `landing_\${activeField}_\${Date.now()}.\${fileExt}`;
-    const filePath = `site-videos/\${fileName}`;
+    const fileName = `landing_${activeField}_${Date.now()}.${fileExt}`;
+    const filePath = `site-videos/${fileName}`;
 
     try {
       const { error: uploadError } = await supabase.storage

@@ -50,7 +50,7 @@ const Empresas = () => {
             .map(p => {
               const loc = [];
               if (p.neighborhood) loc.push(p.neighborhood);
-              loc.push(`\${p.city}/\${p.state}`);
+              loc.push(`${p.city}/${p.state}`);
               return loc.join(" - ");
             })
         )
@@ -374,7 +374,7 @@ const Empresas = () => {
             {faqs.map((faq, index) => (
               <AccordionItem 
                 key={index} 
-                value={`item-\${index}`} 
+                value={`item-${index}`} 
                 className="border rounded-xl px-6 bg-card shadow-sm border-success/5"
               >
                 <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">

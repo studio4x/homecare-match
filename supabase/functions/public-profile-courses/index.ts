@@ -26,7 +26,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[public-profile-courses] Buscando conquistas para o usuário: \${userId}`);
+    console.log(`[public-profile-courses] Buscando conquistas para o usuário: ${userId}`);
 
     // Buscamos diretamente na tabela de certificados, que é a prova real de conclusão
     const { data: certs, error: certErr } = await supabaseAdmin

@@ -79,18 +79,18 @@ const ProfessionalCard = ({
           <span className="line-clamp-1">{location}</span>
         </div>
         
-        {/* Exibição da Distância */}
-        {distance !== undefined && distance < 9999 && (
-          <div className="flex items-center gap-2 text-xs font-semibold text-primary bg-primary/5 p-1.5 rounded-md w-fit">
-            <Navigation className="h-3 w-3 fill-current" />
-            <span>{distance} km de você</span>
-          </div>
-        )}
-
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Briefcase className="h-4 w-4 text-primary shrink-0" />
           <span className="line-clamp-1">{experience || "Ver currículo"}</span>
         </div>
+
+        {/* Exibição da Distância movida para o final */}
+        {distance !== undefined && distance < 9999 && (
+          <div className="flex items-center gap-2 text-xs font-semibold text-primary bg-primary/5 p-1.5 rounded-md w-fit mt-1">
+            <Navigation className="h-3 w-3 fill-current" />
+            <span>{distance} km de você</span>
+          </div>
+        )}
       </div>
 
       <Button variant={isPremium ? "default" : "outline"} className={cn("mt-6 w-full", isPremium && "bg-gold hover:opacity-90 border-none")} asChild>

@@ -26,7 +26,9 @@ import {
   Search,
   Users,
   Building2,
-  MessageSquare
+  MessageSquare,
+  Heart,
+  MapPin
 } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { supabase } from "@/integrations/supabase/client";
@@ -120,8 +122,56 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
     }
   ];
 
-  const steps = role === 'professional' ? professionalSteps : companySteps;
-  const videoUrl = role === 'professional' ? config?.video_url_onboarding : config?.video_url_onboarding_company;
+  const familySteps = [
+    {
+      title: "Bem-vindo à HomeCare Match!",
+      description: "Assista ao vídeo para aprender como encontrar o melhor cuidado para quem você ama.",
+      type: "video",
+    },
+    {
+      title: "Sua Localização",
+      description: "Mantenha seu endereço atualizado em 'Meus Dados'. Isso ajuda a encontrar profissionais que moram perto de você.",
+      icon: MapPin,
+      color: "text-rose-600",
+      bg: "bg-rose-50",
+    },
+    {
+      title: "Busca por Especialidade",
+      description: "Filtre por cuidadores, enfermeiros ou fisioterapeutas. Veja o valor por hora e a experiência de cada um.",
+      icon: Search,
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+    },
+    {
+      title: "Segurança e Confiança",
+      description: "Dê preferência a profissionais com o Selo de Verificado. Eles tiveram seus documentos analisados por nossa equipe.",
+      icon: ShieldCheck,
+      color: "text-green-600",
+      bg: "bg-green-50",
+    },
+    {
+      title: "Contato Direto",
+      description: "Fale direto no WhatsApp do profissional. Sem taxas de agenciamento e sem intermediários.",
+      icon: MessageSquare,
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+    }
+  ];
+
+  const getSteps = () => {
+    if (role === 'professional') return professionalSteps;
+    if (role === 'company') return companySteps;
+    return familySteps;
+  };
+
+  const getVideoUrl = () => {
+    if (role === 'professional') return config?.video_url_onboarding;
+    if (role === 'company') return config?.video_url_onboarding_company;
+    return config?.video_url_onboarding_family;
+  };
+
+  const steps = getSteps();
+  const videoUrl = getVideoUrl();
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {

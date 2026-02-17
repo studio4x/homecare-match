@@ -49,13 +49,14 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS subscription_end_at TIMESTAMPTZ,
         ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT false;
 
-      -- NOVAS COLUNAS PARA VÍDEOS DAS LANDING PAGES
+      -- NOVAS COLUNAS PARA VÍDEOS DAS LANDING PAGES E ONBOARDING
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS video_url_professionals TEXT,
         ADD COLUMN IF NOT EXISTS video_url_companies TEXT,
         ADD COLUMN IF NOT EXISTS video_url_families TEXT,
         ADD COLUMN IF NOT EXISTS video_url_onboarding TEXT,
-        ADD COLUMN IF NOT EXISTS video_url_onboarding_company TEXT;
+        ADD COLUMN IF NOT EXISTS video_url_onboarding_company TEXT,
+        ADD COLUMN IF NOT EXISTS video_url_onboarding_family TEXT;
 
       -- CONTROLE DE ONBOARDING NO PERFIL
       ALTER TABLE public.profiles

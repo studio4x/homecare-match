@@ -26,6 +26,7 @@ export interface SiteConfig {
   video_url_families?: string | null;
   video_url_onboarding?: string | null;
   video_url_onboarding_company?: string | null;
+  video_url_onboarding_family?: string | null;
 }
 
 export const useSiteConfig = () => {

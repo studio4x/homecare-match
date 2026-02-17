@@ -217,24 +217,52 @@ const Index = () => {
     },
   ];
 
-  // Lógica para montar a lista final de planos
+  // Lógica para montar a lista final de planos e automatizar a economia
   const allPlans = (() => {
+    let basePlans: DbPlan[] = [];
     if (!remotePlans || remotePlans.length === 0) {
-      return [defaultFreePlan, ...defaultPlans];
+      basePlans = [defaultFreePlan, ...defaultPlans];
+    } else {
+      const hasRemoteFree = remotePlans.some(p => p.id === 'free_trial');
+      const base = hasRemoteFree ? [] : [defaultFreePlan];
+      const sortedRemote = [...remotePlans].sort((a, b) => {
+        if (a.id === 'free_trial') return -1;
+        if (b.id === 'free_trial') return 1;
+        return 0;
+      });
+      basePlans = [...base, ...sortedRemote];
     }
 
-    // Se o free_trial estiver no banco, ele será usado. Caso contrário, usa o default.
-    const hasRemoteFree = remotePlans.some(p => p.id === 'free_trial');
-    const base = hasRemoteFree ? [] : [defaultFreePlan];
-    
-    // Ordena para que o free_trial seja sempre o primeiro
-    const sortedRemote = [...remotePlans].sort((a, b) => {
-      if (a.id === 'free_trial') return -1;
-      if (b.id === 'free_trial') return 1;
-      return 0;
-    });
+    // Automação do cálculo de economia
+    const parsePrice = (priceStr: string) => {
+      const numeric = priceStr.replace(/[^\d,]/g, '').replace(',', '.');
+      return parseFloat(numeric) || 0;
+    };
 
-    return [...base, ...sortedRemote];
+    const monthly = basePlans.find(p => p.id === 'monthly');
+    const yearly = basePlans.find(p => p.id === 'yearly');
+
+    if (monthly && yearly) {
+      const mPrice = parsePrice(monthly.price);
+      const yPrice = parsePrice(yearly.price);
+      const diff = (mPrice - yPrice) * 12;
+      
+      if (diff > 0) {
+        const savingsText = `Economize R$ \${Math.round(diff)}/ano`;
+        yearly.savings = savingsText;
+        
+        // Atualiza também o texto dentro da lista de benefícios se existir
+        if (yearly.features) {
+          yearly.features = yearly.features.map(f => 
+            f.toLowerCase().includes("economia de") 
+              ? `Economia de R$ \${Math.round(diff)}/ano` 
+              : f
+          );
+        }
+      }
+    }
+
+    return basePlans;
   })();
 
   return (

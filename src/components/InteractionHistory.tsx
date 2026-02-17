@@ -236,7 +236,7 @@ const InteractionHistory = ({
       return (
         <Button 
           variant="outline" 
-          className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5"
+          className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5 hover:text-primary hover:bg-primary/10"
           onClick={() => { setActiveInteraction(interaction); setStatusInfoModalOpen(true); }}
         >
           <Clock className="h-3 w-3" /> <span className="text-xs">Aguardando Contratante</span>
@@ -248,7 +248,7 @@ const InteractionHistory = ({
       return (
         <Button 
           variant="outline" 
-          className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5"
+          className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5 hover:text-primary hover:bg-primary/10"
           onClick={() => { setActiveInteraction(interaction); setStatusInfoModalOpen(true); }}
         >
           <Clock className="h-3 w-3" /> <span className="text-xs">Aguardando Profissional</span>
@@ -273,7 +273,7 @@ const InteractionHistory = ({
         disabled={isUpdatingStatus === interaction.id}
         className={cn(
           "gap-1.5 h-8",
-          needsMyConfirmation ? "bg-primary" : "border-success/30 text-success hover:bg-success/5"
+          needsMyConfirmation ? "bg-primary" : "border-success/30 text-success hover:bg-success/5 hover:text-success"
         )}
       >
         {isUpdatingStatus === interaction.id ? (

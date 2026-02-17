@@ -14,7 +14,11 @@ import {
   CheckCircle,
   ArrowRight,
   HelpCircle,
-  Loader2
+  Loader2,
+  BookOpen,
+  GraduationCap,
+  Zap,
+  ShieldCheck
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
@@ -380,6 +384,89 @@ const Index = () => {
                 description={feature.description}
               />
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Academy Section */}
+      <section className="py-20 bg-card border-y border-border overflow-hidden">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-primary">
+                <BookOpen className="h-5 w-5" />
+                <span className="text-sm font-bold uppercase tracking-wider">HomeCare Match Academy</span>
+              </div>
+              
+              <h2 className="text-3xl font-bold text-foreground md:text-4xl">
+                Sua evolução profissional não pode parar
+              </h2>
+              
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                A <strong>Academy</strong> é o nosso braço educativo, focado em preparar você para os desafios reais do Home Care. Oferecemos conteúdos práticos e atualizados para que você se torne um profissional ainda mais requisitado.
+              </p>
+
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Award className="h-6 w-6" />
+                  </div>
+                  <h4 className="font-bold">Selos de Conquista</h4>
+                  <p className="text-sm text-muted-foreground">Ao concluir um curso, você ganha um selo exclusivo que aparece no seu perfil público.</p>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ShieldCheck className="h-6 w-6" />
+                  </div>
+                  <h4 className="font-bold">Destaque no Perfil</h4>
+                  <p className="text-sm text-muted-foreground">Recrutadores dão preferência a profissionais que investem em capacitação contínua.</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-secondary/30 p-6 border border-border/50">
+                <h4 className="font-bold flex items-center gap-2 mb-4">
+                  <Zap className="h-5 w-5 text-amber-500 fill-amber-500" />
+                  Acesso por Plano
+                </h4>
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
+                    <p className="text-sm">
+                      <strong>Plano Mensal:</strong> Você tem acesso ao catálogo completo e pode adquirir cursos individualmente conforme sua necessidade.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1 h-2 w-2 rounded-full bg-success shrink-0" />
+                    <p className="text-sm">
+                      <strong>Plano Anual:</strong> Acesso <strong>ILIMITADO e GRATUITO</strong> a todos os cursos da plataforma. Estude o quanto quiser sem pagar nada a mais.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-tr from-primary/20 to-transparent blur-2xl" />
+              <div className="relative rounded-3xl border border-border bg-card p-8 shadow-2xl">
+                <div className="flex flex-col items-center text-center space-y-6">
+                  <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                    <GraduationCap className="h-10 w-10 text-primary" />
+                  </div>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-bold">Pronto para começar?</h3>
+                    <p className="text-muted-foreground">
+                      Acesse nossa área de cursos e comece a transformar sua carreira hoje mesmo.
+                    </p>
+                  </div>
+                  <Button asChild size="lg" className="w-full gap-2 h-14 text-lg shadow-lg">
+                    <Link to="/cursos">
+                      Explorar Catálogo
+                      <ArrowRight className="h-5 w-5" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

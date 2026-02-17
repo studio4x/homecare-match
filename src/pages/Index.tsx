@@ -41,12 +41,12 @@ const Index = () => {
   const navigate = useNavigate();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
-  // Busca o perfil do usuário para saber o plano atual
-  const { data: profile } = useQuery({
+  // Busca o perfil do usuário para saber o plano atual e o papel
+  const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["user-profile-tier", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data } = await supabase.from('profiles').select('subscription_tier').eq('id', user.id).single();
+      const { data } = await supabase.from('profiles').select('subscription_tier, role').eq('id', user.id).single();
       return data;
     },
     enabled: !!user
@@ -306,6 +306,41 @@ const Index = () => {
     return { text: "Assinar Agora", disabled: false };
   };
 
+  // Lógica dinâmica para o card de CTA da Academy
+  const getAcademyCardContent = () => {
+    if (!session) {
+      return {
+        title: "Pronto para começar?",
+        description: "Crie seu perfil profissional agora e seja encontrado pelas maiores empresas de Home Care.",
+        buttonText: "Crie agora sua conta",
+        link: "/login#auth-sign-up",
+        icon: GraduationCap
+      };
+    }
+
+    if (profile?.role === 'professional') {
+      return {
+        title: "Pronto para começar?",
+        description: "Acesse nossa área de cursos e comece a transformar sua carreira hoje mesmo.",
+        buttonText: "Explorar Catálogo",
+        link: "/cursos",
+        icon: GraduationCap
+      };
+    }
+
+    // Empresa ou Família
+    return {
+      title: "Precisa de profissionais?",
+      description: "Acesse nossa base de especialistas verificados e feche sua escala com segurança.",
+      buttonText: "Buscar Profissionais",
+      link: "/buscar",
+      icon: Search
+    };
+  };
+
+  const cardContent = getAcademyCardContent();
+  const CardIcon = cardContent.icon;
+
   return (
     <Layout>
       <section className="gradient-hero relative overflow-hidden py-20 lg:py-28">
@@ -450,17 +485,17 @@ const Index = () => {
               <div className="relative rounded-3xl border border-border bg-card p-8 shadow-2xl">
                 <div className="flex flex-col items-center text-center space-y-6">
                   <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-                    <GraduationCap className="h-10 w-10 text-primary" />
+                    <CardIcon className="h-10 w-10 text-primary" />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-2xl font-bold">Pronto para começar?</h3>
+                    <h3 className="text-2xl font-bold">{cardContent.title}</h3>
                     <p className="text-muted-foreground">
-                      Acesse nossa área de cursos e comece a transformar sua carreira hoje mesmo.
+                      {cardContent.description}
                     </p>
                   </div>
                   <Button asChild size="lg" className="w-full gap-2 h-14 text-lg shadow-lg">
-                    <Link to="/cursos">
-                      Explorar Catálogo
+                    <Link to={cardContent.link}>
+                      {cardContent.buttonText}
                       <ArrowRight className="h-5 w-5" />
                     </Link>
                   </Button>

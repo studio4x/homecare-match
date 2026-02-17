@@ -13,6 +13,8 @@ interface PricingCardProps {
   savings?: string;
   onSubscribe?: (id: string) => void;
   isLoading?: boolean;
+  buttonText?: string;
+  isDisabled?: boolean;
 }
 
 const PricingCard = ({
@@ -25,13 +27,16 @@ const PricingCard = ({
   popular = false,
   savings,
   onSubscribe,
-  isLoading
+  isLoading,
+  buttonText = "Assinar Agora",
+  isDisabled = false
 }: PricingCardProps) => {
   return (
     <div
       className={cn(
         "relative flex h-full flex-col rounded-2xl border bg-card p-6 shadow-card transition-all duration-300 hover:shadow-card-hover",
-        popular && "border-primary shadow-card-hover ring-2 ring-primary/20"
+        popular && "border-primary shadow-card-hover ring-2 ring-primary/20",
+        isDisabled && "opacity-80 grayscale-[0.5]"
       )}
     >
       {popular && (
@@ -69,12 +74,16 @@ const PricingCard = ({
       </ul>
 
       <Button
-        className={cn("w-full", popular ? "" : "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
-        variant={popular ? "default" : "secondary"}
-        onClick={() => onSubscribe?.(id)}
-        disabled={isLoading}
+        className={cn(
+          "w-full", 
+          popular && !isDisabled ? "" : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          isDisabled && "bg-muted text-muted-foreground cursor-default hover:bg-muted"
+        )}
+        variant={popular && !isDisabled ? "default" : "secondary"}
+        onClick={() => !isDisabled && onSubscribe?.(id)}
+        disabled={isLoading || isDisabled}
       >
-        {isLoading ? "Processando..." : "Assinar Agora"}
+        {isLoading ? "Processando..." : buttonText}
       </Button>
     </div>
   );

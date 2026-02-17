@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Check, Loader2, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 interface PlanSelectionModalProps {
   open: boolean;
@@ -21,7 +22,20 @@ interface PlanSelectionModalProps {
 }
 
 const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => {
+  const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const { data: profile } = useQuery({
+    queryKey: ["user-profile-tier-modal", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase.from('profiles').select('subscription_tier').eq('id', user.id).single();
+      return data;
+    },
+    enabled: !!user && open
+  });
+
+  const userTier = profile?.subscription_tier || null;
 
   const { data: plans, isLoading } = useQuery({
     queryKey: ["plans-selection"],
@@ -33,6 +47,7 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
       if (error) throw error;
       return data || [];
     },
+    enabled: open
   });
 
   const handleSubscribe = async (planId: string) => {
@@ -68,6 +83,30 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
     }
   };
 
+  const getPlanButtonConfig = (planId: string) => {
+    if (!userTier) return { text: "Assinar Agora", disabled: false };
+
+    if (userTier === planId) {
+      return { text: "Seu Plano Atual", disabled: true };
+    }
+
+    if (userTier === 'yearly') {
+      return { text: "Plano Ativo", disabled: true };
+    }
+
+    if (userTier === 'monthly') {
+      if (planId === 'yearly') return { text: "Fazer Upgrade", disabled: false };
+      return { text: "Plano Anterior", disabled: true };
+    }
+
+    if (userTier === 'free_trial') {
+      if (planId === 'free_trial') return { text: "Seu Plano Atual", disabled: true };
+      return { text: "Assinar Agora", disabled: false };
+    }
+
+    return { text: "Assinar Agora", disabled: false };
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden border-none shadow-2xl">
@@ -88,12 +127,13 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
             </div>
           ) : (
             <div className="grid gap-6 md:grid-cols-2">
-              {plans?.map((plan) => {
-                // Adiciona o benefício dos cursos se for o plano anual
+              {plans?.filter(p => p.id !== 'free_trial').map((plan) => {
                 const features = [...(plan.features || [])];
                 if (plan.id === 'yearly' && !features.some(f => f.toLowerCase().includes('academy'))) {
                   features.push("Acesso gratuito aos cursos da Academy");
                 }
+
+                const btnConfig = getPlanButtonConfig(plan.id);
 
                 return (
                   <div 
@@ -102,7 +142,8 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
                       "relative flex flex-col rounded-2xl border p-6 transition-all",
                       plan.popular 
                         ? "border-primary shadow-lg ring-1 ring-primary/20 bg-primary/5" 
-                        : "border-border bg-card hover:border-primary/50"
+                        : "border-border bg-card hover:border-primary/50",
+                      btnConfig.disabled && "opacity-70 grayscale-[0.3]"
                     )}
                   >
                     {plan.popular && (
@@ -129,15 +170,18 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
                     </ul>
 
                     <Button 
-                      className="w-full h-11 font-semibold"
-                      variant={plan.popular ? "default" : "outline"}
-                      onClick={() => handleSubscribe(plan.id)}
-                      disabled={!!loadingPlan}
+                      className={cn(
+                        "w-full h-11 font-semibold",
+                        btnConfig.disabled && "bg-muted text-muted-foreground hover:bg-muted cursor-default"
+                      )}
+                      variant={plan.popular && !btnConfig.disabled ? "default" : "outline"}
+                      onClick={() => !btnConfig.disabled && handleSubscribe(plan.id)}
+                      disabled={!!loadingPlan || btnConfig.disabled}
                     >
                       {loadingPlan === plan.id ? (
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : (
-                        "Assinar Agora"
+                        btnConfig.text
                       )}
                     </Button>
                   </div>

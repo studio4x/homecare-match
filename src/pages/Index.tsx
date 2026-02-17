@@ -32,10 +32,23 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 
 const Index = () => {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const { data: config } = useSiteConfig();
   const navigate = useNavigate();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  // Busca o perfil do usuário para saber o plano atual
+  const { data: profile } = useQuery({
+    queryKey: ["user-profile-tier", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase.from('profiles').select('subscription_tier').eq('id', user.id).single();
+      return data;
+    },
+    enabled: !!user
+  });
+
+  const userTier = profile?.subscription_tier || null;
 
   const handleSubscribe = async (planId: string) => {
     if (!session) {
@@ -251,7 +264,6 @@ const Index = () => {
         const savingsText = `Economize R$ \${Math.round(diff)}/ano`;
         yearly.savings = savingsText;
         
-        // Atualiza também o texto dentro da lista de benefícios se existir
         if (yearly.features) {
           yearly.features = yearly.features.map(f => 
             f.toLowerCase().includes("economia de") 
@@ -264,6 +276,31 @@ const Index = () => {
 
     return basePlans;
   })();
+
+  // Lógica de status do botão baseada no plano atual
+  const getPlanButtonConfig = (planId: string) => {
+    if (!session || !userTier) return { text: "Assinar Agora", disabled: false };
+
+    if (userTier === planId) {
+      return { text: "Seu Plano Atual", disabled: true };
+    }
+
+    if (userTier === 'yearly') {
+      return { text: "Plano Ativo", disabled: true };
+    }
+
+    if (userTier === 'monthly') {
+      if (planId === 'yearly') return { text: "Fazer Upgrade", disabled: false };
+      return { text: "Plano Anterior", disabled: true };
+    }
+
+    if (userTier === 'free_trial') {
+      if (planId === 'free_trial') return { text: "Seu Plano Atual", disabled: true };
+      return { text: "Assinar Agora", disabled: false };
+    }
+
+    return { text: "Assinar Agora", disabled: false };
+  };
 
   return (
     <Layout>
@@ -473,24 +510,29 @@ const Index = () => {
 
           <Carousel className="w-full">
             <CarouselContent className="items-stretch">
-              {allPlans.map((plan) => (
-                <CarouselItem key={plan.id} className="basis-full md:basis-1/2 lg:basis-1/3">
-                  <div className="p-2 h-full">
-                    <PricingCard
-                      id={plan.id}
-                      name={plan.name}
-                      price={plan.price}
-                      period={plan.period}
-                      description={plan.description ?? ""}
-                      features={plan.features ?? []}
-                      popular={plan.popular}
-                      savings={plan.savings}
-                      onSubscribe={handleSubscribe}
-                      isLoading={loadingPlan === plan.id}
-                    />
-                  </div>
-                </CarouselItem>
-              ))}
+              {allPlans.map((plan) => {
+                const btnConfig = getPlanButtonConfig(plan.id);
+                return (
+                  <CarouselItem key={plan.id} className="basis-full md:basis-1/2 lg:basis-1/3">
+                    <div className="p-2 h-full">
+                      <PricingCard
+                        id={plan.id}
+                        name={plan.name}
+                        price={plan.price}
+                        period={plan.period}
+                        description={plan.description ?? ""}
+                        features={plan.features ?? []}
+                        popular={plan.popular}
+                        savings={plan.savings}
+                        onSubscribe={handleSubscribe}
+                        isLoading={loadingPlan === plan.id}
+                        buttonText={btnConfig.text}
+                        isDisabled={btnConfig.disabled}
+                      />
+                    </div>
+                  </CarouselItem>
+                );
+              })}
             </CarouselContent>
             <div className="mt-6 flex items-center justify-center gap-4">
               <CarouselPrevious className="relative" />

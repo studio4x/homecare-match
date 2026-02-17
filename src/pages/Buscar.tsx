@@ -15,7 +15,7 @@ import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
 import ProfessionalMap from "@/components/ProfessionalMap";
 import ProfessionalMapModal from "@/components/ProfessionalMapModal";
-import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck, Loader2, MapPin, AlertCircle, Map as MapIcon, LayoutGrid } from "lucide-react";
+import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck, Loader2, MapPin, AlertCircle, Map as MapIcon, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -38,6 +38,7 @@ const Buscar = () => {
   const [allProfessionals, setAllProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [selectedProfessional, setSelectedProfessional] = useState<any | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   
@@ -87,7 +88,6 @@ const Buscar = () => {
 
       const trialLimitDate = subDays(new Date(), 30).toISOString();
 
-      // CORREÇÃO: Removido o escape da variável trialLimitDate na string da consulta
       let query = supabase
         .from("profiles")
         .select("*")
@@ -136,10 +136,8 @@ const Buscar = () => {
     fetchProfessionals();
   }, [userProfile, isLoadingConfig, config, filters]);
 
-  // Lógica de filtragem automática por região do mapa
   const displayedProfessionals = useMemo(() => {
-    // Se o mapa não carregou ou não temos limites, mostra todos
-    if (!mapBounds || typeof google === 'undefined') return allProfessionals;
+    if (!isMapExpanded || !mapBounds || typeof google === 'undefined') return allProfessionals;
 
     return allProfessionals.filter(p => {
       if (!p.lat || !p.lng) return false;
@@ -147,10 +145,10 @@ const Buscar = () => {
         const latLng = new google.maps.LatLng(Number(p.lat), Number(p.lng));
         return mapBounds.contains(latLng);
       } catch (e) {
-        return true; // Fallback em caso de erro na lib do Google
+        return true;
       }
     });
-  }, [allProfessionals, mapBounds]);
+  }, [allProfessionals, mapBounds, isMapExpanded]);
 
   if (authLoading) {
     return (
@@ -253,27 +251,7 @@ const Buscar = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center bg-secondary/50 p-1 rounded-lg border">
-              <Button 
-                variant={viewMode === 'grid' ? 'default' : 'ghost'} 
-                size="sm" 
-                className="h-8 gap-2"
-                onClick={() => setViewMode('grid')}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                Grid
-              </Button>
-              <Button 
-                variant={viewMode === 'map' ? 'default' : 'ghost'} 
-                size="sm" 
-                className="h-8 gap-2"
-                onClick={() => setViewMode('map')}
-              >
-                <MapIcon className="h-4 w-4" />
-                Mapa
-              </Button>
-            </div>
-            <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground ml-4">
+            <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground mr-4">
               <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
                 <Star className="h-3 w-3 text-amber-500 fill-current" />
                 <span className="leading-none">Destaque Premium</span>
@@ -283,6 +261,19 @@ const Buscar = () => {
                 <span className="leading-none">Perfil Verificado</span>
               </div>
             </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className={cn(
+                "h-9 gap-2 transition-all",
+                isMapExpanded ? "bg-primary text-primary-foreground hover:bg-primary/90" : "hover:bg-secondary"
+              )}
+              onClick={() => setIsMapExpanded(!isMapExpanded)}
+            >
+              <MapIcon className="h-4 w-4" />
+              {isMapExpanded ? "Recolher Mapa" : "Ver no Mapa"}
+              {isMapExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
 
@@ -387,29 +378,27 @@ const Buscar = () => {
           )}
         </div>
 
-        <div className="mb-8">
-          {/* CORREÇÃO: Só renderiza o mapa se a chave de API estiver disponível para evitar erro de Loader */}
-          {!isLoadingConfig && config?.google_maps_api_key ? (
-            <ProfessionalMap 
-              userLocation={hasLocation ? { lat: Number(userProfile.lat), lng: Number(userProfile.lng) } : null}
-              professionals={allProfessionals}
-              onProfessionalClick={setSelectedProfessional}
-              onBoundsChange={setMapBounds}
-            />
-          ) : (
-            <div className="w-full h-[450px] bg-secondary/20 rounded-3xl flex flex-col items-center justify-center gap-3 border border-dashed">
-              <MapPin className="h-8 w-8 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">
-                {isLoadingConfig ? "Carregando configurações..." : "Mapa indisponível. Configure a chave de API no Painel Admin."}
-              </p>
-            </div>
-          )}
-        </div>
+        {isMapExpanded && (
+          <div className="mb-8 animate-slide-up">
+            {!isLoadingConfig && config?.google_maps_api_key ? (
+              <ProfessionalMap 
+                userLocation={hasLocation ? { lat: Number(userProfile.lat), lng: Number(userProfile.lng) } : null}
+                professionals={allProfessionals}
+                onProfessionalClick={setSelectedProfessional}
+                onBoundsChange={setMapBounds}
+              />
+            ) : (
+              <div className="w-full h-[450px] bg-secondary/20 rounded-3xl flex flex-col items-center justify-center gap-3 border border-dashed">
+                <MapPin className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {isLoadingConfig ? "Carregando configurações..." : "Mapa indisponível. Configure a chave de API no Painel Admin."}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
-        <div className={cn(
-          "grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-          viewMode === 'map' && "hidden md:grid"
-        )}>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
           ) : displayedProfessionals.length > 0 ? (

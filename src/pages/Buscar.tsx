@@ -50,12 +50,19 @@ const Buscar = () => {
   useEffect(() => {
     const fetchMyProfile = async () => {
       if (user) {
-        const { data } = await supabase
+        // Usamos select("*") para evitar erro 400 se lat/lng ainda não existirem
+        const { data, error } = await supabase
           .from("profiles")
-          .select("role, lat, lng")
+          .select("*")
           .eq("id", user.id)
-          .single();
-        setUserProfile(data);
+          .maybeSingle();
+        
+        if (!error && data) {
+          setUserProfile(data);
+        } else {
+          // Fallback mínimo para não travar a página
+          setUserProfile({ role: 'guest' });
+        }
       }
     };
     fetchMyProfile();
@@ -73,13 +80,12 @@ const Buscar = () => {
         return;
       }
 
-      const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, bio, subscription_tier, is_verified, role, updated_at, hourly_rate, trial_started_at, lat, lng, referral_count";
-      
       const trialLimitDate = subDays(new Date(), 30).toISOString();
 
+      // Buscamos todos os campos (*) para evitar erro de coluna inexistente
       let query = supabase
         .from("profiles")
-        .select(safePublicFields)
+        .select("*")
         .eq("role", "professional")
         .not("full_name", "is", null)
         .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`);
@@ -96,21 +102,22 @@ const Buscar = () => {
         query = query.lte('hourly_rate', parseFloat(filters.max_hourly_rate));
       }
 
-      const { data } = await query;
+      const { data, error } = await query;
       
-      if (data) {
+      if (error) {
+        console.error("[Buscar] Erro na consulta:", error);
+        setProfessionals([]);
+      } else if (data) {
         // Lógica de Cálculo de Distância e Ranking
         const processed = data.map(p => {
           const dist = (userProfile.lat && userProfile.lng && p.lat && p.lng)
             ? calculateDistance(userProfile.lat, userProfile.lng, p.lat, p.lng)
             : 9999;
           
-          // Cálculo do Score de Ranking:
-          // 1. Premium (Anual) ganha 10.000 pontos
-          // 2. Cada indicação ganha 100 pontos
-          // 3. Distância subtrai pontos (mais perto = maior score)
           const isPremium = p.subscription_tier === 'yearly';
           const referrals = p.referral_count || 0;
+          
+          // Score de Ranking
           const score = (isPremium ? 10000 : 0) + (referrals * 100) - (dist * 2);
 
           return { ...p, distance: dist, rankingScore: score };

@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/select";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
-import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck, Loader2, MapPin, AlertCircle } from "lucide-react";
+import ProfessionalMap from "@/components/ProfessionalMap";
+import ProfessionalMapModal from "@/components/ProfessionalMapModal";
+import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck, Loader2, MapPin, AlertCircle, Map as MapIcon, LayoutGrid } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -22,6 +24,7 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import AccessRestricted from "@/components/AccessRestricted";
 import { subDays } from "date-fns";
 import { calculateDistance } from "@/lib/geo-utils";
+import { cn } from "@/lib/utils";
 
 const getInitialSpecialtyFromUrl = () => {
   const value = new URLSearchParams(window.location.search).get("specialty");
@@ -34,6 +37,9 @@ const Buscar = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<"grid" | "map">("grid");
+  const [selectedProfessional, setSelectedProfessional] = useState<any | null>(null);
+  
   const [filters, setFilters] = useState({
     specialty: getInitialSpecialtyFromUrl(),
     city: "",
@@ -85,13 +91,13 @@ const Buscar = () => {
         .select("*")
         .eq("role", "professional")
         .not("full_name", "is", null)
-        .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`);
+        .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.\${trialLimitDate})`);
 
       if (filters.specialty) query = query.eq("specialty", filters.specialty);
       if (filters.state) query = query.eq("state", filters.state);
       if (filters.city) query = query.ilike("city", `%${filters.city}%`);
       if (filters.neighborhood) query = query.ilike("neighborhood", `%${filters.neighborhood}%`);
-      if (filters.search) query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
+      if (filters.search) query = query.or(`full_name.ilike.%\${filters.search}%,experience.ilike.%\${filters.search}%`);
       if (filters.availability) query = query.contains('availability', [filters.availability]);
       if (filters.patient_profile) query = query.contains('patient_profiles', [filters.patient_profile]);
       
@@ -207,11 +213,11 @@ const Buscar = () => {
 
   const conciergeMessage = [
     'Olá!', '',
-    `Sou uma *${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match para encontrar profissionais.`,
+    `Sou uma *\${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match para encontrar profissionais.`,
     '',
-    filters.specialty ? `• Especialidade: ${requestedSpecialtyLabel}` : '',
-    filters.city ? `• Cidade: ${filters.city}` : '',
-    filters.state ? `• Estado: ${filters.state}` : '',
+    filters.specialty ? `• Especialidade: \${requestedSpecialtyLabel}` : '',
+    filters.city ? `• Cidade: \${filters.city}` : '',
+    filters.state ? `• Estado: \${filters.state}` : '',
   ].filter(Boolean).join('\n');
 
   const hasLocation = userProfile?.lat && userProfile?.lng;
@@ -228,14 +234,36 @@ const Buscar = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
-              <Star className="h-3 w-3 text-amber-500 fill-current" />
-              <span className="leading-none">Destaque Premium</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center bg-secondary/50 p-1 rounded-lg border">
+              <Button 
+                variant={viewMode === 'grid' ? 'default' : 'ghost'} 
+                size="sm" 
+                className="h-8 gap-2"
+                onClick={() => setViewMode('grid')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Grid
+              </Button>
+              <Button 
+                variant={viewMode === 'map' ? 'default' : 'ghost'} 
+                size="sm" 
+                className="h-8 gap-2"
+                onClick={() => setViewMode('map')}
+              >
+                <MapIcon className="h-4 w-4" />
+                Mapa
+              </Button>
             </div>
-            <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
-              <ShieldCheck className="h-3 w-3 text-success" />
-              <span className="leading-none">Perfil Verificado</span>
+            <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground ml-4">
+              <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
+                <Star className="h-3 w-3 text-amber-500 fill-current" />
+                <span className="leading-none">Destaque Premium</span>
+              </div>
+              <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
+                <ShieldCheck className="h-3 w-3 text-success" />
+                <span className="leading-none">Perfil Verificado</span>
+              </div>
             </div>
           </div>
         </div>
@@ -343,8 +371,20 @@ const Buscar = () => {
           )}
         </div>
 
-        {/* Resultados */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {/* Mapa Interativo */}
+        <div className="mb-8">
+          <ProfessionalMap 
+            userLocation={hasLocation ? { lat: Number(userProfile.lat), lng: Number(userProfile.lng) } : null}
+            professionals={professionals}
+            onProfessionalClick={setSelectedProfessional}
+          />
+        </div>
+
+        {/* Resultados Grid */}
+        <div className={cn(
+          "grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+          viewMode === 'map' && "hidden md:grid" // No desktop mostra os dois se quiser, mas aqui vamos respeitar o toggle
+        )}>
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
           ) : professionals.length > 0 ? (
@@ -356,7 +396,7 @@ const Buscar = () => {
                 photo={p.avatar_url}
                 specialty={specialties.find(s => s.value === p.specialty)?.label || p.specialty}
                 registration={p.registration}
-                location={`${p.neighborhood || ""}, ${p.city || ""} - ${p.state || ""}`}
+                location={`\${p.neighborhood || ""}, \${p.city || ""} - \${p.state || ""}`}
                 experience={p.experience}
                 isVerified={p.is_verified}
                 subscriptionTier={p.subscription_tier}
@@ -386,7 +426,7 @@ const Buscar = () => {
             </p>
             <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
               <a 
-                href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
+                href={`https://wa.me/\${whatsappNumber}?text=\${encodeURIComponent(conciergeMessage)}`} 
                 target="_blank" 
                 rel="noopener noreferrer"
               >
@@ -400,6 +440,12 @@ const Buscar = () => {
           </div>
         )}
       </div>
+
+      <ProfessionalMapModal 
+        professional={selectedProfessional} 
+        onClose={() => setSelectedProfessional(null)} 
+        specialties={specialties}
+      />
     </Layout>
   );
 };

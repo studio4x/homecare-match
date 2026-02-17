@@ -53,7 +53,12 @@ serve(async (req) => {
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS video_url_professionals TEXT,
         ADD COLUMN IF NOT EXISTS video_url_companies TEXT,
-        ADD COLUMN IF NOT EXISTS video_url_families TEXT;
+        ADD COLUMN IF NOT EXISTS video_url_families TEXT,
+        ADD COLUMN IF NOT EXISTS video_url_onboarding TEXT;
+
+      -- CONTROLE DE ONBOARDING NO PERFIL
+      ALTER TABLE public.profiles
+        ADD COLUMN IF NOT EXISTS has_seen_onboarding BOOLEAN DEFAULT false;
     `;
     await client.queryObject(sql);
 

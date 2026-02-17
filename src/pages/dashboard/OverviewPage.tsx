@@ -39,6 +39,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import PlanSelectionModal from "@/components/PlanSelectionModal";
+import OnboardingModal from "@/components/OnboardingModal";
 
 const OverviewPage = () => {
   const { user } = useAuth();
@@ -49,6 +50,7 @@ const OverviewPage = () => {
   const [isSyncingStripe, setIsSyncingStripe] = useState(false);
   const [isManagingBilling, setIsManagingBilling] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
 
   const fetchProfile = async (showToast = false) => {
@@ -65,6 +67,11 @@ const OverviewPage = () => {
       if (error) throw error;
       setProfile(data);
       
+      // Dispara onboarding se for profissional e ainda não viu
+      if (data.role === 'professional' && !data.has_seen_onboarding) {
+        setIsOnboardingOpen(true);
+      }
+
       // Busca estatísticas de indicação se for profissional
       if (data.role === 'professional') {
         const { data: stats } = await supabase.functions.invoke('referral-stats', {
@@ -660,6 +667,11 @@ const OverviewPage = () => {
       <PlanSelectionModal 
         open={isPlanModalOpen} 
         onOpenChange={setIsPlanModalOpen} 
+      />
+
+      <OnboardingModal 
+        open={isOnboardingOpen} 
+        onOpenChange={setIsOnboardingOpen} 
       />
     </div>
   );

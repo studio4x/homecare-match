@@ -38,7 +38,9 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Mail
+  Mail,
+  PlayCircle,
+  HelpCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -56,6 +58,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
+import OnboardingModal from "@/components/OnboardingModal";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -66,6 +69,7 @@ const ProfilePage = () => {
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [isDangerZoneOpen, setIsDangerZoneOpen] = useState(false);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   
   // Estados para o Modal de Exclusão
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
@@ -440,6 +444,32 @@ const ProfilePage = () => {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
+          {/* Quadro de Ajuda/Tutorial */}
+          {isProfessional && (
+            <Card className="border-primary/20 bg-primary/5 overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <HelpCircle className="h-8 w-8 text-primary" />
+                  </div>
+                  <div className="flex-1 text-center md:text-left space-y-1">
+                    <h3 className="font-bold text-lg">Precisa de ajuda com seu perfil?</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Reveja o tutorial de boas-vindas para aprender a utilizar todos os recursos da plataforma.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => setIsOnboardingOpen(true)} 
+                    className="gap-2 h-12 px-6 shadow-md"
+                  >
+                    <PlayCircle className="h-5 w-5" />
+                    Abrir Tutorial
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Informações Básicas</CardTitle>
@@ -922,6 +952,12 @@ const ProfilePage = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <OnboardingModal 
+        open={isOnboardingOpen} 
+        onOpenChange={setIsOnboardingOpen} 
+        forceShow={true}
+      />
     </div>
   );
 };

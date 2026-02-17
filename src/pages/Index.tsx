@@ -281,9 +281,18 @@ const Index = () => {
     return basePlans;
   })();
 
-  // Lógica de status do botão baseada no plano atual
+  // Lógica de status do botão baseada no plano atual e papel do usuário
   const getPlanButtonConfig = (planId: string) => {
-    if (!session || !userTier) return { text: "Assinar Agora", disabled: false };
+    // 1. Usuários não logados: podem clicar (levará ao registro)
+    if (!session) return { text: "Assinar Agora", disabled: false };
+
+    // 2. Empresas e Famílias: desativado
+    if (profile?.role === 'company' || profile?.role === 'family') {
+      return { text: "Somente para profissionais", disabled: true };
+    }
+
+    // 3. Profissionais: lógica de hierarquia
+    if (!userTier) return { text: "Assinar Agora", disabled: false };
 
     if (userTier === planId) {
       return { text: "Seu Plano Atual", disabled: true };

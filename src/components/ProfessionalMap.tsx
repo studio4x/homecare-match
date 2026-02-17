@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useState, useMemo, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
 import { Loader2, MapPin, AlertCircle } from 'lucide-react';
 import { useSiteConfig } from '@/hooks/use-site-config';
 
@@ -109,7 +109,7 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
         }}
       >
         {userLocation && (
-          <Marker
+          <MarkerF
             position={userLocation}
             icon={{
               url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
@@ -124,7 +124,7 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
           const isPremium = p.subscription_tier === 'yearly';
           
           return (
-            <Marker
+            <MarkerF
               key={p.id}
               position={{ lat: Number(p.lat), lng: Number(p.lng) }}
               onClick={() => onProfessionalClick(p)}

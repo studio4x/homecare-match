@@ -40,6 +40,7 @@ const Buscar = () => {
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [selectedProfessional, setSelectedProfessional] = useState<any | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const [searchTrigger, setSearchTrigger] = useState(0);
   
   const [filters, setFilters] = useState({
     specialty: getInitialSpecialtyFromUrl(),
@@ -75,7 +76,14 @@ const Buscar = () => {
 
   useEffect(() => {
     const fetchProfessionals = async () => {
-      if (!userProfile || userProfile.role === 'professional' || isLoadingConfig) return;
+      // Se ainda estiver carregando perfil ou config, não faz nada mas mantém o loading inicial
+      if (!userProfile || isLoadingConfig) return;
+      
+      // Se for profissional, o acesso é restrito (tratado no render)
+      if (userProfile.role === 'professional') {
+        setLoading(false);
+        return;
+      }
       
       setLoading(true);
 
@@ -133,9 +141,10 @@ const Buscar = () => {
     };
 
     fetchProfessionals();
-  }, [userProfile, isLoadingConfig, config, filters]);
+  }, [userProfile, isLoadingConfig, config, filters, searchTrigger]);
 
   const displayedProfessionals = useMemo(() => {
+    // Se o mapa não estiver expandido ou não tiver limites válidos, mostra tudo
     if (!isMapExpanded || !mapBounds || typeof google === 'undefined') return allProfessionals;
 
     return allProfessionals.filter(p => {
@@ -313,7 +322,7 @@ const Buscar = () => {
             <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="gap-2">
               <Filter className="h-4 w-4" /> Filtros
             </Button>
-            <Button className="gap-2" onClick={() => setLoading(true)}>
+            <Button className="gap-2" onClick={() => setSearchTrigger(prev => prev + 1)}>
               <Search className="h-4 w-4" /> Buscar
             </Button>
           </div>

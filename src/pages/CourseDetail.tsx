@@ -371,7 +371,7 @@ const CourseDetail = () => {
                     {course.price && course.price > 0 ? (
                       <div className="text-center p-3 bg-secondary/20 rounded-lg border border-dashed">
                         <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Investimento</p>
-                        <p className="text-2xl font-bold text-foreground">R$ {Number(course.price).toFixed(2).replace('.', ',')}</p>
+                        <p className="text-2xl font-bold text-destructive">R$ {Number(course.price).toFixed(2).replace('.', ',')}</p>
                       </div>
                     ) : null}
                     

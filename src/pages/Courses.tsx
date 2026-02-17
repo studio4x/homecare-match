@@ -45,6 +45,7 @@ interface Module {
   title: string;
   description?: string;
   position?: number;
+  course_slug: string;
   lessons: Lesson[];
 }
 
@@ -353,7 +354,7 @@ const Courses = () => {
                         {(!c.price || c.price === 0) ? (
                           <Badge className="bg-success/90 text-white border-none">Grátis</Badge>
                         ) : (
-                          <Badge className="bg-primary/90 text-white border-none">R$ {Number(c.price).toFixed(2).replace('.', ',')}</Badge>
+                          <Badge className="bg-destructive text-white border-none">R$ {Number(c.price).toFixed(2).replace('.', ',')}</Badge>
                         )}
                       </div>
                     </AspectRatio>

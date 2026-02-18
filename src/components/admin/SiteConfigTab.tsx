@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity, Coins } from "lucide-center";
+import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity, Coins } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -166,8 +166,8 @@ const SiteConfigTab = () => {
 
     setIsUploading(field);
     const fileExt = file.name.split('.').pop();
-    const fileName = `\${field}_\${Date.now()}.\${fileExt}`;
-    const filePath = `site-assets/\${fileName}`;
+    const fileName = `${field}_${Date.now()}.${fileExt}`;
+    const filePath = `site-assets/${fileName}`;
 
     try {
       const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, file);
@@ -337,7 +337,7 @@ const SiteConfigTab = () => {
             <div className="space-y-2">
               <Label>Logotipo</Label>
               <div className="flex flex-col gap-2">
-                {config?.logo_url && <img src={config.logo_url} alt="Logo" style={{ height: `\${formData.logo_height_px}px` }} className="object-contain bg-secondary/20 p-2 rounded" />}
+                {config?.logo_url && <img src={config.logo_url} alt="Logo" style={{ height: `${formData.logo_height_px}px` }} className="object-contain bg-secondary/20 p-2 rounded" />}
                 <Button variant="outline" size="sm" onClick={() => logoRef.current?.click()} disabled={!!isUploading}>Alterar</Button>
                 <input type="file" ref={logoRef} onChange={(e) => handleFileUpload(e, 'logo_url')} className="hidden" accept="image/*" />
               </div>

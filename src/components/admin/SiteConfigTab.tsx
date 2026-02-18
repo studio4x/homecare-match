@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert } from "lucide-react";
+import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -32,6 +32,7 @@ const SiteConfigTab = () => {
   const [isSyncingKYC, setIsSyncingKYC] = useState(false);
   const [isSyncingAnalytics, setIsSyncingAnalytics] = useState(false);
   const [isSyncingSecurity, setIsSyncingSecurity] = useState(false);
+  const [isSyncingRLS, setIsSyncingRLS] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -115,6 +116,19 @@ const SiteConfigTab = () => {
       toast.error("Erro ao aplicar patch de segurança.");
     } finally {
       setIsSyncingSecurity(false);
+    }
+  };
+
+  const handleSyncRLS = async () => {
+    setIsSyncingRLS(true);
+    try {
+      const { error } = await supabase.functions.invoke('security-patch-rls');
+      if (error) throw error;
+      toast.success("Proteção de dados sensíveis aplicada!");
+    } catch (error: any) {
+      toast.error("Erro ao aplicar proteção de dados.");
+    } finally {
+      setIsSyncingRLS(false);
     }
   };
 
@@ -370,6 +384,16 @@ const SiteConfigTab = () => {
             <Button variant="destructive" onClick={handleSyncSecurity} disabled={isSyncingSecurity} className="gap-2">
               {isSyncingSecurity ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldAlert className="h-4 w-4" />}
               Aplicar Patch
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-blue-200 rounded-lg bg-blue-50/30">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-blue-900">Proteção de Dados Sensíveis (RLS)</p>
+              <p className="text-xs text-blue-800/70">Cria View Segura e oculta WhatsApp/Endereço de curiosos.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncRLS} disabled={isSyncingRLS} className="border-blue-300 text-blue-700 hover:bg-blue-100">
+              {isSyncingRLS ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
             </Button>
           </div>
         </CardContent>

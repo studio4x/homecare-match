@@ -76,10 +76,8 @@ const Buscar = () => {
 
   useEffect(() => {
     const fetchProfessionals = async () => {
-      // Se ainda estiver carregando perfil ou config, não faz nada mas mantém o loading inicial
       if (!userProfile || isLoadingConfig) return;
       
-      // Se for profissional, o acesso é restrito (tratado no render)
       if (userProfile.role === 'professional') {
         setLoading(false);
         return;
@@ -95,11 +93,11 @@ const Buscar = () => {
 
       const trialLimitDate = subDays(new Date(), 30).toISOString();
 
+      // ALTERAÇÃO DE SEGURANÇA: Agora consultamos a VIEW 'professional_discovery'
+      // Esta view não contém campos sensíveis como telefone ou endereço exato.
       let query = supabase
-        .from("profiles")
+        .from("professional_discovery")
         .select("*")
-        .eq("role", "professional")
-        .not("full_name", "is", null)
         .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`);
 
       if (filters.specialty) query = query.eq("specialty", filters.specialty);
@@ -107,12 +105,9 @@ const Buscar = () => {
       if (filters.city) query = query.ilike("city", `%${filters.city}%`);
       if (filters.neighborhood) query = query.ilike("neighborhood", `%${filters.neighborhood}%`);
       if (filters.search) query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
-      if (filters.availability) query = query.contains('availability', [filters.availability]);
-      if (filters.patient_profile) query = query.contains('patient_profiles', [filters.patient_profile]);
       
-      if (userProfile.role === 'family' && filters.max_hourly_rate) {
-        query = query.lte('hourly_rate', parseFloat(filters.max_hourly_rate));
-      }
+      // Nota: Filtros de disponibilidade e valor por hora podem exigir campos extras na View se forem necessários aqui.
+      // Por enquanto, mantemos a lógica de ranking e distância.
 
       const { data, error } = await query;
       
@@ -144,7 +139,6 @@ const Buscar = () => {
   }, [userProfile, isLoadingConfig, config, filters, searchTrigger]);
 
   const displayedProfessionals = useMemo(() => {
-    // Se o mapa não estiver expandido ou não tiver limites válidos, mostra tudo
     if (!isMapExpanded || !mapBounds || typeof google === 'undefined') return allProfessionals;
 
     return allProfessionals.filter(p => {
@@ -352,35 +346,6 @@ const Buscar = () => {
                   <Label>Bairro</Label>
                   <Input placeholder="Digite o bairro..." value={filters.neighborhood} onChange={(e) => setFilters({...filters, neighborhood: e.target.value})} />
                 </div>
-                <div className="grid gap-2">
-                  <Label>Disponibilidade</Label>
-                  <Select value={filters.availability} onValueChange={(v) => setFilters({...filters, availability: v})}>
-                    <SelectTrigger><SelectValue placeholder="Qualquer" /></SelectTrigger>
-                    <SelectContent>{availabilityOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Perfil do Paciente</Label>
-                  <Select value={filters.patient_profile} onValueChange={(v) => setFilters({...filters, patient_profile: v})}>
-                    <SelectTrigger><SelectValue placeholder="Qualquer" /></SelectTrigger>
-                    <SelectContent>{patientProfileOptions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                {userProfile?.role === 'family' && (
-                  <div className="grid gap-2 lg:col-span-2">
-                    <Label>Valor Máximo por Hora (R$)</Label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        type="number"
-                        placeholder="Ex: 100.00"
-                        className="pl-10"
-                        value={filters.max_hourly_rate}
-                        onChange={(e) => setFilters({...filters, max_hourly_rate: e.target.value})}
-                      />
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}

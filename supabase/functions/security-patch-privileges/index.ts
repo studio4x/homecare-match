@@ -15,7 +15,7 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[security-patch] Iniciando aplicação de proteção de colunas...");
+    console.log("[security-patch] Atualizando proteção de privilégios com trava de auto-bloqueio...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
@@ -25,12 +25,8 @@ serve(async (req) => {
       CREATE OR REPLACE FUNCTION public.protect_profile_fields()
       RETURNS TRIGGER AS $$
       BEGIN
-        -- Protege campos sensíveis apenas se a requisição vier de um usuário autenticado comum (não admin)
-        -- O papel 'service_role' (usado por webhooks e processos de sistema) deve ter permissão total.
-        -- O papel 'postgres' (admin do banco) também tem permissão total.
-        
+        -- CASO 1: Usuário comum (não admin) tentando mudar campos proibidos
         IF (current_setting('role') = 'authenticated') AND NOT public.check_is_admin() THEN
-          -- Se o usuário tentar alterar campos proibidos, forçamos o valor antigo (OLD)
           NEW.is_admin := OLD.is_admin;
           NEW.role := OLD.role;
           NEW.is_verified := OLD.is_verified;
@@ -41,12 +37,25 @@ serve(async (req) => {
           NEW.referral_count := OLD.referral_count;
           NEW.verification_sent := OLD.verification_sent;
         END IF;
+
+        -- CASO 2: Administrador tentando remover o próprio acesso (Trava de Segurança)
+        -- Se o ID que está sendo alterado for o mesmo do usuário logado
+        IF (auth.uid() = NEW.id) AND (OLD.is_admin = true OR OLD.role = 'admin') THEN
+          -- Impede que is_admin mude para false
+          IF NEW.is_admin = false THEN
+            NEW.is_admin := true;
+          END IF;
+          -- Impede que o papel mude para algo diferente de admin
+          IF NEW.role != 'admin' THEN
+            NEW.role := 'admin';
+          END IF;
+        END IF;
         
         RETURN NEW;
       END;
       $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-      -- 2. Aplica o gatilho na tabela profiles
+      -- 2. Garante que o gatilho esteja aplicado
       DROP TRIGGER IF EXISTS on_profile_update_protect_fields ON public.profiles;
       CREATE TRIGGER on_profile_update_protect_fields
         BEFORE UPDATE ON public.profiles
@@ -61,7 +70,7 @@ serve(async (req) => {
     await client.end();
     client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Proteção de privilégios aplicada com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Proteção de privilégios e trava de auto-bloqueio aplicadas!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

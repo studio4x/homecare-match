@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity, Coins } from "lucide-react";
+import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity, Coins, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -35,6 +35,7 @@ const SiteConfigTab = () => {
   const [isSyncingRLS, setIsSyncingRLS] = useState(false);
   const [isSyncingAudit, setIsSyncingAudit] = useState(false);
   const [isSyncingAPI, setIsSyncingAPI] = useState(false);
+  const [isSyncingNotifications, setIsSyncingNotifications] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -157,6 +158,19 @@ const SiteConfigTab = () => {
       toast.error("Erro ao configurar proteção de API.");
     } finally {
       setIsSyncingAPI(false);
+    }
+  };
+
+  const handleSyncNotifications = async () => {
+    setIsSyncingNotifications(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-notifications');
+      if (error) throw error;
+      toast.success("Sistema de notificações configurado!");
+    } catch (error: any) {
+      toast.error("Erro ao configurar notificações.");
+    } finally {
+      setIsSyncingNotifications(false);
     }
   };
 
@@ -421,6 +435,16 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncAPI} disabled={isSyncingAPI}>
               {isSyncingAPI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Sistema de Notificações</p>
+              <p className="text-xs text-amber-800/70">Cria tabela e habilita tempo real para alertas do admin.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncNotifications} disabled={isSyncingNotifications}>
+              {isSyncingNotifications ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
             </Button>
           </div>
 

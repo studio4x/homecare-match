@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
 import AppVersion from "./AppVersion";
 import ScrollToTopButton from "../ScrollToTopButton";
+import AdminNotificationWidget from "../admin/AdminNotificationWidget";
 
 const AdminLayout = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
@@ -194,6 +195,7 @@ const AdminLayout = () => {
         <div className="flex-1 overflow-auto p-4 md:p-8">
           <Outlet />
         </div>
+        <AdminNotificationWidget />
         <ScrollToTopButton />
         <AppVersion />
       </main>

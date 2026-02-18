@@ -53,6 +53,7 @@ import FaqAdminPage from "./pages/admin/FaqAdminPage";
 import ReportsPage from "./pages/admin/ReportsPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
 import VideosPage from "./pages/admin/VideosPage";
+import AuditLogsPage from "./pages/admin/AuditLogsPage";
 
 const queryClient = new QueryClient();
 
@@ -114,6 +115,7 @@ const App = () => (
                 <Route path="suporte/:id" element={<TicketDetailPage />} />
                 <Route path="faq" element={<FaqAdminPage />} />
                 <Route path="metricas" element={<AnalyticsPage />} />
+                <Route path="auditoria" element={<AuditLogsPage />} />
               </Route>
 
               {/* 404 */}

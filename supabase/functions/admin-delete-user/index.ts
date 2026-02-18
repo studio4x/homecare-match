@@ -9,99 +9,36 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Resposta imediata para preflight CORS
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    console.log("[admin-delete-user] Iniciando processo de exclusão...");
+    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Validar quem está chamando a função
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      console.error("[admin-delete-user] Token ausente");
-      return new Response(JSON.stringify({ error: 'Não autorizado' }), { 
-        status: 401, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
-    }
-
     const token = authHeader.replace('Bearer ', '')
     const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token)
 
-    if (authError || !caller) {
-      console.error("[admin-delete-user] Erro ao validar chamador:", authError);
-      return new Response(JSON.stringify({ error: 'Sessão inválida' }), { 
-        status: 401, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
-    }
+    if (authError || !caller) return new Response(JSON.stringify({ error: 'Sessão inválida' }), { status: 401, headers: corsHeaders })
 
-    // Verificação de Admin no banco
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('is_admin, role')
-      .eq('id', caller.id)
-      .single()
-
-    if (!profile?.is_admin && profile?.role !== 'admin') {
-      console.error("[admin-delete-user] Acesso negado para:", caller.email);
-      return new Response(JSON.stringify({ error: 'Acesso restrito a administradores' }), { 
-        status: 403, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
-    }
+    const { data: profile } = await supabaseAdmin.from('profiles').select('is_admin, role').eq('id', caller.id).single()
+    if (!profile?.is_admin && profile?.role !== 'admin') return new Response(JSON.stringify({ error: 'Acesso negado' }), { status: 403, headers: corsHeaders })
 
     const { targetUserId } = await req.json()
-    if (!targetUserId) {
-      return new Response(JSON.stringify({ error: 'ID do usuário alvo é obrigatório' }), { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
-    }
+    const { data: targetProfile } = await supabaseAdmin.from('profiles').select('email, full_name').eq('id', targetUserId).single()
 
-    // Proteções de segurança
-    const { data: targetProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('email')
-      .eq('id', targetUserId)
-      .single()
-
-    if (caller.id === targetUserId) {
-      return new Response(JSON.stringify({ error: 'Você não pode excluir sua própria conta por aqui' }), { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
-    }
-
-    if (targetProfile?.email === "contato@homecarematch.com.br") {
-      return new Response(JSON.stringify({ error: 'O administrador mestre não pode ser excluído' }), { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      })
-    }
-
-    console.log(`[admin-delete-user] Excluindo usuário: ${targetUserId} (${targetProfile?.email})`);
+    // REGISTRO DE AUDITORIA
+    await supabaseAdmin.from('admin_logs').insert({
+      admin_id: caller.id,
+      action_type: 'USER_DELETED',
+      target_id: targetUserId,
+      details: `Excluiu permanentemente o usuário: \${targetProfile?.full_name} (\${targetProfile?.email})`
+    })
 
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(targetUserId)
     if (deleteError) throw deleteError
 
-    return new Response(JSON.stringify({ message: 'Usuário excluído com sucesso' }), { 
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
-
+    return new Response(JSON.stringify({ message: 'Usuário excluído com sucesso' }), { status: 200, headers: corsHeaders })
   } catch (error) {
-    console.error("[admin-delete-user] Erro crítico:", error.message)
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    })
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
   }
 })

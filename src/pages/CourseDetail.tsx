@@ -600,7 +600,7 @@ const CourseDetail = () => {
       <Dialog open={!!selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)}>
         <DialogContent className={cn(
           "w-[95vw] h-[92dvh] sm:h-auto sm:max-h-[95vh] flex flex-col p-0 overflow-hidden transition-all duration-300",
-          viewInside ? "max-w-6xl" : "max-w-5xl"
+          viewInside ? "max-w-[98vw] h-[96dvh]" : "max-w-5xl"
         )}>
           {selectedLesson && (
             <>

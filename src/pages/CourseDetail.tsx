@@ -103,7 +103,6 @@ const CourseDetail = () => {
         const { data: enr } = await supabase.from("academy_enrollments").select("id").eq("user_id", user.id).eq("course_slug", slug).maybeSingle();
         setIsEnrolled(!!enr);
 
-        // Admins ou matriculados podem ver os conteúdos privados
         if (enr || (prof?.is_admin || prof?.role === 'admin')) {
           if (storagePathsToSign.length > 0) {
             const { data: signedData, error: signErr } = await supabase.storage

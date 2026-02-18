@@ -40,6 +40,17 @@ const ReviewForm = ({ reviewerId, subjectId, onSuccess }: ReviewFormProps) => {
           throw error;
         }
       } else {
+        // --- NOTIFICAÇÃO PARA O AVALIADO ---
+        const myName = (await supabase.from('profiles').select('full_name').eq('id', reviewerId).single()).data?.full_name || "Um usuário";
+        
+        await supabase.from('notifications').insert({
+          user_id: subjectId,
+          title: "⭐ Nova Avaliação Recebida!",
+          content: `\${myName} te deu \${rating} estrelas e deixou um comentário sobre seu atendimento.`,
+          link: "/dashboard",
+          type: 'success'
+        });
+
         toast.success("Avaliação enviada com sucesso!");
         setComment("");
         if (onSuccess) onSuccess();

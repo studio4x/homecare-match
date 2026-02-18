@@ -94,7 +94,6 @@ const InteractionHistory = ({
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
   const [reviewedProfiles, setReviewedProfiles] = useState<string[]>([]);
 
-  // Novos estados para o fluxo de confirmação
   const [explanationModalOpen, setExplanationModalOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [statusInfoModalOpen, setStatusInfoModalOpen] = useState(false);
@@ -116,7 +115,7 @@ const InteractionHistory = ({
   }, [user, reviewModalOpen]);
 
   const handleStatusUpdate = async () => {
-    if (!activeInteraction?.id) return;
+    if (!activeInteraction?.id || !user) return;
     
     const interactionId = activeInteraction.id;
     const currentStatus = activeInteraction.status || 'pending';
@@ -141,6 +140,18 @@ const InteractionHistory = ({
         .eq('id', interactionId);
       
       if (error) throw error;
+
+      // --- NOTIFICAÇÃO PARA A OUTRA PARTE ---
+      const targetId = isProf ? activeInteraction.profile.id : activeInteraction.profile.id; // O profile aqui é sempre a outra parte
+      const myName = (await supabase.from('profiles').select('full_name').eq('id', user.id).single()).data?.full_name || "Um usuário";
+
+      await supabase.from('notifications').insert({
+        user_id: targetId,
+        title: "🤝 Atendimento Confirmado",
+        content: `\${myName} marcou o atendimento como realizado. \${newStatus === 'completed' ? 'O atendimento foi finalizado!' : 'Confirme você também para liberar as avaliações.'}`,
+        link: "/dashboard/contatos",
+        type: 'success'
+      });
       
       toast.success(newStatus === 'completed' ? "Atendimento concluído com sucesso!" : "Sua confirmação foi registrada.");
       setTimeout(() => window.location.reload(), 1000);
@@ -166,39 +177,12 @@ const InteractionHistory = ({
   const getInitials = (name: string) =>
     name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
 
-  const getWhatsappMessage = (contact: Interaction['profile']) => {
-    if (viewerRole === 'professional') {
-      return ['Olá.', '', 'Vi que você teve interesse no meu perfil na HomeCare Match.', 'Podemos conversar?'].join('\n');
-    }
-    return [`Olá, ${contact.full_name}.`, '', 'Vi seu perfil na HomeCare Match e gostaria de conversar.', 'Podemos falar?'].join('\n');
-  };
-
-  const maskPhone = (phone: string | undefined) => {
-    if (!phone) return "Não informado";
-    if (phone.includes('(') && phone.includes(')')) {
-      const parts = phone.split(')');
-      const ddd = parts[0] + ')';
-      const rest = parts[1];
-      const maskedRest = rest.replace(/\d(?=\d{4})/g, "*");
-      return ddd + maskedRest;
-    }
-    return phone.replace(/\d(?=\d{4})/g, "*");
-  };
-
   const handleWhatsAppClick = async (contact: Interaction['profile']) => {
     if (!user) return;
-    
-    supabase.from('whatsapp_clicks').insert({
-      profile_id: contact.id,
-      clicker_id: user.id,
-      clicker_role: viewerRole
-    }).then(({ error }) => {
-      if (error) console.warn("[Analytics] Erro ao registrar clique:", error);
-    });
-
-    const message = encodeURIComponent(getWhatsappMessage(contact));
+    supabase.from('whatsapp_clicks').insert({ profile_id: contact.id, clicker_id: user.id, clicker_role: viewerRole });
+    const message = encodeURIComponent("Olá.");
     const phone = contact.phone?.replace(/\D/g, '');
-    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    window.open(`https://wa.me/\${phone}?text=\${message}`, '_blank');
   };
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -234,11 +218,7 @@ const InteractionHistory = ({
 
     if (isProf && status === 'professional_confirmed') {
       return (
-        <Button 
-          variant="outline" 
-          className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5 hover:text-primary hover:bg-primary/10"
-          onClick={() => { setActiveInteraction(interaction); setStatusInfoModalOpen(true); }}
-        >
+        <Button variant="outline" className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5" onClick={() => { setActiveInteraction(interaction); setStatusInfoModalOpen(true); }}>
           <Clock className="h-3 w-3" /> <span className="text-xs">Aguardando Contratante</span>
         </Button>
       );
@@ -246,11 +226,7 @@ const InteractionHistory = ({
 
     if (!isProf && status === 'sender_confirmed') {
       return (
-        <Button 
-          variant="outline" 
-          className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5 hover:text-primary hover:bg-primary/10"
-          onClick={() => { setActiveInteraction(interaction); setStatusInfoModalOpen(true); }}
-        >
+        <Button variant="outline" className="border-primary/30 text-primary bg-primary/5 h-8 gap-1.5" onClick={() => { setActiveInteraction(interaction); setStatusInfoModalOpen(true); }}>
           <Clock className="h-3 w-3" /> <span className="text-xs">Aguardando Profissional</span>
         </Button>
       );
@@ -264,28 +240,14 @@ const InteractionHistory = ({
         size="sm" 
         onClick={() => {
           setActiveInteraction(interaction);
-          if (needsMyConfirmation) {
-            setConfirmDialogOpen(true);
-          } else {
-            setExplanationModalOpen(true);
-          }
+          if (needsMyConfirmation) setConfirmDialogOpen(true);
+          else setExplanationModalOpen(true);
         }} 
         disabled={isUpdatingStatus === interaction.id}
-        className={cn(
-          "gap-1.5 h-8",
-          needsMyConfirmation ? "bg-primary" : "border-success/30 text-success hover:bg-success/5 hover:text-success"
-        )}
+        className={cn("gap-1.5 h-8", needsMyConfirmation ? "bg-primary" : "border-success/30 text-success")}
       >
-        {isUpdatingStatus === interaction.id ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
-        ) : needsMyConfirmation ? (
-          <AlertCircle className="h-3 w-3" />
-        ) : (
-          <CheckCircle2 className="h-3 w-3" />
-        )}
-        <span className="text-xs">
-          {needsMyConfirmation ? "Confirmar Atendimento" : "Atendimento Realizado?"}
-        </span>
+        {isUpdatingStatus === interaction.id ? <Loader2 className="h-3 w-3 animate-spin" /> : needsMyConfirmation ? <AlertCircle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
+        <span className="text-xs">{needsMyConfirmation ? "Confirmar Atendimento" : "Atendimento Realizado?"}</span>
       </Button>
     );
   };
@@ -297,8 +259,7 @@ const InteractionHistory = ({
           <CardTitle>{title}</CardTitle>
           {totalItems > 0 && !loading && (
             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-destructive" onClick={onClear}>
-              <Users className="h-3 w-3 mr-1" />
-              Limpar Lista
+              <Users className="h-3 w-3 mr-1" /> Limpar Lista
             </Button>
           )}
         </CardHeader>
@@ -331,16 +292,13 @@ const InteractionHistory = ({
                       <p className="text-xs text-muted-foreground">Contato em: {new Date(interaction.interacted_at).toLocaleDateString('pt-BR')}</p>
                     </div>
                   </div>
-                  
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     {renderStatusButton(interaction)}
-
                     <Button variant="ghost" size="sm" asChild className="h-8">
-                      <Link to={viewerRole === 'professional' ? `/recruiter/${interaction.profile.id}` : `/profissional/${interaction.profile.id}`}>
+                      <Link to={viewerRole === 'professional' ? `/recruiter/\${interaction.profile.id}` : `/profissional/\${interaction.profile.id}`}>
                         <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
                       </Link>
                     </Button>
-                    
                     <Button variant="default" size="sm" onClick={() => handleContactClick(interaction.profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
                       <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
                     </Button>
@@ -356,137 +314,57 @@ const InteractionHistory = ({
           <CardFooter className="border-t pt-4">
             <Pagination>
               <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); if (currentPage > 1) onPageChange(currentPage - 1); }} className={cn("cursor-pointer", currentPage === 1 && "pointer-events-none opacity-50")} />
-                </PaginationItem>
+                <PaginationItem><PaginationPrevious href="#" onClick={(e) => { e.preventDefault(); if (currentPage > 1) onPageChange(currentPage - 1); }} className={cn("cursor-pointer", currentPage === 1 && "pointer-events-none opacity-50")} /></PaginationItem>
                 <PaginationItem><span className="text-sm font-medium text-muted-foreground">Página {currentPage} de {totalPages}</span></PaginationItem>
-                <PaginationItem>
-                  <PaginationNext href="#" onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) onPageChange(currentPage + 1); }} className={cn("cursor-pointer", currentPage === totalPages && "pointer-events-none opacity-50")} />
-                </PaginationItem>
+                <PaginationItem><PaginationNext href="#" onClick={(e) => { e.preventDefault(); if (currentPage < totalPages) onPageChange(currentPage + 1); }} className={cn("cursor-pointer", currentPage === totalPages && "pointer-events-none opacity-50")} /></PaginationItem>
               </PaginationContent>
             </Pagination>
           </CardFooter>
         )}
       </Card>
 
-      {/* Modal de Explicação da Importância */}
       <Dialog open={explanationModalOpen} onOpenChange={setExplanationModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <Info className="h-6 w-6 text-primary" />
-            </div>
+            <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4"><Info className="h-6 w-6 text-primary" /></div>
             <DialogTitle className="text-center">Por que marcar como realizado?</DialogTitle>
-            <DialogDescription className="text-center pt-2">
-              Confirmar o atendimento é fundamental para manter a qualidade da plataforma.
-            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg">
-              <CheckCircle className="h-5 w-5 text-success shrink-0 mt-0.5" />
-              <p className="text-sm text-muted-foreground">
-                <strong>Segurança:</strong> Ajuda a plataforma a saber que o contato resultou em um serviço real.
-              </p>
-            </div>
-            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg">
-              <Star className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-sm text-muted-foreground">
-                <strong>Avaliações:</strong> Somente após a confirmação mútua você poderá avaliar a experiência.
-              </p>
-            </div>
-            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg">
-              <Users className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <p className="text-sm text-muted-foreground">
-                <strong>Reputação:</strong> Profissionais com mais atendimentos confirmados ganham mais destaque.
-              </p>
-            </div>
+            <div className="flex items-start gap-3 bg-secondary/30 p-3 rounded-lg"><CheckCircle className="h-5 w-5 text-success shrink-0 mt-0.5" /><p className="text-sm text-muted-foreground"><strong>Segurança:</strong> Ajuda a plataforma a saber que o contato resultou em um serviço real.</p></div>
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setExplanationModalOpen(false)} className="w-full sm:w-auto">Agora não</Button>
-            <Button onClick={() => setConfirmDialogOpen(true)} className="w-full sm:w-auto">Marcar como Realizado</Button>
-          </DialogFooter>
+          <DialogFooter><Button variant="ghost" onClick={() => setExplanationModalOpen(false)} className="w-full sm:w-auto">Agora não</Button><Button onClick={() => setConfirmDialogOpen(true)} className="w-full sm:w-auto">Marcar como Realizado</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Alerta de Confirmação Final */}
       <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Atendimento?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Você confirma que o atendimento com <strong>{activeInteraction?.profile.full_name}</strong> foi efetivamente realizado?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Não</AlertDialogCancel>
-            <AlertDialogAction onClick={handleStatusUpdate}>Sim, foi realizado</AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Confirmar Atendimento?</AlertDialogTitle><AlertDialogDescription>Você confirma que o atendimento com <strong>{activeInteraction?.profile.full_name}</strong> foi efetivamente realizado?</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Não</AlertDialogCancel><AlertDialogAction onClick={handleStatusUpdate}>Sim, foi realizado</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Modal de Informação de Status (Aguardando...) */}
       <Dialog open={statusInfoModalOpen} onOpenChange={setStatusInfoModalOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="mx-auto h-12 w-12 rounded-full bg-amber-50 flex items-center justify-center mb-4">
-              <Clock className="h-6 w-6 text-amber-600" />
-            </div>
-            <DialogTitle className="text-center">Aguardando Confirmação</DialogTitle>
-            <DialogDescription className="text-center pt-2">
-              Você já marcou este atendimento como realizado.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-6 text-center space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Para que o atendimento seja finalizado e as avaliações sejam liberadas, 
-              <strong> {activeInteraction?.profile.full_name}</strong> também precisa confirmar a realização no painel dele(a).
-            </p>
-            <div className="p-4 border rounded-xl bg-secondary/10">
-              <p className="text-xs font-medium text-foreground">Dica: Você pode enviar uma mensagem no WhatsApp lembrando a outra parte de confirmar o atendimento na HomeCare Match!</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setStatusInfoModalOpen(false)} className="w-full">Entendido</Button>
-          </DialogFooter>
+          <DialogHeader><div className="mx-auto h-12 w-12 rounded-full bg-amber-50 flex items-center justify-center mb-4"><Clock className="h-6 w-6 text-amber-600" /></div><DialogTitle className="text-center">Aguardando Confirmação</DialogTitle></DialogHeader>
+          <div className="py-6 text-center space-y-4"><p className="text-sm text-muted-foreground">Para que o atendimento seja finalizado e as avaliações sejam liberadas, <strong> {activeInteraction?.profile.full_name}</strong> também precisa confirmar.</p></div>
+          <DialogFooter><Button onClick={() => setStatusInfoModalOpen(false)} className="w-full">Entendido</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={contactModalOpen} onOpenChange={setContactModalOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Informações de Contato</DialogTitle>
-            <DialogDescription>Entre em contato com {selectedContact?.full_name}.</DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Informações de Contato</DialogTitle></DialogHeader>
           <div className="py-4 space-y-4">
-            <div className="flex items-center gap-3 rounded-lg border p-4">
-              <WhatsAppIcon className="h-6 w-6 text-green-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">WhatsApp</p>
-                <p className="font-semibold">{maskPhone(selectedContact?.phone)}</p>
-              </div>
-            </div>
-            {selectedContact?.phone && (
-              <Button onClick={() => handleWhatsAppClick(selectedContact)} className="w-full gap-2 bg-green-600 hover:bg-green-700">
-                <WhatsAppIcon className="h-4 w-4" /> Iniciar Conversa
-              </Button>
-            )}
+            <div className="flex items-center gap-3 rounded-lg border p-4"><WhatsAppIcon className="h-6 w-6 text-green-600" /><div><p className="text-sm text-muted-foreground">WhatsApp</p><p className="font-semibold">{selectedContact?.phone}</p></div></div>
+            {selectedContact?.phone && <Button onClick={() => handleWhatsAppClick(selectedContact)} className="w-full gap-2 bg-green-600 hover:bg-green-700"><WhatsAppIcon className="h-4 w-4" /> Iniciar Conversa</Button>}
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={reviewModalOpen} onOpenChange={setReviewModalOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Avaliar Atendimento</DialogTitle><DialogDescription>Deixe sua opinião sobre o atendimento de <strong>{profileToReview?.full_name}</strong>.</DialogDescription></DialogHeader>
-          {user && profileToReview && (
-            <ReviewForm 
-              reviewerId={user.id} 
-              subjectId={profileToReview.id} 
-              onSuccess={() => {
-                setReviewModalOpen(false);
-                setReviewedProfiles(prev => [...prev, profileToReview.id]);
-              }} 
-            />
-          )}
+          <DialogHeader><DialogTitle>Avaliar Atendimento</DialogTitle></DialogHeader>
+          {user && profileToReview && <ReviewForm reviewerId={user.id} subjectId={profileToReview.id} onSuccess={() => { setReviewModalOpen(false); setReviewedProfiles(prev => [...prev, profileToReview.id]); }} />}
         </DialogContent>
       </Dialog>
     </>

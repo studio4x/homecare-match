@@ -30,6 +30,7 @@ import ScrollToTop from "../ScrollToTop";
 import MarketingScripts from "../MarketingScripts";
 import ImpersonationBar from "../ImpersonationBar";
 import ScrollToTopButton from "../ScrollToTopButton";
+import UserNotificationWidget from "../UserNotificationWidget";
 
 const UserLayout = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -51,7 +52,6 @@ const UserLayout = () => {
           .single();
         
         if (data) {
-          // Se for admin, marca como proibido e redireciona IMEDIATAMENTE
           if (data.is_admin || data.role === 'admin') {
             setIsForbiddenAdmin(true);
             navigate('/admin', { replace: true });
@@ -112,7 +112,6 @@ const UserLayout = () => {
       <MarketingScripts />
       
       <div className="flex flex-1 bg-secondary/10">
-        {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
           <div 
             className="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -120,7 +119,6 @@ const UserLayout = () => {
           />
         )}
 
-        {/* Sidebar */}
         <aside className={cn(
           "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:block",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -174,7 +172,6 @@ const UserLayout = () => {
           </div>
         </aside>
 
-        {/* Main Content Area */}
         <main className="flex-1 flex flex-col min-w-0">
           <header className="h-14 flex items-center gap-4 px-4 border-b bg-card lg:hidden sticky top-0 z-30">
             <button onClick={() => setSidebarOpen(true)}>
@@ -192,6 +189,7 @@ const UserLayout = () => {
         </main>
       </div>
 
+      <UserNotificationWidget />
       <Footer />
       <ScrollToTopButton />
       <AppVersion />

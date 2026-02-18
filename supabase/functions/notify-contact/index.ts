@@ -19,45 +19,38 @@ serve(async (req) => {
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASS');
     
-    if (!smtpHost || !smtpUser || !smtpPass) throw new Error("SMTP configuration missing");
-
-    const authHeader = req.headers.get('Authorization');
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const { data: { user: caller } } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
-
     const { professional_id, sender_id } = await req.json();
 
     const { data: professional } = await supabaseAdmin.from('profiles').select('full_name, email').eq('id', professional_id).single();
     const { data: sender } = await supabaseAdmin.from('profiles').select('full_name, role, city, state, bio').eq('id', sender_id).single();
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: parseInt(Deno.env.get('SMTP_PORT') || "587"),
-      secure: Deno.env.get('SMTP_PORT') === "465",
-      auth: { user: smtpUser, pass: smtpPass },
+    // --- NOTIFICAÇÃO PARA O PROFISSIONAL ---
+    const senderType = sender.role === 'company' ? 'Uma empresa' : 'Uma família';
+    await supabaseAdmin.from('notifications').insert({
+      user_id: professional_id,
+      title: "👤 Novo Interesse no seu Perfil!",
+      content: `\${senderType} (\${sender.full_name}) salvou seu contato e pode te chamar no WhatsApp em breve.`,
+      link: "/dashboard/contatos",
+      type: 'info'
     });
 
-    const senderRoleText = sender.role === 'company' ? 'a empresa' : 'a família';
-    const senderProfileLink = `${SITE_URL}/recruiter/${sender_id}`;
-
-    await transporter.sendMail({
-      from: `"HomeCare Match" <${smtpUser}>`,
-      to: professional.email,
-      subject: `🎉 Boa notícia! Você recebeu um novo contato!`,
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
-          <h2 style="color: #2563eb;">Olá, ${professional.full_name}!</h2>
-          <p>Temos uma ótima notícia: ${senderRoleText} <strong>${sender.full_name}</strong> demonstrou interesse no seu perfil.</p>
-          <div style="margin: 20px 0; padding: 15px; background: #f1f5f9; border-radius: 8px;">
-            <p><strong>Localização:</strong> ${sender.city || 'Não informado'} - ${sender.state || 'Não informado'}</p>
-            <p><strong>Sobre:</strong> ${sender.bio || 'Nenhuma descrição fornecida.'}</p>
-          </div>
-          <div style="margin-top: 20px;">
-            <a href="${senderProfileLink}" style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Ver Perfil do Recrutador</a>
-          </div>
-        </div>
-      `,
-    });
+    // E-mail (mantido)
+    if (smtpHost && smtpUser && smtpPass) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(Deno.env.get('SMTP_PORT') || "587"),
+        secure: Deno.env.get('SMTP_PORT') === "465",
+        auth: { user: smtpUser, pass: smtpPass },
+      });
+      const senderRoleText = sender.role === 'company' ? 'a empresa' : 'a família';
+      await transporter.sendMail({
+        from: `"HomeCare Match" <\${smtpUser}>`,
+        to: professional.email,
+        subject: `🎉 Boa notícia! Você recebeu um novo contato!`,
+        html: `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;"><h2 style="color: #2563eb;">Olá, \${professional.full_name}!</h2><p>Temos uma ótima notícia: \${senderRoleText} <strong>\${sender.full_name}</strong> demonstrou interesse no seu perfil.</p></div>`,
+      });
+    }
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {

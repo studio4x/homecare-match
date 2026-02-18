@@ -42,11 +42,22 @@ const ChangePasswordDialog = () => {
 
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.auth.updateUser({
         password: passwords.newPassword,
       });
 
       if (error) throw error;
+
+      // --- NOTIFICAÇÃO DE SEGURANÇA ---
+      if (user) {
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: "🔐 Senha Alterada",
+          content: "Sua senha de acesso foi atualizada com sucesso. Se não foi você, entre em contato com o suporte.",
+          type: 'warning'
+        });
+      }
 
       toast.success("Senha atualizada com sucesso!");
       setOpen(false);

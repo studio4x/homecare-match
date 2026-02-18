@@ -277,7 +277,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
                     ))}
                   </SelectContent>
                 </Select>
-                {profile && allowedPriorities.length < ALL_PRIORITIES.length && (
+                {profile && profile.role === 'professional' && allowedPriorities.length < ALL_PRIORITIES.length && (
                   <p className="text-[10px] text-amber-600 flex items-center gap-1 mt-1">
                     <Lock className="h-2.5 w-2.5" />
                     Algumas prioridades são exclusivas para planos superiores.

@@ -13,26 +13,16 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[security-patch-privacy] Iniciando blindagem profunda...");
+    console.log("[security-patch-privacy] Corrigindo políticas de RLS para evitar recursão...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
-    // Executamos em blocos separados para evitar que um erro de 'View' bloqueie as 'Colunas'
-    
-    // 1. Garantir colunas
-    await client.queryObject(`
-      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS professional_experiences TEXT;
-      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
-      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lat NUMERIC;
-      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lng NUMERIC;
-    `);
+    const sql = `
+      -- 1. Limpeza da View (CASCADE para garantir que nada bloqueie)
+      DROP VIEW IF EXISTS public.professional_discovery CASCADE;
 
-    // 2. Limpeza profunda da View (O CASCADE remove dependências que impedem o REPLACE)
-    await client.queryObject(`DROP VIEW IF EXISTS public.professional_discovery CASCADE;`);
-
-    // 3. Criar a View Segura
-    await client.queryObject(`
+      -- 2. Recriar a View Segura
       CREATE VIEW public.professional_discovery AS
       SELECT 
         id, full_name, avatar_url, specialty, city, state, neighborhood, 
@@ -45,45 +35,38 @@ serve(async (req) => {
 
       GRANT SELECT ON public.professional_discovery TO authenticated;
       GRANT SELECT ON public.professional_discovery TO anon;
-    `);
 
-    // 4. Configurar RLS (Remover e Recriar)
-    await client.queryObject(`
-      DROP POLICY IF EXISTS "profiles_public_read_policy" ON public.profiles;
-      DROP POLICY IF EXISTS "profiles_public_select" ON public.profiles;
+      -- 3. Corrigir Política de RLS na tabela 'profiles'
+      -- Usamos a função check_is_admin() que é SECURITY DEFINER para evitar recursão infinita
       DROP POLICY IF EXISTS "profiles_secure_access" ON public.profiles;
 
       CREATE POLICY "profiles_secure_access" ON public.profiles
       FOR SELECT TO authenticated
       USING (
         (auth.uid() = id) OR 
-        (EXISTS (
-          SELECT 1 FROM public.profiles p 
-          WHERE p.id = auth.uid() AND (p.is_admin = true OR p.role = 'admin')
-        )) OR
+        (public.check_is_admin() = true) OR
         (EXISTS (
           SELECT 1 FROM public.interactions i 
           WHERE (i.sender_id = auth.uid() AND i.professional_id = profiles.id)
              OR (i.professional_id = auth.uid() AND i.sender_id = profiles.id)
         ))
       );
-    `);
 
-    // 5. Notificar recarregamento
-    await client.queryObject(`NOTIFY pgrst, 'reload schema';`);
+      -- 4. Notificar recarregamento
+      NOTIFY pgrst, 'reload schema';
+    `;
 
+    await client.queryObject(sql);
     await client.end();
     client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Blindagem aplicada com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Políticas corrigidas com sucesso!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("[security-patch-privacy] Erro fatal:", e.message);
-    if (client) {
-      try { await client.end(); } catch (err) { console.error("Erro ao fechar cliente:", err); }
-    }
+    if (client) try { await client.end(); } catch {}
     return new Response(JSON.stringify({ error: e.message }), { 
       status: 500, 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 

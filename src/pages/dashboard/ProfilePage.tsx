@@ -125,19 +125,24 @@ const ProfilePage = () => {
   const fetchProfile = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
-      setProfile({
-        ...data,
-        availability: data.availability || [],
-        patient_profiles: data.patient_profiles || [],
-      });
+      if (error) throw error;
+
+      if (data) {
+        setProfile({
+          ...data,
+          availability: data.availability || [],
+          patient_profiles: data.patient_profiles || [],
+        });
+      }
     } catch (err) {
-      console.error(err);
+      console.error("[ProfilePage] Erro ao carregar:", err);
+      toast.error("Erro ao carregar seus dados. Tente atualizar a página.");
     } finally {
       setLoading(false);
     }
@@ -151,10 +156,9 @@ const ProfilePage = () => {
     setProfile({ ...profile, phone: formatted });
   };
 
-  // Função centralizada para validar localização
   const handleValidateLocation = useCallback(async (currentProfile?: any) => {
     const p = currentProfile || profile;
-    if (!p.address_street || !p.city || !p.state || !p.address_zip) return;
+    if (!p?.address_street || !p?.city || !p?.state || !p?.address_zip) return;
 
     setIsGeocoding(true);
     try {
@@ -179,7 +183,7 @@ const ProfilePage = () => {
   }, [profile]);
 
   const handleCepBlur = async () => {
-    if (!profile.address_zip) return;
+    if (!profile?.address_zip) return;
     const cep = profile.address_zip.replace(/\D/g, '');
     if (cep.length !== 8) return;
     setIsLoadingCep(true);
@@ -196,7 +200,6 @@ const ProfilePage = () => {
         };
         setProfile(updatedProfile);
         
-        // Se já tiver número, tenta geocodificar imediatamente
         if (updatedProfile.address_number) {
           handleValidateLocation(updatedProfile);
         }
@@ -242,7 +245,7 @@ const ProfilePage = () => {
   };
 
   const handleGenerateBio = async () => {
-    if (!profile.full_name || !profile.specialty || !profile.experience) {
+    if (!profile?.full_name || !profile?.specialty || !profile?.experience) {
       toast.error("Preencha nome, especialidade e formações primeiro.");
       return;
     }
@@ -327,7 +330,6 @@ const ProfilePage = () => {
 
     setIsSaving(true);
     try {
-      // Geocodificação final de segurança antes de salvar se ainda não houver lat/lng
       let finalLat = profile.lat;
       let finalLng = profile.lng;
 
@@ -405,14 +407,14 @@ const ProfilePage = () => {
   };
 
   const handleRequestVerification = async () => {
-    const isFamily = profile.role === 'family';
+    const isFamily = profile?.role === 'family';
     
-    if (isFamily && !profile.id_document_url) {
+    if (isFamily && !profile?.id_document_url) {
       toast.error("Envie o documento de identidade antes de solicitar análise.");
       return;
     }
 
-    if (!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) {
+    if (!isFamily && (!profile?.id_document_url || !profile?.prof_registration_url)) {
       toast.error("Envie os dois documentos antes de solicitar análise.");
       return;
     }
@@ -440,6 +442,17 @@ const ProfilePage = () => {
   };
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
+
+  if (!profile) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+        <AlertCircle className="h-12 w-12 text-destructive opacity-50" />
+        <h2 className="text-xl font-bold">Erro ao carregar perfil</h2>
+        <p className="text-muted-foreground">Não foi possível recuperar seus dados do servidor.</p>
+        <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
+      </div>
+    );
+  }
 
   const isProfessional = profile.role === 'professional';
   const isCompany = profile.role === 'company';
@@ -800,7 +813,7 @@ const ProfilePage = () => {
                     <div className="grid gap-2">
                       {availabilityOptions.map(opt => (
                         <div key={opt} className="flex items-center gap-2">
-                          <Checkbox id={opt} checked={profile.availability.includes(opt)} onCheckedChange={() => handleCheckboxChange('availability', opt)} />
+                          <Checkbox id={opt} checked={profile.availability?.includes(opt)} onCheckedChange={() => handleCheckboxChange('availability', opt)} />
                           <label htmlFor={opt} className="text-xs">{opt}</label>
                         </div>
                       ))}
@@ -812,7 +825,7 @@ const ProfilePage = () => {
                     <div className="grid gap-2">
                       {patientProfileOptions.map(opt => (
                         <div key={opt} className="flex items-center gap-2">
-                          <Checkbox id={opt} checked={profile.patient_profiles.includes(opt)} onCheckedChange={() => handleCheckboxChange('patient_profiles', opt)} />
+                          <Checkbox id={opt} checked={profile.patient_profiles?.includes(opt)} onCheckedChange={() => handleCheckboxChange('patient_profiles', opt)} />
                           <label htmlFor={opt} className="text-xs">{opt}</label>
                         </div>
                       ))}
@@ -883,7 +896,7 @@ const ProfilePage = () => {
                     <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>
                         {profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}
                     </Button>
-                    <input type="file" ref={idDocRef} className="hidden" onChange={e => handleFileUpload(e, 'id_doc')} />
+                    <input type="file" id="id_doc" ref={idDocRef} className="hidden" onChange={e => handleFileUpload(e, 'id_doc')} />
                   </div>
                   
                   {!isFamily && (
@@ -892,7 +905,7 @@ const ProfilePage = () => {
                       <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>
                           {profile.prof_registration_url ? "✓ Documento enviado" : "Selecionar arquivo"}
                       </Button>
-                      <input type="file" ref={profDocRef} className="hidden" onChange={e => handleFileUpload(e, 'prof_doc')} />
+                      <input type="file" id="prof_doc" ref={profDocRef} className="hidden" onChange={e => handleFileUpload(e, 'prof_doc')} />
                     </div>
                   )}
 

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 
 const corsHeaders = {
@@ -6,14 +7,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const SUPABASE_URL = "https://rkjvtnadqkbwomgzyswr.supabase.co";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL")!;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   let client: Client | null = null;
+
   try {
-    console.log("[setup-audit-trail] Criando estrutura de auditoria...");
+    console.log("[setup-audit-trail] Iniciando configuração robusta...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
@@ -36,26 +41,32 @@ serve(async (req) => {
       -- 3. Políticas de Segurança
       DO $$
       BEGIN
-        -- Apenas Admins podem ler os logs
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Admins can read logs') THEN
-          CREATE POLICY "Admins can read logs" ON public.admin_logs 
-          FOR SELECT TO authenticated USING (check_is_admin());
-        END IF;
-
-        -- Ninguém pode deletar ou alterar logs (Imutabilidade)
-        DROP POLICY IF EXISTS "No one can delete logs" ON public.admin_logs;
-        DROP POLICY IF EXISTS "No one can update logs" ON public.admin_logs;
+        DROP POLICY IF EXISTS "Admins can read logs" ON public.admin_logs;
+        CREATE POLICY "Admins can read logs" ON public.admin_logs 
+        FOR SELECT TO authenticated USING (check_is_admin());
       END
       $$;
 
-      -- 4. Notificar recarregamento
+      -- 4. Notifica o recarregamento
       NOTIFY pgrst, 'reload schema';
     `;
 
     await client.queryObject(sql);
     await client.end();
+    client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de auditoria configurado!" }), {
+    // 5. Inserir log de teste/inicialização
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+
+    await supabaseAdmin.from('admin_logs').insert({
+      admin_id: user?.id,
+      action_type: 'SYSTEM_SETUP',
+      details: 'O sistema de auditoria foi configurado ou atualizado com sucesso.'
+    });
+
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de auditoria pronto!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

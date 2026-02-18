@@ -24,7 +24,8 @@ import {
   Eye,
   Maximize2,
   ShoppingCart,
-  Zap
+  Zap,
+  ShieldCheck
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -66,6 +67,8 @@ const CourseDetail = () => {
   const [videoLoading, setVideoLoading] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
+  const isAdmin = userProfile?.is_admin || userProfile?.role === 'admin';
+
   const fetchCourseData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -98,7 +101,8 @@ const CourseDetail = () => {
         const { data: enr } = await supabase.from("academy_enrollments").select("id").eq("user_id", user.id).eq("course_slug", slug).maybeSingle();
         setIsEnrolled(!!enr);
 
-        if (enr) {
+        // Admins ou matriculados podem ver os conteúdos privados
+        if (enr || (prof?.is_admin || prof?.role === 'admin')) {
           if (storagePathsToSign.length > 0) {
             const { data: signedData, error: signErr } = await supabase.storage
               .from(PRIVATE_BUCKET)
@@ -207,7 +211,7 @@ const CourseDetail = () => {
     }
   }, [loading, isEnrolled, stats.done, stats.total, certificateId]);
 
-  const isYearlyPlan = userProfile?.subscription_tier === 'yearly' || userProfile?.is_admin || userProfile?.role === 'admin';
+  const isYearlyPlan = userProfile?.subscription_tier === 'yearly' || isAdmin;
 
   const handleEnroll = async () => {
     if (!session) {
@@ -217,7 +221,7 @@ const CourseDetail = () => {
     }
 
     const isFree = !course.price || course.price === 0;
-    if (isFree && !isYearlyPlan) {
+    if (isFree && !isYearlyPlan && !isAdmin) {
       toast.error("Acesso restrito!", {
         description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
       });
@@ -227,7 +231,7 @@ const CourseDetail = () => {
 
     setEnrollmentLoading(true);
 
-    if (course.price && course.price > 0) {
+    if (course.price && course.price > 0 && !isAdmin) {
       const toastId = toast.loading("Iniciando checkout...");
       try {
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
@@ -323,10 +327,10 @@ const CourseDetail = () => {
   };
 
   const handleOpenLesson = (lesson: any) => {
-    if (!isEnrolled) return;
+    if (!isEnrolled && !isAdmin) return;
     
     const isFree = !course.price || course.price === 0;
-    if (isFree && !isYearlyPlan) {
+    if (isFree && !isYearlyPlan && !isAdmin) {
       toast.error("Acesso restrito!", {
         description: "Sua assinatura atual não permite o acesso a este conteúdo gratuito."
       });
@@ -394,7 +398,7 @@ const CourseDetail = () => {
                   <span className="text-sm text-muted-foreground">{course.duration_minutes} min</span>
                 </div>
                 
-                {!isEnrolled ? (
+                {!isEnrolled && !isAdmin ? (
                   <div className="space-y-4">
                     {course.price && course.price > 0 ? (
                       <div className="text-center p-3 bg-secondary/20 rounded-lg border border-dashed">
@@ -424,6 +428,12 @@ const CourseDetail = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {isAdmin && !isEnrolled && (
+                      <div className="bg-primary/10 border border-primary/20 p-3 rounded-lg flex items-center gap-2 text-[10px] text-primary font-bold uppercase">
+                        <ShieldCheck className="h-4 w-4" />
+                        Acesso Administrativo Liberado
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm font-medium">
                         <span>Seu Progresso</span>
@@ -462,7 +472,7 @@ const CourseDetail = () => {
               <h2 className="text-2xl font-bold flex items-center gap-2">Conteúdo do Curso</h2>
               <div className="space-y-6">
                 {course.modules?.map((m: any) => (
-                  <Card key={m.id} className={cn(!isEnrolled && "opacity-80")}>
+                  <Card key={m.id} className={cn(!isEnrolled && !isAdmin && "opacity-80")}>
                     <CardHeader className="bg-muted/30 py-4">
                       <CardTitle className="text-lg">{m.title}</CardTitle>
                     </CardHeader>
@@ -471,14 +481,14 @@ const CourseDetail = () => {
                         {m.lessons?.map((l: any) => {
                           const status = progress[l.id] || 'pending';
                           const isFree = !course.price || course.price === 0;
-                          const isLocked = isFree && !isYearlyPlan && !isEnrolled;
+                          const isLocked = isFree && !isYearlyPlan && !isEnrolled && !isAdmin;
                           
                           return (
                             <div
                               key={l.id}
                               className={cn(
                                 "p-3 sm:p-4 flex items-center justify-between gap-2 sm:gap-4 transition-colors",
-                                isEnrolled && !isLocked ? "hover:bg-secondary/30 cursor-pointer" : "cursor-not-allowed"
+                                (isEnrolled || isAdmin) && !isLocked ? "hover:bg-secondary/30 cursor-pointer" : "cursor-not-allowed"
                               )}
                               onClick={() => handleOpenLesson(l)}
                             >
@@ -496,7 +506,7 @@ const CourseDetail = () => {
                               </div>
                               
                               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                                {isEnrolled && !isLocked ? (
+                                {(isEnrolled || isAdmin) && !isLocked ? (
                                   <>
                                     <Button
                                       variant="outline"

@@ -16,7 +16,8 @@ import {
   BookOpen,
   Lock,
   Zap,
-  ShoppingCart
+  ShoppingCart,
+  ShieldCheck
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -96,7 +97,7 @@ const Courses = () => {
         if (user) {
           const { data } = await supabase
             .from("profiles")
-            .select("role, subscription_tier")
+            .select("role, subscription_tier, is_admin")
             .eq("id", user.id)
             .single();
           setUserProfile(data);
@@ -208,9 +209,10 @@ const Courses = () => {
     });
   }, [courses, filterLevel, filterType]);
 
+  const isAdmin = userProfile?.is_admin || userProfile?.role === 'admin';
   const isEnrolled = (slug: string) => enrollments.enrolledSlugs.includes(slug);
   const isCompleted = (slug: string) => completedSlugs.includes(slug);
-  const isYearlyPlan = userProfile?.subscription_tier === 'yearly' || userProfile?.is_admin || userProfile?.role === 'admin';
+  const isYearlyPlan = userProfile?.subscription_tier === 'yearly' || isAdmin;
 
   const enroll = async (course: Course) => {
     if (!user) {
@@ -220,8 +222,8 @@ const Courses = () => {
 
     const isFree = !course.price || course.price === 0;
     
-    // Se for gratuito, exige plano anual
-    if (isFree && !isYearlyPlan) {
+    // Se for gratuito, exige plano anual (exceto para admin)
+    if (isFree && !isYearlyPlan && !isAdmin) {
       toast.error("Acesso restrito!", {
         description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
       });
@@ -231,8 +233,8 @@ const Courses = () => {
 
     setLoadingEnroll(true);
 
-    // Se for pago, inicia o checkout da Stripe
-    if (!isFree) {
+    // Se for pago, inicia o checkout da Stripe (exceto para admin que acessa tudo)
+    if (!isFree && !isAdmin) {
       const toastId = toast.loading("Iniciando checkout...");
       try {
         const { data, error } = await supabase.functions.invoke('create-checkout-session', {
@@ -253,7 +255,7 @@ const Courses = () => {
       return;
     }
 
-    // Se for gratuito e tiver o plano correto, inscreve direto
+    // Se for gratuito ou admin, inscreve direto
     try {
       const { error } = await supabase
         .from("academy_enrollments")
@@ -301,7 +303,8 @@ const Courses = () => {
     );
   }
 
-  if (session && userRole !== "professional") {
+  // Admins podem acessar mesmo que não tenham o papel 'professional'
+  if (session && userRole !== "professional" && !isAdmin) {
     return (
       <Layout>
         <AccessRestricted
@@ -323,12 +326,22 @@ const Courses = () => {
             </h1>
             <p className="text-muted-foreground">Aprimore seus conhecimentos e conquiste novos selos para seu perfil.</p>
           </div>
-          <Button asChild variant="outline" className="hidden md:flex gap-2">
-            <Link to="/dashboard">
-              <LayoutDashboard className="h-4 w-4" />
-              Voltar ao Dashboard
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <Button asChild variant="outline" className="gap-2 border-primary/20 bg-primary/5 text-primary">
+                <Link to="/admin/cursos">
+                  <ShieldCheck className="h-4 w-4" />
+                  Gerenciar Cursos
+                </Link>
+              </Button>
+            )}
+            <Button asChild variant="outline" className="hidden md:flex gap-2">
+              <Link to="/dashboard">
+                <LayoutDashboard className="h-4 w-4" />
+                Voltar ao Dashboard
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Barra de Filtros */}
@@ -386,7 +399,7 @@ const Courses = () => {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filteredCourses.map((c) => {
                 const isFree = !c.price || c.price === 0;
-                const needsYearly = isFree && !isYearlyPlan && !isEnrolled(c.slug);
+                const needsYearly = isFree && !isYearlyPlan && !isEnrolled(c.slug) && !isAdmin;
 
                 return (
                   <Card key={c.slug} className="overflow-hidden flex flex-col group hover:shadow-md transition-all border-primary/5">
@@ -439,13 +452,15 @@ const Courses = () => {
                         <Button asChild variant="outline" size="sm" className="flex-1">
                           <Link to={`/cursos/${c.slug}`}>Ver detalhes</Link>
                         </Button>
-                        {isEnrolled(c.slug) ? (
+                        {isEnrolled(c.slug) || isAdmin ? (
                           <Button 
                             asChild 
                             size="sm"
                             className={cn("flex-1", isCompleted(c.slug) && "bg-success hover:bg-success/90 border-none")}
                           >
-                            <Link to={`/cursos/${c.slug}`}>{isCompleted(c.slug) ? "Rever Curso" : "Continuar"}</Link>
+                            <Link to={`/cursos/${c.slug}`}>
+                              {isAdmin && !isEnrolled(c.slug) ? "Acesso Admin" : isCompleted(c.slug) ? "Rever Curso" : "Continuar"}
+                            </Link>
                           </Button>
                         ) : needsYearly ? (
                           <Button 

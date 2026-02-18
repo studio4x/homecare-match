@@ -29,6 +29,7 @@ import FaviconUpdater from "./FaviconUpdater";
 import ScrollToTop from "../ScrollToTop";
 import MarketingScripts from "../MarketingScripts";
 import ImpersonationBar from "../ImpersonationBar";
+import ScrollToTopButton from "../ScrollToTopButton";
 
 const UserLayout = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -192,6 +193,7 @@ const UserLayout = () => {
       </div>
 
       <Footer />
+      <ScrollToTopButton />
       <AppVersion />
     </div>
   );

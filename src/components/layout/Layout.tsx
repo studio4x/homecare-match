@@ -8,6 +8,7 @@ import ScrollToTop from "../ScrollToTop";
 import MarketingScripts from "../MarketingScripts";
 import SuggestionDrawer from "../SuggestionDrawer";
 import CookieConsent from "../CookieConsent";
+import ScrollToTopButton from "../ScrollToTopButton";
 
 interface LayoutProps {
   children: ReactNode;
@@ -25,6 +26,7 @@ const Layout = ({ children }: LayoutProps) => {
       <CookieConsent />
       <main className="flex-1 py-8 md:py-12">{children}</main>
       <Footer />
+      <ScrollToTopButton />
       <AppVersion />
     </div>
   );

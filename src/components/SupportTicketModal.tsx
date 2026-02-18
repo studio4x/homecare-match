@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -28,12 +28,14 @@ import {
   HelpCircle, 
   MessageSquarePlus,
   ArrowRight,
-  FileText
+  FileText,
+  Lock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 
 interface SupportTicketModalProps {
   open: boolean;
@@ -41,23 +43,72 @@ interface SupportTicketModalProps {
   initialStep?: "choice" | "form";
 }
 
+const ALL_PRIORITIES = [
+  { value: "low", label: "Baixa" },
+  { value: "medium", label: "Média" },
+  { value: "high", label: "Alta" },
+  { value: "urgent", label: "Urgente" },
+];
+
 const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: SupportTicketModalProps) => {
   const { user, session } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<"choice" | "form">(initialStep);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [ticketData, setTicketData] = useState({ subject: "", description: "", priority: "medium" });
+  const [ticketData, setTicketData] = useState({ subject: "", description: "", priority: "low" });
   const [attachment, setAttachment] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Busca o perfil para verificar o plano e o papel
+  const { data: profile, isLoading: isLoadingProfile } = useQuery({
+    queryKey: ["user-profile-support", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from("profiles")
+        .select("role, subscription_tier, is_admin")
+        .eq("id", user.id)
+        .single();
+      return data;
+    },
+    enabled: !!user && open,
+  });
+
+  // Lógica de filtragem de prioridades
+  const allowedPriorities = useMemo(() => {
+    if (!profile) return [{ value: "low", label: "Baixa" }];
+
+    if (profile.is_admin || profile.role === 'admin') return ALL_PRIORITIES;
+
+    if (profile.role === 'company' || profile.role === 'family') {
+      return ALL_PRIORITIES.filter(p => ["low", "medium", "high"].includes(p.value));
+    }
+
+    // Profissionais
+    if (profile.subscription_tier === 'yearly') return ALL_PRIORITIES;
+    if (profile.subscription_tier === 'monthly') {
+      return ALL_PRIORITIES.filter(p => ["low", "medium"].includes(p.value));
+    }
+    
+    // Plano gratuito / free_trial
+    return ALL_PRIORITIES.filter(p => p.value === "low");
+  }, [profile]);
 
   // Resetar estado ao fechar/abrir
   React.useEffect(() => {
     if (open) {
       setStep(initialStep);
-      setTicketData({ subject: "", description: "", priority: "medium" });
+      setTicketData({ subject: "", description: "", priority: "low" });
       setAttachment(null);
     }
   }, [open, initialStep]);
+
+  // Garante que a prioridade selecionada seja válida se o perfil mudar
+  React.useEffect(() => {
+    if (profile && !allowedPriorities.some(p => p.value === ticketData.priority)) {
+      setTicketData(prev => ({ ...prev, priority: allowedPriorities[0].value }));
+    }
+  }, [allowedPriorities, profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -208,21 +259,30 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Prioridade</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs uppercase font-bold text-muted-foreground">Prioridade</Label>
+                  {isLoadingProfile && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+                </div>
                 <Select 
                   value={ticketData.priority} 
                   onValueChange={(v) => setTicketData({...ticketData, priority: v})}
+                  disabled={isLoadingProfile}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Baixa</SelectItem>
-                    <SelectItem value="medium">Média</SelectItem>
-                    <SelectItem value="high">Alta</SelectItem>
-                    <SelectItem value="urgent">Urgente</SelectItem>
+                    {allowedPriorities.map(p => (
+                      <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {profile && allowedPriorities.length < ALL_PRIORITIES.length && (
+                  <p className="text-[10px] text-amber-600 flex items-center gap-1 mt-1">
+                    <Lock className="h-2.5 w-2.5" />
+                    Algumas prioridades são exclusivas para planos superiores.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -269,7 +329,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
               <Button type="button" variant="ghost" onClick={() => initialStep === "choice" ? setStep("choice") : onOpenChange(false)} className="hover:text-foreground">
                 Voltar
               </Button>
-              <Button type="submit" className="gap-2 shadow-lg" disabled={isSubmitting}>
+              <Button type="submit" className="gap-2 shadow-lg" disabled={isSubmitting || isLoadingProfile}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 Enviar Chamado
               </Button>

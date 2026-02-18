@@ -598,7 +598,10 @@ const CourseDetail = () => {
       </Dialog>
 
       <Dialog open={!!selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)}>
-        <DialogContent className="w-[95vw] max-w-5xl h-[92dvh] sm:h-auto sm:max-h-[95vh] flex flex-col p-0 overflow-hidden">
+        <DialogContent className={cn(
+          "w-[95vw] h-[92dvh] sm:h-auto sm:max-h-[95vh] flex flex-col p-0 overflow-hidden transition-all duration-300",
+          viewInside ? "max-w-6xl" : "max-w-5xl"
+        )}>
           {selectedLesson && (
             <>
               <DialogHeader className="p-4 sm:p-6 border-b bg-card shrink-0">
@@ -610,7 +613,7 @@ const CourseDetail = () => {
                 </div>
               </DialogHeader>
 
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-secondary/5">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-secondary/5 flex flex-col">
                 {(selectedLesson.type === 'text' || selectedLesson.type === 'html') && selectedLesson.content && (
                   <div className={cn(
                     "max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words overflow-x-hidden",
@@ -648,12 +651,12 @@ const CourseDetail = () => {
                 )}
 
                 {(selectedLesson.type === 'pdf' || selectedLesson.type === 'link') && (
-                  <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
+                  <div className="flex-1 flex flex-col items-center justify-center py-4 text-center space-y-6">
                     {viewInside ? (
-                      <div className="w-full h-[70vh] border rounded-xl overflow-hidden bg-white relative">
+                      <div className="w-full flex-1 min-h-[75vh] border rounded-xl overflow-hidden bg-white relative shadow-inner">
                         <iframe 
                           src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
-                          className="w-full h-full"
+                          className="w-full h-full absolute inset-0"
                           title={selectedLesson.title}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
@@ -662,7 +665,7 @@ const CourseDetail = () => {
                           <Button 
                             variant="secondary" 
                             size="sm" 
-                            className="h-8 text-[10px] gap-1 shadow-md"
+                            className="h-8 text-[10px] gap-1 shadow-md bg-white/90 backdrop-blur hover:bg-white"
                             onClick={() => setViewInside(false)}
                           >
                             <X className="h-3 w-3" /> Sair do Modo Visualização
@@ -670,7 +673,7 @@ const CourseDetail = () => {
                           <Button 
                             variant="secondary" 
                             size="sm" 
-                            className="h-8 text-[10px] gap-1 shadow-md"
+                            className="h-8 text-[10px] gap-1 shadow-md bg-white/90 backdrop-blur hover:bg-white"
                             asChild
                           >
                             <a href={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} target="_blank" rel="noopener noreferrer">
@@ -680,35 +683,35 @@ const CourseDetail = () => {
                         </div>
                       </div>
                     ) : (
-                      <>
-                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                      <div className="py-12">
+                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
                           {selectedLesson.type === 'pdf' ? <FileSearch className="h-10 w-10 text-primary" /> : <ExternalLink className="h-10 w-10 text-primary" />}
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 mb-8">
                           <h3 className="text-lg font-semibold">Conteúdo Externo</h3>
-                          <p className="text-sm text-muted-foreground max-w-xs">
+                          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
                             Este conteúdo está hospedado em uma plataforma externa ou arquivo dedicado.
                           </p>
                         </div>
-                        <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3 justify-center">
                           <Button 
                             onClick={() => setViewInside(true)} 
                             size="lg" 
-                            className="gap-2"
+                            className="gap-2 px-8"
                           >
                             <Eye size={16} /> Visualizar Aqui
                           </Button>
-                          <Button asChild variant="outline" size="lg" className="gap-2">
+                          <Button asChild variant="outline" size="lg" className="gap-2 px-8">
                             <a href={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} target="_blank" rel="noopener noreferrer">
                               {selectedLesson.type === 'pdf' ? 'Abrir PDF em nova aba' : 'Abrir em nova aba'}
                               <ExternalLink size={16} />
                             </a>
                           </Button>
                         </div>
-                        <p className="text-[10px] text-muted-foreground max-w-xs italic">
+                        <p className="text-[10px] text-muted-foreground max-w-xs mx-auto mt-6 italic">
                           Nota: Algumas plataformas podem bloquear a visualização interna por segurança. Caso não carregue, use o botão "Abrir em nova aba".
                         </p>
-                      </>
+                      </div>
                     )}
                   </div>
                 )}

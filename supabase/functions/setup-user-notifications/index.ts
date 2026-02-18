@@ -13,13 +13,13 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-user-notifications] Iniciando configuração robusta...");
+    console.log("[setup-user-notifications] Configurando Realtime e Replica Identity...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
     const sql = `
-      -- 1. Criar ou atualizar a tabela de Notificações de Usuário
+      -- 1. Garantir que a tabela existe com todas as colunas
       CREATE TABLE IF NOT EXISTS public.notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -31,38 +31,30 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- Garantir que as colunas existam (caso a tabela já tenha sido criada incompleta)
-      ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS link TEXT;
-      ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'info';
-      ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT FALSE;
+      -- 2. Configurar REPLICA IDENTITY para garantir que o Realtime envie todos os dados
+      ALTER TABLE public.notifications REPLICA IDENTITY FULL;
 
-      -- 2. Ativar RLS
+      -- 3. Ativar RLS e Políticas
       ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+      
+      DROP POLICY IF EXISTS "users_manage_own_notifications" ON public.notifications;
+      CREATE POLICY "users_manage_own_notifications" ON public.notifications 
+      FOR ALL TO authenticated 
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
 
-      -- 3. Limpeza e Reconstrução de Políticas
-      DO $$ 
-      BEGIN
-        DROP POLICY IF EXISTS "Users can manage own notifications" ON public.notifications;
-        DROP POLICY IF EXISTS "users_select_own_notifications" ON public.notifications;
-        
-        -- Política única e clara: Usuário autenticado acessa apenas o que for dele
-        CREATE POLICY "users_manage_own_notifications" ON public.notifications 
-        FOR ALL TO authenticated 
-        USING (auth.uid() = user_id)
-        WITH CHECK (auth.uid() = user_id);
-      END $$;
-
-      -- 4. Habilitar Realtime
+      -- 4. Garantir que a tabela está na publicação de Realtime
       DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
           CREATE PUBLICATION supabase_realtime;
         END IF;
         
+        -- Tenta adicionar a tabela (ignora se já estiver lá)
         BEGIN
           ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
         EXCEPTION WHEN others THEN 
-          NULL; -- Ignora se já estiver na publicação
+          NULL;
         END;
       END $$;
 
@@ -74,13 +66,12 @@ serve(async (req) => {
     await client.end();
     client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de notificações de usuário configurado com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Realtime configurado para notificações!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     if (client) try { await client.end(); } catch {}
-    console.error("[setup-user-notifications] Erro:", e.message);
     return new Response(JSON.stringify({ error: e.message }), { 
       status: 500, 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 

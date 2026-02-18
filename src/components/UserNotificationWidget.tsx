@@ -58,43 +58,39 @@ const UserNotificationWidget = () => {
   };
 
   useEffect(() => {
-    fetchNotifications();
-
     if (!user) return;
 
+    fetchNotifications();
+
+    // Canal de Realtime corrigido (sem escape incorreto)
     const channel = supabase
-      .channel(`user-notifications-\${user.id}`)
+      .channel(`user-notifications-${user.id}`)
       .on(
         "postgres_changes",
         { 
-          event: "INSERT", 
+          event: "*", 
           schema: "public", 
           table: "notifications",
-          filter: `user_id=eq.\${user.id}`
+          filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          setNotifications(prev => [payload.new, ...prev]);
-          toast.info("Você tem uma nova notificação!");
+          console.log("[Realtime] Mudança detectada:", payload);
+          if (payload.eventType === 'INSERT') {
+            setNotifications(prev => [payload.new, ...prev]);
+            toast.info("Você tem uma nova notificação!");
+          } else {
+            fetchNotifications(true);
+          }
         }
       )
-      .on(
-        "postgres_changes",
-        { 
-          event: "UPDATE", 
-          schema: "public", 
-          table: "notifications",
-          filter: `user_id=eq.\${user.id}`
-        },
-        () => {
-          fetchNotifications(true);
-        }
-      )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[Realtime] Status da conexão: ${status}`);
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user?.id]);
 
   const handleMarkAsRead = async (id: string) => {
     try {

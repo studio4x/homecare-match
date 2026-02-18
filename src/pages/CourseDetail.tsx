@@ -66,6 +66,7 @@ const CourseDetail = () => {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [viewInside, setViewInside] = useState(false);
 
   const isAdmin = userProfile?.is_admin || userProfile?.role === 'admin';
 
@@ -340,6 +341,7 @@ const CourseDetail = () => {
 
     setSelectedLesson(lesson);
     setVideoEnded(false);
+    setViewInside(false);
   };
 
   const videoToShow = videoPreviewUrl;
@@ -467,6 +469,42 @@ const CourseDetail = () => {
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4 break-words">{course.title}</h1>
               <SafeHTML content={course.description || "Sem descrição disponível."} />
             </div>
+
+            {course.content_url && (isEnrolled || isAdmin) && (
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <ExternalLink className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold">Plataforma de Ensino Externa</h3>
+                    <p className="text-sm text-muted-foreground">Este curso é realizado em uma plataforma parceira.</p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+                    <Button
+                      className="flex-1 gap-2"
+                      onClick={() => {
+                        setSelectedLesson({
+                          id: 'external-course',
+                          title: course.title,
+                          type: 'link',
+                          resource_url: course.content_url,
+                          duration_minutes: course.duration_minutes
+                        });
+                        setViewInside(true);
+                      }}
+                    >
+                      <Eye size={16} /> Acessar Agora (Visualizar Aqui)
+                    </Button>
+                    <Button asChild variant="outline" className="flex-1 gap-2">
+                      <a href={course.content_url} target="_blank" rel="noopener noreferrer">
+                        Abrir em Nova Aba <ExternalLink size={16} />
+                      </a>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="space-y-4">
               <h2 className="text-2xl font-bold flex items-center gap-2">Conteúdo do Curso</h2>
@@ -611,21 +649,67 @@ const CourseDetail = () => {
 
                 {(selectedLesson.type === 'pdf' || selectedLesson.type === 'link') && (
                   <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
-                    <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-                      {selectedLesson.type === 'pdf' ? <FileSearch className="h-10 w-10 text-primary" /> : <ExternalLink className="h-10 w-10 text-primary" />}
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-lg font-semibold">Conteúdo Externo</h3>
-                      <p className="text-sm text-muted-foreground max-w-xs">
-                        Este conteúdo está hospedado em uma plataforma externa ou arquivo dedicado.
-                      </p>
-                    </div>
-                    <Button asChild size="lg" className="gap-2">
-                      <a href={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} target="_blank" rel="noopener noreferrer">
-                        {selectedLesson.type === 'pdf' ? 'Abrir PDF em nova aba' : 'Acessar Conteúdo'}
-                        <ExternalLink size={16} />
-                      </a>
-                    </Button>
+                    {viewInside ? (
+                      <div className="w-full h-[70vh] border rounded-xl overflow-hidden bg-white relative">
+                        <iframe
+                          src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url}
+                          className="w-full h-full"
+                          title={selectedLesson.title}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 text-[10px] gap-1 shadow-md"
+                            onClick={() => setViewInside(false)}
+                          >
+                            <X className="h-3 w-3" /> Sair do Modo Visualização
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 text-[10px] gap-1 shadow-md"
+                            asChild
+                          >
+                            <a href={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3 w-3" /> Abrir em Nova Aba
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
+                          {selectedLesson.type === 'pdf' ? <FileSearch className="h-10 w-10 text-primary" /> : <ExternalLink className="h-10 w-10 text-primary" />}
+                        </div>
+                        <div className="space-y-2">
+                          <h3 className="text-lg font-semibold">Conteúdo Externo</h3>
+                          <p className="text-sm text-muted-foreground max-w-xs">
+                            Este conteúdo está hospedado em uma plataforma externa ou arquivo dedicado.
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <Button
+                            onClick={() => setViewInside(true)}
+                            size="lg"
+                            className="gap-2"
+                          >
+                            <Eye size={16} /> Visualizar Aqui
+                          </Button>
+                          <Button asChild variant="outline" size="lg" className="gap-2">
+                            <a href={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} target="_blank" rel="noopener noreferrer">
+                              {selectedLesson.type === 'pdf' ? 'Abrir PDF em nova aba' : 'Abrir em nova aba'}
+                              <ExternalLink size={16} />
+                            </a>
+                          </Button>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground max-w-xs italic">
+                          Nota: Algumas plataformas podem bloquear a visualização interna por segurança. Caso não carregue, use o botão "Abrir em nova aba".
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

@@ -667,8 +667,8 @@ const CoursesTab = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Título</Label>
-                  <Input 
-                    value={selectedCourse.title} 
+                  <Input
+                    value={selectedCourse.title}
                     onChange={e => {
                       const val = e.target.value;
                       const isNew = !selectedCourse.created_at;
@@ -677,13 +677,23 @@ const CoursesTab = () => {
                         title: val,
                         slug: isNew ? generateSlug(val) : selectedCourse.slug
                       });
-                    }} 
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Slug</Label>
                   <Input value={selectedCourse.slug} disabled={!!selectedCourse.created_at} onChange={e => setSelectedCourse({...selectedCourse, slug: e.target.value})} />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Eye size={14} /> URL da Plataforma Externa (Opcional)</Label>
+                <Input
+                  placeholder="https://my.coursebox.ai/courses/..."
+                  value={selectedCourse.content_url || ""}
+                  onChange={e => setSelectedCourse({...selectedCourse, content_url: e.target.value})}
+                />
+                <p className="text-[10px] text-muted-foreground">Se preenchido, o curso mostrará um botão para acessar esta plataforma diretamente (com opção de visualização interna).</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">

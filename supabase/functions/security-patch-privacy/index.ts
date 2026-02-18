@@ -13,20 +13,27 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[security-patch-privacy] Iniciando blindagem ultra-resiliente...");
+    console.log("[security-patch-privacy] Iniciando blindagem profunda...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
-    const sql = `
-      -- 1. Garantir colunas básicas
+    // Executamos em blocos separados para evitar que um erro de 'View' bloqueie as 'Colunas'
+    
+    // 1. Garantir colunas
+    await client.queryObject(`
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS professional_experiences TEXT;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lat NUMERIC;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lng NUMERIC;
+    `);
 
-      -- 2. Criar/Atualizar a View de Descoberta (Segura)
-      CREATE OR REPLACE VIEW public.professional_discovery AS
+    // 2. Limpeza profunda da View (O CASCADE remove dependências que impedem o REPLACE)
+    await client.queryObject(`DROP VIEW IF EXISTS public.professional_discovery CASCADE;`);
+
+    // 3. Criar a View Segura
+    await client.queryObject(`
+      CREATE VIEW public.professional_discovery AS
       SELECT 
         id, full_name, avatar_url, specialty, city, state, neighborhood, 
         experience, professional_experiences, bio, is_verified, 
@@ -36,16 +43,16 @@ serve(async (req) => {
         AND full_name IS NOT NULL 
         AND email_confirmed = true;
 
-      -- 3. Limpeza de políticas antigas
+      GRANT SELECT ON public.professional_discovery TO authenticated;
+      GRANT SELECT ON public.professional_discovery TO anon;
+    `);
+
+    // 4. Configurar RLS (Remover e Recriar)
+    await client.queryObject(`
       DROP POLICY IF EXISTS "profiles_public_read_policy" ON public.profiles;
       DROP POLICY IF EXISTS "profiles_public_select" ON public.profiles;
       DROP POLICY IF EXISTS "profiles_secure_access" ON public.profiles;
 
-      -- 4. Criar política de visibilidade condicional (Sem depender de funções RPC)
-      -- O acesso ao perfil completo (com telefone) é liberado apenas para:
-      -- - O próprio dono do perfil
-      -- - Administradores (verificados via subquery direta)
-      -- - Usuários com interação (contato) registrada
       CREATE POLICY "profiles_secure_access" ON public.profiles
       FOR SELECT TO authenticated
       USING (
@@ -60,12 +67,11 @@ serve(async (req) => {
              OR (i.professional_id = auth.uid() AND i.sender_id = profiles.id)
         ))
       );
+    `);
 
-      -- 5. Notifica o recarregamento do esquema
-      NOTIFY pgrst, 'reload schema';
-    `;
+    // 5. Notificar recarregamento
+    await client.queryObject(`NOTIFY pgrst, 'reload schema';`);
 
-    await client.queryObject(sql);
     await client.end();
     client = null;
 

@@ -10,7 +10,8 @@ import {
   Loader2, 
   ExternalLink, 
   Inbox,
-  Circle
+  Circle,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,10 +31,14 @@ const UserNotificationWidget = () => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (silent = false) => {
     if (!user) return;
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
+
     try {
       const { data, error } = await supabase
         .from("notifications")
@@ -48,6 +53,7 @@ const UserNotificationWidget = () => {
       console.error("[UserNotifications] Erro ao carregar:", err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -57,18 +63,30 @@ const UserNotificationWidget = () => {
     if (!user) return;
 
     const channel = supabase
-      .channel(`user-notifications-${user.id}`)
+      .channel(`user-notifications-\${user.id}`)
       .on(
         "postgres_changes",
         { 
           event: "INSERT", 
           schema: "public", 
           table: "notifications",
-          filter: `user_id=eq.${user.id}`
+          filter: `user_id=eq.\${user.id}`
+        },
+        (payload) => {
+          setNotifications(prev => [payload.new, ...prev]);
+          toast.info("Você tem uma nova notificação!");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { 
+          event: "UPDATE", 
+          schema: "public", 
+          table: "notifications",
+          filter: `user_id=eq.\${user.id}`
         },
         () => {
-          fetchNotifications();
-          toast.info("Você tem uma nova notificação!");
+          fetchNotifications(true);
         }
       )
       .subscribe();
@@ -101,6 +119,7 @@ const UserNotificationWidget = () => {
 
       if (error) throw error;
       setNotifications(prev => prev.filter(n => n.id !== id));
+      toast.success("Notificação removida.");
     } catch (err) {
       toast.error("Erro ao excluir.");
     }
@@ -114,9 +133,8 @@ const UserNotificationWidget = () => {
     <div className="fixed bottom-20 right-6 z-[60]">
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
-          <Button 
-            size="icon" 
-            className="h-14 w-14 rounded-full shadow-2xl relative bg-primary hover:bg-primary/90"
+          <button 
+            className="h-14 w-14 rounded-full shadow-2xl relative bg-primary hover:bg-primary/90 text-white flex items-center justify-center transition-transform active:scale-95"
           >
             <Bell className="h-6 w-6" />
             {unreadCount > 0 && (
@@ -126,7 +144,7 @@ const UserNotificationWidget = () => {
                 {unreadCount > 9 ? "9+" : unreadCount}
               </Badge>
             )}
-          </Button>
+          </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[350px] p-0 overflow-hidden border-none shadow-2xl">
           <div className="bg-primary p-4 text-primary-foreground flex items-center justify-between">
@@ -134,6 +152,13 @@ const UserNotificationWidget = () => {
               <Bell className="h-5 w-5" />
               <h3 className="font-bold">Minhas Notificações</h3>
             </div>
+            <button 
+              onClick={() => fetchNotifications(true)} 
+              disabled={isRefreshing}
+              className="p-1 hover:bg-white/20 rounded transition-colors"
+            >
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+            </button>
           </div>
 
           <ScrollArea className="h-[350px]">
@@ -168,7 +193,7 @@ const UserNotificationWidget = () => {
                       {n.link && (
                         <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1 px-2" asChild onClick={() => setIsOpen(false)}>
                           <Link to={n.link}>
-                            <ExternalLink className="h-3 w-3" /> Ver
+                            <ExternalLink className="h-3 w-3" /> Ver Detalhes
                           </Link>
                         </Button>
                       )}
@@ -202,6 +227,7 @@ const UserNotificationWidget = () => {
               <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground p-8 text-center">
                 <Inbox className="h-12 w-12 mb-4 opacity-20" />
                 <p className="text-sm font-medium">Nenhuma notificação</p>
+                <p className="text-xs mt-1">Você será avisado aqui sobre novos contatos e atualizações.</p>
               </div>
             )}
           </ScrollArea>

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import SafeHTML from "@/components/SafeHTML";
 import { 
   Loader2, 
   Check, 
@@ -139,7 +140,6 @@ const CourseDetail = () => {
     if (slug) fetchCourseData();
   }, [slug, user]);
 
-  // Detecta sucesso de pagamento
   useEffect(() => {
     if (searchParams.get("success") === "true") {
       toast.success("Pagamento confirmado! Sua matrícula está sendo liberada...", {
@@ -452,10 +452,7 @@ const CourseDetail = () => {
           <div className="md:col-span-2 space-y-8">
             <div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-4 break-words">{course.title}</h1>
-              <div
-                className="prose prose-slate max-w-none text-muted-foreground break-words"
-                dangerouslySetInnerHTML={{ __html: course.description || "Sem descrição disponível." }}
-              />
+              <SafeHTML content={course.description || "Sem descrição disponível."} />
             </div>
 
             <div className="space-y-4">
@@ -564,14 +561,12 @@ const CourseDetail = () => {
 
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-secondary/5">
                 {(selectedLesson.type === 'text' || selectedLesson.type === 'html') && selectedLesson.content && (
-                  <div 
-                    className={cn(
-                      "max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words overflow-x-hidden",
-                      selectedLesson.type === 'text' && "prose prose-slate",
-                      selectedLesson.type === 'html' && "p-0 min-h-[70vh] flex flex-col [&>iframe]:flex-1 [&>iframe]:w-full [&>iframe]:min-h-[70vh]"
-                    )} 
-                    dangerouslySetInnerHTML={{ __html: selectedLesson.content }} 
-                  />
+                  <div className={cn(
+                    "max-w-none bg-card p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-sm border break-words overflow-x-hidden",
+                    selectedLesson.type === 'html' && "p-0 min-h-[70vh] flex flex-col [&>iframe]:flex-1 [&>iframe]:w-full [&>iframe]:min-h-[70vh]"
+                  )}>
+                    <SafeHTML content={selectedLesson.content} />
+                  </div>
                 )}
 
                 {selectedLesson.type === 'video' && (

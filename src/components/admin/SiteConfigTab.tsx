@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity, Coins } from "lucide-react";
+import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity, Coins } from "lucide-center";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -124,7 +124,7 @@ const SiteConfigTab = () => {
   const handleSyncRLS = async () => {
     setIsSyncingRLS(true);
     try {
-      const { error } = await supabase.functions.invoke('security-patch-rls');
+      const { error } = await supabase.functions.invoke('security-patch-privacy');
       if (error) throw error;
       toast.success("Proteção de dados sensíveis aplicada!");
     } catch (error: any) {

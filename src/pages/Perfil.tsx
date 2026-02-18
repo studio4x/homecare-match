@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import ReviewList from "@/components/ReviewList";
+import SafeHTML from "@/components/SafeHTML";
 import { 
   MapPin, 
   Award, 
@@ -63,20 +64,30 @@ const Perfil = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const safePublicFields = "id, full_name, avatar_url, specialty, registration, city, state, neighborhood, experience, professional_experiences, bio, subscription_tier, is_verified, role, updated_at, phone, hourly_rate, availability, patient_profiles";
-      
-      const { data, error } = await supabase
-        .from("profiles")
-        .select(safePublicFields)
+      // Tenta buscar primeiro da View Segura (sempre disponível)
+      const { data: discoveryData } = await supabase
+        .from("professional_discovery")
+        .select("*")
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        console.error(error);
+      // Tenta buscar da tabela principal (só retorna telefone se houver interação)
+      const { data: fullData } = await supabase
+        .from("profiles")
+        .select("phone, hourly_rate, availability, patient_profiles")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (!discoveryData) {
         toast.error("Perfil não encontrado.");
-      } else {
-        setProfile(data);
+        setLoading(false);
+        return;
       }
+
+      setProfile({
+        ...discoveryData,
+        ...fullData // Mescla os dados se disponíveis
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -88,12 +99,11 @@ const Perfil = () => {
     fetchProfile();
     
     if (id) {
-      // Registrar visualização de forma silenciosa
       supabase.from('profile_views').insert({
         profile_id: id,
         viewer_id: user?.id || null
       }).then(({ error }) => {
-        if (error) console.warn("[Analytics] Tabela profile_views não encontrada ou erro de permissão.");
+        if (error) console.warn("[Analytics] Erro ao registrar visualização.");
       });
     }
   }, [id, user?.id, fetchProfile]);
@@ -137,8 +147,6 @@ const Perfil = () => {
         });
         if (!error && data?.courses) {
           setCompletedCourses(data.courses);
-        } else {
-          setCompletedCourses([]);
         }
       } catch {
         setCompletedCourses([]);
@@ -256,7 +264,6 @@ const Perfil = () => {
             </div>
 
             <div className="grid gap-8 lg:grid-cols-3">
-              {/* Perfil Principal */}
               <div className="lg:col-span-2 space-y-6">
                 <div className={cn(
                   "rounded-2xl border bg-card p-8 shadow-card",
@@ -280,9 +287,7 @@ const Perfil = () => {
                               <TooltipTrigger asChild>
                                 <Star className="h-5 w-5 text-amber-500 fill-current" />
                               </TooltipTrigger>
-                              <TooltipContent>
-                                Destaque Premium (Plano Anual)
-                              </TooltipContent>
+                              <TooltipContent>Destaque Premium</TooltipContent>
                             </Tooltip>
                           )}
                           {profile.is_verified && (
@@ -290,9 +295,7 @@ const Perfil = () => {
                               <TooltipTrigger asChild>
                                 <ShieldCheck className="h-5 w-5 text-success" />
                               </TooltipTrigger>
-                              <TooltipContent>
-                                Perfil Verificado
-                              </TooltipContent>
+                              <TooltipContent>Perfil Verificado</TooltipContent>
                             </Tooltip>
                           )}
                         </h1>
@@ -304,18 +307,11 @@ const Perfil = () => {
                             {isPremium ? "Verificado Premium" : "Verificado"}
                           </Badge>
                         )}
-                        {referralStats && referralStats.currentTier && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="secondary" className="ml-2 whitespace-nowrap bg-primary/10 text-primary border-primary/20 gap-1.5">
-                                <Award className="h-3 w-3" />
-                                {referralStats.currentTier.badge_label}
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Programa de Indicação: {referralStats.currentTier.badge_label} • {referralStats.count} indicações confirmadas.
-                            </TooltipContent>
-                          </Tooltip>
+                        {referralStats?.currentTier && (
+                          <Badge variant="secondary" className="ml-2 whitespace-nowrap bg-primary/10 text-primary border-primary/20 gap-1.5">
+                            <Award className="h-3 w-3" />
+                            {referralStats.currentTier.badge_label}
+                          </Badge>
                         )}
                       </div>
                       <p className="mt-2 text-xl text-muted-foreground font-medium uppercase tracking-tight">
@@ -326,10 +322,6 @@ const Perfil = () => {
                           <MapPin className="h-4 w-4 text-primary" />
                           {[profile.neighborhood, profile.city].filter(Boolean).join(", ")} {profile.state ? `- ${profile.state}` : ""}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Award className="h-4 w-4 text-primary" />
-                          {profile.registration || "Sem registro informado"}
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -339,9 +331,7 @@ const Perfil = () => {
                       <Info className="h-5 w-5 text-primary" />
                       Sobre mim
                     </h3>
-                    <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                      {profile.bio || "Este profissional ainda não preencheu sua biografia."}
-                    </p>
+                    <SafeHTML content={profile.bio || "Este profissional ainda não preencheu sua biografia."} />
                   </div>
 
                   <div className="mt-10">
@@ -349,9 +339,7 @@ const Perfil = () => {
                       <GraduationCap className="h-5 w-5 text-primary" />
                       Formações
                     </h3>
-                    <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                      {profile.experience || "Informações de formações não detalhadas."}
-                    </p>
+                    <SafeHTML content={profile.experience || "Informações de formações não detalhadas."} />
                   </div>
 
                   <div className="mt-8">
@@ -359,9 +347,7 @@ const Perfil = () => {
                       <Briefcase className="h-5 w-5 text-primary" />
                       Experiências Profissionais
                     </h3>
-                    <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                      {profile.professional_experiences || "Informações de experiências profissionais não detalhadas."}
-                    </p>
+                    <SafeHTML content={profile.professional_experiences || "Informações de experiências profissionais não detalhadas."} />
                   </div>
 
                   <div className="mt-10">
@@ -452,7 +438,6 @@ const Perfil = () => {
                 </div>
               </div>
 
-              {/* Sidebar de Ações */}
               <div className="space-y-6">
                 <div className="rounded-2xl border border-border bg-card p-6 shadow-card sticky top-24">
                   <h3 className="font-semibold text-lg mb-2 text-center">Interessado?</h3>
@@ -465,11 +450,7 @@ const Perfil = () => {
                       disabled={isContacting}
                       className="w-full h-12 gap-2 text-lg bg-primary hover:bg-primary/90"
                     >
-                      {isContacting ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <MessageSquare className="h-5 w-5" />
-                      )}
+                      {isContacting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageSquare className="h-5 w-5" />}
                       Adicionar aos Contatos
                     </Button>
                     
@@ -493,31 +474,6 @@ const Perfil = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Legenda de ícones e selos */}
-                <div className="rounded-2xl border bg-card p-4 shadow-card">
-                  <h4 className="font-semibold mb-3">Legenda</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-gold fill-current" />
-                      <span className="text-sm text-muted-foreground">Destaque Premium (Plano Anual)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="h-4 w-4 text-success" />
-                      <span className="text-sm text-muted-foreground">Perfil Verificado</span>
-                    </div>
-                    {referralStats && referralStats.currentTier && (
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="whitespace-nowrap bg-primary/10 text-primary border-primary/20">
-                          {referralStats.currentTier.badge_label}
-                        </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          Programa de Indicação • {referralStats.count} indicação{referralStats.count === 1 ? "" : "s"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -527,59 +483,31 @@ const Perfil = () => {
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
         <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl animate-scale-in">
           <div className="relative bg-card p-12 md:p-16 flex flex-col items-center text-center space-y-8">
-            <button 
-              onClick={() => setShowSuccessModal(false)}
-              className="absolute right-6 top-6 p-2 rounded-full hover:bg-secondary transition-colors"
-            >
+            <button onClick={() => setShowSuccessModal(false)} className="absolute right-6 top-6 p-2 rounded-full hover:bg-secondary transition-colors">
               <X className="h-6 w-6 text-muted-foreground" />
             </button>
-
             <div className="h-24 w-24 rounded-full bg-success/10 flex items-center justify-center animate-bounce">
               <UserCheck className="h-12 w-12 text-success" />
             </div>
-
             <div className="space-y-4">
-              <DialogTitle className="text-4xl font-bold tracking-tight text-foreground">
-                Profissional Adicionado!
-              </DialogTitle>
+              <DialogTitle className="text-4xl font-bold tracking-tight text-foreground">Profissional Adicionado!</DialogTitle>
               <DialogDescription className="text-xl text-muted-foreground leading-relaxed max-w-lg mx-auto">
                 {profile?.full_name} foi salvo na sua lista de contatos. Você pode ver os detalhes e iniciar a conversa a partir do seu painel.
               </DialogDescription>
             </div>
-
             <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
-              <Button 
-                size="lg" 
-                variant="outline"
-                className="w-full h-14 text-lg font-semibold shadow-lg gap-2"
-                asChild
-              >
-                <Link to="/buscar">
-                  <Users className="h-5 w-5" />
-                  Buscar Outros
-                </Link>
+              <Button size="lg" variant="outline" className="w-full h-14 text-lg font-semibold shadow-lg gap-2" asChild>
+                <Link to="/buscar"><Users className="h-5 w-5" />Buscar Outros</Link>
               </Button>
-              <Button 
-                size="lg" 
-                className="w-full h-14 text-lg font-semibold shadow-lg gap-2"
-                asChild
-              >
-                <Link to="/dashboard/contatos">
-                  <LayoutGrid className="h-5 w-5" />
-                  Ir para o Painel
-                </Link>
+              <Button size="lg" className="w-full h-14 text-lg font-semibold shadow-lg gap-2" asChild>
+                <Link to="/dashboard/contatos"><LayoutGrid className="h-5 w-5" />Ir para o Painel</Link>
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      <ReportModal 
-        open={showReportModal} 
-        onOpenChange={setShowReportModal} 
-        reportedId={profile.id} 
-        reportedName={profile.full_name} 
-      />
+      <ReportModal open={showReportModal} onOpenChange={setShowReportModal} reportedId={profile.id} reportedName={profile.full_name} />
     </Layout>
   );
 };

@@ -20,45 +20,24 @@ serve(async (req) => {
 
     const { status, reason, userName, userEmail, userId } = await req.json()
 
-    // --- NOTIFICAÇÃO PARA O USUÁRIO ---
     await supabaseAdmin.from('notifications').insert({
       user_id: userId,
       title: status === 'approved' ? "✅ Documentos Aprovados!" : "⚠️ Documentos Rejeitados",
       content: status === 'approved' 
         ? "Parabéns! Seus documentos foram validados e você agora possui o selo de verificado." 
-        : `Infelizmente sua verificação não foi aprovada. Motivo: \${reason}. Por favor, reenvie seus dados.`,
+        : `Infelizmente sua verificação não foi aprovada. Motivo: ${reason}. Por favor, reenvie seus dados.`,
       link: "/dashboard/perfil",
       type: status === 'approved' ? 'success' : 'error'
     });
 
-    // Auditoria (mantida)
     await supabaseAdmin.from('admin_logs').insert({
       admin_id: adminUser.id,
       action_type: status === 'approved' ? 'VERIFICATION_APPROVED' : 'VERIFICATION_REJECTED',
       target_id: userId,
       details: status === 'approved' 
-        ? `Aprovou os documentos de: \${userName} (\${userEmail})` 
-        : `Reprovou os documentos de: \${userName} (\${userEmail}). Motivo: \${reason}`
+        ? `Aprovou os documentos de: ${userName} (${userEmail})` 
+        : `Reprovou os documentos de: ${userName} (${userEmail}). Motivo: ${reason}`
     })
-
-    // E-mail (mantido)
-    const smtpHost = Deno.env.get('SMTP_HOST');
-    const smtpUser = Deno.env.get('SMTP_USER');
-    const smtpPass = Deno.env.get('SMTP_PASS');
-    if (smtpHost && smtpUser && smtpPass) {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: parseInt(Deno.env.get('SMTP_PORT') || "587"),
-        secure: Deno.env.get('SMTP_PORT') === "465",
-        auth: { user: smtpUser, pass: smtpPass },
-      });
-      const isApproved = status === 'approved';
-      const subject = isApproved ? "Seu perfil foi aprovado! 🎉" : "Ação necessária no seu perfil ⚠️";
-      const htmlContent = isApproved 
-        ? `<div style="font-family: sans-serif; padding: 20px; color: #10b981;"><h2>Parabéns!</h2><p>Olá <strong>\${userName}</strong>, seus documentos foram aprovados!</p></div>` 
-        : `<div style="font-family: sans-serif; padding: 20px; color: #ef4444;"><h2>Atenção Necessária</h2><p>Olá <strong>\${userName}</strong>, não pudemos concluir a verificação: <strong>\${reason}</strong></p></div>`;
-      await transporter.sendMail({ from: `"HomeCare Match" <\${smtpUser}>`, to: userEmail, subject, html: htmlContent });
-    }
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {

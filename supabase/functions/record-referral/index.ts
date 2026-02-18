@@ -14,18 +14,17 @@ serve(async (req) => {
     const { referrerId, newUserId } = await req.json()
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
 
-    const path = `referrals/\${referrerId}/\${newUserId}.json`
+    const path = `referrals/${referrerId}/${newUserId}.json`
     const data = { referrerId, newUserId, created_at: new Date().toISOString() }
     const blob = new Blob([JSON.stringify(data)], { type: "application/json" })
     await supabase.storage.from("uploads").upload(path, blob, { upsert: true })
 
-    // --- NOTIFICAÇÃO PARA O INDICADOR ---
     const { data: newUser } = await supabase.from('profiles').select('full_name').eq('id', newUserId).single();
     
     await supabase.from('notifications').insert({
       user_id: referrerId,
       title: "🤝 Indicação Convertida!",
-      content: `\${newUser?.full_name || 'Um novo usuário'} acabou de se cadastrar usando seu link. Você está mais perto do próximo selo!`,
+      content: `${newUser?.full_name || 'Um novo usuário'} acabou de se cadastrar usando seu link. Você está mais perto do próximo selo!`,
       link: "/dashboard/indicacoes",
       type: 'success'
     });

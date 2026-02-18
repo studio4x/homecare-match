@@ -141,14 +141,13 @@ const InteractionHistory = ({
       
       if (error) throw error;
 
-      // --- NOTIFICAÇÃO PARA A OUTRA PARTE ---
-      const targetId = isProf ? activeInteraction.profile.id : activeInteraction.profile.id; // O profile aqui é sempre a outra parte
+      const targetId = activeInteraction.profile.id;
       const myName = (await supabase.from('profiles').select('full_name').eq('id', user.id).single()).data?.full_name || "Um usuário";
 
       await supabase.from('notifications').insert({
         user_id: targetId,
         title: "🤝 Atendimento Confirmado",
-        content: `\${myName} marcou o atendimento como realizado. \${newStatus === 'completed' ? 'O atendimento foi finalizado!' : 'Confirme você também para liberar as avaliações.'}`,
+        content: `${myName} marcou o atendimento como realizado. ${newStatus === 'completed' ? 'O atendimento foi finalizado!' : 'Confirme você também para liberar as avaliações.'}`,
         link: "/dashboard/contatos",
         type: 'success'
       });
@@ -182,7 +181,7 @@ const InteractionHistory = ({
     supabase.from('whatsapp_clicks').insert({ profile_id: contact.id, clicker_id: user.id, clicker_role: viewerRole });
     const message = encodeURIComponent("Olá.");
     const phone = contact.phone?.replace(/\D/g, '');
-    window.open(`https://wa.me/\${phone}?text=\${message}`, '_blank');
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -295,7 +294,7 @@ const InteractionHistory = ({
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     {renderStatusButton(interaction)}
                     <Button variant="ghost" size="sm" asChild className="h-8">
-                      <Link to={viewerRole === 'professional' ? `/recruiter/\${interaction.profile.id}` : `/profissional/\${interaction.profile.id}`}>
+                      <Link to={viewerRole === 'professional' ? `/recruiter/${interaction.profile.id}` : `/profissional/${interaction.profile.id}`}>
                         <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
                       </Link>
                     </Button>

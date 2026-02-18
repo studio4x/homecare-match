@@ -12,37 +12,23 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   const signature = req.headers.get('stripe-signature');
-  if (!signature) return new Response('Missing signature', { status: 400 });
-
-  const supabaseAdmin = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
   try {
     const { data: config } = await supabaseAdmin.from('site_config').select('stripe_mode').eq('id', 1).single();
     const mode = config?.stripe_mode === 'live' ? 'LIVE' : 'TEST';
-    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_\${mode}`);
-    const webhookSecret = Deno.env.get(`STRIPE_WEBHOOK_SECRET_\${mode}`);
-
-    const stripe = new Stripe(stripeSecret || '', { 
-      apiVersion: '2023-10-16', 
-      httpClient: Stripe.createFetchHttpClient() 
-    });
-
+    const stripeSecret = Deno.env.get(`STRIPE_SECRET_KEY_${mode}`);
+    const webhookSecret = Deno.env.get(`STRIPE_WEBHOOK_SECRET_${mode}`);
+    const stripe = new Stripe(stripeSecret || '', { apiVersion: '2023-10-16', httpClient: Stripe.createFetchHttpClient() });
     const body = await req.text();
-    const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret || '');
+    const event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const { userId, planId, courseSlug } = session.metadata || {};
 
-      if (!userId) return new Response('Missing userId in metadata', { status: 200 });
-
-      const { data: userProfile } = await supabaseAdmin.from('profiles').select('full_name, email').eq('id', userId).single();
-
-      if (planId) {
-        const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+      if (userId && planId) {
+        const subscription = await stripe.subscriptions.retrieve(session.subscription);
         await supabaseAdmin.from('profiles').update({ 
           subscription_tier: planId,
           subscription_end_at: new Date(subscription.current_period_end * 1000).toISOString(),
@@ -50,54 +36,32 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         }).eq('id', userId);
 
-        // Notificações
         await supabaseAdmin.from('notifications').insert({
           user_id: userId,
           title: "💰 Pagamento Confirmado!",
-          content: `Sua assinatura do plano \${planId} foi ativada com sucesso.`,
+          content: `Sua assinatura do plano ${planId} foi ativada com sucesso.`,
           link: "/dashboard",
           type: 'success'
         });
 
-        await supabaseAdmin.from('admin_notifications').insert({ 
-          title: "💰 Nova Assinatura", 
-          content: `\${userProfile?.full_name || userProfile?.email} assinou o plano: \${planId}`, 
-          link: "/admin/usuarios", 
-          type: 'success' 
-        });
-      } else if (courseSlug) {
-        await supabaseAdmin.from('academy_enrollments').upsert({ 
-          user_id: userId, 
-          course_slug: courseSlug,
-          created_at: new Date().toISOString()
-        }, { onConflict: 'user_id,course_slug' });
+        await supabaseAdmin.from('admin_notifications').insert({ title: "💰 Nova Assinatura", content: `Um usuário assinou o plano: ${planId}`, link: "/admin/usuarios", type: 'success' });
+      } else if (userId && courseSlug) {
+        await supabaseAdmin.from('academy_enrollments').upsert({ user_id: userId, course_slug: courseSlug, created_at: new Date().toISOString() }, { onConflict: 'user_id,course_slug' });
 
         const { data: course } = await supabaseAdmin.from('academy_courses').select('title').eq('slug', courseSlug).single();
-        
-        // Notificações
         await supabaseAdmin.from('notifications').insert({
           user_id: userId,
           title: "🎓 Curso Adquirido!",
-          content: `Seu acesso ao curso "\${course?.title || courseSlug}" foi liberado.`,
-          link: `/cursos/\${courseSlug}`,
+          content: `Seu acesso ao curso "${course?.title || courseSlug}" foi liberado.`,
+          link: `/cursos/${courseSlug}`,
           type: 'success'
         });
 
-        await supabaseAdmin.from('admin_notifications').insert({ 
-          title: "🎓 Novo Curso Vendido", 
-          content: `\${userProfile?.full_name || userProfile?.email} comprou o curso: \${courseSlug}`, 
-          link: "/admin/cursos", 
-          type: 'success' 
-        });
+        await supabaseAdmin.from('admin_notifications').insert({ title: "🎓 Novo Curso Vendido", content: `Um usuário comprou o curso: ${courseSlug}`, link: "/admin/cursos", type: 'success' });
       }
     }
-
-    return new Response(JSON.stringify({ received: true }), { 
-      status: 200, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    return new Response(JSON.stringify({ received: true }), { status: 200 });
   } catch (err) {
-    console.error(`[stripe-webhook] Error: \${err.message}`);
-    return new Response(`Error: \${err.message}`, { status: 400 });
+    return new Response(`Error: ${err.message}`, { status: 400 });
   }
 });

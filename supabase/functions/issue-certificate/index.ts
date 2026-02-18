@@ -21,10 +21,8 @@ serve(async (req) => {
     const course_slug = body.course_slug?.trim();
     
     const { data: course } = await supabaseAdmin.from('academy_courses').select('title').eq('slug', course_slug).single();
-    const { data: lessons } = await supabaseAdmin.from('academy_lessons').select('id, duration_minutes').in('module_id', (await supabaseAdmin.from('academy_modules').select('id').eq('course_slug', course_slug)).data?.map(m => m.id) || []);
     
-    const totalWorkload = lessons?.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0) || 0;
-    const validationCode = `HCM-\${Math.random().toString(36).substring(2, 10).toUpperCase()}-\${Date.now().toString(36).toUpperCase()}`;
+    const validationCode = `HCM-${Math.random().toString(36).substring(2, 10).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
 
     const { data: cert, error: certError } = await supabaseAdmin
       .from('certificates')
@@ -32,7 +30,6 @@ serve(async (req) => {
         user_id: user.id,
         course_slug: course_slug,
         validation_code: validationCode,
-        workload_minutes: totalWorkload,
         issued_at: new Date().toISOString()
       }, { onConflict: 'user_id,course_slug' })
       .select('id')
@@ -40,12 +37,11 @@ serve(async (req) => {
 
     if (certError) throw certError;
 
-    // --- NOTIFICAÇÃO PARA O USUÁRIO ---
     await supabaseAdmin.from('notifications').insert({
       user_id: user.id,
       title: "🎓 Curso Concluído!",
-      content: `Parabéns! Você concluiu o curso "\${course.title}" e seu selo de conquista já está disponível no seu perfil.`,
-      link: `/certificado/\${cert.id}`,
+      content: `Parabéns! Você concluiu o curso "${course.title}" e seu selo de conquista já está disponível no seu perfil.`,
+      link: `/certificado/${cert.id}`,
       type: 'success'
     });
 

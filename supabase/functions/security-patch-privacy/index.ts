@@ -13,16 +13,49 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[security-patch-privacy] Corrigindo políticas de RLS para evitar recursão...");
+    console.log("[security-patch-privacy] Reconstruindo políticas de RLS do zero...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
     const sql = `
-      -- 1. Limpeza da View (CASCADE para garantir que nada bloqueie)
-      DROP VIEW IF EXISTS public.professional_discovery CASCADE;
+      -- 1. Limpeza total de políticas de SELECT na tabela profiles para evitar conflitos
+      DO $$ 
+      DECLARE 
+        pol record;
+      BEGIN
+        FOR pol IN 
+          SELECT policyname FROM pg_policies 
+          WHERE schemaname = 'public' AND tablename = 'profiles' AND cmd = 'SELECT'
+        LOOP
+          EXECUTE format('DROP POLICY IF EXISTS %I ON public.profiles', pol.policyname);
+        END LOOP;
+      END $$;
 
-      -- 2. Recriar a View Segura
+      -- 2. Criar política de "Dono do Perfil" (Sempre permitida)
+      CREATE POLICY "profiles_owner_select" ON public.profiles
+      FOR SELECT TO authenticated
+      USING (auth.uid() = id);
+
+      -- 3. Criar política de "Administrador" (Acesso Total)
+      -- Usamos a função check_is_admin() que é SECURITY DEFINER para ignorar o RLS internamente
+      CREATE POLICY "profiles_admin_select" ON public.profiles
+      FOR SELECT TO authenticated
+      USING (public.check_is_admin() = true);
+
+      -- 4. Criar política de "Interação/Match" (Ver dados de contato após interesse)
+      CREATE POLICY "profiles_interaction_select" ON public.profiles
+      FOR SELECT TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.interactions i 
+          WHERE (i.sender_id = auth.uid() AND i.professional_id = profiles.id)
+             OR (i.professional_id = auth.uid() AND i.sender_id = profiles.id)
+        )
+      );
+
+      -- 5. Garantir que a View Segura esteja atualizada
+      DROP VIEW IF EXISTS public.professional_discovery CASCADE;
       CREATE VIEW public.professional_discovery AS
       SELECT 
         id, full_name, avatar_url, specialty, city, state, neighborhood, 
@@ -36,23 +69,7 @@ serve(async (req) => {
       GRANT SELECT ON public.professional_discovery TO authenticated;
       GRANT SELECT ON public.professional_discovery TO anon;
 
-      -- 3. Corrigir Política de RLS na tabela 'profiles'
-      -- Usamos a função check_is_admin() que é SECURITY DEFINER para evitar recursão infinita
-      DROP POLICY IF EXISTS "profiles_secure_access" ON public.profiles;
-
-      CREATE POLICY "profiles_secure_access" ON public.profiles
-      FOR SELECT TO authenticated
-      USING (
-        (auth.uid() = id) OR 
-        (public.check_is_admin() = true) OR
-        (EXISTS (
-          SELECT 1 FROM public.interactions i 
-          WHERE (i.sender_id = auth.uid() AND i.professional_id = profiles.id)
-             OR (i.professional_id = auth.uid() AND i.sender_id = profiles.id)
-        ))
-      );
-
-      -- 4. Notificar recarregamento
+      -- 6. Notificar recarregamento do esquema
       NOTIFY pgrst, 'reload schema';
     `;
 
@@ -60,7 +77,7 @@ serve(async (req) => {
     await client.end();
     client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Políticas corrigidas com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Políticas de privacidade reconstruídas com sucesso!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

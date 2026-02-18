@@ -91,12 +91,12 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
     }
 
     if (userTier === 'yearly') {
-      return { text: "Plano Ativo", disabled: true };
+      return { text: "Plano Inferior", disabled: true };
     }
 
     if (userTier === 'monthly') {
       if (planId === 'yearly') return { text: "Fazer Upgrade", disabled: false };
-      return { text: "Plano Anterior", disabled: true };
+      return { text: "Plano Inferior", disabled: true };
     }
 
     if (userTier === 'free_trial') {

@@ -95,7 +95,7 @@ const Index = () => {
     } catch (err: any) {
       toast.dismiss(toastId);
       const cleanMessage = err.message?.replace("Edge Function returned a non-2xx status code", "").trim();
-      toast.error(`Erro: \${cleanMessage || "Falha ao iniciar pagamento."}`);
+      toast.error(`Erro: ${cleanMessage || "Falha ao iniciar pagamento."}`);
     } finally {
       setLoadingPlan(null);
     }
@@ -265,13 +265,13 @@ const Index = () => {
       const diff = (mPrice - yPrice) * 12;
       
       if (diff > 0) {
-        const savingsText = `Economize R$ \${Math.round(diff)}/ano`;
+        const savingsText = `Economize R$ ${Math.round(diff)}/ano`;
         yearly.savings = savingsText;
         
         if (yearly.features) {
           yearly.features = yearly.features.map(f => 
             f.toLowerCase().includes("economia de") 
-              ? `Economia de R$ \${Math.round(diff)}/ano` 
+              ? `Economia de R$ ${Math.round(diff)}/ano` 
               : f
           );
         }
@@ -299,12 +299,12 @@ const Index = () => {
     }
 
     if (userTier === 'yearly') {
-      return { text: "Plano Ativo", disabled: true };
+      return { text: "Plano Inferior", disabled: true };
     }
 
     if (userTier === 'monthly') {
       if (planId === 'yearly') return { text: "Fazer Upgrade", disabled: false };
-      return { text: "Plano Anterior", disabled: true };
+      return { text: "Plano Inferior", disabled: true };
     }
 
     if (userTier === 'free_trial') {
@@ -600,7 +600,7 @@ const Index = () => {
             {faqs.map((faq, index) => (
               <AccordionItem 
                 key={index} 
-                value={`item-\${index}`} 
+                value={`item-${index}`} 
                 className="border rounded-xl px-6 bg-card shadow-sm border-primary/5"
               >
                 <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">

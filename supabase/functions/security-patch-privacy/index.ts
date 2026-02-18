@@ -13,13 +13,19 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[security-patch-privacy] Blindando colunas sensíveis...");
+    console.log("[security-patch-privacy] Iniciando blindagem resiliente...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
     const sql = `
-      -- 1. Garantir que a View de Descoberta esteja atualizada e sem campos sensíveis
+      -- 1. Garantir que as colunas necessárias existam antes de criar a View
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS professional_experiences TEXT;
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lat NUMERIC;
+      ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lng NUMERIC;
+
+      -- 2. Criar/Atualizar a View de Descoberta (Sem campos sensíveis)
       CREATE OR REPLACE VIEW public.professional_discovery AS
       SELECT 
         id, full_name, avatar_url, specialty, city, state, neighborhood, 
@@ -30,48 +36,49 @@ serve(async (req) => {
         AND full_name IS NOT NULL 
         AND email_confirmed = true;
 
-      -- 2. Restringir a tabela principal 'profiles'
-      -- Removemos qualquer política de leitura pública que possa existir
+      -- 3. Garantir permissões na View
+      GRANT SELECT ON public.professional_discovery TO authenticated;
+      GRANT SELECT ON public.professional_discovery TO anon;
+
+      -- 4. Limpar políticas antigas que podem causar conflito
       DROP POLICY IF EXISTS "profiles_public_read_policy" ON public.profiles;
       DROP POLICY IF EXISTS "profiles_public_select" ON public.profiles;
+      DROP POLICY IF EXISTS "profiles_secure_access" ON public.profiles;
 
-      -- 3. Criar política de visibilidade condicional
+      -- 5. Criar política de visibilidade condicional (Blindagem)
       -- O usuário só vê o perfil completo (com telefone) se:
       -- a) For o dono
       -- b) For admin
       -- c) Houver uma interação (contato) registrada
-      
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'profiles_secure_access') THEN
-          CREATE POLICY "profiles_secure_access" ON public.profiles
-          FOR SELECT TO authenticated
-          USING (
-            (auth.uid() = id) OR 
-            (public.check_is_admin()) OR
-            (EXISTS (
-              SELECT 1 FROM public.interactions i 
-              WHERE (i.sender_id = auth.uid() AND i.professional_id = profiles.id)
-                 OR (i.professional_id = auth.uid() AND i.sender_id = profiles.id)
-            ))
-          );
-        END IF;
-      END
-      $$;
+      CREATE POLICY "profiles_secure_access" ON public.profiles
+      FOR SELECT TO authenticated
+      USING (
+        (auth.uid() = id) OR 
+        (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND (p.is_admin = true OR p.role = 'admin'))) OR
+        (EXISTS (
+          SELECT 1 FROM public.interactions i 
+          WHERE (i.sender_id = auth.uid() AND i.professional_id = profiles.id)
+             OR (i.professional_id = auth.uid() AND i.sender_id = profiles.id)
+        ))
+      );
 
-      -- 4. Notifica o recarregamento do esquema
+      -- 6. Notifica o recarregamento do esquema
       NOTIFY pgrst, 'reload schema';
     `;
 
     await client.queryObject(sql);
     await client.end();
 
-    return new Response(JSON.stringify({ ok: true, message: "Blindagem de dados sensíveis aplicada!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Blindagem de dados aplicada com sucesso!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     if (client) try { await client.end(); } catch {}
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+    console.error("[security-patch-privacy] Erro fatal:", e.message);
+    return new Response(JSON.stringify({ error: e.message }), { 
+      status: 500, 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   }
 });

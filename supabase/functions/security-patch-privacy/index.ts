@@ -13,19 +13,19 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[security-patch-privacy] Iniciando blindagem resiliente...");
+    console.log("[security-patch-privacy] Iniciando blindagem ultra-resiliente...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
     const sql = `
-      -- 1. Garantir que as colunas necessárias existam antes de criar a View
+      -- 1. Garantir colunas básicas
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS professional_experiences TEXT;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lat NUMERIC;
       ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS lng NUMERIC;
 
-      -- 2. Criar/Atualizar a View de Descoberta (Sem campos sensíveis)
+      -- 2. Criar/Atualizar a View de Descoberta (Segura)
       CREATE OR REPLACE VIEW public.professional_discovery AS
       SELECT 
         id, full_name, avatar_url, specialty, city, state, neighborhood, 
@@ -36,25 +36,24 @@ serve(async (req) => {
         AND full_name IS NOT NULL 
         AND email_confirmed = true;
 
-      -- 3. Garantir permissões na View
-      GRANT SELECT ON public.professional_discovery TO authenticated;
-      GRANT SELECT ON public.professional_discovery TO anon;
-
-      -- 4. Limpar políticas antigas que podem causar conflito
+      -- 3. Limpeza de políticas antigas
       DROP POLICY IF EXISTS "profiles_public_read_policy" ON public.profiles;
       DROP POLICY IF EXISTS "profiles_public_select" ON public.profiles;
       DROP POLICY IF EXISTS "profiles_secure_access" ON public.profiles;
 
-      -- 5. Criar política de visibilidade condicional (Blindagem)
-      -- O usuário só vê o perfil completo (com telefone) se:
-      -- a) For o dono
-      -- b) For admin
-      -- c) Houver uma interação (contato) registrada
+      -- 4. Criar política de visibilidade condicional (Sem depender de funções RPC)
+      -- O acesso ao perfil completo (com telefone) é liberado apenas para:
+      -- - O próprio dono do perfil
+      -- - Administradores (verificados via subquery direta)
+      -- - Usuários com interação (contato) registrada
       CREATE POLICY "profiles_secure_access" ON public.profiles
       FOR SELECT TO authenticated
       USING (
         (auth.uid() = id) OR 
-        (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND (p.is_admin = true OR p.role = 'admin'))) OR
+        (EXISTS (
+          SELECT 1 FROM public.profiles p 
+          WHERE p.id = auth.uid() AND (p.is_admin = true OR p.role = 'admin')
+        )) OR
         (EXISTS (
           SELECT 1 FROM public.interactions i 
           WHERE (i.sender_id = auth.uid() AND i.professional_id = profiles.id)
@@ -62,20 +61,23 @@ serve(async (req) => {
         ))
       );
 
-      -- 6. Notifica o recarregamento do esquema
+      -- 5. Notifica o recarregamento do esquema
       NOTIFY pgrst, 'reload schema';
     `;
 
     await client.queryObject(sql);
     await client.end();
+    client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Blindagem de dados aplicada com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Blindagem aplicada com sucesso!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    if (client) try { await client.end(); } catch {}
     console.error("[security-patch-privacy] Erro fatal:", e.message);
+    if (client) {
+      try { await client.end(); } catch (err) { console.error("Erro ao fechar cliente:", err); }
+    }
     return new Response(JSON.stringify({ error: e.message }), { 
       status: 500, 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 

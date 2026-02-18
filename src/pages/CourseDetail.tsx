@@ -25,7 +25,8 @@ import {
   Maximize2,
   ShoppingCart,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -73,7 +74,7 @@ const CourseDetail = () => {
   const fetchCourseData = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const { data: c, error: cErr } = await supabase.from("academy_courses").select("*").eq("slug", slug).single();
+      const { data: c, error: cErr } = await supabase.from("academy_courses").select("*").eq(slug ? "slug" : "", slug).single();
       if (cErr) throw cErr;
 
       const { data: m } = await supabase.from("academy_modules").select("*").eq("course_slug", slug).order("position", { ascending: true });
@@ -481,8 +482,8 @@ const CourseDetail = () => {
                     <p className="text-sm text-muted-foreground">Este curso é realizado em uma plataforma parceira.</p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
-                    <Button
-                      className="flex-1 gap-2"
+                    <Button 
+                      className="flex-1 gap-2" 
                       onClick={() => {
                         setSelectedLesson({
                           id: 'external-course',
@@ -651,25 +652,25 @@ const CourseDetail = () => {
                   <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
                     {viewInside ? (
                       <div className="w-full h-[70vh] border rounded-xl overflow-hidden bg-white relative">
-                        <iframe
-                          src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url}
+                        <iframe 
+                          src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
                           className="w-full h-full"
                           title={selectedLesson.title}
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                         />
                         <div className="absolute top-2 right-2 flex gap-2">
-                          <Button
-                            variant="secondary"
-                            size="sm"
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
                             className="h-8 text-[10px] gap-1 shadow-md"
                             onClick={() => setViewInside(false)}
                           >
                             <X className="h-3 w-3" /> Sair do Modo Visualização
                           </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
                             className="h-8 text-[10px] gap-1 shadow-md"
                             asChild
                           >
@@ -691,9 +692,9 @@ const CourseDetail = () => {
                           </p>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-3">
-                          <Button
-                            onClick={() => setViewInside(true)}
-                            size="lg"
+                          <Button 
+                            onClick={() => setViewInside(true)} 
+                            size="lg" 
                             className="gap-2"
                           >
                             <Eye size={16} /> Visualizar Aqui

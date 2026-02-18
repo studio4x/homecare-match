@@ -8,23 +8,33 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const DEFAULT_SITE_URL = "https://homecarematch.com.br";
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
-    const SITE_URL = Deno.env.get('SITE_URL') || DEFAULT_SITE_URL;
+    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+    
+    const authHeader = req.headers.get('Authorization')
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user: adminUser } } = await supabaseAdmin.auth.getUser(token)
+
+    const { status, reason, userName, userEmail, userId } = await req.json()
+
+    // REGISTRO DE AUDITORIA
+    await supabaseAdmin.from('admin_logs').insert({
+      admin_id: adminUser.id,
+      action_type: status === 'approved' ? 'VERIFICATION_APPROVED' : 'VERIFICATION_REJECTED',
+      target_id: userId,
+      details: status === 'approved' 
+        ? `Aprovou os documentos de: \${userName} (\${userEmail})` 
+        : `Reprovou os documentos de: \${userName} (\${userEmail}). Motivo: \${reason}`
+    })
+
+    // Configurar SMTP e enviar e-mail (mantendo lógica anterior)
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASS');
-
     if (!smtpHost || !smtpUser || !smtpPass) throw new Error("SMTP configuration missing");
-
-    const authHeader = req.headers.get('Authorization')
-    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
-    
-    const { status, reason, userName, userEmail } = await req.json()
 
     const transporter = nodemailer.createTransport({
       host: smtpHost,
@@ -35,25 +45,13 @@ serve(async (req) => {
 
     const isApproved = status === 'approved';
     const subject = isApproved ? "Seu perfil foi aprovado! 🎉" : "Ação necessária no seu perfil ⚠️";
+    const SITE_URL = Deno.env.get('SITE_URL') || "https://homecarematch.com.br";
     
     const htmlContent = isApproved 
-      ? `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
-           <h2 style="color: #10b981;">Parabéns!</h2>
-           <p>Olá <strong>${userName}</strong>, seus documentos foram aprovados e seu perfil agora é <strong>Verificado</strong>!</p>
-           <div style="margin-top: 25px;"><a href="${SITE_URL}/dashboard" style="display:inline-block; padding:12px 24px; background:#16a34a; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Acessar Meu Painel</a></div>
-         </div>` 
-      : `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
-           <h2 style="color: #ef4444;">Atenção Necessária</h2>
-           <p>Olá <strong>${userName}</strong>, não pudemos concluir a verificação: <strong>${reason}</strong></p>
-           <div style="margin-top: 25px;"><a href="${SITE_URL}/dashboard" style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Corrigir Documentos</a></div>
-         </div>`;
+      ? `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;"><h2 style="color: #10b981;">Parabéns!</h2><p>Olá <strong>\${userName}</strong>, seus documentos foram aprovados!</p></div>` 
+      : `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;"><h2 style="color: #ef4444;">Atenção Necessária</h2><p>Olá <strong>\${userName}</strong>, não pudemos concluir a verificação: <strong>\${reason}</strong></p></div>`;
 
-    await transporter.sendMail({
-      from: `"HomeCare Match" <${smtpUser}>`,
-      to: userEmail,
-      subject: subject,
-      html: htmlContent,
-    });
+    await transporter.sendMail({ from: `"HomeCare Match" <\${smtpUser}>`, to: userEmail, subject, html: htmlContent });
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {

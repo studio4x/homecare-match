@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity } from "lucide-react";
+import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity, Coins } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -34,6 +34,7 @@ const SiteConfigTab = () => {
   const [isSyncingSecurity, setIsSyncingSecurity] = useState(false);
   const [isSyncingRLS, setIsSyncingRLS] = useState(false);
   const [isSyncingAudit, setIsSyncingAudit] = useState(false);
+  const [isSyncingAPI, setIsSyncingAPI] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -146,14 +147,27 @@ const SiteConfigTab = () => {
     }
   };
 
+  const handleSyncAPI = async () => {
+    setIsSyncingAPI(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-api-protection');
+      if (error) throw error;
+      toast.success("Proteção de API e Controle de Custos ativos!");
+    } catch (error: any) {
+      toast.error("Erro ao configurar proteção de API.");
+    } finally {
+      setIsSyncingAPI(false);
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, field: 'logo_url' | 'footer_logo_url' | 'favicon_url') => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setIsUploading(field);
     const fileExt = file.name.split('.').pop();
-    const fileName = `${field}_${Date.now()}.${fileExt}`;
-    const filePath = `site-assets/${fileName}`;
+    const fileName = `\${field}_\${Date.now()}.\${fileExt}`;
+    const filePath = `site-assets/\${fileName}`;
 
     try {
       const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, file);
@@ -323,7 +337,7 @@ const SiteConfigTab = () => {
             <div className="space-y-2">
               <Label>Logotipo</Label>
               <div className="flex flex-col gap-2">
-                {config?.logo_url && <img src={config.logo_url} alt="Logo" style={{ height: `${formData.logo_height_px}px` }} className="object-contain bg-secondary/20 p-2 rounded" />}
+                {config?.logo_url && <img src={config.logo_url} alt="Logo" style={{ height: `\${formData.logo_height_px}px` }} className="object-contain bg-secondary/20 p-2 rounded" />}
                 <Button variant="outline" size="sm" onClick={() => logoRef.current?.click()} disabled={!!isUploading}>Alterar</Button>
                 <input type="file" ref={logoRef} onChange={(e) => handleFileUpload(e, 'logo_url')} className="hidden" accept="image/*" />
               </div>
@@ -397,6 +411,16 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncAudit} disabled={isSyncingAudit}>
               {isSyncingAudit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Proteção de API e Custos</p>
+              <p className="text-xs text-amber-800/70">Ativa limites diários para uso de IA e Mapas.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncAPI} disabled={isSyncingAPI}>
+              {isSyncingAPI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
             </Button>
           </div>
 

@@ -1,95 +1,79 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const LIMIT_PER_24H = 5;
+
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    console.log("[generate-bio] Requisição iniciada.");
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
-    const { name, specialty, experience, professional_experiences, city, state } = await req.json();
-
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    // 1. Validar Usuário
+    const authHeader = req.headers.get('Authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
-    if (!GEMINI_API_KEY) {
-      console.error("[generate-bio] ERRO: GEMINI_API_KEY não encontrada nos Secrets.");
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Não autorizado" }), { status: 401, headers: corsHeaders });
+    }
+
+    // 2. Verificar Rate Limit (Últimas 24h)
+    const { count } = await supabaseAdmin
+      .from('api_usage_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('resource_type', 'ai_bio')
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+    if (count >= LIMIT_PER_24H) {
       return new Response(
-        JSON.stringify({ error: "A chave de API (GEMINI_API_KEY) não foi configurada nos Secrets do Supabase." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Limite diário atingido. Você pode gerar até 5 biografias por dia." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const prompt = `
-      Você é um redator especializado em perfis profissionais de saúde.
-      Escreva uma biografia profissional e humanizada em terceira pessoa para o seguinte perfil:
-      
-      Nome: ${name}
-      Especialidade: ${specialty}
-      Formações: ${experience}
-      Experiências: ${professional_experiences}
-      Localização: ${city} - ${state}
+    const { name, specialty, experience, professional_experiences, city, state } = await req.json();
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    
+    if (!GEMINI_API_KEY) throw new Error("Configuração de IA ausente.");
 
-      Diretrizes:
-      - Escreva em terceira pessoa.
-      - Tom acolhedor e profissional.
-      - Destaque o compromisso com o cuidado.
-      - Retorne APENAS o texto da biografia.
-      - Se os dados forem insuficientes ou de teste, crie um texto padrão profissional baseado na especialidade.
-    `;
+    const prompt = `Escreva uma biografia profissional e humanizada em terceira pessoa para: Nome: \${name}, Especialidade: \${specialty}, Formações: \${experience}, Experiências: \${professional_experiences}, Localização: \${city} - \${state}. Retorne APENAS o texto.`;
 
-    console.log("[generate-bio] Chamando Gemini API (v1 - gemini-2.5-flash)...");
-
-    // Atualizado para o modelo gemini-2.5-flash
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=\${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       }
     );
 
     const result = await response.json();
-
-    if (!response.ok) {
-      console.error("[generate-bio] Erro retornado pelo Google:", result);
-      const googleError = result.error?.message || "Erro desconhecido na API do Google.";
-      return new Response(
-        JSON.stringify({ error: `Erro no Google Gemini: ${googleError}` }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     const bio = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    if (!bio) {
-      console.error("[generate-bio] Resposta sem conteúdo:", result);
-      return new Response(
-        JSON.stringify({ error: "A IA não gerou conteúdo. Verifique se os dados inseridos são válidos." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (bio) {
+      // Registrar uso bem-sucedido
+      await supabaseAdmin.from('api_usage_logs').insert({
+        user_id: user.id,
+        resource_type: 'ai_bio'
+      });
     }
-
-    console.log("[generate-bio] Sucesso!");
 
     return new Response(JSON.stringify({ bio: bio.trim() }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("[generate-bio] Erro crítico:", error.message);
-    return new Response(
-      JSON.stringify({ error: `Erro interno: ${error.message}` }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
   }
 });

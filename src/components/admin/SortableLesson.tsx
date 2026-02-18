@@ -68,7 +68,12 @@ const SortableLesson = ({
             />
           </div>
           <div>
-            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Tipo</Label>
+            <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+              Tipo
+              {(lesson.type === 'link' || lesson.type === 'pdf') && (
+                <span className="text-[8px] bg-primary/10 text-primary px-1 rounded" title="Suporta visualização interna (iframe)">iFrame OK</span>
+              )}
+            </Label>
             <Select value={lesson.type} onValueChange={v => onUpdate({ type: v as any })}>
               <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>

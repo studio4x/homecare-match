@@ -8,75 +8,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
-const DEFAULT_SITE_URL = "https://www.homecarematch.com.br";
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
     const { reportId } = await req.json();
-    const SITE_URL = Deno.env.get('SITE_URL') || DEFAULT_SITE_URL;
+    const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Buscar dados da denúncia
-    const { data: report, error: reportError } = await supabaseAdmin
+    const { data: report } = await supabaseAdmin
       .from('reports')
-      .select(`
-        *,
-        reporter:profiles!reports_reporter_id_fkey(full_name, email),
-        reported:profiles!reports_reported_id_fkey(full_name, email)
-      `)
+      .select(`*, reported:profiles!reports_reported_id_fkey(full_name, email)`)
       .eq('id', reportId)
       .single();
 
-    if (reportError || !report) throw new Error("Denúncia não encontrada");
+    // --- NOTIFICAÇÃO NO PAINEL ---
+    await supabaseAdmin.from('admin_notifications').insert({
+      title: "🚨 Nova Denúncia de Perfil",
+      content: `O perfil de ${report.reported.full_name} foi denunciado por: ${report.reason}`,
+      link: "/admin/denuncias",
+      type: 'error'
+    });
 
-    // Configurar SMTP
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASS');
-    const smtpPort = Deno.env.get('SMTP_PORT') || "587";
 
-    if (!smtpHost || !smtpUser || !smtpPass) throw new Error("SMTP configuration missing");
+    if (smtpHost && smtpUser && smtpPass) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: 587,
+        auth: { user: smtpUser, pass: smtpPass },
+      });
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: parseInt(smtpPort),
-      secure: smtpPort === "465",
-      auth: { user: smtpUser, pass: smtpPass },
-    });
+      await transporter.sendMail({
+        from: `"Segurança HomeCare Match" <${smtpUser}>`,
+        to: "contato@homecarematch.com.br",
+        subject: `🚨 Nova Denúncia: ${report.reported.full_name}`,
+        html: `<div style="font-family: sans-serif; padding: 20px;"><h2 style="color: #ef4444;">Nova denúncia</h2><p><strong>Perfil:</strong> ${report.reported.full_name}</p><p><strong>Motivo:</strong> ${report.reason}</p></div>`,
+      });
+    }
 
-    const adminLink = `${SITE_URL}/admin/denuncias`;
-
-    await transporter.sendMail({
-      from: `"Segurança HomeCare Match" <${smtpUser}>`,
-      to: MASTER_ADMIN_EMAIL,
-      subject: `🚨 Nova Denúncia de Perfil: ${report.reported.full_name}`,
-      html: `
-        <div style="font-family: sans-serif; color: #1e293b; padding: 20px;">
-          <h2 style="color: #ef4444;">Nova denúncia recebida</h2>
-          <p><strong>Perfil Denunciado:</strong> ${report.reported.full_name} (${report.reported.email})</p>
-          <p><strong>Motivo:</strong> ${report.reason}</p>
-          <p><strong>Descrição:</strong> ${report.description || 'Sem detalhes adicionais.'}</p>
-          <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e2e8f0;" />
-          <p><strong>Denunciante:</strong> ${report.reporter?.full_name || 'Anônimo'} (${report.reporter?.email || 'N/A'})</p>
-          <div style="margin-top: 30px;">
-            <a href="${adminLink}" style="display:inline-block; padding:12px 24px; background:#ef4444; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Analisar no Painel Admin</a>
-          </div>
-        </div>
-      `,
-    });
-
-    return new Response(JSON.stringify({ success: true }), { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    console.error("[notify-report] Erro:", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 })

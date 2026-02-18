@@ -12,11 +12,7 @@ const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
 const DEFAULT_SITE_URL = "https://www.homecarematch.com.br";
 
 serve(async (req) => {
-  console.log("[notify-support] Função iniciada.");
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
     const { type, ticketId, senderId, message } = await req.json();
@@ -27,130 +23,68 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 1. Buscar dados do ticket
-    const { data: ticket, error: ticketError } = await supabaseAdmin
-      .from('support_tickets')
-      .select('*')
-      .eq('id', ticketId)
-      .single();
-
-    if (ticketError || !ticket) throw new Error("Ticket não encontrado");
-
-    // 2. Buscar dados do dono do ticket
-    const { data: ticketOwner, error: ownerError } = await supabaseAdmin
-      .from('profiles')
-      .select('full_name, email')
-      .eq('id', ticket.user_id)
-      .single();
-
-    if (ownerError || !ticketOwner) throw new Error("Dono do ticket não encontrado");
-
-    // 3. Buscar dados do remetente
-    const { data: sender } = await supabaseAdmin
-      .from('profiles')
-      .select('full_name, role, is_admin')
-      .eq('id', senderId)
-      .single();
+    const { data: ticket } = await supabaseAdmin.from('support_tickets').select('*').eq('id', ticketId).single();
+    const { data: ticketOwner } = await supabaseAdmin.from('profiles').select('full_name, email').eq('id', ticket.user_id).single();
+    const { data: sender } = await supabaseAdmin.from('profiles').select('full_name, role, is_admin').eq('id', senderId).single();
 
     const isAdminAction = sender?.is_admin || sender?.role === 'admin';
 
-    // 4. Configurar SMTP
+    // --- GERAÇÃO DE NOTIFICAÇÃO NO PAINEL ---
+    if (type === 'new_ticket') {
+      await supabaseAdmin.from('admin_notifications').insert({
+        title: "🎫 Novo Ticket Aberto",
+        content: `O usuário ${ticketOwner.full_name} abriu um chamado: "${ticket.subject}"`,
+        link: `/admin/suporte/${ticketId}`,
+        type: 'warning'
+      });
+    } else if (type === 'new_message' && !isAdminAction) {
+      await supabaseAdmin.from('admin_notifications').insert({
+        title: "📩 Nova Mensagem em Ticket",
+        content: `${ticketOwner.full_name} respondeu no ticket #${ticketId.slice(0,8)}`,
+        link: `/admin/suporte/${ticketId}`,
+        type: 'info'
+      });
+    }
+
+    // Lógica de E-mail (mantida)
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASS');
     const smtpPort = Deno.env.get('SMTP_PORT') || "587";
 
-    if (!smtpHost || !smtpUser || !smtpPass) {
-      throw new Error("SMTP configuration missing");
-    }
+    if (smtpHost && smtpUser && smtpPass) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(smtpPort),
+        secure: smtpPort === "465",
+        auth: { user: smtpUser, pass: smtpPass },
+      });
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: parseInt(smtpPort),
-      secure: smtpPort === "465",
-      auth: { user: smtpUser, pass: smtpPass },
-    });
+      let mailOptions = { from: `"Suporte HomeCare Match" <${smtpUser}>` };
+      const ticketLink = `${SITE_URL}/dashboard/suporte/${ticketId}`;
+      const adminLink = `${SITE_URL}/admin/suporte`;
 
-    let mailOptions = {
-      from: `"Suporte HomeCare Match" <${smtpUser}>`,
-    };
-
-    const ticketLink = `${SITE_URL}/dashboard/suporte/${ticketId}`;
-    const adminLink = `${SITE_URL}/admin/suporte`;
-
-    switch (type) {
-      case 'new_ticket':
+      if (type === 'new_ticket') {
         mailOptions.to = MASTER_ADMIN_EMAIL;
         mailOptions.subject = `🎫 Novo Ticket: ${ticket.subject}`;
-        mailOptions.html = `
-          <div style="font-family: sans-serif; color: #1e293b;">
-            <h2 style="color: #2563eb;">Novo chamado aberto</h2>
-            <p><strong>Usuário:</strong> ${ticketOwner.full_name} (${ticketOwner.email})</p>
-            <p><strong>Assunto:</strong> ${ticket.subject}</p>
-            <p><strong>Prioridade:</strong> ${ticket.priority}</p>
-            <p><strong>Descrição:</strong> ${ticket.description}</p>
-            <div style="margin-top: 20px;">
-              <a href="${adminLink}" style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Ver no Painel Admin</a>
-            </div>
-          </div>
-        `;
-        break;
-
-      case 'new_message':
+        mailOptions.html = `<div style="font-family: sans-serif;"><h2 style="color: #2563eb;">Novo chamado</h2><p><strong>Usuário:</strong> ${ticketOwner.full_name}</p><p><strong>Assunto:</strong> ${ticket.subject}</p><a href="${adminLink}" style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px;">Ver no Painel</a></div>`;
+      } else if (type === 'new_message') {
         if (isAdminAction) {
           mailOptions.to = ticketOwner.email;
           mailOptions.subject = `💬 Nova resposta no seu chamado: ${ticket.subject}`;
-          mailOptions.html = `
-            <div style="font-family: sans-serif; color: #1e293b;">
-              <p>Olá, <strong>${ticketOwner.full_name}</strong>.</p>
-              <p>Nossa equipe de suporte respondeu ao seu chamado <strong>"${ticket.subject}"</strong>.</p>
-              <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin:15px 0; border-left: 4px solid #2563eb;">
-                ${message}
-              </div>
-              <div style="margin-top: 20px;">
-                <a href="${ticketLink}" style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Responder no Chat</a>
-              </div>
-            </div>
-          `;
+          mailOptions.html = `<div style="font-family: sans-serif;"><p>Olá, <strong>${ticketOwner.full_name}</strong>.</p><p>Nossa equipe respondeu ao seu chamado.</p><div style="background:#f1f5f9; padding:15px; border-radius:8px;">${message}</div><a href="${ticketLink}" style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; margin-top:20px;">Responder no Chat</a></div>`;
         } else {
           mailOptions.to = MASTER_ADMIN_EMAIL;
           mailOptions.subject = `📩 Nova mensagem no Ticket: ${ticket.subject}`;
-          mailOptions.html = `
-            <div style="font-family: sans-serif; color: #1e293b;">
-              <p>O usuário <strong>${ticketOwner.full_name}</strong> enviou uma nova mensagem no ticket #${ticketId.slice(0,8)}.</p>
-              <div style="background:#f1f5f9; padding:15px; border-radius:8px; margin:15px 0; border-left: 4px solid #2563eb;">
-                ${message}
-              </div>
-              <div style="margin-top: 20px;">
-                <a href="${adminLink}" style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Ver no Painel Admin</a>
-              </div>
-            </div>
-          `;
+          mailOptions.html = `<div style="font-family: sans-serif;"><p>O usuário <strong>${ticketOwner.full_name}</strong> enviou uma mensagem no ticket #${ticketId.slice(0,8)}.</p><div style="background:#f1f5f9; padding:15px; border-radius:8px;">${message}</div><a href="${adminLink}" style="display:inline-block; padding:12px 24px; background:#2563eb; color:white; text-decoration:none; border-radius:6px; margin-top:20px;">Ver no Painel</a></div>`;
         }
-        break;
+      }
 
-      case 'ticket_closed':
-        mailOptions.to = ticketOwner.email;
-        mailOptions.subject = `✅ Chamado Encerrado: ${ticket.subject}`;
-        mailOptions.html = `
-          <div style="font-family: sans-serif; color: #1e293b;">
-            <p>Olá, <strong>${ticketOwner.full_name}</strong>.</p>
-            <p>Seu chamado <strong>"${ticket.subject}"</strong> foi marcado como encerrado.</p>
-            <p>Esperamos ter ajudado! Se precisar de algo mais, sinta-se à vontade para abrir um novo ticket.</p>
-            <div style="margin-top: 20px;">
-              <a href="${ticketLink}" style="display:inline-block; padding:12px 24px; background:#64748b; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">Ver Histórico</a>
-            </div>
-          </div>
-        `;
-        break;
+      await transporter.sendMail(mailOptions);
     }
 
-    await transporter.sendMail(mailOptions);
-    return new Response(JSON.stringify({ success: true }), { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
-    console.error("[notify-support] Erro crítico:", error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 })

@@ -23,7 +23,6 @@ const ReferralLinkCard = () => {
 
   if (!user) return null;
 
-  // Alterado: Agora aponta para /convite e não para /login
   const referralLink = `${window.location.origin}/convite?ref=${user.id}`;
 
   useEffect(() => {
@@ -111,6 +110,14 @@ const ReferralLinkCard = () => {
       });
 
       if (error) throw error;
+
+      // --- NOTIFICAÇÃO NO PAINEL ---
+      await supabase.from('admin_notifications').insert({
+        title: "🤝 Nova Indicação Manual",
+        content: `${user.user_metadata.full_name || 'Um usuário'} indicou o profissional: ${referralName || cleanPhone}`,
+        link: "/admin/indicacoes",
+        type: 'info'
+      });
 
       toast.success("Indicação enviada com sucesso! Nossa equipe entrará em contato.");
       setReferralName("");

@@ -40,6 +40,14 @@ const SuggestionDrawer = ({ variant = "fixed" }: SuggestionDrawerProps) => {
 
       if (error) throw error;
 
+      // --- NOTIFICAÇÃO NO PAINEL ---
+      await supabase.from('admin_notifications').insert({
+        title: "💡 Nova Sugestão Recebida",
+        content: `Um usuário enviou uma nova ideia de recurso para a plataforma.`,
+        link: "/admin/sugestoes",
+        type: 'info'
+      });
+
       toast.success("Obrigado pela sua sugestão!", {
         description: "Nossa equipe analisará sua ideia com carinho."
       });

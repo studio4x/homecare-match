@@ -163,7 +163,8 @@ const Funcionalidades = () => {
       return {
         title: "Carregando...",
         description: "Estamos preparando as melhores opções para você.",
-        buttons: <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        buttons: <Loader2 className="h-8 w-8 animate-spin text-primary" />,
+        items: []
       };
     }
 
@@ -180,7 +181,8 @@ const Funcionalidades = () => {
               <Link to="/buscar">Explorar Profissionais</Link>
             </Button>
           </div>
-        )
+        ),
+        items: ["Conexão direta e segura", "Sem intermediários", "Crescimento profissional"]
       };
     }
 
@@ -195,7 +197,8 @@ const Funcionalidades = () => {
               Explorar Catálogo de Cursos
             </Link>
           </Button>
-        )
+        ),
+        items: ["Certificados com selo no perfil", "Conteúdo prático e atualizado", "Destaque para recrutadores"]
       };
     }
 
@@ -210,7 +213,8 @@ const Funcionalidades = () => {
             Explorar Profissionais
           </Link>
         </Button>
-      )
+      ),
+      items: ["Sem taxas de agenciamento", "Contato direto e imediato", "Segurança e Verificação"]
     };
   };
 
@@ -263,24 +267,14 @@ const Funcionalidades = () => {
               {cta.buttons}
             </div>
             <div className="grid gap-4">
-              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm border">
-                <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">
-                  <CheckCircle2 className="h-6 w-6" />
+              {cta.items.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm border animate-fade-in">
+                  <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">
+                    <CheckCircle2 className="h-6 w-6" />
+                  </div>
+                  <p className="font-medium">{item}</p>
                 </div>
-                <p className="font-medium">Sem taxas de agenciamento</p>
-              </div>
-              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm border">
-                <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">
-                  <CheckCircle2 className="h-6 w-6" />
-                </div>
-                <p className="font-medium">Contato direto e imediato</p>
-              </div>
-              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm border">
-                <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">
-                  <CheckCircle2 className="h-6 w-6" />
-                </div>
-                <p className="font-medium">Segurança e Verificação</p>
-              </div>
+              ))}
             </div>
           </div>
         </div>

@@ -64,7 +64,15 @@ const HERO_DIR = "academy/hero";
 const MATERIALS_DIR = "materials";
 const PRIVATE_BUCKET = "academy-private";
 
-type CourseLevel = "iniciante" | "intermediario" | "avancado";
+// Mapeamento de níveis para exibição correta
+export const COURSE_LEVEL_LABELS: Record<string, string> = {
+  iniciante: "Iniciante",
+  basico: "Básico",
+  intermediario: "Intermediário",
+  avancado: "Avançado",
+};
+
+type CourseLevel = "iniciante" | "basico" | "intermediario" | "avancado";
 
 interface Lesson {
   id: string;
@@ -608,7 +616,11 @@ const CoursesTab = () => {
               {courses.map(c => (
                 <TableRow key={c.slug}>
                   <TableCell className="font-medium">{c.title}</TableCell>
-                  <TableCell><Badge variant="outline" className="capitalize">{c.level}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {c.level ? COURSE_LEVEL_LABELS[c.level] || c.level : "Não definido"}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     {c.price && c.price > 0 ? (
                       <span className="text-sm font-semibold">R$ {Number(c.price).toFixed(2).replace('.', ',')}</span>
@@ -690,6 +702,7 @@ const CoursesTab = () => {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="iniciante">Iniciante</SelectItem>
+                      <SelectItem value="basico">Básico</SelectItem>
                       <SelectItem value="intermediario">Intermediário</SelectItem>
                       <SelectItem value="avancado">Avançado</SelectItem>
                     </SelectContent>

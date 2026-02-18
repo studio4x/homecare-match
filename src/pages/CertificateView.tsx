@@ -10,6 +10,7 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 
 const CertificateView = () => {
   const { id } = useParams();

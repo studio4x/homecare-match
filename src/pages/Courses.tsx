@@ -32,8 +32,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PlanSelectionModal from "@/components/PlanSelectionModal";
+import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 
-type CourseLevel = "iniciante" | "intermediario" | "avancado";
+type CourseLevel = "iniciante" | "basico" | "intermediario" | "avancado";
 
 interface Lesson {
   id: string;
@@ -344,6 +345,7 @@ const Courses = () => {
                 <SelectContent>
                   <SelectItem value="all">Todos os níveis</SelectItem>
                   <SelectItem value="iniciante">Iniciante</SelectItem>
+                  <SelectItem value="basico">Básico</SelectItem>
                   <SelectItem value="intermediario">Intermediário</SelectItem>
                   <SelectItem value="avancado">Avançado</SelectItem>
                 </SelectContent>
@@ -412,7 +414,9 @@ const Courses = () => {
                         <span className="line-clamp-2 leading-tight">{c.title}</span>
                       </CardTitle>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="capitalize text-[10px] h-5">{c.level || "iniciante"}</Badge>
+                        <Badge variant="secondary" className="capitalize text-[10px] h-5">
+                          {c.level ? COURSE_LEVEL_LABELS[c.level] || c.level : "Iniciante"}
+                        </Badge>
                         <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
                           {c.duration_minutes ? `${c.duration_minutes} min` : ""}
                         </span>

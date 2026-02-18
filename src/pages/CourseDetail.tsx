@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import PlanSelectionModal from "@/components/PlanSelectionModal";
+import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -387,7 +388,9 @@ const CourseDetail = () => {
 
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-4">
-                  <Badge variant="secondary" className="capitalize">{course.level}</Badge>
+                  <Badge variant="secondary" className="capitalize">
+                    {course.level ? COURSE_LEVEL_LABELS[course.level] || course.level : "Iniciante"}
+                  </Badge>
                   <span className="text-sm text-muted-foreground">{course.duration_minutes} min</span>
                 </div>
                 

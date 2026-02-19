@@ -22,11 +22,6 @@ const PushManager = () => {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
-  // diagnostics
-  const [diagOpen, setDiagOpen] = useState(false);
-  const [diagRunning, setDiagRunning] = useState(false);
-  const [diag, setDiag] = useState<Record<string, any> | null>(null);
-
   const urlBase64ToUint8Array = (base64String: string) => {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
@@ -74,7 +69,6 @@ const PushManager = () => {
           };
           const layout = config?.push_layout_json ? { ...defaultLayout, ...config.push_layout_json } : defaultLayout;
 
-          // in-site toast
           toast.custom(
             (t) => (
               <div
@@ -136,7 +130,6 @@ const PushManager = () => {
             { duration: (layout.duration || 12) * 1000, position: "bottom-center" }
           );
 
-          // native notification via SW fallback
           try {
             if (typeof window !== "undefined" && "serviceWorker" in navigator && Notification.permission === "granted") {
               const registration = await navigator.serviceWorker.ready;
@@ -149,7 +142,6 @@ const PushManager = () => {
                 tag: `hcm-notification-${data.id || Date.now()}`,
                 renotify: true,
               };
-              // cast to any
               (registration as any).showNotification(data.title, options);
             }
           } catch (swErr) {
@@ -159,7 +151,6 @@ const PushManager = () => {
       })
       .subscribe();
 
-    // SW registration
     if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
@@ -186,23 +177,38 @@ const PushManager = () => {
 
     setIsSubscribing(true);
     try {
-      const permission = await Notification.requestPermission();
+      // request permission
+      const permissionResult = await Notification.requestPermission();
 
-      // Chrome sometimes returns 'granted' but underlying push manager might be blocked by site settings.
-      if (permission !== "granted") {
-        // If user explicitly denied, show clear instructions
-        if (permission === "denied") {
+      // Some browsers update permission asynchronously; wait a short time and re-check
+      const waitForPermission = () =>
+        new Promise<string>((resolve) => {
+          const start = Date.now();
+          const check = () => {
+            const now = Date.now();
+            if (Notification.permission !== "default" || now - start > 3000) {
+              resolve(Notification.permission);
+            } else {
+              setTimeout(check, 200);
+            }
+          };
+          check();
+        });
+
+      const finalPermission = permissionResult === "default" ? await waitForPermission() : permissionResult;
+
+      if (finalPermission !== "granted") {
+        if (finalPermission === "denied") {
           toast.error(
-            "Notificações negadas: abra Configurações do Chrome → Site settings → Notifications e permita notificações para este site."
+            "Notificações negadas: abra Configurações do Chrome → Configurações do site → Notificações e permita para este site."
           );
         } else {
-          toast.error("Notificações bloqueadas no navegador.");
+          toast.error("Você fechou o diálogo sem escolher. Para ativar, abra Configurações do site e permita notificações.");
         }
         setIsSubscribing(false);
         return;
       }
 
-      // ensure SW ready
       if (!("serviceWorker" in navigator)) {
         toast.error("Service Worker não suportado neste navegador.");
         setIsSubscribing(false);
@@ -240,65 +246,15 @@ const PushManager = () => {
       setShowPrompt(false);
     } catch (err: any) {
       console.error("[PushManager] subscribe error:", err);
-      // Provide actionable message when Chrome blocks push even after permission
       if (err?.message && /permission/i.test(err.message)) {
         toast.error(
-          "Notificações bloqueadas pelo navegador: abra Configurações do Chrome → Site settings → Notifications e ative para este site."
+          "Notificações bloqueadas pelo navegador: abra Configurações do Chrome → Configurações do site → Notificações e ative para este site."
         );
       } else {
         toast.error("Erro ao ativar notificações. Verifique se o site está em HTTPS e se o Service Worker foi registrado.");
       }
     } finally {
       setIsSubscribing(false);
-    }
-  };
-
-  // Diagnostic tool for debugging permission / SW / subscription issues
-  const runDiagnostics = async () => {
-    setDiagRunning(true);
-    setDiag(null);
-    try {
-      const result: Record<string, any> = {};
-      result.notificationPermission = typeof Notification !== "undefined" ? Notification.permission : "not_supported";
-      result.pushManagerSupported = typeof window !== "undefined" && "PushManager" in window;
-      result.serviceWorkerSupported = typeof window !== "undefined" && "serviceWorker" in navigator;
-
-      if (result.serviceWorkerSupported) {
-        try {
-          const registration = await navigator.serviceWorker.getRegistration();
-          result.swRegistrationExists = !!registration;
-          if (registration) {
-            result.swActive = !!(registration.active || registration.installing || registration.waiting);
-            // try to get subscription
-            try {
-              const sub = await registration.pushManager.getSubscription();
-              result.existingSubscription = !!sub;
-              result.subscriptionJson = sub ? sub.toJSON() : null;
-            } catch (subErr) {
-              result.subscriptionError = String(subErr);
-            }
-          }
-        } catch (swErr) {
-          result.swError = String(swErr);
-        }
-      }
-
-      // check server-side saved subscription for this user (if logged)
-      if (user?.id) {
-        try {
-          const { data } = await supabase.from("push_subscriptions").select("id, device_type").eq("user_id", user.id).limit(10);
-          result.serverSubscriptions = data || [];
-        } catch (srvErr) {
-          result.serverSubscriptionsError = String(srvErr);
-        }
-      }
-
-      setDiag(result);
-    } catch (e) {
-      setDiag({ error: String(e) });
-    } finally {
-      setDiagRunning(false);
-      setDiagOpen(true);
     }
   };
 
@@ -324,41 +280,7 @@ const PushManager = () => {
               <Button variant="ghost" onClick={() => setShowPrompt(false)} className="flex-1 text-muted-foreground">
                 Agora não
               </Button>
-              <Button variant="outline" onClick={runDiagnostics} className="flex-1">
-                {diagRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Diagnóstico"}
-              </Button>
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Diagnóstico de Notificações</DialogTitle>
-            <DialogDescription>Resultados rápidos para ajudar a identificar bloqueios no Chrome mobile.</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 pt-3 text-sm">
-            {diagRunning && <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Executando...</div>}
-            {!diag && !diagRunning && <div className="text-muted-foreground">Execute o diagnóstico para ver o resultado.</div>}
-            {diag && (
-              <div className="space-y-2">
-                {Object.entries(diag).map(([k, v]) => (
-                  <div key={k} className="flex items-start gap-2">
-                    <div className="w-32 text-[11px] text-muted-foreground">{k}</div>
-                    <div className="flex-1 font-mono text-[12px]">{typeof v === "string" ? v : JSON.stringify(v, null, 0)}</div>
-                  </div>
-                ))}
-                <div className="pt-2 text-[12px] text-muted-foreground">
-                  Se a Permission for "denied", peça ao usuário: Chrome → Configurações do site → Notificações → permita para este site.
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button onClick={() => { setDiag(null); setDiagOpen(false); }}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

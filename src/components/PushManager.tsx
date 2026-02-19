@@ -60,7 +60,7 @@ const PushManager = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'push_notifications' },
-        (payload) => {
+        async (payload) => {
           const data = payload.new as any;
           
           if (data && data.status === 'sent') {
@@ -85,7 +85,7 @@ const PushManager = () => {
               ...config.push_layout_json
             } : defaultLayout;
 
-            // Exibe o Toast customizado (funciona em Desktop e Mobile com site aberto)
+            // 1) Mostrar toast customizado (visual no site)
             toast.custom((t) => (
               <div 
                 className="w-[calc(100vw-32px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto mx-auto relative"
@@ -143,6 +143,28 @@ const PushManager = () => {
               duration: (layout.duration || 12) * 1000,
               position: 'bottom-center',
             });
+
+            // 2) Tentativa de exibir NATIVE notification via Service Worker como fallback
+            try {
+              if (typeof window !== 'undefined' && 'serviceWorker' in navigator && Notification.permission === 'granted') {
+                const registration = await navigator.serviceWorker.ready;
+                // build options as any to include vibrate (some TS DOM libs don't include it)
+                const options: any = {
+                  body: data.body,
+                  icon: data.image_url || '/favicon.png',
+                  badge: '/favicon.png',
+                  data: { url: data.link || '/' },
+                  vibrate: [100, 50, 100],
+                  tag: `hcm-notification-${data.id || Date.now()}`,
+                  renotify: true
+                };
+                // mostra a notificação via SW (aparece na barra do sistema)
+                // cast to any to avoid TS errors on some lib versions
+                (registration as any).showNotification(data.title, options);
+              }
+            } catch (swErr) {
+              console.warn("[PushManager] fallback SW.showNotification falhou:", swErr);
+            }
           }
         }
       )
@@ -152,7 +174,7 @@ const PushManager = () => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
         .then((reg) => {
-          console.log('[Push] Service Worker pronto.');
+          console.log('[Push] Service Worker registrado e pronto.');
           // Tenta mostrar o prompt se já houver consentimento de cookies
           checkAndShowPrompt();
         })

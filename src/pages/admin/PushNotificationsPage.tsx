@@ -294,19 +294,20 @@ const PushNotificationsPage = () => {
     if (!confirm("Tem certeza que deseja remover TODOS os dispositivos inscritos? Isso impedirá o envio de notificações até que os usuários aceitem novamente.")) return;
     
     setLoading(true);
+    const toastId = toast.loading("Limpando base de inscritos...");
     try {
-      // Agora com a política de DELETE para Admin, isso funcionará permanentemente
-      const { error } = await supabase
-        .from("push_subscriptions")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
+      const { error } = await supabase.functions.invoke('process-push-notifications', {
+        body: { action: 'clear_all_subscribers' }
+      });
       
       if (error) throw error;
+      
       setSubscribers([]);
-      toast.success("Lista de inscritos limpa com sucesso!");
+      toast.success("Lista de inscritos limpa definitivamente!", { id: toastId });
+      fetchSubscribers();
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao limpar inscritos. Verifique as permissões.");
+      toast.error("Erro ao limpar inscritos.", { id: toastId });
     } finally {
       setLoading(false);
     }

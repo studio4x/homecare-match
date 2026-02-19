@@ -30,7 +30,23 @@ serve(async (req) => {
     const body = await req.json();
     const { notificationId, action } = body;
 
-    console.log(`[Push] Processando ação: \${action}`, { notificationId });
+    console.log(`[Push] Processando ação: ${action}`, { notificationId });
+
+    // --- NOVA AÇÃO: LIMPAR TODOS OS INSCRITOS ---
+    if (action === 'clear_all_subscribers') {
+      console.log("[Push] Iniciando limpeza total de inscritos...");
+      const { error, count } = await supabaseAdmin
+        .from('push_subscriptions')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deleta tudo
+      
+      if (error) throw error;
+      
+      return new Response(JSON.stringify({ success: true, deletedCount: count }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
+    }
 
     if (action === 'send_now' || action === 'process_scheduled') {
       let notifications = [];
@@ -75,18 +91,14 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   const { data: subs } = await query;
   if (!subs || subs.length === 0) return 0;
 
-  // --- DE-DUPLICAÇÃO AGRESSIVA ---
-  // Usamos um Map para garantir que cada endpoint (aparelho único) receba apenas uma notificação
-  // Mesmo que o usuário tenha múltiplos registros no banco, o endpoint é a chave única do navegador.
   const uniqueEndpoints = new Map();
   subs.forEach(s => {
     if (s.subscription?.endpoint) {
-      // Se já existe, mantemos o mais recente (ou qualquer um, o importante é o endpoint ser único)
       uniqueEndpoints.set(s.subscription.endpoint, s);
     }
   });
 
-  console.log(`[Push] De-duplicação: de \${subs.length} registros para \${uniqueEndpoints.size} aparelhos únicos.`);
+  console.log(`[Push] De-duplicação: de ${subs.length} registros para ${uniqueEndpoints.size} aparelhos únicos.`);
 
   const payload = JSON.stringify({
     title: notification.title,
@@ -98,7 +110,6 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   let successCount = 0;
   const userIdsNotified = new Set();
   
-  // Enviar para cada aparelho único
   for (const sub of uniqueEndpoints.values()) {
     if (VAPID_PUBLIC_KEY && sub.subscription?.endpoint) {
       try {
@@ -117,11 +128,10 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
     }
   }
 
-  // Enviar notificações internas (sininho) - Apenas uma por usuário real
   if (userIdsNotified.size > 0) {
     const internalNotifs = Array.from(userIdsNotified).map(uid => ({
       user_id: uid,
-      title: `🔔 \${notification.title}`,
+      title: `🔔 ${notification.title}`,
       content: notification.body,
       link: notification.link,
       type: 'info'
@@ -129,7 +139,6 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
     await supabaseAdmin.from('notifications').insert(internalNotifs);
   }
 
-  // Marcar como enviado
   await supabaseAdmin.from('push_notifications').update({ 
     status: 'sent', 
     sent_at: new Date().toISOString() 

@@ -73,10 +73,9 @@ const PushManager = () => {
               ...config.push_layout_json
             } : defaultLayout;
 
-            // Usando toast.custom mas sem o wrapper de backdrop para evitar bugs no mobile
             toast.custom((t) => (
               <div 
-                className="w-[calc(100vw-24px)] sm:w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto"
+                className="w-[calc(100vw-40px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto mx-auto"
                 style={{ 
                   backgroundColor: layout.bgColor,
                   borderRadius: `${layout.borderRadius}px`,
@@ -138,7 +137,7 @@ const PushManager = () => {
               </div>
             ), {
               duration: (layout.duration || 12) * 1000,
-              position: 'bottom-center', // Alterado para bottom-center que é mais estável no mobile
+              position: 'bottom-center',
             });
           }
         }

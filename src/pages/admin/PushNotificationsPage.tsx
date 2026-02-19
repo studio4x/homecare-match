@@ -622,7 +622,7 @@ const PushNotificationsPage = () => {
                   </div>
 
                   <div className="space-y-2 col-span-2">
-                    <Label className="text-primary font-bold">Cor do Container de Fundo (Backdrop)</Label>
+                    <Label>Cor do Container de Fundo (Backdrop)</Label>
                     <div className="flex gap-2">
                       <Input type="color" className="w-12 h-10 p-1" value={layoutData.backdropColor.startsWith('rgba') ? '#000000' : layoutData.backdropColor} onChange={e => setLayoutData({...layoutData, backdropColor: e.target.value})} />
                       <Input value={layoutData.backdropColor} onChange={e => setLayoutData({...layoutData, backdropColor: e.target.value})} />

@@ -49,9 +49,10 @@ const SiteConfigTab = () => {
 
   const logoRef = useRef<HTMLInputElement>(null);
 
+  // Modelos Flash em ordem cronológica (do 1.5 ao 2.0)
   const geminiFlashModels = [
     { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Estável)" },
-    { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B (Leve)" },
+    { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B (Alta Velocidade)" },
     { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Nova Geração)" },
     { value: "gemini-2.0-flash-lite-preview-02-05", label: "Gemini 2.0 Flash Lite (Preview)" },
   ];

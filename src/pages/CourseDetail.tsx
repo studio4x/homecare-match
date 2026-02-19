@@ -462,6 +462,19 @@ const CourseDetail = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Quadro Informativo do Selo */}
+            <div className="rounded-2xl border border-primary/10 bg-primary/5 p-4 flex items-center gap-3 animate-fade-in">
+              <div className="h-10 w-10 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0">
+                <Award className="h-6 w-6 text-primary" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-sm font-bold text-foreground">Selo de Conclusão</p>
+                <p className="text-[10px] text-muted-foreground leading-tight">
+                  Este curso oferece emissão de selo digital exclusivo para o seu perfil após a conclusão de 100% das aulas.
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="md:col-span-2 space-y-8">

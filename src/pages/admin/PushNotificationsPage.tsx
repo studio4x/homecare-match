@@ -60,6 +60,19 @@ import { useQueryClient } from "@tanstack/react-query";
 const TITLE_LIMIT = 45;
 const BODY_LIMIT = 120;
 
+const DEFAULT_LAYOUT = {
+  bgColor: "#ffffff",
+  titleColor: "#0f172a",
+  bodyColor: "#64748b",
+  borderRadius: "32",
+  iconBgColor: "#007BFF1a",
+  iconColor: "#007BFF",
+  shadowIntensity: "0.25",
+  ctaBgColor: "#007BFF",
+  ctaTextColor: "#ffffff",
+  backdropColor: "rgba(0,0,0,0.05)"
+};
+
 const PushNotificationsPage = () => {
   const { data: config, isLoading: isLoadingConfig } = useSiteConfig();
   const queryClient = useQueryClient();
@@ -81,23 +94,12 @@ const PushNotificationsPage = () => {
     scheduled_for: ""
   });
 
-  const [layoutData, setLayoutData] = useState({
-    bgColor: "#ffffff",
-    titleColor: "#0f172a",
-    bodyColor: "#64748b",
-    borderRadius: "32",
-    iconBgColor: "#007BFF1a",
-    iconColor: "#007BFF",
-    shadowIntensity: "0.25",
-    ctaBgColor: "#007BFF",
-    ctaTextColor: "#ffffff",
-    backdropColor: "rgba(0,0,0,0.05)"
-  });
+  const [layoutData, setLayoutData] = useState(DEFAULT_LAYOUT);
 
   useEffect(() => {
     if (config?.push_layout_json) {
       setLayoutData({
-        ...layoutData,
+        ...DEFAULT_LAYOUT,
         ...config.push_layout_json
       });
     }
@@ -188,6 +190,13 @@ const PushNotificationsPage = () => {
       toast.error("Erro ao salvar layout.");
     } finally {
       setIsSavingLayout(false);
+    }
+  };
+
+  const handleResetLayout = () => {
+    if (confirm("Deseja resetar o layout para as cores padrão do sistema?")) {
+      setLayoutData(DEFAULT_LAYOUT);
+      toast.info("Cores resetadas. Não esqueça de salvar!");
     }
   };
 
@@ -616,6 +625,7 @@ const PushNotificationsPage = () => {
                       <Input type="color" className="w-12 h-10 p-1" value={layoutData.backdropColor.startsWith('rgba') ? '#000000' : layoutData.backdropColor} onChange={e => setLayoutData({...layoutData, backdropColor: e.target.value})} />
                       <Input value={layoutData.backdropColor} onChange={e => setLayoutData({...layoutData, backdropColor: e.target.value})} />
                     </div>
+                    <p className="text-[10px] text-muted-foreground italic">Dica: Use RGBA para transparência, ex: rgba(0,0,0,0.05)</p>
                   </div>
 
                   <div className="space-y-2 col-span-2">
@@ -624,10 +634,13 @@ const PushNotificationsPage = () => {
                   </div>
                 </div>
 
-                <div className="pt-4">
-                  <Button className="w-full gap-2" onClick={handleSaveLayout} disabled={isSavingLayout}>
+                <div className="pt-4 flex gap-3">
+                  <Button variant="outline" className="flex-1 gap-2" onClick={handleResetLayout}>
+                    <RotateCcw className="h-4 w-4" /> Resetar
+                  </Button>
+                  <Button className="flex-[2] gap-2" onClick={handleSaveLayout} disabled={isSavingLayout}>
                     {isSavingLayout ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Salvar Alterações de Layout
+                    Salvar Alterações
                   </Button>
                 </div>
               </CardContent>
@@ -647,7 +660,7 @@ const PushNotificationsPage = () => {
                     boxShadow: `0 25px 60px rgba(0,0,0,${layoutData.shadowIntensity})`
                   }}
                 >
-                  <button className="absolute top-4 right-4 p-1.5 rounded-full bg-black/5 text-slate-400">
+                  <button className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-black/5 text-slate-400">
                     <X className="h-3.5 w-3.5" />
                   </button>
 

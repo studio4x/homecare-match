@@ -59,14 +59,13 @@ const PushManager = () => {
               bgColor: "#ffffff",
               titleColor: "#0f172a",
               bodyColor: "#64748b",
-              borderRadius: "32",
+              borderRadius: "24",
               iconBgColor: "#007BFF1a",
               iconColor: "#007BFF",
-              shadowIntensity: "0.25",
+              shadowIntensity: "0.2",
               ctaBgColor: "#007BFF",
               ctaTextColor: "#ffffff",
-              backdropColor: "rgba(0,0,0,0.05)",
-              duration: 15
+              duration: 12
             };
 
             const layout = config?.push_layout_json ? {
@@ -76,83 +75,70 @@ const PushManager = () => {
 
             toast.custom((t) => (
               <div 
-                className="w-full flex items-center justify-center p-2 sm:p-4 pointer-events-auto"
-                style={{ backgroundColor: layout.backdropColor }}
+                className="relative w-[calc(100vw-2rem)] max-w-[400px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto z-[9999]"
+                style={{ 
+                  backgroundColor: layout.bgColor,
+                  borderRadius: `${layout.borderRadius}px`,
+                  boxShadow: `0 20px 50px rgba(0,0,0,${layout.shadowIntensity})`
+                }}
               >
-                <div 
-                  className="w-full max-w-[400px] overflow-hidden animate-slide-up border border-slate-100 relative"
-                  style={{ 
-                    backgroundColor: layout.bgColor,
-                    borderRadius: `${layout.borderRadius}px`,
-                    boxShadow: `0 25px 60px rgba(0,0,0,${layout.shadowIntensity})`
-                  }}
+                <button 
+                  onClick={() => toast.dismiss(t)}
+                  className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  <button 
-                    onClick={() => toast.dismiss(t)}
-                    className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-1.5 rounded-full bg-black/5 hover:bg-black/10 text-slate-400 hover:text-slate-600 transition-colors"
-                  >
-                    <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </button>
+                  <X className="h-4 w-4" />
+                </button>
 
-                  {data.image_url && (
-                    <div className="w-full aspect-video bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
-                      <img 
-                        src={data.image_url} 
-                        className="w-full h-full object-contain p-2 sm:p-4" 
-                        alt="Banner" 
-                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                      />
+                {data.image_url && (
+                  <div className="w-full aspect-video bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
+                    <img 
+                      src={data.image_url} 
+                      className="w-full h-full object-contain p-2" 
+                      alt="Banner" 
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  </div>
+                )}
+                
+                <div className="p-5 space-y-4">
+                  <div className="flex gap-3">
+                    <div 
+                      className="h-9 w-9 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: layout.iconBgColor }}
+                    >
+                      <Megaphone className="h-4 w-4" style={{ color: layout.iconColor }} />
+                    </div>
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
+                        <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
+                      </div>
+
+                      <h4 className="font-bold leading-tight text-sm sm:text-base pr-6" style={{ color: layout.titleColor }}>{safeTitle}</h4>
+                      <p className="text-xs sm:text-sm leading-relaxed" style={{ color: layout.bodyColor }}>{safeBody}</p>
+                    </div>
+                  </div>
+                  
+                  {data.link && (
+                    <div className="pt-1">
+                      <Button 
+                        size="sm" 
+                        className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md"
+                        style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
+                        onClick={() => {
+                          toast.dismiss(t);
+                          window.location.href = data.link;
+                        }}
+                      >
+                        Ver Detalhes <ExternalLink className="h-3 w-3" />
+                      </Button>
                     </div>
                   )}
-                  
-                  <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-                    <div className="flex gap-3 sm:gap-4">
-                      <div 
-                        className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: layout.iconBgColor }}
-                      >
-                        <Megaphone className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: layout.iconColor }} />
-                      </div>
-                      <div className="flex-1 space-y-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
-                          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
-                        </div>
-
-                        <h4 className="font-bold leading-tight text-sm sm:text-base pr-6" style={{ color: layout.titleColor }}>{safeTitle}</h4>
-                        <p className="text-xs sm:text-sm leading-relaxed" style={{ color: layout.bodyColor }}>{safeBody}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-secondary/30 rounded-lg sm:rounded-xl border border-border/50">
-                      <Info className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <p className="text-[8px] sm:text-[9px] text-muted-foreground leading-tight">
-                        Mensagem enviada pela administração da <strong>HomeCare Match</strong>.
-                      </p>
-                    </div>
-                    
-                    {data.link && (
-                      <div className="pt-1 sm:pt-2">
-                        <Button 
-                          size="sm" 
-                          className="h-9 sm:h-10 w-full gap-1.5 text-[10px] sm:text-xs font-bold rounded-full shadow-md hover:shadow-lg transition-all"
-                          style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
-                          onClick={() => {
-                            toast.dismiss(t);
-                            window.location.href = data.link;
-                          }}
-                        >
-                          Ver Detalhes <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
             ), {
-              duration: (layout.duration || 15) * 1000,
+              duration: (layout.duration || 12) * 1000,
               position: 'top-center',
-              unstyled: true 
             });
           }
         }

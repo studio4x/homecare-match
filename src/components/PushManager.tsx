@@ -22,15 +22,16 @@ const PushManager = () => {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
-  const urlBase64ToUint8Array = (base64String: string) => {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-      .replace(/\-/g, '+')
-      .replace(/_/g, '/');
+  // diagnostics
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagRunning, setDiagRunning] = useState(false);
+  const [diag, setDiag] = useState<Record<string, any> | null>(null);
 
+  const urlBase64ToUint8Array = (base64String: string) => {
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
-
     for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i);
     }
@@ -43,62 +44,48 @@ const PushManager = () => {
   };
 
   const checkAndShowPrompt = useCallback(() => {
-    // Só mostra se a permissão ainda for a padrão (não perguntou)
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
       const hasConsent = localStorage.getItem("cookie-consent") === "true";
       if (hasConsent) {
-        // Pequeno delay para não ser invasivo
         setTimeout(() => setShowPrompt(true), 3000);
       }
     }
   }, []);
 
   useEffect(() => {
-    // Canal de Realtime para anúncios (Aparece enquanto o site está aberto)
     const channel = supabase
-      .channel('public-announcements')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'push_notifications' },
-        async (payload) => {
-          const data = payload.new as any;
-          
-          if (data && data.status === 'sent') {
-            const safeTitle = truncate(data.title, 45);
-            const safeBody = truncate(data.body, 120);
+      .channel("public-announcements")
+      .on("postgres_changes", { event: "*", schema: "public", table: "push_notifications" }, async (payload) => {
+        const data = payload.new as any;
+        if (data && data.status === "sent") {
+          const safeTitle = truncate(data.title, 45);
+          const safeBody = truncate(data.body, 120);
+          const defaultLayout = {
+            bgColor: "#ffffff",
+            titleColor: "#0f172a",
+            bodyColor: "#64748b",
+            borderRadius: "20",
+            iconBgColor: "#007BFF1a",
+            iconColor: "#007BFF",
+            shadowIntensity: "0.15",
+            ctaBgColor: "#007BFF",
+            ctaTextColor: "#ffffff",
+            duration: 12,
+          };
+          const layout = config?.push_layout_json ? { ...defaultLayout, ...config.push_layout_json } : defaultLayout;
 
-            const defaultLayout = {
-              bgColor: "#ffffff",
-              titleColor: "#0f172a",
-              bodyColor: "#64748b",
-              borderRadius: "20",
-              iconBgColor: "#007BFF1a",
-              iconColor: "#007BFF",
-              shadowIntensity: "0.15",
-              ctaBgColor: "#007BFF",
-              ctaTextColor: "#ffffff",
-              duration: 12
-            };
-
-            const layout = config?.push_layout_json ? {
-              ...defaultLayout,
-              ...config.push_layout_json
-            } : defaultLayout;
-
-            // 1) Mostrar toast customizado (visual no site)
-            toast.custom((t) => (
-              <div 
+          // in-site toast
+          toast.custom(
+            (t) => (
+              <div
                 className="w-[calc(100vw-32px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto mx-auto relative"
-                style={{ 
+                style={{
                   backgroundColor: layout.bgColor,
                   borderRadius: `${layout.borderRadius}px`,
-                  boxShadow: `0 15px 40px rgba(0,0,0,${layout.shadowIntensity})`
+                  boxShadow: `0 15px 40px rgba(0,0,0,${layout.shadowIntensity})`,
                 }}
               >
-                <button 
-                  onClick={() => toast.dismiss(t)}
-                  className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors"
-                >
+                <button onClick={() => toast.dismiss(t)} className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors">
                   <X className="h-4 w-4" />
                 </button>
 
@@ -107,7 +94,7 @@ const PushManager = () => {
                     <img src={data.image_url} className="w-full h-full object-contain" alt="Banner" />
                   </div>
                 )}
-                
+
                 <div className="p-5 space-y-4">
                   <div className="flex gap-3">
                     <div className="h-9 w-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: layout.iconBgColor }}>
@@ -116,16 +103,22 @@ const PushManager = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1">
                         <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
-                        <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
+                        <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>
+                          Administração
+                        </span>
                       </div>
-                      <h4 className="font-bold leading-tight text-sm sm:text-base pr-6" style={{ color: layout.titleColor }}>{safeTitle}</h4>
-                      <p className="text-xs sm:text-sm leading-relaxed" style={{ color: layout.bodyColor }}>{safeBody}</p>
+                      <h4 className="font-bold leading-tight text-sm sm:text-base pr-6" style={{ color: layout.titleColor }}>
+                        {safeTitle}
+                      </h4>
+                      <p className="text-xs sm:text-sm leading-relaxed" style={{ color: layout.bodyColor }}>
+                        {safeBody}
+                      </p>
                     </div>
                   </div>
                   {data.link && (
                     <div className="pt-1">
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md border-none"
                         style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
                         onClick={() => {
@@ -139,49 +132,44 @@ const PushManager = () => {
                   )}
                 </div>
               </div>
-            ), {
-              duration: (layout.duration || 12) * 1000,
-              position: 'bottom-center',
-            });
+            ),
+            { duration: (layout.duration || 12) * 1000, position: "bottom-center" }
+          );
 
-            // 2) Tentativa de exibir NATIVE notification via Service Worker como fallback
-            try {
-              if (typeof window !== 'undefined' && 'serviceWorker' in navigator && Notification.permission === 'granted') {
-                const registration = await navigator.serviceWorker.ready;
-                // build options as any to include vibrate (some TS DOM libs don't include it)
-                const options: any = {
-                  body: data.body,
-                  icon: data.image_url || '/favicon.png',
-                  badge: '/favicon.png',
-                  data: { url: data.link || '/' },
-                  vibrate: [100, 50, 100],
-                  tag: `hcm-notification-${data.id || Date.now()}`,
-                  renotify: true
-                };
-                // mostra a notificação via SW (aparece na barra do sistema)
-                // cast to any to avoid TS errors on some lib versions
-                (registration as any).showNotification(data.title, options);
-              }
-            } catch (swErr) {
-              console.warn("[PushManager] fallback SW.showNotification falhou:", swErr);
+          // native notification via SW fallback
+          try {
+            if (typeof window !== "undefined" && "serviceWorker" in navigator && Notification.permission === "granted") {
+              const registration = await navigator.serviceWorker.ready;
+              const options: any = {
+                body: data.body,
+                icon: data.image_url || "/favicon.png",
+                badge: "/favicon.png",
+                data: { url: data.link || "/" },
+                vibrate: [100, 50, 100],
+                tag: `hcm-notification-${data.id || Date.now()}`,
+                renotify: true,
+              };
+              // cast to any
+              (registration as any).showNotification(data.title, options);
             }
+          } catch (swErr) {
+            console.warn("[PushManager] SW.showNotification fallback falhou:", swErr);
           }
         }
-      )
+      })
       .subscribe();
 
-    // Registro do Service Worker para Push Nativo
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then((reg) => {
-          console.log('[Push] Service Worker registrado e pronto.');
-          // Tenta mostrar o prompt se já houver consentimento de cookies
+    // SW registration
+    if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/" })
+        .then(() => {
+          console.log("[Push] Service Worker registrado.");
           checkAndShowPrompt();
         })
-        .catch((err) => console.error('[Push] Erro SW:', err));
+        .catch((err) => console.error("[Push] Erro ao registrar SW:", err));
     }
 
-    // Escuta o evento de aceitação de cookies
     window.addEventListener("cookie-consent-accepted", checkAndShowPrompt);
 
     return () => {
@@ -199,65 +187,182 @@ const PushManager = () => {
     setIsSubscribing(true);
     try {
       const permission = await Notification.requestPermission();
-      
-      if (permission !== 'granted') {
-        toast.error("Notificações bloqueadas no navegador.");
-        setShowPrompt(false);
+
+      // Chrome sometimes returns 'granted' but underlying push manager might be blocked by site settings.
+      if (permission !== "granted") {
+        // If user explicitly denied, show clear instructions
+        if (permission === "denied") {
+          toast.error(
+            "Notificações negadas: abra Configurações do Chrome → Site settings → Notifications e permita notificações para este site."
+          );
+        } else {
+          toast.error("Notificações bloqueadas no navegador.");
+        }
+        setIsSubscribing(false);
+        return;
+      }
+
+      // ensure SW ready
+      if (!("serviceWorker" in navigator)) {
+        toast.error("Service Worker não suportado neste navegador.");
+        setIsSubscribing(false);
         return;
       }
 
       const registration = await navigator.serviceWorker.ready;
-      
+      if (!registration || !registration.pushManager) {
+        toast.error("PushManager não disponível. Verifique se o site está em HTTPS e que o Service Worker está ativo.");
+        setIsSubscribing(false);
+        return;
+      }
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(config.vapid_public_key)
+        applicationServerKey: urlBase64ToUint8Array(config.vapid_public_key),
       });
 
       const subJson = subscription.toJSON();
 
-      const { error } = await supabase.from('push_subscriptions').insert({
+      const { error } = await supabase.from("push_subscriptions").insert({
         user_id: user?.id || null,
         subscription: subJson,
-        device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+        device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "mobile" : "desktop",
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("[PushManager] Supabase insert error:", error);
+        toast.error("Erro ao salvar inscrição no servidor. Verifique os logs do admin.");
+        setIsSubscribing(false);
+        return;
+      }
 
-      toast.success("Notificações ativadas!", {
-        icon: <BellRing className="h-4 w-4 text-primary" />
-      });
+      toast.success("Notificações ativadas!");
       setShowPrompt(false);
-    } catch (err) {
-      console.error(err);
-      toast.error("Erro ao ativar notificações.");
+    } catch (err: any) {
+      console.error("[PushManager] subscribe error:", err);
+      // Provide actionable message when Chrome blocks push even after permission
+      if (err?.message && /permission/i.test(err.message)) {
+        toast.error(
+          "Notificações bloqueadas pelo navegador: abra Configurações do Chrome → Site settings → Notifications e ative para este site."
+        );
+      } else {
+        toast.error("Erro ao ativar notificações. Verifique se o site está em HTTPS e se o Service Worker foi registrado.");
+      }
     } finally {
       setIsSubscribing(false);
     }
   };
 
+  // Diagnostic tool for debugging permission / SW / subscription issues
+  const runDiagnostics = async () => {
+    setDiagRunning(true);
+    setDiag(null);
+    try {
+      const result: Record<string, any> = {};
+      result.notificationPermission = typeof Notification !== "undefined" ? Notification.permission : "not_supported";
+      result.pushManagerSupported = typeof window !== "undefined" && "PushManager" in window;
+      result.serviceWorkerSupported = typeof window !== "undefined" && "serviceWorker" in navigator;
+
+      if (result.serviceWorkerSupported) {
+        try {
+          const registration = await navigator.serviceWorker.getRegistration();
+          result.swRegistrationExists = !!registration;
+          if (registration) {
+            result.swActive = !!(registration.active || registration.installing || registration.waiting);
+            // try to get subscription
+            try {
+              const sub = await registration.pushManager.getSubscription();
+              result.existingSubscription = !!sub;
+              result.subscriptionJson = sub ? sub.toJSON() : null;
+            } catch (subErr) {
+              result.subscriptionError = String(subErr);
+            }
+          }
+        } catch (swErr) {
+          result.swError = String(swErr);
+        }
+      }
+
+      // check server-side saved subscription for this user (if logged)
+      if (user?.id) {
+        try {
+          const { data } = await supabase.from("push_subscriptions").select("id, device_type").eq("user_id", user.id).limit(10);
+          result.serverSubscriptions = data || [];
+        } catch (srvErr) {
+          result.serverSubscriptionsError = String(srvErr);
+        }
+      }
+
+      setDiag(result);
+    } catch (e) {
+      setDiag({ error: String(e) });
+    } finally {
+      setDiagRunning(false);
+      setDiagOpen(true);
+    }
+  };
+
   return (
-    <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
-      <DialogContent className="w-[95vw] max-w-[400px] rounded-3xl p-6 border-none shadow-2xl">
-        <DialogHeader>
-          <div className="mx-auto h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <BellRing className="h-7 w-7 text-primary animate-pulse" />
+    <>
+      <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
+        <DialogContent className="w-[95vw] max-w-[400px] rounded-3xl p-6 border-none shadow-2xl">
+          <DialogHeader>
+            <div className="mx-auto h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <BellRing className="h-7 w-7 text-primary animate-pulse" />
+            </div>
+            <DialogTitle className="text-center text-xl font-bold">Fique por dentro!</DialogTitle>
+            <DialogDescription className="text-center text-base">
+              Deseja receber alertas sobre novos profissionais e atualizações importantes diretamente no seu dispositivo?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col gap-2 pt-4">
+            <Button onClick={handleSubscribe} disabled={isSubscribing} className="w-full gap-2 h-12 text-base shadow-lg">
+              {isSubscribing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
+              Ativar Notificações
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setShowPrompt(false)} className="flex-1 text-muted-foreground">
+                Agora não
+              </Button>
+              <Button variant="outline" onClick={runDiagnostics} className="flex-1">
+                {diagRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : "Diagnóstico"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Diagnóstico de Notificações</DialogTitle>
+            <DialogDescription>Resultados rápidos para ajudar a identificar bloqueios no Chrome mobile.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-3 text-sm">
+            {diagRunning && <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Executando...</div>}
+            {!diag && !diagRunning && <div className="text-muted-foreground">Execute o diagnóstico para ver o resultado.</div>}
+            {diag && (
+              <div className="space-y-2">
+                {Object.entries(diag).map(([k, v]) => (
+                  <div key={k} className="flex items-start gap-2">
+                    <div className="w-32 text-[11px] text-muted-foreground">{k}</div>
+                    <div className="flex-1 font-mono text-[12px]">{typeof v === "string" ? v : JSON.stringify(v, null, 0)}</div>
+                  </div>
+                ))}
+                <div className="pt-2 text-[12px] text-muted-foreground">
+                  Se a Permission for "denied", peça ao usuário: Chrome → Configurações do site → Notificações → permita para este site.
+                </div>
+              </div>
+            )}
           </div>
-          <DialogTitle className="text-center text-xl font-bold">Fique por dentro!</DialogTitle>
-          <DialogDescription className="text-center text-base">
-            Deseja receber alertas sobre novos profissionais e atualizações importantes diretamente no seu dispositivo?
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="flex flex-col gap-2 pt-4">
-          <Button onClick={handleSubscribe} disabled={isSubscribing} className="w-full gap-2 h-12 text-base shadow-lg">
-            {isSubscribing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
-            Ativar Notificações
-          </Button>
-          <Button variant="ghost" onClick={() => setShowPrompt(false)} className="w-full text-muted-foreground">
-            Agora não
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+
+          <DialogFooter>
+            <Button onClick={() => { setDiag(null); setDiagOpen(false); }}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

@@ -26,6 +26,7 @@ export interface SiteConfig {
     ctaBgColor: string;
     ctaTextColor: string;
     backdropColor: string;
+    duration: number;
   };
   // Marketing fields
   ga_measurement_id?: string | null;

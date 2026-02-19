@@ -47,7 +47,8 @@ import {
   Info,
   ExternalLink,
   Save,
-  AlertTriangle
+  AlertTriangle,
+  Timer
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -70,7 +71,8 @@ const DEFAULT_LAYOUT = {
   shadowIntensity: "0.25",
   ctaBgColor: "#007BFF",
   ctaTextColor: "#ffffff",
-  backdropColor: "rgba(0,0,0,0.05)"
+  backdropColor: "rgba(0,0,0,0.05)",
+  duration: 15
 };
 
 const PushNotificationsPage = () => {
@@ -628,7 +630,18 @@ const PushNotificationsPage = () => {
                     <p className="text-[10px] text-muted-foreground italic">Dica: Use RGBA para transparência, ex: rgba(0,0,0,0.05)</p>
                   </div>
 
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2"><Timer className="h-3 w-3" /> Tempo de Exibição (seg)</Label>
+                    <Input 
+                      type="number" 
+                      min="5" 
+                      max="60" 
+                      value={layoutData.duration} 
+                      onChange={e => setLayoutData({...layoutData, duration: parseInt(e.target.value) || 15})} 
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label>Intensidade da Sombra (0 a 1)</Label>
                     <Input type="range" min="0" max="1" step="0.05" value={layoutData.shadowIntensity} onChange={e => setLayoutData({...layoutData, shadowIntensity: e.target.value})} />
                   </div>

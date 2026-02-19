@@ -56,7 +56,8 @@ const PushManager = () => {
               shadowIntensity: "0.25",
               ctaBgColor: "#007BFF",
               ctaTextColor: "#ffffff",
-              backdropColor: "rgba(0,0,0,0.05)"
+              backdropColor: "rgba(0,0,0,0.05)",
+              duration: 15
             };
 
             const layout = config?.push_layout_json ? {
@@ -145,7 +146,7 @@ const PushManager = () => {
                 </div>
               </div>
             ), {
-              duration: 15000,
+              duration: (layout.duration || 15) * 1000,
               position: 'top-center',
               unstyled: true 
             });

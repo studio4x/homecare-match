@@ -177,28 +177,34 @@ const PushManager = () => {
 
     setIsSubscribing(true);
     try {
-      // request permission
-      const permissionResult = await Notification.requestPermission();
-
-      // Some browsers update permission asynchronously; wait a short time and re-check
-      const waitForPermission = () =>
-        new Promise<string>((resolve) => {
-          const start = Date.now();
-          const check = () => {
-            const now = Date.now();
-            if (Notification.permission !== "default" || now - start > 3000) {
-              resolve(Notification.permission);
-            } else {
-              setTimeout(check, 200);
-            }
-          };
-          check();
+      // Request permission using a more robust approach for different browsers
+      let permission: NotificationPermission;
+      
+      try {
+        // Try the modern Promise-based API
+        const result = await Notification.requestPermission();
+        permission = result;
+        
+        // Fallback for older browsers where requestPermission returns undefined
+        if (permission === undefined) {
+          permission = await new Promise<NotificationPermission>((resolve) => {
+            Notification.requestPermission((res) => resolve(res));
+          });
+        }
+      } catch (err) {
+        // Fallback if the promise-based call fails
+        permission = await new Promise<NotificationPermission>((resolve) => {
+          Notification.requestPermission((res) => resolve(res));
         });
+      }
 
-      const finalPermission = permissionResult === "default" ? await waitForPermission() : permissionResult;
+      // Final check of the static property if it's still default
+      if (permission === "default") {
+        permission = Notification.permission;
+      }
 
-      if (finalPermission !== "granted") {
-        if (finalPermission === "denied") {
+      if (permission !== "granted") {
+        if (permission === "denied") {
           toast.error(
             "Notificações negadas: abra Configurações do Chrome → Configurações do site → Notificações e permita para este site."
           );

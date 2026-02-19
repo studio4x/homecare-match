@@ -45,12 +45,28 @@ serve(async (req) => {
     const { name, specialty, experience, professional_experiences, city, state } = await req.json();
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     
-    if (!GEMINI_API_KEY) throw new Error("Configuração de IA ausente.");
+    if (!GEMINI_API_KEY) {
+      console.error("[generate-bio] Erro: GEMINI_API_KEY não configurada nos Secrets.");
+      throw new Error("Configuração de IA ausente no servidor.");
+    }
 
-    const prompt = `Escreva uma biografia profissional e humanizada em terceira pessoa para: Nome: \${name}, Especialidade: \${specialty}, Formações: \${experience}, Experiências: \${professional_experiences}, Localização: \${city} - \${state}. Retorne APENAS o texto.`;
+    const prompt = `Escreva uma biografia profissional e humanizada em terceira pessoa para um profissional de saúde. 
+    Nome: ${name}
+    Especialidade: ${specialty}
+    Formações: ${experience}
+    Experiências: ${professional_experiences}
+    Localização: ${city} - ${state}
+    
+    Regras:
+    - Use um tom profissional, mas acolhedor.
+    - Fale em terceira pessoa.
+    - Destaque a experiência e o cuidado com o paciente.
+    - Retorne APENAS o texto da biografia, sem introduções ou comentários.`;
+
+    console.log("[generate-bio] Chamando API do Gemini...");
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=\${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,6 +75,12 @@ serve(async (req) => {
     );
 
     const result = await response.json();
+
+    if (!response.ok) {
+      console.error("[generate-bio] Erro na API do Gemini:", result);
+      throw new Error(result.error?.message || "Erro na comunicação com a Google AI.");
+    }
+
     const bio = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     if (bio) {
@@ -67,6 +89,9 @@ serve(async (req) => {
         user_id: user.id,
         resource_type: 'ai_bio'
       });
+    } else {
+      console.error("[generate-bio] Resposta vazia da IA:", result);
+      throw new Error("A IA não conseguiu gerar o texto. Verifique se os dados fornecidos são suficientes.");
     }
 
     return new Response(JSON.stringify({ bio: bio.trim() }), {
@@ -74,6 +99,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+    console.error("[generate-bio] Erro crítico:", error.message);
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 500, 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   }
 });

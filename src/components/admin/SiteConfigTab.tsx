@@ -31,7 +31,7 @@ const SiteConfigTab = () => {
     stripe_publishable_key_test: "",
     stripe_publishable_key_live: "",
     google_maps_api_key: "",
-    gemini_model: "gemini-2.0-flash-lite-preview-02-05"
+    gemini_model: "gemini-2.0-flash"
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -49,11 +49,9 @@ const SiteConfigTab = () => {
 
   const logoRef = useRef<HTMLInputElement>(null);
 
-  // Mantendo apenas a família 2.0 Flash que funcionou
+  // Mantendo apenas a versão confirmada como funcional
   const geminiFlashModels = [
     { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Nova Geração)" },
-    { value: "gemini-2.0-flash-lite-preview-02-05", label: "Gemini 2.0 Flash Lite (Preview)" },
-    { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (Experimental)" },
   ];
 
   useEffect(() => {
@@ -67,7 +65,7 @@ const SiteConfigTab = () => {
         stripe_publishable_key_test: config.stripe_publishable_key_test || "",
         stripe_publishable_key_live: config.stripe_publishable_key_live || "",
         google_maps_api_key: config.google_maps_api_key || "",
-        gemini_model: config.gemini_model || "gemini-2.0-flash-lite-preview-02-05"
+        gemini_model: config.gemini_model || "gemini-2.0-flash"
       });
     }
   }, [config]);
@@ -274,7 +272,7 @@ const SiteConfigTab = () => {
             <Sparkles className="h-5 w-5 text-primary" />
             Inteligência Artificial (Gemini)
           </CardTitle>
-          <CardDescription>Selecione a versão do modelo Flash para geração de biografias.</CardDescription>
+          <CardDescription>Modelo configurado para geração de biografias.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -295,7 +293,7 @@ const SiteConfigTab = () => {
               </SelectContent>
             </Select>
             <p className="text-[10px] text-muted-foreground italic">
-              As versões Flash são mais rápidas e econômicas. Recomendamos o <strong>Gemini 2.0 Flash Lite</strong> para sua chave atual.
+              Utilizando a versão <strong>Gemini 2.0 Flash</strong>, otimizada para a melhor performance.
             </p>
           </div>
         </CardContent>

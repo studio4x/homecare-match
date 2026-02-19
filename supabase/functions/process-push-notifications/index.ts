@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import webpush from "https://esm.sh/web-push@3.6.7";
+import webpush from "https://esm.sh/web-push@3.6.7?target=deno";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,9 +19,12 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 }
 
 serve(async (req) => {
-  // Resposta obrigatória para o navegador liberar o acesso (CORS)
+  // Resposta de Preflight (CORS) - Deve ser a primeira coisa
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { 
+      status: 200,
+      headers: corsHeaders 
+    });
   }
 
   try {
@@ -32,6 +35,8 @@ serve(async (req) => {
 
     const body = await req.json();
     const { notificationId, action } = body;
+
+    console.log(`[Push] Ação recebida: \${action}`, { notificationId });
 
     if (action === 'send_now' || action === 'process_scheduled') {
       let notifications = [];
@@ -50,7 +55,7 @@ serve(async (req) => {
         totalSent += count;
       }
 
-      return new Response(JSON.stringify({ success: true, totalSent }), {
+      return new Response(JSON.stringify({ success: true, processedCount: notifications.length, sentCount: totalSent }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });
@@ -63,7 +68,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("[Push Error]", error);
     return new Response(JSON.stringify({ error: error.message }), { 
-      status: 400, 
+      status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
@@ -79,7 +84,7 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   }
   
   const { data: subs } = await query;
-  if (!subs) return 0;
+  if (!subs || subs.length === 0) return 0;
 
   const payload = JSON.stringify({
     title: notification.title,
@@ -89,23 +94,27 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   });
 
   const internalNotifs = [];
+  let successCount = 0;
   
   for (const sub of subs) {
+    // Envio real via Web Push
     if (VAPID_PUBLIC_KEY && sub.subscription?.endpoint) {
       try {
         await webpush.sendNotification(sub.subscription, payload);
+        successCount++;
       } catch (e) {
-        console.warn("[Push] Falha ao enviar para endpoint:", sub.id);
-        if (e.statusCode === 410) {
+        console.warn("[Push] Falha ao enviar para endpoint:", sub.id, e.message);
+        if (e.statusCode === 410 || e.statusCode === 404) {
           await supabaseAdmin.from('push_subscriptions').delete().eq('id', sub.id);
         }
       }
     }
 
+    // Notificação interna
     if (sub.user_id) {
       internalNotifs.push({
         user_id: sub.user_id,
-        title: `🔔 ${notification.title}`,
+        title: `🔔 \${notification.title}`,
         content: notification.body,
         link: notification.link,
         type: 'info'
@@ -122,5 +131,5 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
     sent_at: new Date().toISOString() 
   }).eq('id', notification.id);
 
-  return subs.length;
+  return successCount;
 }

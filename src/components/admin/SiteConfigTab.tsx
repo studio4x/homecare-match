@@ -238,8 +238,8 @@ const SiteConfigTab = () => {
 
     setIsUploading(field);
     const fileExt = file.name.split('.').pop();
-    const fileName = `${field}_${Date.now()}.${fileExt}`;
-    const filePath = `site-assets/${fileName}`;
+    const fileName = `${field}_\${Date.now()}.\${fileExt}`;
+    const filePath = `site-assets/\${fileName}`;
 
     try {
       const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, file);
@@ -283,7 +283,15 @@ const SiteConfigTab = () => {
         })
         .eq('id', 1);
 
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes("column") || error.code === "42703") {
+          toast.error("Coluna não encontrada no banco!", {
+            description: "Clique no botão 'Sincronizar Estrutura Base' no final da página primeiro."
+          });
+          return;
+        }
+        throw error;
+      }
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       toast.success("Configurações salvas!");
     } catch (error) {
@@ -467,7 +475,7 @@ const SiteConfigTab = () => {
             <div className="space-y-2">
               <Label>Logotipo</Label>
               <div className="flex flex-col gap-2">
-                {config?.logo_url && <img src={config.logo_url} alt="Logo" style={{ height: `${formData.logo_height_px}px` }} className="object-contain bg-secondary/20 p-2 rounded" />}
+                {config?.logo_url && <img src={config.logo_url} alt="Logo" style={{ height: `\${formData.logo_height_px}px` }} className="object-contain bg-secondary/20 p-2 rounded" />}
                 <Button variant="outline" size="sm" onClick={() => logoRef.current?.click()} disabled={!!isUploading}>Alterar</Button>
                 <input type="file" ref={logoRef} onChange={(e) => handleFileUpload(e, 'logo_url')} className="hidden" accept="image/*" />
               </div>

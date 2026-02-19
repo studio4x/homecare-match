@@ -48,7 +48,8 @@ import {
   ExternalLink,
   Save,
   AlertTriangle,
-  Timer
+  Timer,
+  Play
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -80,6 +81,7 @@ const PushNotificationsPage = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
@@ -164,6 +166,30 @@ const PushNotificationsPage = () => {
       toast.error("Erro ao sincronizar banco.");
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleProcessScheduled = async () => {
+    setIsProcessing(true);
+    const toastId = toast.loading("Processando agendamentos...");
+    try {
+      const { data, error } = await supabase.functions.invoke('process-push-notifications', {
+        body: { action: 'process_scheduled' }
+      });
+
+      if (error) throw error;
+
+      if (data.processedCount > 0) {
+        toast.success(`${data.processedCount} notificações enviadas com sucesso!`, { id: toastId });
+      } else {
+        toast.info("Nenhuma notificação pendente para o horário atual.", { id: toastId });
+      }
+      fetchHistory();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao processar agendamentos.", { id: toastId });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -364,6 +390,7 @@ const PushNotificationsPage = () => {
   };
 
   const lastSent = history.filter(h => h.status === 'sent').slice(0, 5);
+  const hasScheduled = history.some(h => h.status === 'scheduled');
 
   return (
     <div className="space-y-6">
@@ -372,10 +399,24 @@ const PushNotificationsPage = () => {
           <h1 className="text-3xl font-bold tracking-tight">Notificações Push</h1>
           <p className="text-muted-foreground">Envie mensagens diretas para os dispositivos dos usuários.</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={handleSync} disabled={isSyncing}>
-          {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-          Sincronizar Banco
-        </Button>
+        <div className="flex gap-2">
+          {hasScheduled && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+              onClick={handleProcessScheduled}
+              disabled={isProcessing}
+            >
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              Processar Agendados
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="gap-2" onClick={handleSync} disabled={isSyncing}>
+            {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+            Sincronizar Banco
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="new" className="space-y-6">
@@ -622,7 +663,7 @@ const PushNotificationsPage = () => {
                   </div>
 
                   <div className="space-y-2 col-span-2">
-                    <Label>Cor do Container de Fundo (Backdrop)</Label>
+                    <Label className="text-primary font-bold">Cor do Container de Fundo (Backdrop)</Label>
                     <div className="flex gap-2">
                       <Input type="color" className="w-12 h-10 p-1" value={layoutData.backdropColor.startsWith('rgba') ? '#000000' : layoutData.backdropColor} onChange={e => setLayoutData({...layoutData, backdropColor: e.target.value})} />
                       <Input value={layoutData.backdropColor} onChange={e => setLayoutData({...layoutData, backdropColor: e.target.value})} />
@@ -866,6 +907,33 @@ const PushNotificationsPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Card className="border-blue-200 bg-blue-50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2 text-blue-800">
+            <AlertTriangle className="h-4 w-4" />
+            Como funciona o agendamento?
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-blue-900 leading-relaxed">
+            Para que as notificações agendadas sejam enviadas <strong>automaticamente</strong>, você precisa configurar um Cron Job no painel do Supabase.
+          </p>
+          <div className="bg-white p-4 rounded-lg border border-blue-200 space-y-3">
+            <p className="text-xs font-bold uppercase text-blue-700">Passo a passo para automação:</p>
+            <ol className="text-xs text-blue-800 space-y-2 list-decimal pl-4">
+              <li>Acesse seu projeto no <strong>Supabase Dashboard</strong>.</li>
+              <li>Vá em <strong>Edge Functions</strong> e clique em <strong>Cron Jobs</strong> (ou use a extensão pg_cron).</li>
+              <li>Crie um novo job para rodar a cada 1 minuto (<code>* * * * *</code>).</li>
+              <li>A URL de destino deve ser: <code>https://rkjvtnadqkbwomgzyswr.supabase.co/functions/v1/process-push-notifications</code></li>
+              <li>O corpo da requisição (JSON) deve ser: <code>{"{ \"action\": \"process_scheduled\" }"}</code></li>
+            </ol>
+          </div>
+          <p className="text-[10px] text-blue-700 italic">
+            Enquanto não configura o Cron, você pode usar o botão <strong>"Processar Agendados"</strong> no topo desta página para disparar manualmente as mensagens que já passaram do horário.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };

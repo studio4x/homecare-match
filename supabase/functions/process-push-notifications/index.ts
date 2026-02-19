@@ -16,9 +16,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { notificationId, action } = await req.json();
+    const body = await req.json();
+    const { notificationId, action } = body;
 
-    if (action === 'send_now') {
+    // AÇÃO 1: Enviar uma notificação específica agora
+    if (action === 'send_now' && notificationId) {
       const { data: notification } = await supabaseAdmin
         .from('push_notifications')
         .select('*')
@@ -26,62 +28,43 @@ serve(async (req) => {
         .single();
 
       if (!notification) throw new Error("Notificação não encontrada.");
-
-      let subscriptions = [];
-
-      // 1. Buscar inscrições
-      if (notification.target_role === 'all') {
-        const { data } = await supabaseAdmin.from('push_subscriptions').select('*');
-        subscriptions = data || [];
-      } else {
-        const { data: targetUsers } = await supabaseAdmin
-          .from('profiles')
-          .select('id')
-          .eq('role', notification.target_role);
-        
-        const userIds = targetUsers?.map(u => u.id) || [];
-        if (userIds.length > 0) {
-          const { data } = await supabaseAdmin
-            .from('push_subscriptions')
-            .select('*')
-            .in('user_id', userIds);
-          subscriptions = data || [];
-        }
-      }
-
-      console.log(`[Push] Processando envio para \${subscriptions.length} dispositivos.`);
-
-      // 2. Enviar para a tabela de notificações interna (APENAS para quem tem user_id)
-      const internalNotifications = subscriptions
-        .filter(sub => sub.user_id !== null)
-        .map(sub => ({
-          user_id: sub.user_id,
-          title: `🔔 \${notification.title}`,
-          content: notification.body,
-          link: notification.link,
-          type: 'info'
-        }));
-
-      if (internalNotifications.length > 0) {
-        await supabaseAdmin.from('notifications').insert(internalNotifications);
-      }
-
-      // 3. Atualizar status para disparar o Realtime (que os anônimos estão ouvindo)
-      await supabaseAdmin
-        .from('push_notifications')
-        .update({ 
-          status: 'sent', 
-          sent_at: new Date().toISOString() 
-        })
-        .eq('id', notificationId);
-
-      return new Response(JSON.stringify({ success: true, sentCount: subscriptions.length }), {
+      
+      const sentCount = await sendNotification(supabaseAdmin, notification);
+      return new Response(JSON.stringify({ success: true, sentCount }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });
     }
 
-    return new Response(JSON.stringify({ message: "Ação processada" }), { headers: corsHeaders });
+    // AÇÃO 2: Processar todas as notificações agendadas que já passaram do horário
+    if (action === 'process_scheduled') {
+      console.log("[Push] Verificando notificações agendadas...");
+      
+      const { data: scheduled, error: fetchError } = await supabaseAdmin
+        .from('push_notifications')
+        .select('*')
+        .eq('status', 'scheduled')
+        .lte('scheduled_for', new Date().toISOString());
+
+      if (fetchError) throw fetchError;
+
+      let totalSent = 0;
+      for (const notification of (scheduled || [])) {
+        const count = await sendNotification(supabaseAdmin, notification);
+        totalSent += count;
+      }
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        processedCount: scheduled?.length || 0,
+        totalDevicesReached: totalSent 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      });
+    }
+
+    return new Response(JSON.stringify({ error: "Ação inválida" }), { status: 400, headers: corsHeaders });
   } catch (error) {
     console.error("[Push Error]", error);
     return new Response(JSON.stringify({ error: error.message }), {
@@ -90,3 +73,54 @@ serve(async (req) => {
     });
   }
 });
+
+// Função auxiliar para realizar o envio
+async function sendNotification(supabaseAdmin, notification) {
+  let subscriptions = [];
+
+  // 1. Buscar inscrições baseadas no alvo
+  if (notification.target_role === 'all') {
+    const { data } = await supabaseAdmin.from('push_subscriptions').select('*');
+    subscriptions = data || [];
+  } else {
+    const { data: targetUsers } = await supabaseAdmin
+      .from('profiles')
+      .select('id')
+      .eq('role', notification.target_role);
+    
+    const userIds = targetUsers?.map(u => u.id) || [];
+    if (userIds.length > 0) {
+      const { data } = await supabaseAdmin
+        .from('push_subscriptions')
+        .select('*')
+        .in('user_id', userIds);
+      subscriptions = data || [];
+    }
+  }
+
+  // 2. Enviar para a tabela de notificações interna (para usuários logados)
+  const internalNotifications = subscriptions
+    .filter(sub => sub.user_id !== null)
+    .map(sub => ({
+      user_id: sub.user_id,
+      title: `🔔 ${notification.title}`,
+      content: notification.body,
+      link: notification.link,
+      type: 'info'
+    }));
+
+  if (internalNotifications.length > 0) {
+    await supabaseAdmin.from('notifications').insert(internalNotifications);
+  }
+
+  // 3. Atualizar status para 'sent' (isso dispara o Realtime para os navegadores ativos)
+  await supabaseAdmin
+    .from('push_notifications')
+    .update({ 
+      status: 'sent', 
+      sent_at: new Date().toISOString() 
+    })
+    .eq('id', notification.id);
+
+  return subscriptions.length;
+}

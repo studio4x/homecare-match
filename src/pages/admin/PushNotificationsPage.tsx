@@ -110,8 +110,8 @@ const PushNotificationsPage = () => {
     }
   }, [config]);
 
-  const fetchHistory = async () => {
-    setLoading(true);
+  const fetchHistory = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data, error } = await supabase
         .from("push_notifications")
@@ -128,7 +128,6 @@ const PushNotificationsPage = () => {
   };
 
   const fetchSubscribers = async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from("push_subscriptions")
@@ -139,14 +138,43 @@ const PushNotificationsPage = () => {
       setSubscribers(data || []);
     } catch (err) {
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchHistory();
     fetchSubscribers();
+
+    // --- CONFIGURAÇÃO DE REALTIME ---
+    // Escuta mudanças na tabela de notificações para atualizar o status automaticamente
+    const channel = supabase
+      .channel('push-history-updates')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'push_notifications' },
+        (payload) => {
+          console.log("[PushRealtime] Mudança detectada:", payload);
+          
+          if (payload.eventType === 'UPDATE') {
+            // Atualiza apenas o item que mudou no estado local
+            setHistory(prev => prev.map(item => 
+              item.id === payload.new.id ? { ...item, ...payload.new } : item
+            ));
+            
+            if (payload.new.status === 'sent') {
+              toast.success(`Notificação "${payload.new.title}" enviada com sucesso!`);
+            }
+          } else if (payload.eventType === 'INSERT' || payload.eventType === 'DELETE') {
+            // Para novos itens ou exclusões, recarregamos a lista
+            fetchHistory(true);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleSync = async () => {
@@ -345,7 +373,7 @@ const PushNotificationsPage = () => {
       link: notification.link || "",
       image_url: notification.image_url || "",
       target_role: notification.target_role || "all",
-      scheduled_for: "" // Limpa agendamento ao editar para evitar envios duplicados acidentais
+      scheduled_for: "" 
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
     toast.info("Dados carregados no formulário.");
@@ -805,7 +833,7 @@ const PushNotificationsPage = () => {
                 >
                   <Trash2 className="h-4 w-4" /> Limpar Todo o Histórico
                 </Button>
-                <Button variant="ghost" size="icon" onClick={fetchHistory} disabled={loading}>
+                <Button variant="ghost" size="icon" onClick={() => fetchHistory()} disabled={loading}>
                   <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
                 </Button>
               </div>

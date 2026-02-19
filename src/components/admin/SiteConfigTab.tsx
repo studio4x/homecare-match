@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity, Coins, Bell, UserCheck, Sparkles, Send } from "lucide-react";
+import { Loader2, Save, Phone, Eye, EyeOff, Database, RefreshCw, LifeBuoy, ShieldCheck, CreditCard, FlaskConical, Zap, BarChart3, Map as MapIcon, ShieldAlert, Lock, Activity, Coins, Bell, UserCheck, Sparkles, Send, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
@@ -47,6 +47,7 @@ const SiteConfigTab = () => {
   const [isSyncingNotifications, setIsSyncingNotifications] = useState(false);
   const [isSyncingUserNotifications, setIsSyncingUserNotifications] = useState(false);
   const [isSyncingPush, setIsSyncingPush] = useState(false);
+  const [isSyncingCron, setIsSyncingCron] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -213,6 +214,19 @@ const SiteConfigTab = () => {
       toast.error("Erro ao configurar sistema de Push.");
     } finally {
       setIsSyncingPush(false);
+    }
+  };
+
+  const handleSyncCron = async () => {
+    setIsSyncingCron(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-cron-job');
+      if (error) throw error;
+      toast.success("Automação (Cron Job) ativada com sucesso!");
+    } catch (error: any) {
+      toast.error("Erro ao ativar automação. Verifique se as extensões pg_net e pg_cron estão disponíveis no seu plano.");
+    } finally {
+      setIsSyncingCron(false);
     }
   };
 
@@ -541,6 +555,16 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncPush} disabled={isSyncingPush}>
               {isSyncingPush ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Configurar Automação (Cron Job)</p>
+              <p className="text-xs text-amber-800/70">Ativa o envio automático de notificações agendadas.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncCron} disabled={isSyncingCron}>
+              {isSyncingCron ? <Loader2 className="h-4 w-4 animate-spin" /> : <Timer className="h-4 w-4" />}
             </Button>
           </div>
 

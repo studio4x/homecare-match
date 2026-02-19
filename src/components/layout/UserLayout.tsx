@@ -31,6 +31,7 @@ import MarketingScripts from "../MarketingScripts";
 import ImpersonationBar from "../ImpersonationBar";
 import ScrollToTopButton from "../ScrollToTopButton";
 import UserNotificationWidget from "../UserNotificationWidget";
+import PushManager from "../PushManager";
 
 const UserLayout = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -110,6 +111,7 @@ const UserLayout = () => {
       <Navbar />
       <ImpersonationBar />
       <MarketingScripts />
+      <PushManager />
       
       <div className="flex flex-1 bg-secondary/10">
         {sidebarOpen && (

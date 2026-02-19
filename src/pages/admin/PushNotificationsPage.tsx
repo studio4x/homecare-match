@@ -49,7 +49,8 @@ import {
   Save,
   AlertTriangle,
   Timer,
-  Play
+  Play,
+  Edit2
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -337,6 +338,19 @@ const PushNotificationsPage = () => {
     }
   };
 
+  const handleEdit = (notification: any) => {
+    setFormData({
+      title: notification.title || "",
+      body: notification.body || "",
+      link: notification.link || "",
+      image_url: notification.image_url || "",
+      target_role: notification.target_role || "all",
+      scheduled_for: "" // Limpa agendamento ao editar para evitar envios duplicados acidentais
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.info("Dados carregados no formulário.");
+  };
+
   const handleDeleteSubscriber = async (id: string) => {
     if (!confirm("Remover este dispositivo da lista de envios?")) return;
     try {
@@ -582,15 +596,25 @@ const PushNotificationsPage = () => {
                         <p className="text-xs text-muted-foreground truncate">{h.body}</p>
                       </div>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-2 h-8 ml-4 shrink-0 hover:bg-primary hover:text-white transition-colors"
-                      onClick={() => handleResend(h)}
-                      disabled={isSending}
-                    >
-                      <Send className="h-3 w-3" /> Reenviar
-                    </Button>
+                    <div className="flex items-center gap-2 ml-4 shrink-0">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2 h-8 hover:bg-secondary transition-colors"
+                        onClick={() => handleEdit(h)}
+                      >
+                        <Edit2 className="h-3 w-3" /> Editar
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-2 h-8 hover:bg-primary hover:text-white transition-colors"
+                        onClick={() => handleResend(h)}
+                        disabled={isSending}
+                      >
+                        <Send className="h-3 w-3" /> Reenviar
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </CardContent>

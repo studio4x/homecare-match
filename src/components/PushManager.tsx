@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
-import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink, X } from "lucide-react";
+import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -44,58 +44,68 @@ const PushManager = () => {
             const safeBody = truncate(data.body, 120);
 
             toast.custom((t) => (
-              <div className="bg-transparent p-0 m-0 border-none shadow-none pointer-events-auto flex justify-center w-full">
-                <div className="w-full max-w-[380px] bg-white/95 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[28px] overflow-hidden animate-slide-up border border-white/20 relative">
+              <div className="bg-transparent p-0 m-0 border-none shadow-none pointer-events-auto flex justify-center w-full overflow-visible">
+                <div className="w-full max-w-[380px] bg-white shadow-[0_25px_60px_rgba(0,0,0,0.25)] rounded-[32px] overflow-hidden animate-slide-up border border-slate-100 relative">
                   
                   {/* Botão Fechar Flutuante */}
                   <button 
                     onClick={() => toast.dismiss(t)}
-                    className="absolute top-4 right-4 z-10 p-1.5 rounded-full bg-black/5 hover:bg-black/10 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-black/5 hover:bg-black/10 text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
 
                   {/* Banner da Imagem */}
                   {data.image_url && (
-                    <div className="w-full aspect-video bg-slate-100 flex items-center justify-center overflow-hidden">
+                    <div className="w-full aspect-video bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
                       <img 
                         src={data.image_url} 
-                        className="w-full h-full object-cover" 
+                        className="w-full h-full object-contain p-4" 
                         alt="Banner" 
                         onError={(e) => (e.currentTarget.style.display = 'none')}
                       />
                     </div>
                   )}
                   
-                  <div className="p-6 flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Megaphone className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1 space-y-1 min-w-0">
-                      {/* Identificador de Administração */}
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <ShieldCheck className="h-3 w-3 text-primary" />
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-primary/80">Administração</span>
+                  <div className="p-6 space-y-4">
+                    <div className="flex gap-4">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Megaphone className="h-5 w-5 text-primary" />
                       </div>
-
-                      <h4 className="font-bold text-slate-900 leading-tight text-base pr-6">{safeTitle}</h4>
-                      <p className="text-sm text-slate-500 leading-relaxed">{safeBody}</p>
-                      
-                      {data.link && (
-                        <div className="pt-5">
-                          <Button 
-                            size="sm" 
-                            className="h-9 w-full gap-1.5 text-xs font-bold rounded-full shadow-md hover:shadow-lg transition-all"
-                            onClick={() => {
-                              toast.dismiss(t);
-                              window.location.href = data.link;
-                            }}
-                          >
-                            Ver Detalhes <ExternalLink className="h-3 w-3" />
-                          </Button>
+                      <div className="flex-1 space-y-1 min-w-0">
+                        {/* Identificador de Administração */}
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <ShieldCheck className="h-3 w-3 text-primary" />
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-primary/80">Administração</span>
                         </div>
-                      )}
+
+                        <h4 className="font-bold text-slate-900 leading-tight text-base pr-6">{safeTitle}</h4>
+                        <p className="text-sm text-slate-500 leading-relaxed">{safeBody}</p>
+                      </div>
                     </div>
+
+                    {/* Aviso de Mensagem Oficial */}
+                    <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-border/50">
+                      <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <p className="text-[9px] text-muted-foreground leading-tight">
+                        Esta é uma mensagem enviada pela administração da <strong>HomeCare Match</strong>.
+                      </p>
+                    </div>
+                    
+                    {data.link && (
+                      <div className="pt-2">
+                        <Button 
+                          size="sm" 
+                          className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md hover:shadow-lg transition-all"
+                          onClick={() => {
+                            toast.dismiss(t);
+                            window.location.href = data.link;
+                          }}
+                        >
+                          Ver Detalhes <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

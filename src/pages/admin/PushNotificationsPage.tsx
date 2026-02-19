@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import { 
   Select, 
   SelectContent, 
@@ -52,7 +53,9 @@ import {
   Play,
   Edit2,
   UserX,
-  Copy
+  Copy,
+  Sliders,
+  Eye
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -84,7 +87,6 @@ const PushNotificationsPage = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
@@ -94,8 +96,8 @@ const PushNotificationsPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    title: "",
-    body: "",
+    title: "Título de Exemplo",
+    body: "Esta é uma prévia de como sua mensagem aparecerá para os usuários no desktop.",
     link: "",
     image_url: "",
     target_role: "all",
@@ -158,9 +160,6 @@ const PushNotificationsPage = () => {
             setHistory(prev => prev.map(item => 
               item.id === payload.new.id ? { ...item, ...payload.new } : item
             ));
-            if (payload.new.status === 'sent') {
-              toast.success(`Notificação "${payload.new.title}" enviada!`);
-            }
           } else {
             fetchHistory(true);
           }
@@ -223,12 +222,12 @@ const PushNotificationsPage = () => {
     setIsSavingLayout(true);
     try {
       const { error } = await supabase
-        .from("site_config")
+        .from('site_config')
         .update({ push_layout_json: layoutData })
-        .eq("id", 1);
+        .eq('id', 1);
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
-      toast.success("Layout salvo!");
+      toast.success("Layout salvo com sucesso!");
     } catch (err) {
       toast.error("Erro ao salvar layout.");
     } finally {
@@ -291,44 +290,29 @@ const PushNotificationsPage = () => {
   };
 
   const handleClearSubscribers = async () => {
-    if (!confirm("Tem certeza que deseja remover TODOS os dispositivos inscritos? Isso impedirá o envio de notificações até que os usuários aceitem novamente.")) return;
-    
+    if (!confirm("Tem certeza que deseja remover TODOS os dispositivos inscritos?")) return;
     setLoading(true);
-    const toastId = toast.loading("Limpando base de inscritos...");
     try {
-      const { error } = await supabase.functions.invoke('process-push-notifications', {
-        body: { action: 'clear_all_subscribers' }
-      });
-      
+      const { error } = await supabase.functions.invoke('process-push-notifications', { body: { action: 'clear_all_subscribers' } });
       if (error) throw error;
-      
       setSubscribers([]);
-      toast.success("Lista de inscritos limpa definitivamente!", { id: toastId });
-      fetchSubscribers();
+      toast.success("Lista de inscritos limpa!");
     } catch (err) {
-      console.error(err);
-      toast.error("Erro ao limpar inscritos.", { id: toastId });
+      toast.error("Erro ao limpar inscritos.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleClearHistory = async () => {
-    if (!confirm("Tem certeza que deseja apagar TODO o histórico de notificações enviadas? Esta ação não pode ser desfeita.")) return;
-    
+    if (!confirm("Tem certeza que deseja apagar TODO o histórico?")) return;
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("push_notifications")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
-      
+      const { error } = await supabase.from("push_notifications").delete().neq("id", "00000000-0000-0000-0000-000000000000");
       if (error) throw error;
-      
       setHistory([]);
-      toast.success("Histórico limpo com sucesso!");
+      toast.success("Histórico limpo!");
     } catch (err) {
-      console.error(err);
       toast.error("Erro ao limpar histórico.");
     } finally {
       setLoading(false);
@@ -336,12 +320,12 @@ const PushNotificationsPage = () => {
   };
 
   const handleDeleteNotification = async (id: string) => {
-    if (!confirm("Excluir este registro do histórico?")) return;
+    if (!confirm("Excluir este registro?")) return;
     try {
       const { error } = await supabase.from("push_notifications").delete().eq("id", id);
       if (error) throw error;
       setHistory(prev => prev.filter(h => h.id !== id));
-      toast.success("Registro removido.");
+      toast.success("Removido.");
     } catch (err) {
       toast.error("Erro ao remover.");
     }
@@ -367,7 +351,14 @@ const PushNotificationsPage = () => {
     }
   };
 
-  const recentNotifications = history.slice(0, 5);
+  const getTargetLabel = (role: string) => {
+    switch (role) {
+      case 'professional': return 'Profissionais';
+      case 'company': return 'Empresas';
+      case 'family': return 'Famílias';
+      default: return 'Todos';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -376,12 +367,10 @@ const PushNotificationsPage = () => {
           <h1 className="text-3xl font-bold tracking-tight">Notificações Push</h1>
           <p className="text-muted-foreground">Envie mensagens diretas para os dispositivos dos usuários.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={handleSync} disabled={isSyncing}>
-            {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-            Sincronizar Banco
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleSync} disabled={isSyncing}>
+          {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+          Sincronizar Banco
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -401,57 +390,57 @@ const PushNotificationsPage = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSend} className="space-y-6">
-                  <div className="grid gap-6 md:grid-cols-1">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Título da Notificação</Label>
-                        <Input 
-                          placeholder="Ex: Novas vagas disponíveis!" 
-                          value={formData.title}
-                          onChange={e => setFormData({...formData, title: e.target.value})}
-                          maxLength={TITLE_LIMIT}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Mensagem (Corpo)</Label>
-                        <Textarea 
-                          placeholder="Descreva o conteúdo da notificação..." 
-                          rows={4}
-                          value={formData.body}
-                          onChange={e => setFormData({...formData, body: e.target.value})}
-                          maxLength={BODY_LIMIT}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Link de Destino (Opcional)</Label>
-                        <Input 
-                          placeholder="Ex: /dashboard/cursos" 
-                          value={formData.link}
-                          onChange={e => setFormData({...formData, link: e.target.value})}
-                        />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Título da Notificação</Label>
+                      <Input 
+                        placeholder="Ex: Novas vagas disponíveis!" 
+                        value={formData.title}
+                        onChange={e => setFormData({...formData, title: e.target.value})}
+                        maxLength={TITLE_LIMIT}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Mensagem (Corpo)</Label>
+                      <Textarea 
+                        placeholder="Descreva o conteúdo da notificação..." 
+                        rows={4}
+                        value={formData.body}
+                        onChange={e => setFormData({...formData, body: e.target.value})}
+                        maxLength={BODY_LIMIT}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Link de Destino (Opcional)</Label>
+                      <Input 
+                        placeholder="Ex: /dashboard/cursos" 
+                        value={formData.link}
+                        onChange={e => setFormData({...formData, link: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 p-6 bg-secondary/20 rounded-xl border border-dashed">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-primary" /> Imagem (Opcional)</Label>
+                      <div className="flex flex-col gap-3">
+                        {formData.image_url ? (
+                          <div className="relative aspect-video rounded-lg overflow-hidden border bg-black group">
+                            <img src={formData.image_url} className="w-full h-full object-contain" alt="Preview" />
+                            <button type="button" onClick={() => setFormData(prev => ({ ...prev, image_url: "" }))} className="absolute top-2 right-2 p-1 bg-destructive text-white rounded-full"><X className="h-4 w-4" /></button>
+                          </div>
+                        ) : (
+                          <Button type="button" variant="outline" className="w-full h-24 border-dashed gap-2" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                            {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />} Selecionar Imagem
+                          </Button>
+                        )}
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                       </div>
                     </div>
 
-                    <div className="space-y-4 p-6 bg-secondary/20 rounded-xl border border-dashed">
-                      <div className="space-y-2">
-                        <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-primary" /> Imagem (Opcional)</Label>
-                        <div className="flex flex-col gap-3">
-                          {formData.image_url ? (
-                            <div className="relative aspect-video rounded-lg overflow-hidden border bg-black group">
-                              <img src={formData.image_url} className="w-full h-full object-contain" alt="Preview" />
-                              <button type="button" onClick={() => setFormData(prev => ({ ...prev, image_url: "" }))} className="absolute top-2 right-2 p-1 bg-destructive text-white rounded-full"><X className="h-4 w-4" /></button>
-                            </div>
-                          ) : (
-                            <Button type="button" variant="outline" className="w-full h-24 border-dashed gap-2" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                              {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />} Selecionar Imagem
-                            </Button>
-                          )}
-                          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                        </div>
-                      </div>
-
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Público Alvo</Label>
                         <Select value={formData.target_role} onValueChange={v => setFormData({...formData, target_role: v})}>
@@ -464,17 +453,16 @@ const PushNotificationsPage = () => {
                           </SelectContent>
                         </Select>
                       </div>
-
                       <div className="space-y-2">
                         <Label className="flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> Agendar Envio</Label>
                         <Input type="datetime-local" value={formData.scheduled_for} onChange={e => setFormData({...formData, scheduled_for: e.target.value})} />
                       </div>
-
-                      <Button type="submit" className="w-full gap-2 h-12" disabled={isSending || isUploading}>
-                        {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
-                        {formData.scheduled_for ? "Agendar Notificação" : "Enviar Agora"}
-                      </Button>
                     </div>
+
+                    <Button type="submit" className="w-full gap-2 h-12" disabled={isSending || isUploading}>
+                      {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+                      {formData.scheduled_for ? "Agendar Notificação" : "Enviar Agora"}
+                    </Button>
                   </div>
                 </form>
               </CardContent>
@@ -489,9 +477,9 @@ const PushNotificationsPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                  {recentNotifications.length > 0 ? (
+                  {history.slice(0, 5).length > 0 ? (
                     <div className="divide-y">
-                      {recentNotifications.map((n) => (
+                      {history.slice(0, 5).map((n) => (
                         <div key={n.id} className="p-4 space-y-2 hover:bg-secondary/20 transition-colors">
                           <div className="flex items-center justify-between">
                             <p className="text-xs font-bold truncate pr-2">{n.title}</p>
@@ -499,71 +487,174 @@ const PushNotificationsPage = () => {
                           </div>
                           <p className="text-[10px] text-muted-foreground line-clamp-2">{n.body}</p>
                           <div className="flex items-center justify-between pt-1">
-                            <span className="text-[9px] text-muted-foreground">
-                              {format(new Date(n.created_at), "dd/MM HH:mm")}
-                            </span>
+                            <span className="text-[9px] text-muted-foreground">{format(new Date(n.created_at), "dd/MM HH:mm")}</span>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(n)} title="Copiar dados">
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 text-success" onClick={() => handleResend(n)} title="Reenviar">
-                                <RotateCcw className="h-3 w-3" />
-                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(n)} title="Copiar"><Copy className="h-3 w-3" /></Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-success" onClick={() => handleResend(n)} title="Reenviar"><RotateCcw className="h-3 w-3" /></Button>
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-muted-foreground text-xs italic">
-                      Nenhuma notificação enviada ainda.
-                    </div>
+                    <div className="p-8 text-center text-muted-foreground text-xs italic">Nenhuma notificação enviada ainda.</div>
                   )}
                 </CardContent>
               </Card>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
-                <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-blue-800 leading-relaxed">
-                  <strong>Dica:</strong> Notificações com imagens e links de destino têm uma taxa de clique até 40% maior. Use o campo de link para direcionar usuários para novos cursos ou perfis em destaque.
-                </p>
-              </div>
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="layout" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Personalizar Card</CardTitle>
-                <CardDescription>Ajuste as cores e o estilo visual da notificação.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Cor de Fundo</Label>
-                    <div className="flex gap-2">
-                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.bgColor} onChange={e => setLayoutData({...layoutData, bgColor: e.target.value})} />
-                      <Input value={layoutData.bgColor} onChange={e => setLayoutData({...layoutData, bgColor: e.target.value})} />
+          <div className="grid gap-8 lg:grid-cols-12">
+            <div className="lg:col-span-7 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5 text-primary" /> Estilo do Card</CardTitle>
+                  <CardDescription>Personalize as cores e o formato do card de notificação no desktop.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Cor de Fundo</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-12 h-10 p-1" value={layoutData.bgColor} onChange={e => setLayoutData({...layoutData, bgColor: e.target.value})} />
+                          <Input value={layoutData.bgColor} onChange={e => setLayoutData({...layoutData, bgColor: e.target.value})} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Cor do Título</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-12 h-10 p-1" value={layoutData.titleColor} onChange={e => setLayoutData({...layoutData, titleColor: e.target.value})} />
+                          <Input value={layoutData.titleColor} onChange={e => setLayoutData({...layoutData, titleColor: e.target.value})} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Cor do Texto</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-12 h-10 p-1" value={layoutData.bodyColor} onChange={e => setLayoutData({...layoutData, bodyColor: e.target.value})} />
+                          <Input value={layoutData.bodyColor} onChange={e => setLayoutData({...layoutData, bodyColor: e.target.value})} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Cor do Ícone</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-12 h-10 p-1" value={layoutData.iconColor} onChange={e => setLayoutData({...layoutData, iconColor: e.target.value})} />
+                          <Input value={layoutData.iconColor} onChange={e => setLayoutData({...layoutData, iconColor: e.target.value})} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Fundo do Ícone</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-12 h-10 p-1" value={layoutData.iconBgColor} onChange={e => setLayoutData({...layoutData, iconBgColor: e.target.value})} />
+                          <Input value={layoutData.iconBgColor} onChange={e => setLayoutData({...layoutData, iconBgColor: e.target.value})} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Arredondamento (px)</Label>
+                        <Input type="number" value={layoutData.borderRadius} onChange={e => setLayoutData({...layoutData, borderRadius: e.target.value})} />
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Cor do Título</Label>
-                    <div className="flex gap-2">
-                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.titleColor} onChange={e => setLayoutData({...layoutData, titleColor: e.target.value})} />
-                      <Input value={layoutData.titleColor} onChange={e => setLayoutData({...layoutData, titleColor: e.target.value})} />
+
+                  <Separator />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Cor do Botão (CTA)</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-12 h-10 p-1" value={layoutData.ctaBgColor} onChange={e => setLayoutData({...layoutData, ctaBgColor: e.target.value})} />
+                          <Input value={layoutData.ctaBgColor} onChange={e => setLayoutData({...layoutData, ctaBgColor: e.target.value})} />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Cor do Texto do Botão</Label>
+                        <div className="flex gap-2">
+                          <Input type="color" className="w-12 h-10 p-1" value={layoutData.ctaTextColor} onChange={e => setLayoutData({...layoutData, ctaTextColor: e.target.value})} />
+                          <Input value={layoutData.ctaTextColor} onChange={e => setLayoutData({...layoutData, ctaTextColor: e.target.value})} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Intensidade da Sombra (0 a 1)</Label>
+                        <Input type="number" step="0.05" min="0" max="1" value={layoutData.shadowIntensity} onChange={e => setLayoutData({...layoutData, shadowIntensity: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Duração Exibição (segundos)</Label>
+                        <Input type="number" value={layoutData.duration} onChange={e => setLayoutData({...layoutData, duration: parseInt(e.target.value) || 15})} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex gap-3">
+                    <Button variant="outline" className="flex-1 gap-2" onClick={() => setLayoutData(DEFAULT_LAYOUT)}><RotateCcw className="h-4 w-4" /> Resetar Padrão</Button>
+                    <Button className="flex-[2] gap-2" onClick={handleSaveLayout} disabled={isSavingLayout}>
+                      {isSavingLayout ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar Configurações
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="lg:col-span-5 space-y-6">
+              <div className="sticky top-24">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
+                  <Eye className="h-4 w-4" /> Preview em Tempo Real
+                </h3>
+                
+                <div className="p-8 bg-secondary/30 rounded-3xl border border-dashed flex items-center justify-center min-h-[400px]">
+                  <div 
+                    className="w-full max-w-[350px] overflow-hidden border border-slate-100 shadow-2xl pointer-events-auto relative"
+                    style={{ 
+                      backgroundColor: layoutData.bgColor,
+                      borderRadius: `${layoutData.borderRadius}px`,
+                      boxShadow: `0 15px 40px rgba(0,0,0,${layoutData.shadowIntensity})`
+                    }}
+                  >
+                    <button className="absolute top-3 right-3 p-1.5 rounded-full bg-black/5 text-slate-400"><X className="h-4 w-4" /></button>
+                    
+                    <div className="p-5 space-y-4">
+                      <div className="flex gap-3">
+                        <div 
+                          className="h-9 w-9 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: layoutData.iconBgColor }}
+                        >
+                          <Megaphone className="h-4 w-4" style={{ color: layoutData.iconColor }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <ShieldCheck className="h-3 w-3" style={{ color: layoutData.iconColor }} />
+                            <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layoutData.iconColor }}>Administração</span>
+                          </div>
+                          <h4 className="font-bold leading-tight text-sm pr-6" style={{ color: layoutData.titleColor }}>{formData.title || "Título da Notificação"}</h4>
+                          <p className="text-xs leading-relaxed" style={{ color: layoutData.bodyColor }}>{formData.body || "Corpo da mensagem..."}</p>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="h-9 w-full gap-1.5 text-xs font-bold rounded-full shadow-md"
+                        style={{ backgroundColor: layoutData.ctaBgColor, color: layoutData.ctaTextColor }}
+                      >
+                        Ver Detalhes <ExternalLink className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
                 </div>
-                <div className="pt-4 flex gap-3">
-                  <Button variant="outline" className="flex-1 gap-2" onClick={() => setLayoutData(DEFAULT_LAYOUT)}><RotateCcw className="h-4 w-4" /> Resetar</Button>
-                  <Button className="flex-[2] gap-2" onClick={handleSaveLayout} disabled={isSavingLayout}>
-                    {isSavingLayout ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar Alterações
-                  </Button>
+                
+                <div className="mt-4 bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3">
+                  <Sliders className="h-5 w-5 text-amber-600 shrink-0" />
+                  <p className="text-[10px] text-amber-800 leading-relaxed">
+                    <strong>Nota:</strong> O layout acima é uma simulação fiel de como o card aparecerá no navegador dos usuários (Desktop). No Mobile, o sistema utiliza a interface nativa do Android/iOS.
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </TabsContent>
 
@@ -575,18 +666,8 @@ const PushNotificationsPage = () => {
                 <CardDescription>Acompanhe o status das notificações.</CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="text-destructive hover:bg-destructive/10 gap-2"
-                  onClick={handleClearHistory}
-                  disabled={loading || history.length === 0}
-                >
-                  <Trash2 className="h-4 w-4" /> Limpar Todo o Histórico
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => fetchHistory()} disabled={loading}>
-                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                </Button>
+                <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 gap-2" onClick={handleClearHistory} disabled={loading || history.length === 0}><Trash2 className="h-4 w-4" /> Limpar Tudo</Button>
+                <Button variant="ghost" size="icon" onClick={() => fetchHistory()} disabled={loading}><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /></Button>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -610,33 +691,9 @@ const PushNotificationsPage = () => {
                       <TableCell>{getStatusBadge(h.status)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-primary" 
-                            onClick={() => handleEdit(h)}
-                            title="Editar/Copiar"
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-success" 
-                            onClick={() => handleResend(h)}
-                            title="Reenviar Agora"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-destructive" 
-                            onClick={() => handleDeleteNotification(h.id)}
-                            title="Excluir"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleEdit(h)} title="Editar"><Edit2 className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-success" onClick={() => handleResend(h)} title="Reenviar"><RotateCcw className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteNotification(h.id)} title="Excluir"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -655,18 +712,8 @@ const PushNotificationsPage = () => {
                 <CardDescription>Lista de navegadores que autorizaram notificações.</CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="text-destructive hover:bg-destructive/10 gap-2"
-                  onClick={handleClearSubscribers}
-                  disabled={loading || subscribers.length === 0}
-                >
-                  <UserX className="h-4 w-4" /> Limpar Todos os Inscritos
-                </Button>
-                <Button variant="ghost" size="icon" onClick={fetchSubscribers} disabled={loading}>
-                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                </Button>
+                <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 gap-2" onClick={handleClearSubscribers} disabled={loading || subscribers.length === 0}><UserX className="h-4 w-4" /> Limpar Todos</Button>
+                <Button variant="ghost" size="icon" onClick={fetchSubscribers} disabled={loading}><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /></Button>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -714,15 +761,6 @@ const PushNotificationsPage = () => {
       </Tabs>
     </div>
   );
-};
-
-const getTargetLabel = (role: string) => {
-  switch (role) {
-    case 'professional': return 'Profissionais';
-    case 'company': return 'Empresas';
-    case 'family': return 'Famílias';
-    default: return 'Todos';
-  }
 };
 
 export default PushNotificationsPage;

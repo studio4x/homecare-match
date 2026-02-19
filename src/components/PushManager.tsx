@@ -43,6 +43,7 @@ const PushManager = () => {
   };
 
   useEffect(() => {
+    // Canal de Realtime para anúncios públicos
     const channel = supabase
       .channel('public-announcements')
       .on(
@@ -51,13 +52,14 @@ const PushManager = () => {
         (payload) => {
           const data = payload.new as any;
           
+          // Só processamos se o status for 'sent'
           if (data && data.status === 'sent') {
             const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
             
-            // No Mobile, o Service Worker cuida de tudo.
+            // No Mobile, o Service Worker cuida da notificação nativa.
+            // No Desktop, mostramos o card visual (Toast personalizado).
             if (isMobile) return;
 
-            // No Desktop, mostramos o card visual (Toast)
             const safeTitle = truncate(data.title, 45);
             const safeBody = truncate(data.body, 120);
 
@@ -74,6 +76,7 @@ const PushManager = () => {
               duration: 12
             };
 
+            // Tenta pegar o layout do banco, senão usa o padrão
             const layout = config?.push_layout_json ? {
               ...defaultLayout,
               ...config.push_layout_json
@@ -81,7 +84,7 @@ const PushManager = () => {
 
             toast.custom((t) => (
               <div 
-                className="w-[calc(100vw-32px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto mx-auto"
+                className="w-[calc(100vw-32px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto mx-auto relative"
                 style={{ 
                   backgroundColor: layout.bgColor,
                   borderRadius: `${layout.borderRadius}px`,
@@ -90,7 +93,7 @@ const PushManager = () => {
               >
                 <button 
                   onClick={() => toast.dismiss(t)}
-                  className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400"
+                  className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -128,7 +131,7 @@ const PushManager = () => {
                     <div className="pt-1">
                       <Button 
                         size="sm" 
-                        className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md"
+                        className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md border-none"
                         style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
                         onClick={() => {
                           toast.dismiss(t);
@@ -150,21 +153,22 @@ const PushManager = () => {
       )
       .subscribe();
 
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
-
-    if (Notification.permission === 'default') {
-      const timer = setTimeout(() => setShowPrompt(true), 5000);
-      return () => clearTimeout(timer);
-    }
-    
-    if (Notification.permission === 'granted') {
-      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    // Registro do Service Worker para Push Nativo
+    if ('Notification' in window && 'serviceWorker' in navigator) {
+      if (Notification.permission === 'default') {
+        const timer = setTimeout(() => setShowPrompt(true), 5000);
+        return () => clearTimeout(timer);
+      }
+      
+      if (Notification.permission === 'granted') {
+        navigator.serviceWorker.register('/sw.js').catch(console.error);
+      }
     }
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [config]); 
+  }, [config]); // Re-inscreve se o config mudar para garantir layout atualizado
 
   const handleSubscribe = async () => {
     if (!config?.vapid_public_key) {
@@ -191,8 +195,7 @@ const PushManager = () => {
 
       const subJson = subscription.toJSON();
 
-      // --- EVITAR DUPLICIDADE ---
-      // Verifica se este endpoint já está cadastrado para este usuário
+      // Verifica se este endpoint já está cadastrado
       const { data: existing } = await supabase
         .from('push_subscriptions')
         .select('id')

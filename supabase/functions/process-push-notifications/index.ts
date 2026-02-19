@@ -27,31 +27,45 @@ serve(async (req) => {
 
       if (!notification) throw new Error("Notificação não encontrada.");
 
-      // 1. Buscar usuários alvo
-      let query = supabaseAdmin.from('profiles').select('id');
-      if (notification.target_role !== 'all') {
-        query = query.eq('role', notification.target_role);
+      let subscriptions = [];
+
+      // 1. Se o alvo for 'all', pegamos TODAS as inscrições (incluindo anônimas)
+      if (notification.target_role === 'all') {
+        const { data } = await supabaseAdmin
+          .from('push_subscriptions')
+          .select('*');
+        subscriptions = data || [];
+      } else {
+        // 2. Se houver um papel específico, filtramos apenas usuários logados com esse papel
+        const { data: targetUsers } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('role', notification.target_role);
+        
+        const userIds = targetUsers?.map(u => u.id) || [];
+        
+        if (userIds.length > 0) {
+          const { data } = await supabaseAdmin
+            .from('push_subscriptions')
+            .select('*')
+            .in('user_id', userIds);
+          subscriptions = data || [];
+        }
       }
-      const { data: targetUsers } = await query;
-      const userIds = targetUsers?.map(u => u.id) || [];
 
-      // 2. Buscar inscrições de push para esses usuários
-      const { data: subscriptions } = await supabaseAdmin
-        .from('push_subscriptions')
-        .select('*')
-        .in('user_id', userIds);
+      console.log(`[Push] Enviando para \${subscriptions.length} dispositivos.`);
 
-      console.log(`[Push] Enviando para \${subscriptions?.length || 0} dispositivos.`);
-
-      // Simulando envio para a tabela de notificações interna
-      for (const userId of userIds) {
-        await supabaseAdmin.from('notifications').insert({
-          user_id: userId,
-          title: `🔔 \${notification.title}`,
-          content: notification.body,
-          link: notification.link,
-          type: 'info'
-        });
+      // Simulando envio para a tabela de notificações interna (apenas para usuários logados)
+      for (const sub of subscriptions) {
+        if (sub.user_id) {
+          await supabaseAdmin.from('notifications').insert({
+            user_id: sub.user_id,
+            title: `🔔 \${notification.title}`,
+            content: notification.body,
+            link: notification.link,
+            type: 'info'
+          });
+        }
       }
 
       // Atualizar status da notificação push
@@ -63,7 +77,7 @@ serve(async (req) => {
         })
         .eq('id', notificationId);
 
-      return new Response(JSON.stringify({ success: true, sentCount: subscriptions?.length || 0 }), {
+      return new Response(JSON.stringify({ success: true, sentCount: subscriptions.length }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });

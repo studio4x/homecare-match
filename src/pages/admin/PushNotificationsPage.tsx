@@ -36,7 +36,10 @@ import {
   Users,
   Database,
   Image as ImageIcon,
-  X
+  X,
+  Smartphone,
+  Monitor,
+  User
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -48,6 +51,7 @@ const PushNotificationsPage = () => {
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+  const [subscribers, setSubscribers] = useState<any[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +77,23 @@ const PushNotificationsPage = () => {
       setHistory(data || []);
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao carregar histórico.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSubscribers = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("push_subscriptions")
+        .select("*, profile:profiles(full_name, email, role)")
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      setSubscribers(data || []);
+    } catch (err) {
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -81,6 +101,7 @@ const PushNotificationsPage = () => {
 
   useEffect(() => {
     fetchHistory();
+    fetchSubscribers();
   }, []);
 
   const handleSync = async () => {
@@ -90,6 +111,7 @@ const PushNotificationsPage = () => {
       if (error) throw error;
       toast.success("Banco de dados sincronizado!");
       fetchHistory();
+      fetchSubscribers();
     } catch (err) {
       toast.error("Erro ao sincronizar.");
     } finally {
@@ -156,7 +178,7 @@ const PushNotificationsPage = () => {
           body: { notificationId: notification.id, action: 'send_now' }
         });
         if (sendError) throw sendError;
-        toast.success(`Notificação enviada para ${result.sentCount} dispositivos!`);
+        toast.success(`Notificação enviada para \${result.sentCount} dispositivos!`);
       } else {
         toast.success("Notificação agendada com sucesso!");
       }
@@ -171,29 +193,15 @@ const PushNotificationsPage = () => {
     }
   };
 
-  const handleResend = async (notif: any) => {
-    const toastId = toast.loading("Reenviando...");
+  const handleDeleteSubscriber = async (id: string) => {
+    if (!confirm("Remover este dispositivo da lista de envios?")) return;
     try {
-      const { data: result, error } = await supabase.functions.invoke('process-push-notifications', {
-        body: { notificationId: notif.id, action: 'send_now' }
-      });
+      const { error } = await supabase.from("push_subscriptions").delete().eq("id", id);
       if (error) throw error;
-      toast.success("Notificação reenviada!", { id: toastId });
-      fetchHistory();
+      setSubscribers(prev => prev.filter(s => s.id !== id));
+      toast.success("Dispositivo removido.");
     } catch (err) {
-      toast.error("Erro ao reenviar.", { id: toastId });
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Deseja excluir este registro?")) return;
-    try {
-      const { error } = await supabase.from("push_notifications").delete().eq("id", id);
-      if (error) throw error;
-      setHistory(prev => prev.filter(h => h.id !== id));
-      toast.success("Registro removido.");
-    } catch (err) {
-      toast.error("Erro ao excluir.");
+      toast.error("Erro ao remover.");
     }
   };
 
@@ -229,9 +237,10 @@ const PushNotificationsPage = () => {
       </div>
 
       <Tabs defaultValue="new" className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="new" className="gap-2"><Send className="h-4 w-4" /> Nova Mensagem</TabsTrigger>
           <TabsTrigger value="history" className="gap-2"><History className="h-4 w-4" /> Histórico</TabsTrigger>
+          <TabsTrigger value="subscribers" className="gap-2"><Users className="h-4 w-4" /> Inscritos ({subscribers.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="new">
@@ -317,7 +326,7 @@ const PushNotificationsPage = () => {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="all">Todos os Usuários</SelectItem>
+                          <SelectItem value="all">Todos os Usuários (Logados e Anônimos)</SelectItem>
                           <SelectItem value="professional">Apenas Profissionais</SelectItem>
                           <SelectItem value="company">Apenas Empresas</SelectItem>
                           <SelectItem value="family">Apenas Famílias</SelectItem>
@@ -391,20 +400,85 @@ const PushNotificationsPage = () => {
                         {h.sent_at ? format(new Date(h.sent_at), "dd/MM HH:mm") : h.scheduled_for ? format(new Date(h.scheduled_for), "dd/MM HH:mm") : '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => handleResend(h)} title="Reenviar">
-                            <RefreshCw className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(h.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteSubscriber(h.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   )) : (
                     <TableRow>
                       <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
                         Nenhuma notificação registrada.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="subscribers">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Dispositivos Inscritos</CardTitle>
+                <CardDescription>Lista de navegadores que autorizaram o recebimento de notificações.</CardDescription>
+              </div>
+              <Button variant="ghost" size="icon" onClick={fetchSubscribers} disabled={loading}>
+                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Usuário</TableHead>
+                    <TableHead>Dispositivo</TableHead>
+                    <TableHead>Data Inscrição</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {subscribers.length > 0 ? subscribers.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell>
+                        {s.profile ? (
+                          <div className="space-y-0.5">
+                            <p className="text-sm font-bold">{s.profile.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground">{s.profile.email}</p>
+                            <Badge variant="outline" className="text-[8px] h-4 uppercase">{s.profile.role}</Badge>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 text-muted-foreground italic text-sm">
+                            <User className="h-3 w-3" /> Anônimo / Visitante
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-xs">
+                          {s.device_type === 'mobile' ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
+                          <span className="capitalize">{s.device_type || 'Desconhecido'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {format(new Date(s.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          onClick={() => handleDeleteSubscriber(s.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
+                        Nenhum dispositivo inscrito ainda.
                       </TableCell>
                     </TableRow>
                   )}

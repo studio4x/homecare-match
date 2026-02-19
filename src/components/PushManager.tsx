@@ -21,17 +21,15 @@ const PushManager = () => {
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-
     // Verifica se o navegador suporta Push
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      console.warn("Este navegador não suporta notificações Push.");
       return;
     }
 
     // Se a permissão for 'default', mostramos nosso prompt personalizado
+    // Adicionamos um delay para não assustar o usuário logo no primeiro segundo
     if (Notification.permission === 'default') {
-      const timer = setTimeout(() => setShowPrompt(true), 3000);
+      const timer = setTimeout(() => setShowPrompt(true), 5000);
       return () => clearTimeout(timer);
     }
     
@@ -39,7 +37,7 @@ const PushManager = () => {
     if (Notification.permission === 'granted') {
       registerServiceWorker();
     }
-  }, [user]);
+  }, []);
 
   const registerServiceWorker = async () => {
     try {
@@ -64,15 +62,13 @@ const PushManager = () => {
       const registration = await registerServiceWorker();
       if (!registration) throw new Error("Falha no registro do worker.");
 
-      // Aqui geraríamos a inscrição real com a VAPID KEY
-      // Como estamos em ambiente de desenvolvimento, simulamos o registro no banco
-      // para que o Admin consiga listar o dispositivo.
-      
-      const { error } = await supabase.from('push_subscriptions').upsert({
-        user_id: user?.id,
-        subscription: { endpoint: 'simulated-endpoint', keys: {} },
+      // Simulamos a inscrição salvando no banco
+      // Se o usuário estiver logado, vinculamos ao ID dele. Se não, fica nulo (anônimo).
+      const { error } = await supabase.from('push_subscriptions').insert({
+        user_id: user?.id || null,
+        subscription: { endpoint: `simulated-\${Math.random().toString(36).substring(7)}`, keys: {} },
         device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
-      }, { onConflict: 'user_id,subscription' });
+      });
 
       if (error) throw error;
 
@@ -97,7 +93,7 @@ const PushManager = () => {
           </div>
           <DialogTitle className="text-center">Fique por dentro!</DialogTitle>
           <DialogDescription className="text-center">
-            Deseja receber notificações sobre novos contatos, mensagens de suporte e atualizações importantes diretamente no seu dispositivo?
+            Deseja receber notificações sobre novos profissionais, cursos e atualizações importantes diretamente no seu dispositivo?
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">

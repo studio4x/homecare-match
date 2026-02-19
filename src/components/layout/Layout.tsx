@@ -9,6 +9,7 @@ import MarketingScripts from "../MarketingScripts";
 import SuggestionDrawer from "../SuggestionDrawer";
 import CookieConsent from "../CookieConsent";
 import ScrollToTopButton from "../ScrollToTopButton";
+import PushManager from "../PushManager";
 
 interface LayoutProps {
   children: ReactNode;
@@ -24,6 +25,7 @@ const Layout = ({ children }: LayoutProps) => {
       <MarketingScripts />
       <SuggestionDrawer />
       <CookieConsent />
+      <PushManager />
       <main className="flex-1 py-8 md:py-12">{children}</main>
       <Footer />
       <ScrollToTopButton />

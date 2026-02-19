@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const PushNotificationsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -122,7 +123,7 @@ const PushNotificationsPage = () => {
           body: { notificationId: notification.id, action: 'send_now' }
         });
         if (sendError) throw sendError;
-        toast.success(`Notificação enviada para \${result.sentCount} dispositivos!`);
+        toast.success(`Notificação enviada para ${result.sentCount} dispositivos!`);
       } else {
         toast.success("Notificação agendada com sucesso!");
       }

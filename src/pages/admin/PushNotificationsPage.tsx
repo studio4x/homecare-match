@@ -212,7 +212,7 @@ const PushNotificationsPage = () => {
       link: notification.link || "",
       image_url: notification.image_url || "",
       target_role: notification.target_role || "all",
-      scheduled_for: "" // Resetamos o agendamento para nova decisão
+      scheduled_for: "" 
     });
     setActiveTab("new");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -295,6 +295,7 @@ const PushNotificationsPage = () => {
     
     setLoading(true);
     try {
+      // Agora com a política de DELETE para Admin, isso funcionará permanentemente
       const { error } = await supabase
         .from("push_subscriptions")
         .delete()
@@ -304,7 +305,8 @@ const PushNotificationsPage = () => {
       setSubscribers([]);
       toast.success("Lista de inscritos limpa com sucesso!");
     } catch (err) {
-      toast.error("Erro ao limpar inscritos.");
+      console.error(err);
+      toast.error("Erro ao limpar inscritos. Verifique as permissões.");
     } finally {
       setLoading(false);
     }
@@ -342,6 +344,8 @@ const PushNotificationsPage = () => {
     }
   };
 
+  const recentNotifications = history.slice(0, 5);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -366,91 +370,143 @@ const PushNotificationsPage = () => {
         </TabsList>
 
         <TabsContent value="new" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Criar Notificação</CardTitle>
-              <CardDescription>Preencha os detalhes da mensagem que será enviada.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSend} className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Título da Notificação</Label>
-                      <Input 
-                        placeholder="Ex: Novas vagas disponíveis!" 
-                        value={formData.title}
-                        onChange={e => setFormData({...formData, title: e.target.value})}
-                        maxLength={TITLE_LIMIT}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Mensagem (Corpo)</Label>
-                      <Textarea 
-                        placeholder="Descreva o conteúdo da notificação..." 
-                        rows={4}
-                        value={formData.body}
-                        onChange={e => setFormData({...formData, body: e.target.value})}
-                        maxLength={BODY_LIMIT}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Link de Destino (Opcional)</Label>
-                      <Input 
-                        placeholder="Ex: /dashboard/cursos" 
-                        value={formData.link}
-                        onChange={e => setFormData({...formData, link: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 p-6 bg-secondary/20 rounded-xl border border-dashed">
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-primary" /> Imagem (Opcional)</Label>
-                      <div className="flex flex-col gap-3">
-                        {formData.image_url ? (
-                          <div className="relative aspect-video rounded-lg overflow-hidden border bg-black group">
-                            <img src={formData.image_url} className="w-full h-full object-contain" alt="Preview" />
-                            <button type="button" onClick={() => setFormData(prev => ({ ...prev, image_url: "" }))} className="absolute top-2 right-2 p-1 bg-destructive text-white rounded-full"><X className="h-4 w-4" /></button>
-                          </div>
-                        ) : (
-                          <Button type="button" variant="outline" className="w-full h-24 border-dashed gap-2" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                            {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />} Selecionar Imagem
-                          </Button>
-                        )}
-                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Criar Notificação</CardTitle>
+                <CardDescription>Preencha os detalhes da mensagem que será enviada.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSend} className="space-y-6">
+                  <div className="grid gap-6 md:grid-cols-1">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Título da Notificação</Label>
+                        <Input 
+                          placeholder="Ex: Novas vagas disponíveis!" 
+                          value={formData.title}
+                          onChange={e => setFormData({...formData, title: e.target.value})}
+                          maxLength={TITLE_LIMIT}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Mensagem (Corpo)</Label>
+                        <Textarea 
+                          placeholder="Descreva o conteúdo da notificação..." 
+                          rows={4}
+                          value={formData.body}
+                          onChange={e => setFormData({...formData, body: e.target.value})}
+                          maxLength={BODY_LIMIT}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Link de Destino (Opcional)</Label>
+                        <Input 
+                          placeholder="Ex: /dashboard/cursos" 
+                          value={formData.link}
+                          onChange={e => setFormData({...formData, link: e.target.value})}
+                        />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Público Alvo</Label>
-                      <Select value={formData.target_role} onValueChange={v => setFormData({...formData, target_role: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos os Usuários</SelectItem>
-                          <SelectItem value="professional">Apenas Profissionais</SelectItem>
-                          <SelectItem value="company">Apenas Empresas</SelectItem>
-                          <SelectItem value="family">Apenas Famílias</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <div className="space-y-4 p-6 bg-secondary/20 rounded-xl border border-dashed">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-primary" /> Imagem (Opcional)</Label>
+                        <div className="flex flex-col gap-3">
+                          {formData.image_url ? (
+                            <div className="relative aspect-video rounded-lg overflow-hidden border bg-black group">
+                              <img src={formData.image_url} className="w-full h-full object-contain" alt="Preview" />
+                              <button type="button" onClick={() => setFormData(prev => ({ ...prev, image_url: "" }))} className="absolute top-2 right-2 p-1 bg-destructive text-white rounded-full"><X className="h-4 w-4" /></button>
+                            </div>
+                          ) : (
+                            <Button type="button" variant="outline" className="w-full h-24 border-dashed gap-2" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                              {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />} Selecionar Imagem
+                            </Button>
+                          )}
+                          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                        </div>
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> Agendar Envio</Label>
-                      <Input type="datetime-local" value={formData.scheduled_for} onChange={e => setFormData({...formData, scheduled_for: e.target.value})} />
-                    </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Público Alvo</Label>
+                        <Select value={formData.target_role} onValueChange={v => setFormData({...formData, target_role: v})}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Todos os Usuários</SelectItem>
+                            <SelectItem value="professional">Apenas Profissionais</SelectItem>
+                            <SelectItem value="company">Apenas Empresas</SelectItem>
+                            <SelectItem value="family">Apenas Famílias</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                    <Button type="submit" className="w-full gap-2 h-12" disabled={isSending || isUploading}>
-                      {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
-                      {formData.scheduled_for ? "Agendar Notificação" : "Enviar Agora"}
-                    </Button>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> Agendar Envio</Label>
+                        <Input type="datetime-local" value={formData.scheduled_for} onChange={e => setFormData({...formData, scheduled_for: e.target.value})} />
+                      </div>
+
+                      <Button type="submit" className="w-full gap-2 h-12" disabled={isSending || isUploading}>
+                        {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
+                        {formData.scheduled_for ? "Agendar Notificação" : "Enviar Agora"}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+                </form>
+              </CardContent>
+            </Card>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <History className="h-4 w-4 text-primary" />
+                    Últimas Enviadas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {recentNotifications.length > 0 ? (
+                    <div className="divide-y">
+                      {recentNotifications.map((n) => (
+                        <div key={n.id} className="p-4 space-y-2 hover:bg-secondary/20 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold truncate pr-2">{n.title}</p>
+                            {getStatusBadge(n.status)}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground line-clamp-2">{n.body}</p>
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[9px] text-muted-foreground">
+                              {format(new Date(n.created_at), "dd/MM HH:mm")}
+                            </span>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(n)} title="Copiar dados">
+                                <Copy className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-success" onClick={() => handleResend(n)} title="Reenviar">
+                                <RotateCcw className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-muted-foreground text-xs italic">
+                      Nenhuma notificação enviada ainda.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+                <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-blue-800 leading-relaxed">
+                  <strong>Dica:</strong> Notificações com imagens e links de destino têm uma taxa de clique até 40% maior. Use o campo de link para direcionar usuários para novos cursos ou perfis em destaque.
+                </p>
+              </div>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="layout" className="space-y-6">

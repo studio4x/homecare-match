@@ -40,18 +40,25 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- 2. Ativar RLS
+      -- 2. Configurar REPLICA IDENTITY para garantir que o Realtime envie todos os campos
+      ALTER TABLE public.push_notifications REPLICA IDENTITY FULL;
+
+      -- 3. Ativar RLS
       ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.push_notifications ENABLE ROW LEVEL SECURITY;
 
-      -- 3. Políticas de Segurança (CORREÇÃO: Permitir leitura pública para Realtime funcionar)
+      -- 4. Políticas de Segurança
       DO $$
       BEGIN
-        -- Inscrições
+        -- Inscrições: Permitir inserção pública e gerenciamento total por Admin
         DROP POLICY IF EXISTS "Allow public insert subscriptions" ON public.push_subscriptions;
         CREATE POLICY "Allow public insert subscriptions" ON public.push_subscriptions FOR INSERT WITH CHECK (true);
 
-        -- Notificações (Público pode ler apenas as que já foram enviadas)
+        DROP POLICY IF EXISTS "Admins manage subscriptions" ON public.push_subscriptions;
+        CREATE POLICY "Admins manage subscriptions" ON public.push_subscriptions 
+        FOR ALL TO authenticated USING (public.check_is_admin() = true);
+
+        -- Notificações: Público pode ler apenas as que já foram enviadas
         DROP POLICY IF EXISTS "Public can read sent notifications" ON public.push_notifications;
         CREATE POLICY "Public can read sent notifications" ON public.push_notifications 
         FOR SELECT USING (status = 'sent' OR (public.check_is_admin() = true));
@@ -59,11 +66,11 @@ serve(async (req) => {
         -- Admins gerenciam tudo
         DROP POLICY IF EXISTS "Admins manage push notifications" ON public.push_notifications;
         CREATE POLICY "Admins manage push notifications" ON public.push_notifications 
-        FOR ALL TO authenticated USING (check_is_admin());
+        FOR ALL TO authenticated USING (public.check_is_admin());
       END
       $$;
 
-      -- 4. Habilitar Realtime para a tabela de notificações
+      -- 5. Habilitar Realtime
       DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
@@ -82,7 +89,7 @@ serve(async (req) => {
     await client.queryObject(sql);
     await client.end();
 
-    return new Response(JSON.stringify({ ok: true, message: "Realtime e permissões públicas configuradas!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Banco de dados e políticas de Push atualizadas!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

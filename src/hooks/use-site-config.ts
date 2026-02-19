@@ -23,6 +23,9 @@ export interface SiteConfig {
     iconBgColor: string;
     iconColor: string;
     shadowIntensity: string;
+    ctaBgColor: string;
+    ctaTextColor: string;
+    backdropColor: string;
   };
   // Marketing fields
   ga_measurement_id?: string | null;

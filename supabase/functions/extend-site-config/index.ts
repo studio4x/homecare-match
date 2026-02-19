@@ -36,11 +36,11 @@ serve(async (req) => {
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS gemini_model TEXT DEFAULT 'gemini-1.5-flash';
 
-      -- Coluna para Configurações de Layout do Push
+      -- Coluna para Configurações de Layout do Push com novos campos de botão e fundo
       ALTER TABLE public.site_config
-        ADD COLUMN IF NOT EXISTS push_layout_json JSONB DEFAULT '{"bgColor": "#ffffff", "titleColor": "#0f172a", "bodyColor": "#64748b", "borderRadius": "32", "iconBgColor": "#007BFF1a", "iconColor": "#007BFF", "shadowIntensity": "0.25"}'::jsonb;
+        ADD COLUMN IF NOT EXISTS push_layout_json JSONB DEFAULT '{"bgColor": "#ffffff", "titleColor": "#0f172a", "bodyColor": "#64748b", "borderRadius": "32", "iconBgColor": "#007BFF1a", "iconColor": "#007BFF", "shadowIntensity": "0.25", "ctaBgColor": "#007BFF", "ctaTextColor": "#ffffff", "backdropColor": "rgba(0,0,0,0.05)"}'::jsonb;
 
-      -- Notifica o PostgREST para recarregar o esquema e reconhecer as novas colunas imediatamente
+      -- Notifica o PostgREST para recarregar o esquema
       NOTIFY pgrst, 'reload schema';
     `;
     await client.queryObject(sql);

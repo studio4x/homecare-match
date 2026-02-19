@@ -88,7 +88,10 @@ const PushNotificationsPage = () => {
     borderRadius: "32",
     iconBgColor: "#007BFF1a",
     iconColor: "#007BFF",
-    shadowIntensity: "0.25"
+    shadowIntensity: "0.25",
+    ctaBgColor: "#007BFF",
+    ctaTextColor: "#ffffff",
+    backdropColor: "rgba(0,0,0,0.05)"
   });
 
   useEffect(() => {
@@ -142,7 +145,6 @@ const PushNotificationsPage = () => {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      // Chama a função que cria as colunas necessárias
       const { error: extendError } = await supabase.functions.invoke('extend-site-config');
       if (extendError) throw extendError;
 
@@ -170,7 +172,6 @@ const PushNotificationsPage = () => {
         .eq("id", 1);
 
       if (error) {
-        // Se o erro for 400 e mencionar coluna, orientamos o usuário
         if (error.message.includes("column") || error.code === "42703") {
           toast.error("Coluna de layout não encontrada!", {
             description: "Clique no botão 'Sincronizar Banco' no topo da página para corrigir."
@@ -184,7 +185,7 @@ const PushNotificationsPage = () => {
       toast.success("Layout salvo com sucesso!");
     } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao salvar layout: " + (err.message || "Erro desconhecido"));
+      toast.error("Erro ao salvar layout.");
     } finally {
       setIsSavingLayout(false);
     }
@@ -555,7 +556,7 @@ const PushNotificationsPage = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Cor de Fundo</Label>
+                    <Label>Cor de Fundo do Card</Label>
                     <div className="flex gap-2">
                       <Input type="color" className="w-12 h-10 p-1" value={layoutData.bgColor} onChange={e => setLayoutData({...layoutData, bgColor: e.target.value})} />
                       <Input value={layoutData.bgColor} onChange={e => setLayoutData({...layoutData, bgColor: e.target.value})} />
@@ -593,6 +594,30 @@ const PushNotificationsPage = () => {
                     <Label>Arredondamento (px)</Label>
                     <Input type="number" value={layoutData.borderRadius} onChange={e => setLayoutData({...layoutData, borderRadius: e.target.value})} />
                   </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Fundo do Botão (CTA)</Label>
+                    <div className="flex gap-2">
+                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.ctaBgColor} onChange={e => setLayoutData({...layoutData, ctaBgColor: e.target.value})} />
+                      <Input value={layoutData.ctaBgColor} onChange={e => setLayoutData({...layoutData, ctaBgColor: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Texto do Botão (CTA)</Label>
+                    <div className="flex gap-2">
+                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.ctaTextColor} onChange={e => setLayoutData({...layoutData, ctaTextColor: e.target.value})} />
+                      <Input value={layoutData.ctaTextColor} onChange={e => setLayoutData({...layoutData, ctaTextColor: e.target.value})} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 col-span-2">
+                    <Label>Cor do Container de Fundo (Backdrop)</Label>
+                    <div className="flex gap-2">
+                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.backdropColor.startsWith('rgba') ? '#000000' : layoutData.backdropColor} onChange={e => setLayoutData({...layoutData, backdropColor: e.target.value})} />
+                      <Input value={layoutData.backdropColor} onChange={e => setLayoutData({...layoutData, backdropColor: e.target.value})} />
+                    </div>
+                  </div>
+
                   <div className="space-y-2 col-span-2">
                     <Label>Intensidade da Sombra (0 a 1)</Label>
                     <Input type="range" min="0" max="1" step="0.05" value={layoutData.shadowIntensity} onChange={e => setLayoutData({...layoutData, shadowIntensity: e.target.value})} />
@@ -613,7 +638,7 @@ const PushNotificationsPage = () => {
                 <CardTitle>Preview do Card</CardTitle>
                 <CardDescription>Veja como os usuários visualizarão a notificação.</CardDescription>
               </CardHeader>
-              <CardContent className="flex items-center justify-center py-12">
+              <CardContent className="flex items-center justify-center py-12" style={{ backgroundColor: layoutData.backdropColor }}>
                 <div 
                   className="w-full max-w-[380px] overflow-hidden border border-slate-100 relative"
                   style={{ 
@@ -660,7 +685,7 @@ const PushNotificationsPage = () => {
                       <Button 
                         size="sm" 
                         className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md"
-                        style={{ backgroundColor: layoutData.iconColor }}
+                        style={{ backgroundColor: layoutData.ctaBgColor, color: layoutData.ctaTextColor }}
                       >
                         Ver Detalhes <ExternalLink className="h-3 w-3" />
                       </Button>

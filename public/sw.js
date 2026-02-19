@@ -1,36 +1,50 @@
-// Service Worker para Notificações Push
+// Service Worker para Notificações Push Nativa
+self.addEventListener('install', (event) => {
+  // Força o service worker a se tornar ativo imediatamente
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  // Garante que o service worker controle todas as abas abertas imediatamente
+  event.waitUntil(clients.claim());
+});
+
 self.addEventListener('push', function(event) {
   if (!event.data) return;
 
   try {
     const data = event.data.json();
+    
     const options = {
       body: data.body,
       icon: '/favicon.png',
       badge: '/favicon.png',
-      image: data.image, // Suporte para imagem grande (banner)
+      image: data.image || null,
       vibrate: [100, 50, 100],
       data: {
         url: data.link || '/'
-      }
+      },
+      // Garante que a notificação apareça mesmo com o app aberto
+      tag: 'hcm-notification-' + Date.now(),
+      renotify: true
     };
 
     event.waitUntil(
       self.registration.showNotification(data.title, options)
     );
   } catch (e) {
-    console.error('Erro ao processar push event:', e);
+    console.error('[SW] Erro ao processar push event:', e);
   }
 });
 
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   
-  const urlToOpen = event.notification.data.url;
+  const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(windowClients) {
-      // Se já houver uma aba aberta, foca nela
+      // Se já houver uma aba aberta no site, foca nela
       for (var i = 0; i < windowClients.length; i++) {
         var client = windowClients[i];
         if (client.url === urlToOpen && 'focus' in client) {

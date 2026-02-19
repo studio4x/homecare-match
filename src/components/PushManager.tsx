@@ -43,7 +43,7 @@ const PushManager = () => {
   };
 
   useEffect(() => {
-    // Canal de Realtime para anúncios públicos
+    // Canal de Realtime para anúncios públicos (Desktop Toast)
     const channel = supabase
       .channel('public-announcements')
       .on(
@@ -52,12 +52,10 @@ const PushManager = () => {
         (payload) => {
           const data = payload.new as any;
           
-          // Só processamos se o status for 'sent'
           if (data && data.status === 'sent') {
             const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
             
-            // No Mobile, o Service Worker cuida da notificação nativa.
-            // No Desktop, mostramos o card visual (Toast personalizado).
+            // No Mobile, ignoramos o Toast para não duplicar com a notificação do sistema
             if (isMobile) return;
 
             const safeTitle = truncate(data.title, 45);
@@ -76,7 +74,6 @@ const PushManager = () => {
               duration: 12
             };
 
-            // Tenta pegar o layout do banco, senão usa o padrão
             const layout = config?.push_layout_json ? {
               ...defaultLayout,
               ...config.push_layout_json
@@ -100,20 +97,13 @@ const PushManager = () => {
 
                 {data.image_url && (
                   <div className="w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
-                    <img 
-                      src={data.image_url} 
-                      className="w-full h-full object-contain" 
-                      alt="Banner" 
-                    />
+                    <img src={data.image_url} className="w-full h-full object-contain" alt="Banner" />
                   </div>
                 )}
                 
                 <div className="p-5 space-y-4">
                   <div className="flex gap-3">
-                    <div 
-                      className="h-9 w-9 rounded-full flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: layout.iconBgColor }}
-                    >
+                    <div className="h-9 w-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: layout.iconBgColor }}>
                       <Megaphone className="h-4 w-4" style={{ color: layout.iconColor }} />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -121,12 +111,10 @@ const PushManager = () => {
                         <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
                         <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
                       </div>
-
                       <h4 className="font-bold leading-tight text-sm sm:text-base pr-6" style={{ color: layout.titleColor }}>{safeTitle}</h4>
                       <p className="text-xs sm:text-sm leading-relaxed" style={{ color: layout.bodyColor }}>{safeBody}</p>
                     </div>
                   </div>
-                  
                   {data.link && (
                     <div className="pt-1">
                       <Button 
@@ -153,22 +141,27 @@ const PushManager = () => {
       )
       .subscribe();
 
-    // Registro do Service Worker para Push Nativo
-    if ('Notification' in window && 'serviceWorker' in navigator) {
-      if (Notification.permission === 'default') {
-        const timer = setTimeout(() => setShowPrompt(true), 5000);
-        return () => clearTimeout(timer);
-      }
-      
-      if (Notification.permission === 'granted') {
-        navigator.serviceWorker.register('/sw.js').catch(console.error);
-      }
+    // Registro do Service Worker para Push Nativo (Mobile e Desktop Background)
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then((reg) => {
+          console.log('[Push] Service Worker registrado com sucesso');
+          
+          // Se já temos permissão, garantimos que o SW está ativo
+          if (Notification.permission === 'granted') {
+            // Opcional: atualizar inscrição no banco se necessário
+          } else if (Notification.permission === 'default') {
+            const timer = setTimeout(() => setShowPrompt(true), 5000);
+            return () => clearTimeout(timer);
+          }
+        })
+        .catch((err) => console.error('[Push] Erro ao registrar Service Worker:', err));
     }
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [config]); // Re-inscreve se o config mudar para garantir layout atualizado
+  }, [config]);
 
   const handleSubscribe = async () => {
     if (!config?.vapid_public_key) {
@@ -186,7 +179,7 @@ const PushManager = () => {
         return;
       }
 
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.ready;
       
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -195,21 +188,14 @@ const PushManager = () => {
 
       const subJson = subscription.toJSON();
 
-      // Verifica se este endpoint já está cadastrado
-      const { data: existing } = await supabase
-        .from('push_subscriptions')
-        .select('id')
-        .contains('subscription', { endpoint: subJson.endpoint })
-        .maybeSingle();
+      // Salva no banco
+      const { error } = await supabase.from('push_subscriptions').insert({
+        user_id: user?.id || null,
+        subscription: subJson,
+        device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+      });
 
-      if (!existing) {
-        const { error } = await supabase.from('push_subscriptions').insert({
-          user_id: user?.id || null,
-          subscription: subJson,
-          device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
-        });
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       toast.success("Notificações ativadas!", {
         icon: <BellRing className="h-4 w-4 text-primary" />

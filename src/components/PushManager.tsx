@@ -75,7 +75,7 @@ const PushManager = () => {
 
             toast.custom((t) => (
               <div 
-                className="w-[calc(100vw-40px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto mx-auto"
+                className="w-[calc(100vw-32px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto mx-auto"
                 style={{ 
                   backgroundColor: layout.bgColor,
                   borderRadius: `${layout.borderRadius}px`,
@@ -89,8 +89,9 @@ const PushManager = () => {
                   <X className="h-4 w-4" />
                 </button>
 
+                {/* Imagem exibida apenas em telas maiores (desktop) */}
                 {data.image_url && (
-                  <div className="w-full aspect-video bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
+                  <div className="hidden md:block w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
                     <img 
                       src={data.image_url} 
                       className="w-full h-full object-contain" 
@@ -107,7 +108,7 @@ const PushManager = () => {
                     >
                       <Megaphone className="h-4 w-4" style={{ color: layout.iconColor }} />
                     </div>
-                    <div className="flex-1 space-y-1 min-w-0">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1">
                         <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
                         <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>

@@ -31,7 +31,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 
@@ -46,11 +46,22 @@ const Index = () => {
     queryKey: ["user-profile-tier", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data } = await supabase.from('profiles').select('subscription_tier, role').eq('id', user.id).single();
+      const { data } = await supabase.from('profiles').select('subscription_tier, role, is_admin').eq('id', user.id).single();
       return data;
     },
     enabled: !!user
   });
+
+  // Redirecionamento automático se já estiver logado
+  useEffect(() => {
+    if (session && !isLoadingProfile && profile) {
+      if (profile.is_admin || profile.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [session, profile, isLoadingProfile, navigate]);
 
   const userTier = profile?.subscription_tier || null;
 

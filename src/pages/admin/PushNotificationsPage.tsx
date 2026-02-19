@@ -48,6 +48,9 @@ import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+const TITLE_LIMIT = 45;
+const BODY_LIMIT = 120;
+
 const PushNotificationsPage = () => {
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -292,21 +295,39 @@ const PushNotificationsPage = () => {
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Título da Notificação</Label>
+                      <div className="flex items-center justify-between">
+                        <Label>Título da Notificação</Label>
+                        <span className={cn(
+                          "text-[10px] font-bold",
+                          formData.title.length >= TITLE_LIMIT ? "text-destructive" : "text-muted-foreground"
+                        )}>
+                          {formData.title.length}/{TITLE_LIMIT}
+                        </span>
+                      </div>
                       <Input 
                         placeholder="Ex: Novas vagas disponíveis!" 
                         value={formData.title}
                         onChange={e => setFormData({...formData, title: e.target.value})}
+                        maxLength={TITLE_LIMIT}
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Mensagem (Corpo)</Label>
+                      <div className="flex items-center justify-between">
+                        <Label>Mensagem (Corpo)</Label>
+                        <span className={cn(
+                          "text-[10px] font-bold",
+                          formData.body.length >= BODY_LIMIT ? "text-destructive" : "text-muted-foreground"
+                        )}>
+                          {formData.body.length}/{BODY_LIMIT}
+                        </span>
+                      </div>
                       <Textarea 
                         placeholder="Descreva o conteúdo da notificação..." 
                         rows={4}
                         value={formData.body}
                         onChange={e => setFormData({...formData, body: e.target.value})}
+                        maxLength={BODY_LIMIT}
                         required
                       />
                     </div>

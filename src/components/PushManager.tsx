@@ -72,11 +72,12 @@ const PushManager = () => {
           toast.custom(
             (t) => (
               <div
-                className="w-[calc(100vw-32px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto mx-auto relative"
+                className="w-[calc(100vw-32px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto relative"
                 style={{
                   backgroundColor: layout.bgColor,
                   borderRadius: `${layout.borderRadius}px`,
                   boxShadow: `0 15px 40px rgba(0,0,0,${layout.shadowIntensity})`,
+                  margin: '0 auto'
                 }}
               >
                 <button onClick={() => toast.dismiss(t)} className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors">

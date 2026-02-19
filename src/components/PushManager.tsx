@@ -30,28 +30,38 @@ const PushManager = () => {
         (payload) => {
           const data = payload.new as any;
           
+          // Só processa se o status for 'sent' (enviado)
           if (data && data.status === 'sent') {
-            // Layout personalizado para o Toast
+            console.log("[PushManager] Nova notificação recebida:", data);
+
+            // Usamos toast.custom para ter controle total do layout (incluindo a imagem)
             toast.custom((t) => (
-              <div className="w-full max-w-md bg-card border border-primary/20 shadow-2xl rounded-2xl overflow-hidden animate-slide-up pointer-events-auto">
+              <div className="w-full max-w-[400px] bg-card border border-primary/20 shadow-2xl rounded-2xl overflow-hidden animate-slide-up pointer-events-auto">
+                {/* Banner da Imagem */}
                 {data.image_url && (
-                  <div className="aspect-video w-full overflow-hidden bg-black">
-                    <img src={data.image_url} className="w-full h-full object-cover" alt="Banner" />
+                  <div className="aspect-video w-full overflow-hidden bg-black border-b">
+                    <img 
+                      src={data.image_url} 
+                      className="w-full h-full object-cover" 
+                      alt="Banner da Notificação" 
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
                   </div>
                 )}
+                
                 <div className="p-5 flex gap-4">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <Megaphone className="h-5 w-5 text-primary" />
                   </div>
-                  <div className="flex-1 space-y-1">
-                    <h4 className="font-bold text-foreground leading-tight">{data.title}</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{data.body}</p>
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <h4 className="font-bold text-foreground leading-tight truncate">{data.title}</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{data.body}</p>
                     
-                    <div className="pt-3 flex items-center justify-between">
+                    <div className="pt-3 flex items-center justify-between gap-2">
                       {data.link ? (
                         <Button 
                           size="sm" 
-                          className="h-8 gap-1.5"
+                          className="h-8 gap-1.5 text-xs"
                           onClick={() => {
                             toast.dismiss(t);
                             window.location.href = data.link;
@@ -64,7 +74,7 @@ const PushManager = () => {
                       )}
                       <button 
                         onClick={() => toast.dismiss(t)}
-                        className="text-xs text-muted-foreground hover:text-foreground font-medium"
+                        className="text-[10px] text-muted-foreground hover:text-foreground font-medium uppercase tracking-wider"
                       >
                         Fechar
                       </button>
@@ -74,7 +84,7 @@ const PushManager = () => {
               </div>
             ), {
               duration: 15000,
-              position: 'top-center' // Centralizado no topo para maior visibilidade
+              position: 'top-center' // Garante visibilidade no topo
             });
           }
         }

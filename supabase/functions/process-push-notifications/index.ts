@@ -19,9 +19,7 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { status: 200, headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { status: 200, headers: corsHeaders });
 
   try {
     const supabaseAdmin = createClient(
@@ -77,14 +75,18 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   const { data: subs } = await query;
   if (!subs || subs.length === 0) return 0;
 
-  // --- DE-DUPLICAÇÃO ---
+  // --- DE-DUPLICAÇÃO AGRESSIVA ---
   // Usamos um Map para garantir que cada endpoint (aparelho único) receba apenas uma notificação
+  // Mesmo que o usuário tenha múltiplos registros no banco, o endpoint é a chave única do navegador.
   const uniqueEndpoints = new Map();
   subs.forEach(s => {
     if (s.subscription?.endpoint) {
+      // Se já existe, mantemos o mais recente (ou qualquer um, o importante é o endpoint ser único)
       uniqueEndpoints.set(s.subscription.endpoint, s);
     }
   });
+
+  console.log(`[Push] De-duplicação: de \${subs.length} registros para \${uniqueEndpoints.size} aparelhos únicos.`);
 
   const payload = JSON.stringify({
     title: notification.title,
@@ -96,28 +98,26 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   let successCount = 0;
   const userIdsNotified = new Set();
   
+  // Enviar para cada aparelho único
   for (const sub of uniqueEndpoints.values()) {
-    // 1. Envio Web Push (Barra do Sistema)
     if (VAPID_PUBLIC_KEY && sub.subscription?.endpoint) {
       try {
         await webpush.sendNotification(sub.subscription, payload);
         successCount++;
       } catch (e) {
         console.warn("[Push] Falha ao enviar para endpoint:", sub.id, e.message);
-        // Se o endpoint não existe mais, removemos do banco
         if (e.statusCode === 410 || e.statusCode === 404) {
           await supabaseAdmin.from('push_subscriptions').delete().eq('id', sub.id);
         }
       }
     }
 
-    // 2. Preparar Notificação Interna (Sininho) - Apenas uma por usuário
     if (sub.user_id) {
       userIdsNotified.add(sub.user_id);
     }
   }
 
-  // Enviar notificações internas em lote
+  // Enviar notificações internas (sininho) - Apenas uma por usuário real
   if (userIdsNotified.size > 0) {
     const internalNotifs = Array.from(userIdsNotified).map(uid => ({
       user_id: uid,

@@ -29,21 +29,17 @@ serve(async (req) => {
 
       let subscriptions = [];
 
-      // 1. Se o alvo for 'all', pegamos TODAS as inscrições (incluindo anônimas)
+      // 1. Buscar inscrições
       if (notification.target_role === 'all') {
-        const { data } = await supabaseAdmin
-          .from('push_subscriptions')
-          .select('*');
+        const { data } = await supabaseAdmin.from('push_subscriptions').select('*');
         subscriptions = data || [];
       } else {
-        // 2. Se houver um papel específico, filtramos apenas usuários logados com esse papel
         const { data: targetUsers } = await supabaseAdmin
           .from('profiles')
           .select('id')
           .eq('role', notification.target_role);
         
         const userIds = targetUsers?.map(u => u.id) || [];
-        
         if (userIds.length > 0) {
           const { data } = await supabaseAdmin
             .from('push_subscriptions')
@@ -53,22 +49,24 @@ serve(async (req) => {
         }
       }
 
-      console.log(`[Push] Enviando para \${subscriptions.length} dispositivos.`);
+      console.log(`[Push] Processando envio para \${subscriptions.length} dispositivos.`);
 
-      // Simulando envio para a tabela de notificações interna (apenas para usuários logados)
-      for (const sub of subscriptions) {
-        if (sub.user_id) {
-          await supabaseAdmin.from('notifications').insert({
-            user_id: sub.user_id,
-            title: `🔔 \${notification.title}`,
-            content: notification.body,
-            link: notification.link,
-            type: 'info'
-          });
-        }
+      // 2. Enviar para a tabela de notificações interna (APENAS para quem tem user_id)
+      const internalNotifications = subscriptions
+        .filter(sub => sub.user_id !== null)
+        .map(sub => ({
+          user_id: sub.user_id,
+          title: `🔔 \${notification.title}`,
+          content: notification.body,
+          link: notification.link,
+          type: 'info'
+        }));
+
+      if (internalNotifications.length > 0) {
+        await supabaseAdmin.from('notifications').insert(internalNotifications);
       }
 
-      // Atualizar status da notificação push
+      // 3. Atualizar status para disparar o Realtime (que os anônimos estão ouvindo)
       await supabaseAdmin
         .from('push_notifications')
         .update({ 
@@ -85,6 +83,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ message: "Ação processada" }), { headers: corsHeaders });
   } catch (error) {
+    console.error("[Push Error]", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

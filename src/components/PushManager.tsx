@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
-import { BellRing, ShieldCheck, Loader2 } from "lucide-react";
+import { BellRing, ShieldCheck, Loader2, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,32 +21,45 @@ const PushManager = () => {
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   useEffect(() => {
-    // Verifica se o navegador suporta Push
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-      return;
-    }
+    // 1. Escutar notificações em tempo real (Broadcast)
+    // Isso permite que usuários anônimos vejam a mensagem se estiverem com o site aberto
+    const channel = supabase
+      .channel('public-announcements')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'push_notifications' },
+        (payload) => {
+          if (payload.new.status === 'sent' || !payload.new.scheduled_for) {
+            toast(payload.new.title, {
+              description: payload.new.body,
+              icon: <Megaphone className="h-4 w-4 text-primary" />,
+              duration: 10000,
+              action: payload.new.link ? {
+                label: "Ver",
+                onClick: () => window.location.href = payload.new.link
+              } : undefined
+            });
+          }
+        }
+      )
+      .subscribe();
 
-    // Se a permissão for 'default', mostramos nosso prompt personalizado
-    // Adicionamos um delay para não assustar o usuário logo no primeiro segundo
+    // 2. Gerenciar Inscrição Push (Banner do Sistema)
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+
     if (Notification.permission === 'default') {
       const timer = setTimeout(() => setShowPrompt(true), 5000);
       return () => clearTimeout(timer);
     }
     
-    // Se já tiver permissão, garantimos que o service worker está registrado
     if (Notification.permission === 'granted') {
-      registerServiceWorker();
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
     }
-  }, []);
 
-  const registerServiceWorker = async () => {
-    try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
-      return registration;
-    } catch (err) {
-      console.error("Erro ao registrar Service Worker:", err);
-    }
-  };
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const handleSubscribe = async () => {
     setIsSubscribing(true);
@@ -54,31 +67,32 @@ const PushManager = () => {
       const permission = await Notification.requestPermission();
       
       if (permission !== 'granted') {
-        toast.error("Você bloqueou as notificações. Para receber alertas, ative-as nas configurações do navegador.");
+        toast.error("Notificações bloqueadas no navegador.");
         setShowPrompt(false);
         return;
       }
 
-      const registration = await registerServiceWorker();
-      if (!registration) throw new Error("Falha no registro do worker.");
+      await navigator.serviceWorker.register('/sw.js');
 
-      // Simulamos a inscrição salvando no banco
-      // Se o usuário estiver logado, vinculamos ao ID dele. Se não, fica nulo (anônimo).
+      // Registro da inscrição no banco
       const { error } = await supabase.from('push_subscriptions').insert({
         user_id: user?.id || null,
-        subscription: { endpoint: `simulated-\${Math.random().toString(36).substring(7)}`, keys: {} },
+        subscription: { 
+          endpoint: `browser-\${Math.random().toString(36).substring(7)}`, 
+          keys: {} 
+        },
         device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
       });
 
       if (error) throw error;
 
-      toast.success("Notificações ativadas com sucesso!", {
+      toast.success("Notificações ativadas!", {
         icon: <BellRing className="h-4 w-4 text-primary" />
       });
       setShowPrompt(false);
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao configurar notificações.");
+      toast.error("Erro ao ativar notificações.");
     } finally {
       setIsSubscribing(false);
     }
@@ -93,7 +107,7 @@ const PushManager = () => {
           </div>
           <DialogTitle className="text-center">Fique por dentro!</DialogTitle>
           <DialogDescription className="text-center">
-            Deseja receber notificações sobre novos profissionais, cursos e atualizações importantes diretamente no seu dispositivo?
+            Deseja receber alertas sobre novos profissionais e atualizações importantes diretamente no seu dispositivo?
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">

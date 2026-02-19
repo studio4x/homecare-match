@@ -31,8 +31,6 @@ import {
 import { translateAuthError } from "@/lib/error-utils";
 import { useNavigate } from "react-router-dom";
 
-// REMOVIDO o superRefine daqui para evitar bloqueio no Login
-// A validação de senhas iguais será feita manualmente no onSubmit
 const authSchema = z.object({
   fullName: z.string().optional(),
   email: z.string({ required_error: "E-mail é obrigatório" }).email("Digite um e-mail válido"),
@@ -54,7 +52,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  // Modais
   const [showSuccessRegisterModal, setShowSuccessRegisterModal] = useState(false);
   const [showMagicLinkSentModal, setShowMagicLinkSentModal] = useState(false);
   const [showUserNotFoundModal, setShowUserNotFoundModal] = useState(false);
@@ -66,7 +63,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
     handleSubmit,
     formState: { errors },
     reset,
-    setError, // Usado para setar erro manual
+    setError,
   } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
     defaultValues: {
@@ -78,9 +75,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
   });
 
   const onSubmit = async (data: AuthFormData) => {
-    // --- VALIDAÇÕES MANUAIS ---
-    
-    // Validação específica para REGISTRO
     if (mode === "register") {
       if (!data.fullName || data.fullName.length < 3) {
         toast.error("Nome completo é obrigatório");
@@ -90,7 +84,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         toast.error("A senha deve ter pelo menos 6 caracteres");
         return;
       }
-      // Aqui fazemos a verificação de senhas iguais apenas no registro
       if (data.password !== data.confirmPassword) {
         setError("confirmPassword", { message: "As senhas não coincidem" });
         toast.error("As senhas não coincidem");
@@ -98,7 +91,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
       }
     }
 
-    // Validação específica para LOGIN com SENHA
     if (mode === "login" && loginMethod === "password") {
       if (!data.password) {
         toast.error("Digite sua senha");
@@ -113,6 +105,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           email: data.email,
           password: data.password!,
           options: {
+            emailRedirectTo: window.location.origin + "/login",
             data: {
               full_name: data.fullName,
             }
@@ -120,7 +113,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         });
         if (error) throw error;
 
-        // Registro de indicação (se houver ?ref=)
         const referrerId = new URLSearchParams(window.location.search).get("ref");
         if (referrerId && signUpData?.user?.id) {
           try {
@@ -139,7 +131,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         setMode("login");
         reset();
       } else {
-        // Lógica de Login
         if (loginMethod === "password") {
           const { data: signInData, error } = await supabase.auth.signInWithPassword({
             email: data.email,
@@ -163,7 +154,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           if (onSuccess) {
             onSuccess();
           } else {
-            // Verifica se é admin para redirecionar corretamente
             const { data: profile } = await supabase
               .from('profiles')
               .select('is_admin, role')
@@ -177,7 +167,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
             }
           }
         } else {
-          // Lógica Magic Link (Sem senha)
           const { error } = await supabase.auth.signInWithOtp({
             email: data.email,
             options: {
@@ -257,7 +246,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
-        {/* Campo de Senha - Visível no Registro OU Login com Senha */}
         {(mode === "register" || (mode === "login" && loginMethod === "password")) && (
           <div className="space-y-2 animate-fade-in">
             <div className="flex items-center justify-between">
@@ -337,9 +325,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         </div>
       )}
 
-      {/* --- MODAIS --- */}
-
-      {/* 1. Sucesso Registro */}
       <Dialog open={showSuccessRegisterModal} onOpenChange={setShowSuccessRegisterModal}>
         <DialogContent className="max-w-md p-8 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/10 mb-4">
@@ -355,7 +340,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         </DialogContent>
       </Dialog>
 
-      {/* 2. Magic Link Enviado */}
       <Dialog open={showMagicLinkSentModal} onOpenChange={setShowMagicLinkSentModal}>
         <DialogContent className="max-w-md p-8 text-center">
           <button onClick={() => setShowMagicLinkSentModal(false)} className="absolute right-4 top-4 opacity-70 hover:opacity-100"><X className="h-4 w-4" /></button>
@@ -375,7 +359,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         </DialogContent>
       </Dialog>
 
-      {/* 3. Usuário Não Encontrado (Magic Link) */}
       <Dialog open={showUserNotFoundModal} onOpenChange={setShowUserNotFoundModal}>
         <DialogContent className="max-w-md p-8 text-center">
           <button onClick={() => setShowUserNotFoundModal(false)} className="absolute right-4 top-4 opacity-70 hover:opacity-100"><X className="h-4 w-4" /></button>

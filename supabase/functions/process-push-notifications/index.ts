@@ -1,11 +1,21 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Configuração VAPID (Devem ser configuradas nos Secrets do Supabase)
+const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") || "";
+const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || "";
+const VAPID_SUBJECT = "mailto:contato@homecarematch.com.br";
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -19,46 +29,24 @@ serve(async (req) => {
     const body = await req.json();
     const { notificationId, action } = body;
 
-    // AÇÃO 1: Enviar uma notificação específica agora
-    if (action === 'send_now' && notificationId) {
-      const { data: notification } = await supabaseAdmin
-        .from('push_notifications')
-        .select('*')
-        .eq('id', notificationId)
-        .single();
-
-      if (!notification) throw new Error("Notificação não encontrada.");
+    if (action === 'send_now' || action === 'process_scheduled') {
+      let notifications = [];
       
-      const sentCount = await sendNotification(supabaseAdmin, notification);
-      return new Response(JSON.stringify({ success: true, sentCount }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      });
-    }
-
-    // AÇÃO 2: Processar todas as notificações agendadas que já passaram do horário
-    if (action === 'process_scheduled') {
-      console.log("[Push] Verificando notificações agendadas...");
-      
-      const { data: scheduled, error: fetchError } = await supabaseAdmin
-        .from('push_notifications')
-        .select('*')
-        .eq('status', 'scheduled')
-        .lte('scheduled_for', new Date().toISOString());
-
-      if (fetchError) throw fetchError;
+      if (action === 'send_now' && notificationId) {
+        const { data } = await supabaseAdmin.from('push_notifications').select('*').eq('id', notificationId).single();
+        if (data) notifications = [data];
+      } else {
+        const { data } = await supabaseAdmin.from('push_notifications').select('*').eq('status', 'scheduled').lte('scheduled_for', new Date().toISOString());
+        notifications = data || [];
+      }
 
       let totalSent = 0;
-      for (const notification of (scheduled || [])) {
-        const count = await sendNotification(supabaseAdmin, notification);
+      for (const notification of notifications) {
+        const count = await sendToAllSubscribers(supabaseAdmin, notification);
         totalSent += count;
       }
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        processedCount: scheduled?.length || 0,
-        totalDevicesReached: totalSent 
-      }), {
+      return new Response(JSON.stringify({ success: true, totalSent }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
       });
@@ -67,60 +55,67 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "Ação inválida" }), { status: 400, headers: corsHeaders });
   } catch (error) {
     console.error("[Push Error]", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
+    return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders });
   }
 });
 
-// Função auxiliar para realizar o envio
-async function sendNotification(supabaseAdmin, notification) {
-  let subscriptions = [];
+async function sendToAllSubscribers(supabaseAdmin, notification) {
+  // 1. Buscar inscrições
+  let query = supabaseAdmin.from('push_subscriptions').select('*');
+  if (notification.target_role !== 'all') {
+    const { data: users } = await supabaseAdmin.from('profiles').select('id').eq('role', notification.target_role);
+    const ids = users?.map(u => u.id) || [];
+    if (ids.length === 0) return 0;
+    query = query.in('user_id', ids);
+  }
+  
+  const { data: subs } = await query;
+  if (!subs) return 0;
 
-  // 1. Buscar inscrições baseadas no alvo
-  if (notification.target_role === 'all') {
-    const { data } = await supabaseAdmin.from('push_subscriptions').select('*');
-    subscriptions = data || [];
-  } else {
-    const { data: targetUsers } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .eq('role', notification.target_role);
-    
-    const userIds = targetUsers?.map(u => u.id) || [];
-    if (userIds.length > 0) {
-      const { data } = await supabaseAdmin
-        .from('push_subscriptions')
-        .select('*')
-        .in('user_id', userIds);
-      subscriptions = data || [];
+  // 2. Enviar via Web Push (Background) e Notificação Interna
+  const payload = JSON.stringify({
+    title: notification.title,
+    body: notification.body,
+    link: notification.link,
+    image: notification.image_url
+  });
+
+  const internalNotifs = [];
+  
+  for (const sub of subs) {
+    // Envio real para o navegador (mesmo fechado)
+    if (VAPID_PUBLIC_KEY && sub.subscription?.endpoint) {
+      try {
+        await webpush.sendNotification(sub.subscription, payload);
+      } catch (e) {
+        console.warn("[Push] Falha ao enviar para endpoint:", sub.id);
+        if (e.statusCode === 410) { // Inscrição expirada
+          await supabaseAdmin.from('push_subscriptions').delete().eq('id', sub.id);
+        }
+      }
+    }
+
+    // Notificação interna (para quando ele logar)
+    if (sub.user_id) {
+      internalNotifs.push({
+        user_id: sub.user_id,
+        title: `🔔 ${notification.title}`,
+        content: notification.body,
+        link: notification.link,
+        type: 'info'
+      });
     }
   }
 
-  // 2. Enviar para a tabela de notificações interna (para usuários logados)
-  const internalNotifications = subscriptions
-    .filter(sub => sub.user_id !== null)
-    .map(sub => ({
-      user_id: sub.user_id,
-      title: `🔔 ${notification.title}`,
-      content: notification.body,
-      link: notification.link,
-      type: 'info'
-    }));
-
-  if (internalNotifications.length > 0) {
-    await supabaseAdmin.from('notifications').insert(internalNotifications);
+  if (internalNotifs.length > 0) {
+    await supabaseAdmin.from('notifications').insert(internalNotifs);
   }
 
-  // 3. Atualizar status para 'sent' (isso dispara o Realtime para os navegadores ativos)
-  await supabaseAdmin
-    .from('push_notifications')
-    .update({ 
-      status: 'sent', 
-      sent_at: new Date().toISOString() 
-    })
-    .eq('id', notification.id);
+  // 3. Atualizar status
+  await supabaseAdmin.from('push_notifications').update({ 
+    status: 'sent', 
+    sent_at: new Date().toISOString() 
+  }).eq('id', notification.id);
 
-  return subscriptions.length;
+  return subs.length;
 }

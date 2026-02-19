@@ -22,7 +22,6 @@ const PushManager = () => {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
-  // Função auxiliar para converter a chave pública base64 para Uint8Array
   const urlBase64ToUint8Array = (base64String: string) => {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding)
@@ -44,7 +43,6 @@ const PushManager = () => {
   };
 
   useEffect(() => {
-    // 1. Escutar notificações em tempo real (Broadcast)
     const channel = supabase
       .channel('public-announcements')
       .on(
@@ -78,11 +76,11 @@ const PushManager = () => {
 
             toast.custom((t) => (
               <div 
-                className="w-full flex items-center justify-center p-4 pointer-events-auto"
+                className="w-full flex items-center justify-center p-2 sm:p-4 pointer-events-auto"
                 style={{ backgroundColor: layout.backdropColor }}
               >
                 <div 
-                  className="w-full max-w-[380px] overflow-hidden animate-slide-up border border-slate-100 relative"
+                  className="w-full max-w-[400px] overflow-hidden animate-slide-up border border-slate-100 relative"
                   style={{ 
                     backgroundColor: layout.bgColor,
                     borderRadius: `${layout.borderRadius}px`,
@@ -91,53 +89,53 @@ const PushManager = () => {
                 >
                   <button 
                     onClick={() => toast.dismiss(t)}
-                    className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-black/5 hover:bg-black/10 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 p-1.5 rounded-full bg-black/5 hover:bg-black/10 text-slate-400 hover:text-slate-600 transition-colors"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </button>
 
                   {data.image_url && (
                     <div className="w-full aspect-video bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
                       <img 
                         src={data.image_url} 
-                        className="w-full h-full object-contain p-4" 
+                        className="w-full h-full object-contain p-2 sm:p-4" 
                         alt="Banner" 
                         onError={(e) => (e.currentTarget.style.display = 'none')}
                       />
                     </div>
                   )}
                   
-                  <div className="p-6 space-y-4">
-                    <div className="flex gap-4">
+                  <div className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                    <div className="flex gap-3 sm:gap-4">
                       <div 
-                        className="h-10 w-10 rounded-full flex items-center justify-center shrink-0"
+                        className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0"
                         style={{ backgroundColor: layout.iconBgColor }}
                       >
-                        <Megaphone className="h-5 w-5" style={{ color: layout.iconColor }} />
+                        <Megaphone className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: layout.iconColor }} />
                       </div>
                       <div className="flex-1 space-y-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1.5">
+                        <div className="flex items-center gap-1.5 mb-1">
                           <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
-                          <span className="text-[9px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
+                          <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
                         </div>
 
-                        <h4 className="font-bold leading-tight text-base pr-6" style={{ color: layout.titleColor }}>{safeTitle}</h4>
-                        <p className="text-sm leading-relaxed" style={{ color: layout.bodyColor }}>{safeBody}</p>
+                        <h4 className="font-bold leading-tight text-sm sm:text-base pr-6" style={{ color: layout.titleColor }}>{safeTitle}</h4>
+                        <p className="text-xs sm:text-sm leading-relaxed" style={{ color: layout.bodyColor }}>{safeBody}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-border/50">
+                    <div className="flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-secondary/30 rounded-lg sm:rounded-xl border border-border/50">
                       <Info className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <p className="text-[9px] text-muted-foreground leading-tight">
-                        Esta é uma mensagem enviada pela administração da <strong>HomeCare Match</strong>.
+                      <p className="text-[8px] sm:text-[9px] text-muted-foreground leading-tight">
+                        Mensagem enviada pela administração da <strong>HomeCare Match</strong>.
                       </p>
                     </div>
                     
                     {data.link && (
-                      <div className="pt-2">
+                      <div className="pt-1 sm:pt-2">
                         <Button 
                           size="sm" 
-                          className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md hover:shadow-lg transition-all"
+                          className="h-9 sm:h-10 w-full gap-1.5 text-[10px] sm:text-xs font-bold rounded-full shadow-md hover:shadow-lg transition-all"
                           style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
                           onClick={() => {
                             toast.dismiss(t);
@@ -152,7 +150,7 @@ const PushManager = () => {
                 </div>
               </div>
             ), {
-              duration: 15000,
+              duration: (layout.duration || 15) * 1000,
               position: 'top-center',
               unstyled: true 
             });
@@ -161,7 +159,6 @@ const PushManager = () => {
       )
       .subscribe();
 
-    // 2. Gerenciar Inscrição Push
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
 
     if (Notification.permission === 'default') {
@@ -196,13 +193,11 @@ const PushManager = () => {
 
       const registration = await navigator.serviceWorker.register('/sw.js');
       
-      // Gerar a assinatura real do navegador
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(config.vapid_public_key)
       });
 
-      // Salvar a assinatura real no banco
       const { error } = await supabase.from('push_subscriptions').insert({
         user_id: user?.id || null,
         subscription: subscription.toJSON(),
@@ -217,7 +212,7 @@ const PushManager = () => {
       setShowPrompt(false);
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao ativar notificações. Verifique se a chave pública está correta.");
+      toast.error("Erro ao ativar notificações.");
     } finally {
       setIsSubscribing(false);
     }
@@ -225,21 +220,21 @@ const PushManager = () => {
 
   return (
     <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="w-[90vw] max-w-[400px] rounded-2xl sm:rounded-lg p-6">
         <DialogHeader>
           <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <BellRing className="h-6 w-6 text-primary animate-pulse" />
           </div>
-          <DialogTitle className="text-center">Fique por dentro!</DialogTitle>
-          <DialogDescription className="text-center">
+          <DialogTitle className="text-center text-lg sm:text-xl">Fique por dentro!</DialogTitle>
+          <DialogDescription className="text-center text-sm sm:text-base">
             Deseja receber alertas sobre novos profissionais e atualizações importantes diretamente no seu dispositivo?
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
-          <Button variant="ghost" onClick={() => setShowPrompt(false)} className="flex-1">
+          <Button variant="ghost" onClick={() => setShowPrompt(false)} className="flex-1 order-2 sm:order-1">
             Agora não
           </Button>
-          <Button onClick={handleSubscribe} disabled={isSubscribing} className="flex-1 gap-2">
+          <Button onClick={handleSubscribe} disabled={isSubscribing} className="flex-1 gap-2 order-1 sm:order-2">
             {isSubscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             Ativar Notificações
           </Button>

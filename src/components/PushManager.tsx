@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
-import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink } from "lucide-react";
+import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -54,6 +54,12 @@ const PushManager = () => {
                     <Megaphone className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1 space-y-1 min-w-0">
+                    {/* Identificador de Administração */}
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <ShieldCheck className="h-3 w-3 text-primary" />
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-primary/80">Administração HomeCare Match</span>
+                    </div>
+
                     <h4 className="font-bold text-foreground leading-tight truncate">{data.title}</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{data.body}</p>
                     
@@ -85,7 +91,7 @@ const PushManager = () => {
             ), {
               duration: 15000,
               position: 'top-center',
-              unstyled: true // Remove o quadro branco/sombra padrão do container do toast
+              unstyled: true
             });
           }
         }

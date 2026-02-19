@@ -51,7 +51,8 @@ import {
   Timer,
   Play,
   Edit2,
-  UserX
+  UserX,
+  Copy
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -89,6 +90,7 @@ const PushNotificationsPage = () => {
   const [subscribers, setSubscribers] = useState<any[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState("new");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -187,21 +189,34 @@ const PushNotificationsPage = () => {
     }
   };
 
-  const handleProcessScheduled = async () => {
-    setIsProcessing(true);
-    const toastId = toast.loading("Processando agendamentos...");
+  const handleResend = async (notification: any) => {
+    if (!confirm(`Deseja reenviar a notificação "${notification.title}" agora?`)) return;
+    
+    const toastId = toast.loading("Reenviando...");
     try {
-      const { data, error } = await supabase.functions.invoke('process-push-notifications', {
-        body: { action: 'process_scheduled' }
+      const { error } = await supabase.functions.invoke('process-push-notifications', {
+        body: { notificationId: notification.id, action: 'send_now' }
       });
       if (error) throw error;
-      toast.success(`${data.processedCount} notificações processadas!`, { id: toastId });
-      fetchHistory();
+      toast.success("Notificação reenviada com sucesso!", { id: toastId });
+      fetchHistory(true);
     } catch (err) {
-      toast.error("Erro ao processar agendamentos.", { id: toastId });
-    } finally {
-      setIsProcessing(false);
+      toast.error("Erro ao reenviar.", { id: toastId });
     }
+  };
+
+  const handleEdit = (notification: any) => {
+    setFormData({
+      title: notification.title,
+      body: notification.body,
+      link: notification.link || "",
+      image_url: notification.image_url || "",
+      target_role: notification.target_role || "all",
+      scheduled_for: "" // Resetamos o agendamento para nova decisão
+    });
+    setActiveTab("new");
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.info("Dados carregados no formulário.");
   };
 
   const handleSaveLayout = async () => {
@@ -267,6 +282,7 @@ const PushNotificationsPage = () => {
       }
       setFormData({ title: "", body: "", link: "", image_url: "", target_role: "all", scheduled_for: "" });
       fetchHistory();
+      setActiveTab("history");
     } catch (err) {
       toast.error("Erro ao processar notificação.");
     } finally {
@@ -291,6 +307,18 @@ const PushNotificationsPage = () => {
       toast.error("Erro ao limpar inscritos.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteNotification = async (id: string) => {
+    if (!confirm("Excluir este registro do histórico?")) return;
+    try {
+      const { error } = await supabase.from("push_notifications").delete().eq("id", id);
+      if (error) throw error;
+      setHistory(prev => prev.filter(h => h.id !== id));
+      toast.success("Registro removido.");
+    } catch (err) {
+      toast.error("Erro ao remover.");
     }
   };
 
@@ -329,7 +357,7 @@ const PushNotificationsPage = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="new" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="new" className="gap-2"><Send className="h-4 w-4" /> Nova Mensagem</TabsTrigger>
           <TabsTrigger value="layout" className="gap-2"><Palette className="h-4 w-4" /> Layout do Card</TabsTrigger>
@@ -489,7 +517,35 @@ const PushNotificationsPage = () => {
                       <TableCell><Badge variant="outline" className="text-[10px]">{getTargetLabel(h.target_role)}</Badge></TableCell>
                       <TableCell>{getStatusBadge(h.status)}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteSubscriber(h.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <div className="flex justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-primary" 
+                            onClick={() => handleEdit(h)}
+                            title="Editar/Copiar"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-success" 
+                            onClick={() => handleResend(h)}
+                            title="Reenviar Agora"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-destructive" 
+                            onClick={() => handleDeleteNotification(h.id)}
+                            title="Excluir"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

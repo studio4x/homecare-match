@@ -31,7 +31,7 @@ const SiteConfigTab = () => {
     stripe_publishable_key_test: "",
     stripe_publishable_key_live: "",
     google_maps_api_key: "",
-    gemini_model: "gemini-1.5-flash"
+    gemini_model: "gemini-2.0-flash-lite-preview-02-05"
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -49,12 +49,11 @@ const SiteConfigTab = () => {
 
   const logoRef = useRef<HTMLInputElement>(null);
 
-  // Modelos Flash em ordem cronológica (do 1.5 ao 2.0)
+  // Mantendo apenas a família 2.0 Flash que funcionou
   const geminiFlashModels = [
-    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Estável)" },
-    { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B (Alta Velocidade)" },
     { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Nova Geração)" },
     { value: "gemini-2.0-flash-lite-preview-02-05", label: "Gemini 2.0 Flash Lite (Preview)" },
+    { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (Experimental)" },
   ];
 
   useEffect(() => {
@@ -68,7 +67,7 @@ const SiteConfigTab = () => {
         stripe_publishable_key_test: config.stripe_publishable_key_test || "",
         stripe_publishable_key_live: config.stripe_publishable_key_live || "",
         google_maps_api_key: config.google_maps_api_key || "",
-        gemini_model: config.gemini_model || "gemini-1.5-flash"
+        gemini_model: config.gemini_model || "gemini-2.0-flash-lite-preview-02-05"
       });
     }
   }, [config]);
@@ -296,7 +295,7 @@ const SiteConfigTab = () => {
               </SelectContent>
             </Select>
             <p className="text-[10px] text-muted-foreground italic">
-              As versões Flash são mais rápidas e econômicas. Recomendamos o <strong>Gemini 1.5 Flash</strong> para estabilidade.
+              As versões Flash são mais rápidas e econômicas. Recomendamos o <strong>Gemini 2.0 Flash Lite</strong> para sua chave atual.
             </p>
           </div>
         </CardContent>

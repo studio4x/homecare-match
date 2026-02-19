@@ -10,6 +10,13 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const SiteConfigTab = () => {
   const { data: config, isLoading } = useSiteConfig();
@@ -41,6 +48,13 @@ const SiteConfigTab = () => {
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
+
+  const geminiFlashModels = [
+    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (Estável)" },
+    { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B (Leve)" },
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Nova Geração)" },
+    { value: "gemini-2.0-flash-lite-preview-02-05", label: "Gemini 2.0 Flash Lite (Preview)" },
+  ];
 
   useEffect(() => {
     if (config) {
@@ -260,18 +274,28 @@ const SiteConfigTab = () => {
             <Sparkles className="h-5 w-5 text-primary" />
             Inteligência Artificial (Gemini)
           </CardTitle>
-          <CardDescription>Configure o modelo de IA utilizado para gerar biografias.</CardDescription>
+          <CardDescription>Selecione a versão do modelo Flash para geração de biografias.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Modelo do Gemini</Label>
-            <Input 
-              placeholder="Ex: gemini-1.5-flash, gemini-1.5-pro, gemini-pro"
+            <Select 
               value={formData.gemini_model} 
-              onChange={(e) => setFormData({...formData, gemini_model: e.target.value})} 
-            />
+              onValueChange={(v) => setFormData({...formData, gemini_model: v})}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um modelo" />
+              </SelectTrigger>
+              <SelectContent>
+                {geminiFlashModels.map((model) => (
+                  <SelectItem key={model.value} value={model.value}>
+                    {model.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="text-[10px] text-muted-foreground italic">
-              Certifique-se de que o modelo digitado está disponível na sua região e para a sua chave de API.
+              As versões Flash são mais rápidas e econômicas. Recomendamos o <strong>Gemini 1.5 Flash</strong> para estabilidade.
             </p>
           </div>
         </CardContent>

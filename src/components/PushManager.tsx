@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
-import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink, X, Info } from "lucide-react";
+import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import {
@@ -48,10 +48,32 @@ const PushManager = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'push_notifications' },
-        (payload) => {
+        async (payload) => {
           const data = payload.new as any;
           
           if (data && data.status === 'sent') {
+            const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
+            
+            // Se for mobile e tiver permissão, tenta disparar notificação nativa do sistema
+            if (isMobile && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+              try {
+                const registration = await navigator.serviceWorker.ready;
+                registration.showNotification(data.title, {
+                  body: data.body,
+                  icon: '/favicon.png',
+                  badge: '/favicon.png',
+                  image: data.image_url,
+                  data: {
+                    url: data.link || '/'
+                  }
+                } as any);
+                return; // Sai para não mostrar o toast interno
+              } catch (e) {
+                console.error("[PushManager] Erro ao disparar notificação nativa:", e);
+              }
+            }
+
+            // Fallback para Desktop ou se a permissão nativa falhar/não existir
             const safeTitle = truncate(data.title, 45);
             const safeBody = truncate(data.body, 120);
 
@@ -89,7 +111,6 @@ const PushManager = () => {
                   <X className="h-4 w-4" />
                 </button>
 
-                {/* Imagem exibida apenas em telas maiores (desktop) */}
                 {data.image_url && (
                   <div className="hidden md:block w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
                     <img 

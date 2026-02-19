@@ -43,17 +43,18 @@ const PushManager = () => {
   };
 
   const checkAndShowPrompt = useCallback(() => {
-    if (Notification.permission === 'default') {
+    // Só mostra se a permissão ainda for a padrão (não perguntou)
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       const hasConsent = localStorage.getItem("cookie-consent") === "true";
       if (hasConsent) {
-        // Aguarda 5 segundos após o consentimento (ou carregamento) para não sobrecarregar o usuário
-        setTimeout(() => setShowPrompt(true), 5000);
+        // Pequeno delay para não ser invasivo
+        setTimeout(() => setShowPrompt(true), 3000);
       }
     }
   }, []);
 
   useEffect(() => {
-    // Canal de Realtime para anúncios públicos (Desktop Toast)
+    // Canal de Realtime para anúncios (Aparece enquanto o site está aberto)
     const channel = supabase
       .channel('public-announcements')
       .on(
@@ -63,9 +64,6 @@ const PushManager = () => {
           const data = payload.new as any;
           
           if (data && data.status === 'sent') {
-            const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-            if (isMobile) return;
-
             const safeTitle = truncate(data.title, 45);
             const safeBody = truncate(data.body, 120);
 
@@ -87,6 +85,7 @@ const PushManager = () => {
               ...config.push_layout_json
             } : defaultLayout;
 
+            // Exibe o Toast customizado (funciona em Desktop e Mobile com site aberto)
             toast.custom((t) => (
               <div 
                 className="w-[calc(100vw-32px)] max-w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto mx-auto relative"
@@ -149,17 +148,18 @@ const PushManager = () => {
       )
       .subscribe();
 
-    // Registro do Service Worker
-    if ('serviceWorker' in navigator && 'PushManager' in window) {
+    // Registro do Service Worker para Push Nativo
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then(() => {
-          // Tenta mostrar o prompt se já houver consentimento
+        .then((reg) => {
+          console.log('[Push] Service Worker pronto.');
+          // Tenta mostrar o prompt se já houver consentimento de cookies
           checkAndShowPrompt();
         })
-        .catch((err) => console.error('[Push] Erro ao registrar Service Worker:', err));
+        .catch((err) => console.error('[Push] Erro SW:', err));
     }
 
-    // Escuta o evento de aceitação de cookies para mostrar o prompt de push logo em seguida
+    // Escuta o evento de aceitação de cookies
     window.addEventListener("cookie-consent-accepted", checkAndShowPrompt);
 
     return () => {
@@ -215,23 +215,23 @@ const PushManager = () => {
 
   return (
     <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
-      <DialogContent className="w-[90vw] max-w-[400px] rounded-2xl sm:rounded-lg p-6">
+      <DialogContent className="w-[95vw] max-w-[400px] rounded-3xl p-6 border-none shadow-2xl">
         <DialogHeader>
-          <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <BellRing className="h-6 w-6 text-primary animate-pulse" />
+          <div className="mx-auto h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <BellRing className="h-7 w-7 text-primary animate-pulse" />
           </div>
-          <DialogTitle className="text-center text-lg sm:text-xl">Fique por dentro!</DialogTitle>
-          <DialogDescription className="text-center text-sm sm:text-base">
+          <DialogTitle className="text-center text-xl font-bold">Fique por dentro!</DialogTitle>
+          <DialogDescription className="text-center text-base">
             Deseja receber alertas sobre novos profissionais e atualizações importantes diretamente no seu dispositivo?
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
-          <Button variant="ghost" onClick={() => setShowPrompt(false)} className="flex-1 order-2 sm:order-1">
-            Agora não
-          </Button>
-          <Button onClick={handleSubscribe} disabled={isSubscribing} className="flex-1 gap-2 order-1 sm:order-2">
-            {isSubscribing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+        <DialogFooter className="flex flex-col gap-2 pt-4">
+          <Button onClick={handleSubscribe} disabled={isSubscribing} className="w-full gap-2 h-12 text-base shadow-lg">
+            {isSubscribing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
             Ativar Notificações
+          </Button>
+          <Button variant="ghost" onClick={() => setShowPrompt(false)} className="w-full text-muted-foreground">
+            Agora não
           </Button>
         </DialogFooter>
       </DialogContent>

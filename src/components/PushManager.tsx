@@ -146,7 +146,7 @@ const PushManager = () => {
                 </div>
               </div>
             ), {
-              duration: (layout.duration || 15) * 1000,
+              duration: 15000,
               position: 'top-center',
               unstyled: true 
             });

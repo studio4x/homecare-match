@@ -22,21 +22,24 @@ const PushManager = () => {
 
   useEffect(() => {
     // 1. Escutar notificações em tempo real (Broadcast)
-    // Isso permite que usuários anônimos vejam a mensagem se estiverem com o site aberto
+    // Agora ouvimos tanto INSERT quanto UPDATE para garantir que o disparo imediato funcione
     const channel = supabase
       .channel('public-announcements')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'push_notifications' },
+        { event: '*', schema: 'public', table: 'push_notifications' },
         (payload) => {
-          if (payload.new.status === 'sent' || !payload.new.scheduled_for) {
-            toast(payload.new.title, {
-              description: payload.new.body,
+          const data = payload.new as any;
+          
+          // Só exibe se o status for 'sent'
+          if (data && data.status === 'sent') {
+            toast(data.title, {
+              description: data.body,
               icon: <Megaphone className="h-4 w-4 text-primary" />,
               duration: 10000,
-              action: payload.new.link ? {
+              action: data.link ? {
                 label: "Ver",
-                onClick: () => window.location.href = payload.new.link
+                onClick: () => window.location.href = data.link
               } : undefined
             });
           }
@@ -78,7 +81,7 @@ const PushManager = () => {
       const { error } = await supabase.from('push_subscriptions').insert({
         user_id: user?.id || null,
         subscription: { 
-          endpoint: `browser-\${Math.random().toString(36).substring(7)}`, 
+          endpoint: `browser-${Math.random().toString(36).substring(7)}`, 
           keys: {} 
         },
         device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'

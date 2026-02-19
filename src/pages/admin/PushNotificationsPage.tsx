@@ -178,7 +178,9 @@ const PushNotificationsPage = () => {
           body: { notificationId: notification.id, action: 'send_now' }
         });
         if (sendError) throw sendError;
-        toast.success(`Notificação enviada para \${result.sentCount} dispositivos!`);
+        
+        // CORREÇÃO: Removido o escape da variável
+        toast.success(`Notificação enviada para ${result.sentCount} dispositivos!`);
       } else {
         toast.success("Notificação agendada com sucesso!");
       }

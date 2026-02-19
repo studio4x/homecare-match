@@ -48,32 +48,17 @@ const PushManager = () => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'push_notifications' },
-        async (payload) => {
+        (payload) => {
           const data = payload.new as any;
           
           if (data && data.status === 'sent') {
             const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
             
-            // Se for mobile e tiver permissão, tenta disparar notificação nativa do sistema
-            if (isMobile && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
-              try {
-                const registration = await navigator.serviceWorker.ready;
-                registration.showNotification(data.title, {
-                  body: data.body,
-                  icon: '/favicon.png',
-                  badge: '/favicon.png',
-                  image: data.image_url,
-                  data: {
-                    url: data.link || '/'
-                  }
-                } as any);
-                return; // Sai para não mostrar o toast interno
-              } catch (e) {
-                console.error("[PushManager] Erro ao disparar notificação nativa:", e);
-              }
-            }
+            // No Mobile, deixamos o Service Worker (sw.js) cuidar da notificação na barra do sistema.
+            // Não disparamos nada via Realtime para evitar duplicidade.
+            if (isMobile) return;
 
-            // Fallback para Desktop ou se a permissão nativa falhar/não existir
+            // No Desktop, mostramos o card visual (Toast)
             const safeTitle = truncate(data.title, 45);
             const safeBody = truncate(data.body, 120);
 
@@ -112,7 +97,7 @@ const PushManager = () => {
                 </button>
 
                 {data.image_url && (
-                  <div className="hidden md:block w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
+                  <div className="w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
                     <img 
                       src={data.image_url} 
                       className="w-full h-full object-contain" 

@@ -142,13 +142,20 @@ const PushNotificationsPage = () => {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
+      // Chama a função que cria as colunas necessárias
+      const { error: extendError } = await supabase.functions.invoke('extend-site-config');
+      if (extendError) throw extendError;
+
       const { error } = await supabase.functions.invoke('setup-push-notifications');
       if (error) throw error;
+      
       toast.success("Banco de dados sincronizado!");
+      await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       fetchHistory();
       fetchSubscribers();
     } catch (err) {
-      toast.error("Erro ao sincronizar.");
+      console.error(err);
+      toast.error("Erro ao sincronizar banco.");
     } finally {
       setIsSyncing(false);
     }
@@ -162,12 +169,22 @@ const PushNotificationsPage = () => {
         .update({ push_layout_json: layoutData })
         .eq("id", 1);
 
-      if (error) throw error;
+      if (error) {
+        // Se o erro for 400 e mencionar coluna, orientamos o usuário
+        if (error.message.includes("column") || error.code === "42703") {
+          toast.error("Coluna de layout não encontrada!", {
+            description: "Clique no botão 'Sincronizar Banco' no topo da página para corrigir."
+          });
+          return;
+        }
+        throw error;
+      }
       
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       toast.success("Layout salvo com sucesso!");
-    } catch (err) {
-      toast.error("Erro ao salvar layout.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erro ao salvar layout: " + (err.message || "Erro desconhecido"));
     } finally {
       setIsSavingLayout(false);
     }

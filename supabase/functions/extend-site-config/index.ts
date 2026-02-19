@@ -40,7 +40,7 @@ serve(async (req) => {
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS push_layout_json JSONB DEFAULT '{"bgColor": "#ffffff", "titleColor": "#0f172a", "bodyColor": "#64748b", "borderRadius": "32", "iconBgColor": "#007BFF1a", "iconColor": "#007BFF", "shadowIntensity": "0.25"}'::jsonb;
 
-      -- Notifica o PostgREST para recarregar o esquema
+      -- Notifica o PostgREST para recarregar o esquema e reconhecer as novas colunas imediatamente
       NOTIFY pgrst, 'reload schema';
     `;
     await client.queryObject(sql);

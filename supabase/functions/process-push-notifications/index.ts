@@ -6,9 +6,10 @@ import webpush from "https://esm.sh/web-push@3.6.7";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Configuração VAPID (Devem ser configuradas nos Secrets do Supabase)
+// Configuração VAPID
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") || "";
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || "";
 const VAPID_SUBJECT = "mailto:contato@homecarematch.com.br";
@@ -18,7 +19,10 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+  // Resposta obrigatória para o navegador liberar o acesso (CORS)
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
   try {
     const supabaseAdmin = createClient(
@@ -52,15 +56,20 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Ação inválida" }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "Ação inválida" }), { 
+      status: 400, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   } catch (error) {
     console.error("[Push Error]", error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: error.message }), { 
+      status: 400, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 });
 
 async function sendToAllSubscribers(supabaseAdmin, notification) {
-  // 1. Buscar inscrições
   let query = supabaseAdmin.from('push_subscriptions').select('*');
   if (notification.target_role !== 'all') {
     const { data: users } = await supabaseAdmin.from('profiles').select('id').eq('role', notification.target_role);
@@ -72,7 +81,6 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   const { data: subs } = await query;
   if (!subs) return 0;
 
-  // 2. Enviar via Web Push (Background) e Notificação Interna
   const payload = JSON.stringify({
     title: notification.title,
     body: notification.body,
@@ -83,19 +91,17 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   const internalNotifs = [];
   
   for (const sub of subs) {
-    // Envio real para o navegador (mesmo fechado)
     if (VAPID_PUBLIC_KEY && sub.subscription?.endpoint) {
       try {
         await webpush.sendNotification(sub.subscription, payload);
       } catch (e) {
         console.warn("[Push] Falha ao enviar para endpoint:", sub.id);
-        if (e.statusCode === 410) { // Inscrição expirada
+        if (e.statusCode === 410) {
           await supabaseAdmin.from('push_subscriptions').delete().eq('id', sub.id);
         }
       }
     }
 
-    // Notificação interna (para quando ele logar)
     if (sub.user_id) {
       internalNotifs.push({
         user_id: sub.user_id,
@@ -111,7 +117,6 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
     await supabaseAdmin.from('notifications').insert(internalNotifs);
   }
 
-  // 3. Atualizar status
   await supabaseAdmin.from('push_notifications').update({ 
     status: 'sent', 
     sent_at: new Date().toISOString() 

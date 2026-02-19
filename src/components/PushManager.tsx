@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink, X, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSiteConfig } from "@/hooks/use-site-config";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
 
 const PushManager = () => {
   const { user } = useAuth();
+  const { data: config } = useSiteConfig();
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
@@ -43,8 +45,26 @@ const PushManager = () => {
             const safeTitle = truncate(data.title, 45);
             const safeBody = truncate(data.body, 120);
 
+            // Configurações de layout dinâmicas
+            const layout = config?.push_layout_json || {
+              bgColor: "#ffffff",
+              titleColor: "#0f172a",
+              bodyColor: "#64748b",
+              borderRadius: "32",
+              iconBgColor: "#007BFF1a",
+              iconColor: "#007BFF",
+              shadowIntensity: "0.25"
+            };
+
             toast.custom((t) => (
-              <div className="w-full max-w-[380px] bg-white shadow-[0_25px_60px_rgba(0,0,0,0.25)] rounded-[32px] overflow-hidden animate-slide-up border border-slate-100 relative pointer-events-auto">
+              <div 
+                className="w-full max-w-[380px] overflow-hidden animate-slide-up border border-slate-100 relative pointer-events-auto"
+                style={{ 
+                  backgroundColor: layout.bgColor,
+                  borderRadius: `${layout.borderRadius}px`,
+                  boxShadow: `0 25px 60px rgba(0,0,0,${layout.shadowIntensity})`
+                }}
+              >
                 
                 {/* Botão Fechar Flutuante */}
                 <button 
@@ -68,18 +88,21 @@ const PushManager = () => {
                 
                 <div className="p-6 space-y-4">
                   <div className="flex gap-4">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Megaphone className="h-5 w-5 text-primary" />
+                    <div 
+                      className="h-10 w-10 rounded-full flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: layout.iconBgColor }}
+                    >
+                      <Megaphone className="h-5 w-5" style={{ color: layout.iconColor }} />
                     </div>
                     <div className="flex-1 space-y-1 min-w-0">
                       {/* Identificador de Administração */}
                       <div className="flex items-center gap-1.5 mb-1.5">
-                        <ShieldCheck className="h-3 w-3 text-primary" />
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-primary/80">Administração</span>
+                        <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
+                        <span className="text-[9px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
                       </div>
 
-                      <h4 className="font-bold text-slate-900 leading-tight text-base pr-6">{safeTitle}</h4>
-                      <p className="text-sm text-slate-500 leading-relaxed">{safeBody}</p>
+                      <h4 className="font-bold leading-tight text-base pr-6" style={{ color: layout.titleColor }}>{safeTitle}</h4>
+                      <p className="text-sm leading-relaxed" style={{ color: layout.bodyColor }}>{safeBody}</p>
                     </div>
                   </div>
 
@@ -96,6 +119,7 @@ const PushManager = () => {
                       <Button 
                         size="sm" 
                         className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md hover:shadow-lg transition-all"
+                        style={{ backgroundColor: layout.iconColor }}
                         onClick={() => {
                           toast.dismiss(t);
                           window.location.href = data.link;
@@ -132,7 +156,7 @@ const PushManager = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [config]); // Re-inscreve se a config mudar para pegar o layout novo
 
   const handleSubscribe = async () => {
     setIsSubscribing(true);

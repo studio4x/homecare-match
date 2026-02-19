@@ -15,6 +15,15 @@ export interface SiteConfig {
   stripe_publishable_key_live?: string | null;
   google_maps_api_key?: string | null;
   gemini_model?: string | null;
+  push_layout_json?: {
+    bgColor: string;
+    titleColor: string;
+    bodyColor: string;
+    borderRadius: string;
+    iconBgColor: string;
+    iconColor: string;
+    shadowIntensity: string;
+  };
   // Marketing fields
   ga_measurement_id?: string | null;
   ga_enabled?: boolean;

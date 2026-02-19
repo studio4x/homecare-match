@@ -40,20 +40,31 @@ import {
   Smartphone,
   Monitor,
   User,
-  RotateCcw
+  RotateCcw,
+  Palette,
+  Megaphone,
+  ShieldCheck,
+  Info,
+  ExternalLink,
+  Save
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useSiteConfig } from "@/hooks/use-site-config";
+import { useQueryClient } from "@tanstack/react-query";
 
 const TITLE_LIMIT = 45;
 const BODY_LIMIT = 120;
 
 const PushNotificationsPage = () => {
+  const { data: config, isLoading: isLoadingConfig } = useSiteConfig();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [subscribers, setSubscribers] = useState<any[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -68,6 +79,25 @@ const PushNotificationsPage = () => {
     target_role: "all",
     scheduled_for: ""
   });
+
+  const [layoutData, setLayoutData] = useState({
+    bgColor: "#ffffff",
+    titleColor: "#0f172a",
+    bodyColor: "#64748b",
+    borderRadius: "32",
+    iconBgColor: "#007BFF1a",
+    iconColor: "#007BFF",
+    shadowIntensity: "0.25"
+  });
+
+  useEffect(() => {
+    if (config?.push_layout_json) {
+      setLayoutData({
+        ...layoutData,
+        ...config.push_layout_json
+      });
+    }
+  }, [config]);
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -120,6 +150,25 @@ const PushNotificationsPage = () => {
       toast.error("Erro ao sincronizar.");
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleSaveLayout = async () => {
+    setIsSavingLayout(true);
+    try {
+      const { error } = await supabase
+        .from("site_config")
+        .update({ push_layout_json: layoutData })
+        .eq("id", 1);
+
+      if (error) throw error;
+      
+      await queryClient.invalidateQueries({ queryKey: ["site-config"] });
+      toast.success("Layout salvo com sucesso!");
+    } catch (err) {
+      toast.error("Erro ao salvar layout.");
+    } finally {
+      setIsSavingLayout(false);
     }
   };
 
@@ -278,8 +327,9 @@ const PushNotificationsPage = () => {
       </div>
 
       <Tabs defaultValue="new" className="space-y-6">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="new" className="gap-2"><Send className="h-4 w-4" /> Nova Mensagem</TabsTrigger>
+          <TabsTrigger value="layout" className="gap-2"><Palette className="h-4 w-4" /> Layout do Card</TabsTrigger>
           <TabsTrigger value="history" className="gap-2"><History className="h-4 w-4" /> Histórico</TabsTrigger>
           <TabsTrigger value="subscribers" className="gap-2"><Users className="h-4 w-4" /> Inscritos ({subscribers.length})</TabsTrigger>
         </TabsList>
@@ -453,6 +503,133 @@ const PushNotificationsPage = () => {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="layout" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Personalizar Card</CardTitle>
+                <CardDescription>Ajuste as cores e o estilo visual da notificação.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Cor de Fundo</Label>
+                    <div className="flex gap-2">
+                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.bgColor} onChange={e => setLayoutData({...layoutData, bgColor: e.target.value})} />
+                      <Input value={layoutData.bgColor} onChange={e => setLayoutData({...layoutData, bgColor: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cor do Título</Label>
+                    <div className="flex gap-2">
+                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.titleColor} onChange={e => setLayoutData({...layoutData, titleColor: e.target.value})} />
+                      <Input value={layoutData.titleColor} onChange={e => setLayoutData({...layoutData, titleColor: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cor do Texto</Label>
+                    <div className="flex gap-2">
+                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.bodyColor} onChange={e => setLayoutData({...layoutData, bodyColor: e.target.value})} />
+                      <Input value={layoutData.bodyColor} onChange={e => setLayoutData({...layoutData, bodyColor: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Cor do Ícone</Label>
+                    <div className="flex gap-2">
+                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.iconColor} onChange={e => setLayoutData({...layoutData, iconColor: e.target.value})} />
+                      <Input value={layoutData.iconColor} onChange={e => setLayoutData({...layoutData, iconColor: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Fundo do Ícone</Label>
+                    <div className="flex gap-2">
+                      <Input type="color" className="w-12 h-10 p-1" value={layoutData.iconBgColor.substring(0, 7)} onChange={e => setLayoutData({...layoutData, iconBgColor: e.target.value + '1a'})} />
+                      <Input value={layoutData.iconBgColor} onChange={e => setLayoutData({...layoutData, iconBgColor: e.target.value})} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Arredondamento (px)</Label>
+                    <Input type="number" value={layoutData.borderRadius} onChange={e => setLayoutData({...layoutData, borderRadius: e.target.value})} />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label>Intensidade da Sombra (0 a 1)</Label>
+                    <Input type="range" min="0" max="1" step="0.05" value={layoutData.shadowIntensity} onChange={e => setLayoutData({...layoutData, shadowIntensity: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <Button className="w-full gap-2" onClick={handleSaveLayout} disabled={isSavingLayout}>
+                    {isSavingLayout ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Salvar Alterações de Layout
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-secondary/10 border-dashed">
+              <CardHeader>
+                <CardTitle>Preview do Card</CardTitle>
+                <CardDescription>Veja como os usuários visualizarão a notificação.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-center py-12">
+                <div 
+                  className="w-full max-w-[380px] overflow-hidden border border-slate-100 relative"
+                  style={{ 
+                    backgroundColor: layoutData.bgColor,
+                    borderRadius: `${layoutData.borderRadius}px`,
+                    boxShadow: `0 25px 60px rgba(0,0,0,${layoutData.shadowIntensity})`
+                  }}
+                >
+                  <button className="absolute top-4 right-4 p-1.5 rounded-full bg-black/5 text-slate-400">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+
+                  <div className="w-full aspect-video bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
+                    <ImageIcon className="h-12 w-12 text-slate-200" />
+                  </div>
+                  
+                  <div className="p-6 space-y-4">
+                    <div className="flex gap-4">
+                      <div 
+                        className="h-10 w-10 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: layoutData.iconBgColor }}
+                      >
+                        <Megaphone className="h-5 w-5" style={{ color: layoutData.iconColor }} />
+                      </div>
+                      <div className="flex-1 space-y-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <ShieldCheck className="h-3 w-3" style={{ color: layoutData.iconColor }} />
+                          <span className="text-[9px] font-bold uppercase tracking-widest opacity-80" style={{ color: layoutData.iconColor }}>Administração</span>
+                        </div>
+
+                        <h4 className="font-bold leading-tight text-base pr-6" style={{ color: layoutData.titleColor }}>Título da Notificação</h4>
+                        <p className="text-sm leading-relaxed" style={{ color: layoutData.bodyColor }}>Esta é uma prévia de como o texto da sua mensagem aparecerá para os usuários.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-border/50">
+                      <Info className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <p className="text-[9px] text-muted-foreground leading-tight">
+                        Esta é uma mensagem enviada pela administração da <strong>HomeCare Match</strong>.
+                      </p>
+                    </div>
+                    
+                    <div className="pt-2">
+                      <Button 
+                        size="sm" 
+                        className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md"
+                        style={{ backgroundColor: layoutData.iconColor }}
+                      >
+                        Ver Detalhes <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="history">

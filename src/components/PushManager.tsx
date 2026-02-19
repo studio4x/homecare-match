@@ -34,7 +34,7 @@ const PushManager = () => {
           if (data && data.status === 'sent') {
             console.log("[PushManager] Nova notificação recebida:", data);
 
-            // Usamos toast.custom para ter controle total do layout (incluindo a imagem)
+            // Usamos toast.custom com unstyled: true para remover o quadro de fundo padrão
             toast.custom((t) => (
               <div className="w-full max-w-[400px] bg-card border border-primary/20 shadow-2xl rounded-2xl overflow-hidden animate-slide-up pointer-events-auto">
                 {/* Banner da Imagem */}
@@ -84,7 +84,8 @@ const PushManager = () => {
               </div>
             ), {
               duration: 15000,
-              position: 'top-center' // Garante visibilidade no topo
+              position: 'top-center',
+              unstyled: true // Remove o quadro branco/sombra padrão do container do toast
             });
           }
         }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
@@ -42,6 +42,16 @@ const PushManager = () => {
     return text.length > limit ? text.substring(0, limit) + "..." : text;
   };
 
+  const checkAndShowPrompt = useCallback(() => {
+    if (Notification.permission === 'default') {
+      const hasConsent = localStorage.getItem("cookie-consent") === "true";
+      if (hasConsent) {
+        // Aguarda 5 segundos após o consentimento (ou carregamento) para não sobrecarregar o usuário
+        setTimeout(() => setShowPrompt(true), 5000);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     // Canal de Realtime para anúncios públicos (Desktop Toast)
     const channel = supabase
@@ -54,8 +64,6 @@ const PushManager = () => {
           
           if (data && data.status === 'sent') {
             const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-            
-            // No Mobile, ignoramos o Toast para não duplicar com a notificação do sistema
             if (isMobile) return;
 
             const safeTitle = truncate(data.title, 45);
@@ -141,27 +149,24 @@ const PushManager = () => {
       )
       .subscribe();
 
-    // Registro do Service Worker para Push Nativo (Mobile e Desktop Background)
+    // Registro do Service Worker
     if ('serviceWorker' in navigator && 'PushManager' in window) {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then((reg) => {
-          console.log('[Push] Service Worker registrado com sucesso');
-          
-          // Se já temos permissão, garantimos que o SW está ativo
-          if (Notification.permission === 'granted') {
-            // Opcional: atualizar inscrição no banco se necessário
-          } else if (Notification.permission === 'default') {
-            const timer = setTimeout(() => setShowPrompt(true), 5000);
-            return () => clearTimeout(timer);
-          }
+        .then(() => {
+          // Tenta mostrar o prompt se já houver consentimento
+          checkAndShowPrompt();
         })
         .catch((err) => console.error('[Push] Erro ao registrar Service Worker:', err));
     }
 
+    // Escuta o evento de aceitação de cookies para mostrar o prompt de push logo em seguida
+    window.addEventListener("cookie-consent-accepted", checkAndShowPrompt);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener("cookie-consent-accepted", checkAndShowPrompt);
     };
-  }, [config]);
+  }, [config, checkAndShowPrompt]);
 
   const handleSubscribe = async () => {
     if (!config?.vapid_public_key) {
@@ -188,7 +193,6 @@ const PushManager = () => {
 
       const subJson = subscription.toJSON();
 
-      // Salva no banco
       const { error } = await supabase.from('push_subscriptions').insert({
         user_id: user?.id || null,
         subscription: subJson,

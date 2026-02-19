@@ -20,6 +20,10 @@ const CookieConsent = () => {
   const handleAccept = () => {
     localStorage.setItem("cookie-consent", "true");
     setIsVisible(false);
+    
+    // Dispara um evento customizado para que outros componentes (como o PushManager)
+    // saibam que a política foi aceita nesta sessão.
+    window.dispatchEvent(new Event("cookie-consent-accepted"));
   };
 
   if (!isVisible) return null;

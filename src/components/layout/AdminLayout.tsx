@@ -24,7 +24,8 @@ import {
   AlertTriangle,
   TrendingUp,
   Video,
-  Activity
+  Activity,
+  Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -125,6 +126,7 @@ const AdminLayout = () => {
     { href: "/admin/indicacoes", label: "Indicações", icon: Award },
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
     { href: "/admin/videos", label: "Vídeos do Site", icon: Video },
+    { href: "/admin/push", label: "Push", icon: Bell },
     { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },
     { href: "/admin/suporte", label: "Tickets", icon: LifeBuoy },
     { href: "/admin/faq", label: "FAQ / Ajuda", icon: HelpCircle },

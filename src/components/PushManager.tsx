@@ -22,7 +22,22 @@ const PushManager = () => {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
-  // Função auxiliar para limitar caracteres
+  // Função auxiliar para converter a chave pública base64 para Uint8Array
+  const urlBase64ToUint8Array = (base64String: string) => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/\-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
   const truncate = (text: string, limit: number) => {
     if (!text) return "";
     return text.length > limit ? text.substring(0, limit) + "..." : text;
@@ -39,13 +54,9 @@ const PushManager = () => {
           const data = payload.new as any;
           
           if (data && data.status === 'sent') {
-            console.log("[PushManager] Nova notificação recebida:", data);
-
-            // Limites de caracteres rigorosos
             const safeTitle = truncate(data.title, 45);
             const safeBody = truncate(data.body, 120);
 
-            // Configurações de layout dinâmicas com fallback completo
             const defaultLayout = {
               bgColor: "#ffffff",
               titleColor: "#0f172a",
@@ -78,8 +89,6 @@ const PushManager = () => {
                     boxShadow: `0 25px 60px rgba(0,0,0,${layout.shadowIntensity})`
                   }}
                 >
-                  
-                  {/* Botão Fechar Flutuante */}
                   <button 
                     onClick={() => toast.dismiss(t)}
                     className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-black/5 hover:bg-black/10 text-slate-400 hover:text-slate-600 transition-colors"
@@ -87,7 +96,6 @@ const PushManager = () => {
                     <X className="h-3.5 w-3.5" />
                   </button>
 
-                  {/* Banner da Imagem */}
                   {data.image_url && (
                     <div className="w-full aspect-video bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
                       <img 
@@ -108,7 +116,6 @@ const PushManager = () => {
                         <Megaphone className="h-5 w-5" style={{ color: layout.iconColor }} />
                       </div>
                       <div className="flex-1 space-y-1 min-w-0">
-                        {/* Identificador de Administração */}
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
                           <span className="text-[9px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
@@ -119,7 +126,6 @@ const PushManager = () => {
                       </div>
                     </div>
 
-                    {/* Aviso de Mensagem Oficial */}
                     <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-border/50">
                       <Info className="h-3 w-3 text-muted-foreground shrink-0" />
                       <p className="text-[9px] text-muted-foreground leading-tight">
@@ -173,6 +179,11 @@ const PushManager = () => {
   }, [config]); 
 
   const handleSubscribe = async () => {
+    if (!config?.vapid_public_key) {
+      toast.error("Configuração do servidor incompleta (VAPID Key ausente).");
+      return;
+    }
+
     setIsSubscribing(true);
     try {
       const permission = await Notification.requestPermission();
@@ -183,14 +194,18 @@ const PushManager = () => {
         return;
       }
 
-      await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      
+      // Gerar a assinatura real do navegador
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(config.vapid_public_key)
+      });
 
+      // Salvar a assinatura real no banco
       const { error } = await supabase.from('push_subscriptions').insert({
         user_id: user?.id || null,
-        subscription: { 
-          endpoint: `browser-${Math.random().toString(36).substring(7)}`, 
-          keys: {} 
-        },
+        subscription: subscription.toJSON(),
         device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
       });
 
@@ -202,7 +217,7 @@ const PushManager = () => {
       setShowPrompt(false);
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao ativar notificações.");
+      toast.error("Erro ao ativar notificações. Verifique se a chave pública está correta.");
     } finally {
       setIsSubscribing(false);
     }

@@ -14,6 +14,7 @@ export interface SiteConfig {
   stripe_publishable_key_test?: string | null;
   stripe_publishable_key_live?: string | null;
   google_maps_api_key?: string | null;
+  vapid_public_key?: string | null;
   gemini_model?: string | null;
   push_layout_json?: {
     bgColor: string;

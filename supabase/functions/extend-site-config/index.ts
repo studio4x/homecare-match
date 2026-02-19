@@ -32,11 +32,15 @@ serve(async (req) => {
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS google_maps_api_key TEXT;
 
+      -- Coluna para VAPID Public Key (Necessária para o navegador assinar o push)
+      ALTER TABLE public.site_config
+        ADD COLUMN IF NOT EXISTS vapid_public_key TEXT;
+
       -- Coluna para Modelo do Gemini
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS gemini_model TEXT DEFAULT 'gemini-1.5-flash';
 
-      -- Coluna para Configurações de Layout do Push com todos os campos necessários
+      -- Coluna para Configurações de Layout do Push
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS push_layout_json JSONB DEFAULT '{"bgColor": "#ffffff", "titleColor": "#0f172a", "bodyColor": "#64748b", "borderRadius": "32", "iconBgColor": "#007BFF1a", "iconColor": "#007BFF", "shadowIntensity": "0.25", "ctaBgColor": "#007BFF", "ctaTextColor": "#ffffff", "backdropColor": "rgba(0,0,0,0.05)", "duration": 15}'::jsonb;
 

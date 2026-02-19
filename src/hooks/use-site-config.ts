@@ -14,6 +14,7 @@ export interface SiteConfig {
   stripe_publishable_key_test?: string | null;
   stripe_publishable_key_live?: string | null;
   google_maps_api_key?: string | null;
+  gemini_model?: string | null;
   // Marketing fields
   ga_measurement_id?: string | null;
   ga_enabled?: boolean;
@@ -55,6 +56,7 @@ export const useSiteConfig = () => {
           ga_enabled: false,
           gtm_enabled: false,
           fb_pixel_enabled: false,
+          gemini_model: 'gemini-1.5-flash'
         };
       }
 

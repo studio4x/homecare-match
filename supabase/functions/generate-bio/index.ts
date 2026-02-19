@@ -42,6 +42,15 @@ serve(async (req) => {
       );
     }
 
+    // 3. Buscar Configuração do Modelo
+    const { data: config } = await supabaseAdmin
+      .from('site_config')
+      .select('gemini_model')
+      .eq('id', 1)
+      .single();
+    
+    const modelName = config?.gemini_model || 'gemini-1.5-flash';
+
     const { name, specialty, experience, professional_experiences, city, state } = await req.json();
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     
@@ -63,11 +72,10 @@ serve(async (req) => {
     - Destaque a experiência e o cuidado com o paciente.
     - Retorne APENAS o texto da biografia, sem introduções ou comentários.`;
 
-    console.log("[generate-bio] Chamando API do Gemini (v1)...");
+    console.log(`[generate-bio] Chamando API do Gemini com modelo: ${modelName}`);
 
-    // Alterado de v1beta para v1
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

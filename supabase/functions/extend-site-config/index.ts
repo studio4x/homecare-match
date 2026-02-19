@@ -32,6 +32,10 @@ serve(async (req) => {
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS google_maps_api_key TEXT;
 
+      -- Coluna para Modelo do Gemini
+      ALTER TABLE public.site_config
+        ADD COLUMN IF NOT EXISTS gemini_model TEXT DEFAULT 'gemini-1.5-flash';
+
       -- Notifica o PostgREST para recarregar o esquema
       NOTIFY pgrst, 'reload schema';
     `;

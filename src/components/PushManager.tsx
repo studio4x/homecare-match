@@ -54,8 +54,7 @@ const PushManager = () => {
           if (data && data.status === 'sent') {
             const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
             
-            // No Mobile, deixamos o Service Worker (sw.js) cuidar da notificação na barra do sistema.
-            // Não disparamos nada via Realtime para evitar duplicidade.
+            // No Mobile, o Service Worker cuida de tudo.
             if (isMobile) return;
 
             // No Desktop, mostramos o card visual (Toast)
@@ -190,13 +189,24 @@ const PushManager = () => {
         applicationServerKey: urlBase64ToUint8Array(config.vapid_public_key)
       });
 
-      const { error } = await supabase.from('push_subscriptions').insert({
-        user_id: user?.id || null,
-        subscription: subscription.toJSON(),
-        device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
-      });
+      const subJson = subscription.toJSON();
 
-      if (error) throw error;
+      // --- EVITAR DUPLICIDADE ---
+      // Verifica se este endpoint já está cadastrado para este usuário
+      const { data: existing } = await supabase
+        .from('push_subscriptions')
+        .select('id')
+        .contains('subscription', { endpoint: subJson.endpoint })
+        .maybeSingle();
+
+      if (!existing) {
+        const { error } = await supabase.from('push_subscriptions').insert({
+          user_id: user?.id || null,
+          subscription: subJson,
+          device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+        });
+        if (error) throw error;
+      }
 
       toast.success("Notificações ativadas!", {
         icon: <BellRing className="h-4 w-4 text-primary" />

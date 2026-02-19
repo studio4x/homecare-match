@@ -19,12 +19,8 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 }
 
 serve(async (req) => {
-  // Resposta de Preflight (CORS) - Deve ser a primeira coisa
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { 
-      status: 200,
-      headers: corsHeaders 
-    });
+    return new Response('ok', { status: 200, headers: corsHeaders });
   }
 
   try {
@@ -36,7 +32,7 @@ serve(async (req) => {
     const body = await req.json();
     const { notificationId, action } = body;
 
-    console.log(`[Push] Ação recebida: \${action}`, { notificationId });
+    console.log(`[Push] Processando ação: \${action}`, { notificationId });
 
     if (action === 'send_now' || action === 'process_scheduled') {
       let notifications = [];
@@ -61,21 +57,16 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Ação inválida" }), { 
-      status: 400, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    return new Response(JSON.stringify({ error: "Ação inválida" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
     console.error("[Push Error]", error);
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-    });
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
 
 async function sendToAllSubscribers(supabaseAdmin, notification) {
   let query = supabaseAdmin.from('push_subscriptions').select('*');
+  
   if (notification.target_role !== 'all') {
     const { data: users } = await supabaseAdmin.from('profiles').select('id').eq('role', notification.target_role);
     const ids = users?.map(u => u.id) || [];
@@ -86,6 +77,15 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   const { data: subs } = await query;
   if (!subs || subs.length === 0) return 0;
 
+  // --- DE-DUPLICAÇÃO ---
+  // Usamos um Map para garantir que cada endpoint (aparelho único) receba apenas uma notificação
+  const uniqueEndpoints = new Map();
+  subs.forEach(s => {
+    if (s.subscription?.endpoint) {
+      uniqueEndpoints.set(s.subscription.endpoint, s);
+    }
+  });
+
   const payload = JSON.stringify({
     title: notification.title,
     body: notification.body,
@@ -93,39 +93,43 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
     image: notification.image_url
   });
 
-  const internalNotifs = [];
   let successCount = 0;
+  const userIdsNotified = new Set();
   
-  for (const sub of subs) {
-    // Envio real via Web Push
+  for (const sub of uniqueEndpoints.values()) {
+    // 1. Envio Web Push (Barra do Sistema)
     if (VAPID_PUBLIC_KEY && sub.subscription?.endpoint) {
       try {
         await webpush.sendNotification(sub.subscription, payload);
         successCount++;
       } catch (e) {
         console.warn("[Push] Falha ao enviar para endpoint:", sub.id, e.message);
+        // Se o endpoint não existe mais, removemos do banco
         if (e.statusCode === 410 || e.statusCode === 404) {
           await supabaseAdmin.from('push_subscriptions').delete().eq('id', sub.id);
         }
       }
     }
 
-    // Notificação interna
+    // 2. Preparar Notificação Interna (Sininho) - Apenas uma por usuário
     if (sub.user_id) {
-      internalNotifs.push({
-        user_id: sub.user_id,
-        title: `🔔 \${notification.title}`,
-        content: notification.body,
-        link: notification.link,
-        type: 'info'
-      });
+      userIdsNotified.add(sub.user_id);
     }
   }
 
-  if (internalNotifs.length > 0) {
+  // Enviar notificações internas em lote
+  if (userIdsNotified.size > 0) {
+    const internalNotifs = Array.from(userIdsNotified).map(uid => ({
+      user_id: uid,
+      title: `🔔 \${notification.title}`,
+      content: notification.body,
+      link: notification.link,
+      type: 'info'
+    }));
     await supabaseAdmin.from('notifications').insert(internalNotifs);
   }
 
+  // Marcar como enviado
   await supabaseAdmin.from('push_notifications').update({ 
     status: 'sent', 
     sent_at: new Date().toISOString() 

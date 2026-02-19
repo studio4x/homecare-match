@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
-import { BellRing, ShieldCheck, Loader2, Megaphone } from "lucide-react";
+import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,7 +22,6 @@ const PushManager = () => {
 
   useEffect(() => {
     // 1. Escutar notificações em tempo real (Broadcast)
-    // Agora ouvimos tanto INSERT quanto UPDATE para garantir que o disparo imediato funcione
     const channel = supabase
       .channel('public-announcements')
       .on(
@@ -31,16 +30,51 @@ const PushManager = () => {
         (payload) => {
           const data = payload.new as any;
           
-          // Só exibe se o status for 'sent'
           if (data && data.status === 'sent') {
-            toast(data.title, {
-              description: data.body,
-              icon: <Megaphone className="h-4 w-4 text-primary" />,
-              duration: 10000,
-              action: data.link ? {
-                label: "Ver",
-                onClick: () => window.location.href = data.link
-              } : undefined
+            // Layout personalizado para o Toast
+            toast.custom((t) => (
+              <div className="w-full max-w-md bg-card border border-primary/20 shadow-2xl rounded-2xl overflow-hidden animate-slide-up pointer-events-auto">
+                {data.image_url && (
+                  <div className="aspect-video w-full overflow-hidden bg-black">
+                    <img src={data.image_url} className="w-full h-full object-cover" alt="Banner" />
+                  </div>
+                )}
+                <div className="p-5 flex gap-4">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Megaphone className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <h4 className="font-bold text-foreground leading-tight">{data.title}</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{data.body}</p>
+                    
+                    <div className="pt-3 flex items-center justify-between">
+                      {data.link ? (
+                        <Button 
+                          size="sm" 
+                          className="h-8 gap-1.5"
+                          onClick={() => {
+                            toast.dismiss(t);
+                            window.location.href = data.link;
+                          }}
+                        >
+                          Ver Detalhes <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      ) : (
+                        <div />
+                      )}
+                      <button 
+                        onClick={() => toast.dismiss(t)}
+                        className="text-xs text-muted-foreground hover:text-foreground font-medium"
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ), {
+              duration: 15000,
+              position: 'top-center' // Centralizado no topo para maior visibilidade
             });
           }
         }

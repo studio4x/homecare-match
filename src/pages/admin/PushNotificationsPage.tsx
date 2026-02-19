@@ -39,7 +39,8 @@ import {
   X,
   Smartphone,
   Monitor,
-  User
+  User,
+  RotateCcw
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -179,7 +180,6 @@ const PushNotificationsPage = () => {
         });
         if (sendError) throw sendError;
         
-        // CORREÇÃO: Removido o escape da variável
         toast.success(`Notificação enviada para ${result.sentCount} dispositivos!`);
       } else {
         toast.success("Notificação agendada com sucesso!");
@@ -190,6 +190,40 @@ const PushNotificationsPage = () => {
     } catch (err: any) {
       console.error(err);
       toast.error("Erro ao processar notificação.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleResend = async (oldNotification: any) => {
+    setIsSending(true);
+    const toastId = toast.loading("Reenviando notificação...");
+    try {
+      const { data: notification, error: saveError } = await supabase
+        .from("push_notifications")
+        .insert({
+          title: oldNotification.title,
+          body: oldNotification.body,
+          link: oldNotification.link,
+          image_url: oldNotification.image_url,
+          target_role: oldNotification.target_role,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (saveError) throw saveError;
+
+      const { data: result, error: sendError } = await supabase.functions.invoke('process-push-notifications', {
+        body: { notificationId: notification.id, action: 'send_now' }
+      });
+      
+      if (sendError) throw sendError;
+      
+      toast.success(`Reenvio concluído para ${result.sentCount} dispositivos!`, { id: toastId });
+      fetchHistory();
+    } catch (err) {
+      toast.error("Erro ao reenviar.", { id: toastId });
     } finally {
       setIsSending(false);
     }
@@ -225,6 +259,8 @@ const PushNotificationsPage = () => {
     }
   };
 
+  const lastSent = history.filter(h => h.status === 'sent').slice(0, 5);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -245,7 +281,7 @@ const PushNotificationsPage = () => {
           <TabsTrigger value="subscribers" className="gap-2"><Users className="h-4 w-4" /> Inscritos ({subscribers.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="new">
+        <TabsContent value="new" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Criar Notificação</CardTitle>
@@ -356,6 +392,46 @@ const PushNotificationsPage = () => {
               </form>
             </CardContent>
           </Card>
+
+          {lastSent.length > 0 && (
+            <Card className="border-primary/10 bg-primary/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <RotateCcw className="h-4 w-4 text-primary" />
+                  Reenvio Rápido
+                </CardTitle>
+                <CardDescription>Envie novamente uma das últimas mensagens disparadas.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3">
+                {lastSent.map((h) => (
+                  <div key={h.id} className="flex items-center justify-between p-3 bg-card rounded-lg border shadow-sm group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {h.image_url ? (
+                        <img src={h.image_url} className="h-10 w-10 rounded object-cover border shrink-0" alt="Thumb" />
+                      ) : (
+                        <div className="h-10 w-10 rounded bg-secondary flex items-center justify-center shrink-0">
+                          <Bell className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate">{h.title}</p>
+                        <p className="text-xs text-muted-foreground truncate">{h.body}</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-2 h-8 ml-4 shrink-0 hover:bg-primary hover:text-white transition-colors"
+                      onClick={() => handleResend(h)}
+                      disabled={isSending}
+                    >
+                      <Send className="h-3 w-3" /> Reenviar
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="history">

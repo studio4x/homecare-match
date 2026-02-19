@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
-import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink, ShieldAlert } from "lucide-react";
+import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,26 +30,24 @@ const PushManager = () => {
         (payload) => {
           const data = payload.new as any;
           
-          // Só processa se o status for 'sent' (enviado)
           if (data && data.status === 'sent') {
             console.log("[PushManager] Nova notificação recebida:", data);
 
-            // Usamos toast.custom com unstyled: true para remover o quadro de fundo padrão
             toast.custom((t) => (
-              <div className="w-full max-w-[400px] bg-card border border-primary/20 shadow-2xl rounded-2xl overflow-hidden animate-slide-up pointer-events-auto">
-                {/* Banner da Imagem */}
+              <div className="w-full max-w-[380px] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[24px] overflow-hidden animate-slide-up pointer-events-auto border-none">
+                {/* Banner da Imagem - Sem bordas ou molduras */}
                 {data.image_url && (
-                  <div className="aspect-video w-full overflow-hidden bg-black border-b">
+                  <div className="w-full aspect-video bg-black">
                     <img 
                       src={data.image_url} 
                       className="w-full h-full object-cover" 
-                      alt="Banner da Notificação" 
+                      alt="Banner" 
                       onError={(e) => (e.currentTarget.style.display = 'none')}
                     />
                   </div>
                 )}
                 
-                <div className="p-5 flex gap-4">
+                <div className="p-6 flex gap-4">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <Megaphone className="h-5 w-5 text-primary" />
                   </div>
@@ -60,14 +58,14 @@ const PushManager = () => {
                       <span className="text-[9px] font-bold uppercase tracking-widest text-primary/80">Administração HomeCare Match</span>
                     </div>
 
-                    <h4 className="font-bold text-foreground leading-tight truncate">{data.title}</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{data.body}</p>
+                    <h4 className="font-bold text-slate-900 leading-tight truncate">{data.title}</h4>
+                    <p className="text-sm text-slate-500 leading-relaxed line-clamp-3">{data.body}</p>
                     
-                    <div className="pt-3 flex items-center justify-between gap-2">
+                    <div className="pt-4 flex items-center justify-between gap-2">
                       {data.link ? (
                         <Button 
                           size="sm" 
-                          className="h-8 gap-1.5 text-xs"
+                          className="h-9 px-4 gap-1.5 text-xs font-semibold rounded-full"
                           onClick={() => {
                             toast.dismiss(t);
                             window.location.href = data.link;
@@ -80,7 +78,7 @@ const PushManager = () => {
                       )}
                       <button 
                         onClick={() => toast.dismiss(t)}
-                        className="text-[10px] text-muted-foreground hover:text-foreground font-medium uppercase tracking-wider"
+                        className="text-[10px] text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest px-2 py-1"
                       >
                         Fechar
                       </button>
@@ -91,14 +89,14 @@ const PushManager = () => {
             ), {
               duration: 15000,
               position: 'top-center',
-              unstyled: true
+              unstyled: true // Crucial: Remove o quadro/moldura padrão do Sonner
             });
           }
         }
       )
       .subscribe();
 
-    // 2. Gerenciar Inscrição Push (Banner do Sistema)
+    // 2. Gerenciar Inscrição Push
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
 
     if (Notification.permission === 'default') {
@@ -128,7 +126,6 @@ const PushManager = () => {
 
       await navigator.serviceWorker.register('/sw.js');
 
-      // Registro da inscrição no banco
       const { error } = await supabase.from('push_subscriptions').insert({
         user_id: user?.id || null,
         subscription: { 

@@ -46,7 +46,8 @@ import {
   ShieldCheck,
   Info,
   ExternalLink,
-  Save
+  Save,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -290,6 +291,28 @@ const PushNotificationsPage = () => {
       toast.success("Dispositivo removido.");
     } catch (err) {
       toast.error("Erro ao remover.");
+    }
+  };
+
+  const handleClearHistory = async () => {
+    if (!confirm("Tem certeza que deseja apagar TODO o histórico de notificações? Esta ação não pode ser desfeita.")) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("push_notifications")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+      
+      if (error) throw error;
+      
+      setHistory([]);
+      toast.success("Histórico limpo com sucesso!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao limpar histórico.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -634,14 +657,25 @@ const PushNotificationsPage = () => {
 
         <TabsContent value="history">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle>Histórico de Envios</CardTitle>
                 <CardDescription>Acompanhe o status das notificações enviadas e agendadas.</CardDescription>
               </div>
-              <Button variant="ghost" size="icon" onClick={fetchHistory} disabled={loading}>
-                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-destructive hover:bg-destructive/10 gap-2"
+                  onClick={handleClearHistory}
+                  disabled={loading || history.length === 0}
+                >
+                  <Trash2 className="h-4 w-4" /> Limpar Todo o Histórico
+                </Button>
+                <Button variant="ghost" size="icon" onClick={fetchHistory} disabled={loading}>
+                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <Table>

@@ -63,10 +63,11 @@ serve(async (req) => {
     - Destaque a experiência e o cuidado com o paciente.
     - Retorne APENAS o texto da biografia, sem introduções ou comentários.`;
 
-    console.log("[generate-bio] Chamando API do Gemini...");
+    console.log("[generate-bio] Chamando API do Gemini (v1)...");
 
+    // Alterado de v1beta para v1
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

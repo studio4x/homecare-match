@@ -59,10 +59,10 @@ const PushManager = () => {
               bgColor: "#ffffff",
               titleColor: "#0f172a",
               bodyColor: "#64748b",
-              borderRadius: "24",
+              borderRadius: "20",
               iconBgColor: "#007BFF1a",
               iconColor: "#007BFF",
-              shadowIntensity: "0.2",
+              shadowIntensity: "0.15",
               ctaBgColor: "#007BFF",
               ctaTextColor: "#ffffff",
               duration: 12
@@ -73,18 +73,19 @@ const PushManager = () => {
               ...config.push_layout_json
             } : defaultLayout;
 
+            // Usando toast.custom mas sem o wrapper de backdrop para evitar bugs no mobile
             toast.custom((t) => (
               <div 
-                className="relative w-[calc(100vw-2rem)] max-w-[400px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto z-[9999]"
+                className="w-[calc(100vw-24px)] sm:w-[380px] overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto"
                 style={{ 
                   backgroundColor: layout.bgColor,
                   borderRadius: `${layout.borderRadius}px`,
-                  boxShadow: `0 20px 50px rgba(0,0,0,${layout.shadowIntensity})`
+                  boxShadow: `0 15px 40px rgba(0,0,0,${layout.shadowIntensity})`
                 }}
               >
                 <button 
                   onClick={() => toast.dismiss(t)}
-                  className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -93,9 +94,8 @@ const PushManager = () => {
                   <div className="w-full aspect-video bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-100">
                     <img 
                       src={data.image_url} 
-                      className="w-full h-full object-contain p-2" 
+                      className="w-full h-full object-contain" 
                       alt="Banner" 
-                      onError={(e) => (e.currentTarget.style.display = 'none')}
                     />
                   </div>
                 )}
@@ -138,7 +138,7 @@ const PushManager = () => {
               </div>
             ), {
               duration: (layout.duration || 12) * 1000,
-              position: 'top-center',
+              position: 'bottom-center', // Alterado para bottom-center que é mais estável no mobile
             });
           }
         }

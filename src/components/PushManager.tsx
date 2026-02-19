@@ -20,6 +20,12 @@ const PushManager = () => {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
 
+  // Função auxiliar para limitar caracteres
+  const truncate = (text: string, limit: number) => {
+    if (!text) return "";
+    return text.length > limit ? text.substring(0, limit) + "..." : text;
+  };
+
   useEffect(() => {
     // 1. Escutar notificações em tempo real (Broadcast)
     const channel = supabase
@@ -33,14 +39,18 @@ const PushManager = () => {
           if (data && data.status === 'sent') {
             console.log("[PushManager] Nova notificação recebida:", data);
 
+            // Limites de caracteres para evitar quebras de layout
+            const safeTitle = truncate(data.title, 45);
+            const safeBody = truncate(data.body, 120);
+
             toast.custom((t) => (
-              <div className="w-full max-w-[380px] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.2)] rounded-[24px] overflow-hidden animate-slide-up pointer-events-auto border-none">
-                {/* Banner da Imagem - Sem bordas ou molduras */}
+              <div className="w-full max-w-[380px] bg-white shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-[28px] overflow-hidden animate-slide-up pointer-events-auto border border-slate-100">
+                {/* Banner da Imagem */}
                 {data.image_url && (
-                  <div className="w-full aspect-video bg-black">
+                  <div className="w-full aspect-video bg-slate-50 flex items-center justify-center overflow-hidden border-b border-slate-50">
                     <img 
                       src={data.image_url} 
-                      className="w-full h-full object-cover" 
+                      className="w-full h-full object-contain p-4" 
                       alt="Banner" 
                       onError={(e) => (e.currentTarget.style.display = 'none')}
                     />
@@ -53,19 +63,19 @@ const PushManager = () => {
                   </div>
                   <div className="flex-1 space-y-1 min-w-0">
                     {/* Identificador de Administração */}
-                    <div className="flex items-center gap-1.5 mb-1">
+                    <div className="flex items-center gap-1.5 mb-1.5">
                       <ShieldCheck className="h-3 w-3 text-primary" />
                       <span className="text-[9px] font-bold uppercase tracking-widest text-primary/80">Administração HomeCare Match</span>
                     </div>
 
-                    <h4 className="font-bold text-slate-900 leading-tight truncate">{data.title}</h4>
-                    <p className="text-sm text-slate-500 leading-relaxed line-clamp-3">{data.body}</p>
+                    <h4 className="font-bold text-slate-900 leading-tight text-base">{safeTitle}</h4>
+                    <p className="text-sm text-slate-500 leading-relaxed">{safeBody}</p>
                     
-                    <div className="pt-4 flex items-center justify-between gap-2">
+                    <div className="pt-5 flex items-center justify-between gap-2">
                       {data.link ? (
                         <Button 
                           size="sm" 
-                          className="h-9 px-4 gap-1.5 text-xs font-semibold rounded-full"
+                          className="h-9 px-5 gap-1.5 text-xs font-bold rounded-full shadow-md hover:shadow-lg transition-all"
                           onClick={() => {
                             toast.dismiss(t);
                             window.location.href = data.link;
@@ -78,7 +88,7 @@ const PushManager = () => {
                       )}
                       <button 
                         onClick={() => toast.dismiss(t)}
-                        className="text-[10px] text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest px-2 py-1"
+                        className="text-[10px] text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest px-2 py-1 transition-colors"
                       >
                         Fechar
                       </button>
@@ -89,7 +99,7 @@ const PushManager = () => {
             ), {
               duration: 15000,
               position: 'top-center',
-              unstyled: true // Crucial: Remove o quadro/moldura padrão do Sonner
+              unstyled: true // Remove o container padrão do Sonner
             });
           }
         }

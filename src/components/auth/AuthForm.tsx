@@ -19,7 +19,8 @@ import {
   X,
   Sparkles,
   KeyRound,
-  UserPlus
+  UserPlus,
+  HelpCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -27,6 +28,8 @@ import {
   DialogContent,
   DialogTitle,
   DialogDescription,
+  DialogHeader,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { translateAuthError } from "@/lib/error-utils";
 import { useNavigate } from "react-router-dom";
@@ -52,9 +55,13 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
+  // Modais
   const [showSuccessRegisterModal, setShowSuccessRegisterModal] = useState(false);
   const [showMagicLinkSentModal, setShowMagicLinkSentModal] = useState(false);
   const [showUserNotFoundModal, setShowUserNotFoundModal] = useState(false);
+  const [showEmailExistsModal, setShowEmailExistsModal] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [showResetSentModal, setShowResetSentModal] = useState(false);
 
   const navigate = useNavigate();
 
@@ -64,6 +71,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
     formState: { errors },
     reset,
     setError,
+    getValues
   } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
     defaultValues: {
@@ -73,6 +81,30 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
       confirmPassword: ""
     }
   });
+
+  const handleResetPassword = async () => {
+    const email = getValues("email");
+    if (!email) {
+      toast.error("Digite seu e-mail primeiro.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/dashboard/perfil",
+      });
+      if (error) throw error;
+      
+      setShowForgotPasswordModal(false);
+      setShowEmailExistsModal(false);
+      setShowResetSentModal(true);
+    } catch (error: any) {
+      toast.error(translateAuthError(error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onSubmit = async (data: AuthFormData) => {
     if (mode === "register") {
@@ -111,7 +143,21 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
             }
           }
         });
-        if (error) throw error;
+
+        if (error) {
+          if (error.message.toLowerCase().includes("user already registered")) {
+            setShowEmailExistsModal(true);
+            return;
+          }
+          throw error;
+        }
+
+        // Se o Supabase retornar um usuário mas ele já existir (proteção de enumeração), 
+        // o signUpData.user.identities será um array vazio.
+        if (signUpData.user && signUpData.user.identities && signUpData.user.identities.length === 0) {
+          setShowEmailExistsModal(true);
+          return;
+        }
 
         const referrerId = new URLSearchParams(window.location.search).get("ref");
         if (referrerId && signUpData?.user?.id) {
@@ -251,7 +297,11 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Senha</Label>
               {mode === "login" && (
-                <button type="button" className="text-xs text-muted-foreground hover:text-primary">
+                <button 
+                  type="button" 
+                  onClick={() => setShowForgotPasswordModal(true)}
+                  className="text-xs text-muted-foreground hover:text-primary"
+                >
                   Esqueceu a senha?
                 </button>
               )}
@@ -318,12 +368,86 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         </div>
       )}
 
-      {!allowRegister && mode === "login" && (
-        <div className="flex items-start gap-2 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <p>O cadastro de novos administradores está desabilitado. Entre com uma conta existente.</p>
-        </div>
-      )}
+      {/* Modal: E-mail já existe */}
+      <Dialog open={showEmailExistsModal} onOpenChange={setShowEmailExistsModal}>
+        <DialogContent className="max-w-md p-8 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 mb-4">
+            <AlertCircle className="h-8 w-8 text-amber-600" />
+          </div>
+          <DialogTitle className="text-2xl font-bold mb-2">E-mail já cadastrado</DialogTitle>
+          <DialogDescription className="text-base text-muted-foreground">
+            Já existe uma conta vinculada a este e-mail em nossa plataforma.
+          </DialogDescription>
+          
+          <div className="flex flex-col gap-3 mt-8">
+            <Button 
+              onClick={() => {
+                setShowEmailExistsModal(false);
+                setMode("login");
+              }} 
+              className="w-full h-12 text-base font-semibold"
+            >
+              Fazer Login agora
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleResetPassword}
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Esqueci minha senha
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Esqueci Senha */}
+      <Dialog open={showForgotPasswordModal} onOpenChange={setShowForgotPasswordModal}>
+        <DialogContent className="max-w-md p-8 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
+            <HelpCircle className="h-8 w-8 text-primary" />
+          </div>
+          <DialogTitle className="text-2xl font-bold mb-2">Recuperar Senha</DialogTitle>
+          <DialogDescription className="text-base text-muted-foreground">
+            Enviaremos um link para o e-mail <strong>{getValues("email")}</strong> para você criar uma nova senha.
+          </DialogDescription>
+          
+          <div className="flex flex-col gap-3 mt-8">
+            <Button 
+              onClick={handleResetPassword} 
+              disabled={loading}
+              className="w-full h-12 text-base font-semibold"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Enviar Link de Recuperação
+            </Button>
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowForgotPasswordModal(false)}
+              className="w-full"
+            >
+              Cancelar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Link de Reset Enviado */}
+      <Dialog open={showResetSentModal} onOpenChange={setShowResetSentModal}>
+        <DialogContent className="max-w-md p-8 text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/10 mb-4">
+            <MailCheck className="h-8 w-8 text-success" />
+          </div>
+          <DialogTitle className="text-2xl font-bold mb-2">E-mail enviado!</DialogTitle>
+          <DialogDescription className="text-base text-muted-foreground">
+            Verifique sua caixa de entrada. Se o e-mail estiver correto, você receberá as instruções para redefinir sua senha em instantes.
+          </DialogDescription>
+          <Button onClick={() => setShowResetSentModal(false)} className="w-full mt-6">
+            Entendido
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showSuccessRegisterModal} onOpenChange={setShowSuccessRegisterModal}>
         <DialogContent className="max-w-md p-8 text-center">

@@ -8,6 +8,7 @@ self.addEventListener('push', function(event) {
       body: data.body,
       icon: '/favicon.png',
       badge: '/favicon.png',
+      image: data.image, // Suporte para imagem grande (banner)
       vibrate: [100, 50, 100],
       data: {
         url: data.link || '/'

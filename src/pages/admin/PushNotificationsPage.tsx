@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -34,7 +34,9 @@ import {
   CheckCircle2, 
   Clock,
   Users,
-  Database
+  Database,
+  Image as ImageIcon,
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -47,11 +49,14 @@ const PushNotificationsPage = () => {
   const [isSending, setIsSending] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     title: "",
     body: "",
     link: "",
+    image_url: "",
     target_role: "all",
     scheduled_for: ""
   });
@@ -92,6 +97,35 @@ const PushNotificationsPage = () => {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `push_${Date.now()}.${fileExt}`;
+    const filePath = `push-images/${fileName}`;
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('uploads')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, image_url: publicUrl }));
+      toast.success("Imagem carregada!");
+    } catch (err) {
+      toast.error("Erro ao carregar imagem.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.body) {
@@ -101,13 +135,13 @@ const PushNotificationsPage = () => {
 
     setIsSending(true);
     try {
-      // 1. Salvar no banco
       const { data: notification, error: saveError } = await supabase
         .from("push_notifications")
         .insert({
           title: formData.title,
           body: formData.body,
           link: formData.link || null,
+          image_url: formData.image_url || null,
           target_role: formData.target_role,
           scheduled_for: formData.scheduled_for || null,
           status: formData.scheduled_for ? 'scheduled' : 'pending'
@@ -117,7 +151,6 @@ const PushNotificationsPage = () => {
 
       if (saveError) throw saveError;
 
-      // 2. Se não for agendado, enviar agora via Edge Function
       if (!formData.scheduled_for) {
         const { data: result, error: sendError } = await supabase.functions.invoke('process-push-notifications', {
           body: { notificationId: notification.id, action: 'send_now' }
@@ -128,7 +161,7 @@ const PushNotificationsPage = () => {
         toast.success("Notificação agendada com sucesso!");
       }
 
-      setFormData({ title: "", body: "", link: "", target_role: "all", scheduled_for: "" });
+      setFormData({ title: "", body: "", link: "", image_url: "", target_role: "all", scheduled_for: "" });
       fetchHistory();
     } catch (err: any) {
       console.error(err);
@@ -242,6 +275,42 @@ const PushNotificationsPage = () => {
 
                   <div className="space-y-4 p-6 bg-secondary/20 rounded-xl border border-dashed">
                     <div className="space-y-2">
+                      <Label className="flex items-center gap-2"><ImageIcon className="h-4 w-4 text-primary" /> Imagem da Notificação (Opcional)</Label>
+                      <div className="flex flex-col gap-3">
+                        {formData.image_url ? (
+                          <div className="relative aspect-video rounded-lg overflow-hidden border bg-black group">
+                            <img src={formData.image_url} className="w-full h-full object-contain" alt="Preview" />
+                            <button 
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, image_url: "" }))}
+                              className="absolute top-2 right-2 p-1 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            className="w-full h-24 border-dashed gap-2"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                          >
+                            {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImageIcon className="h-5 w-5" />}
+                            Selecionar Imagem
+                          </Button>
+                        )}
+                        <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          className="hidden" 
+                          accept="image/*" 
+                          onChange={handleImageUpload} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
                       <Label className="flex items-center gap-2"><Users className="h-4 w-4 text-primary" /> Público Alvo</Label>
                       <Select value={formData.target_role} onValueChange={v => setFormData({...formData, target_role: v})}>
                         <SelectTrigger>
@@ -263,11 +332,10 @@ const PushNotificationsPage = () => {
                         value={formData.scheduled_for}
                         onChange={e => setFormData({...formData, scheduled_for: e.target.value})}
                       />
-                      <p className="text-[10px] text-muted-foreground italic">Deixe em branco para enviar imediatamente.</p>
                     </div>
 
                     <div className="pt-4">
-                      <Button type="submit" className="w-full gap-2 h-12" disabled={isSending}>
+                      <Button type="submit" className="w-full gap-2 h-12" disabled={isSending || isUploading}>
                         {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
                         {formData.scheduled_for ? "Agendar Notificação" : "Enviar Agora"}
                       </Button>
@@ -305,8 +373,15 @@ const PushNotificationsPage = () => {
                   {history.length > 0 ? history.map((h) => (
                     <TableRow key={h.id}>
                       <TableCell>
-                        <div className="font-medium text-sm">{h.title}</div>
-                        <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">{h.body}</div>
+                        <div className="flex items-center gap-3">
+                          {h.image_url && (
+                            <img src={h.image_url} className="h-8 w-8 rounded object-cover border" alt="Thumb" />
+                          )}
+                          <div>
+                            <div className="font-medium text-sm">{h.title}</div>
+                            <div className="text-[10px] text-muted-foreground truncate max-w-[200px]">{h.body}</div>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px]">{getTargetLabel(h.target_role)}</Badge>

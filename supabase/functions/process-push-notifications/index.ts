@@ -43,10 +43,7 @@ serve(async (req) => {
 
       console.log(`[Push] Enviando para \${subscriptions?.length || 0} dispositivos.`);
 
-      // NOTA: Aqui entraria a integração real com FCM ou OneSignal.
-      // Como não temos chaves externas, simulamos o envio e salvamos no histórico interno.
-      
-      // Simulando envio para a tabela de notificações interna também para garantir que o usuário veja
+      // Simulando envio para a tabela de notificações interna
       for (const userId of userIds) {
         await supabaseAdmin.from('notifications').insert({
           user_id: userId,

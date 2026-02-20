@@ -98,6 +98,7 @@ const formSchema = z.object({
   // Company/Family specific
   company_name: z.string().optional(),
   cnpj: z.string().optional(),
+  ans_registration: z.string().optional(), // New field
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -154,10 +155,14 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
 
       company_name: "",
       cnpj: "",
+      ans_registration: "", // New field default
     },
   });
 
   const currentRole = form.watch("role");
+  const isProfessional = currentRole === 'professional';
+  const isCompany = currentRole === 'company';
+  const isFamily = currentRole === 'family';
   const currentAvatarUrl = form.watch("avatar_url");
   const currentIdDocUrl = form.watch("id_document_url");
   const currentProfDocUrl = form.watch("prof_registration_url");
@@ -376,6 +381,7 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
           prof_registration_url: data.prof_registration_url,
           company_name: data.company_name,
           cnpj: data.cnpj,
+          ans_registration: data.ans_registration, // New field
           availability: data.availability,
           patient_profiles: data.patient_profiles,
           address_zip: data.address_zip,
@@ -527,7 +533,7 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
               )}
             />
 
-            {currentRole === 'professional' && (
+            {isProfessional && (
               <div className="grid gap-4 md:grid-cols-2">
                 <FormField
                   control={form.control}
@@ -557,31 +563,44 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
               </div>
             )}
 
-            {(currentRole === 'company' || currentRole === 'family') && (
+            {(isCompany || isFamily) && (
               <>
                 <FormField
                   control={form.control}
                   name="company_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{currentRole === 'company' ? "Nome da Empresa" : "Nome do Responsável"}</FormLabel>
+                      <FormLabel>{isCompany ? "Nome da Empresa" : "Nome do Responsável"}</FormLabel>
                       <FormControl><Input {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                {currentRole === 'company' && (
-                  <FormField
-                    control={form.control}
-                    name="cnpj"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CNPJ</FormLabel>
-                        <FormControl><Input {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                {isCompany && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="cnpj"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>CNPJ</FormLabel>
+                          <FormControl><Input {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="ans_registration"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Registro ANS</FormLabel>
+                          <FormControl><Input {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
                 )}
               </>
             )}
@@ -607,7 +626,7 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
                     <FormControl>
                       <div className="relative">
                         <Input {...field} onBlur={handleCepBlur} />
-                        {isLoadingCep && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                        {isLoadingCep && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -731,7 +750,7 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
             <CardDescription>Apresente-se ou descreva sua empresa/família.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {currentRole === 'professional' && (
+            {isProfessional && (
               <>
                 <FormField
                   control={form.control}
@@ -764,7 +783,7 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
                 <FormItem>
                   <div className="flex items-center justify-between">
                     <FormLabel>Biografia para o Perfil *</FormLabel>
-                    {currentRole === 'professional' && (
+                    {isProfessional && (
                       <Button variant="outline" size="sm" className="h-8 gap-2 text-xs" onClick={handleGenerateBio} disabled={isGeneratingBio}>
                         {isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />} Gerar com IA
                       </Button>
@@ -780,7 +799,7 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
           </CardContent>
         </Card>
 
-        {currentRole === 'professional' && (
+        {isProfessional && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -881,102 +900,12 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-              Verificação e Status
-            </CardTitle>
-            <CardDescription>Controle o status de verificação e visibilidade do perfil.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <Label className="text-[10px] uppercase">{doc1Label} (Máx. {MAX_DOC_SIZE_MB}MB)</Label>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={isUploading === 'id_doc'}>
-                    {isUploading === 'id_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : (currentIdDocUrl ? "✓ Documento enviado" : "Selecionar arquivo")}
-                  </Button>
-                  <input type="file" ref={idDocRef} className="hidden" onChange={e => handleFileUpload(e, 'id_doc')} />
-                  {currentIdDocUrl && (
-                    <a href={currentIdDocUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs flex items-center gap-1">
-                      <ExternalLink className="h-3 w-3" /> Ver
-                    </a>
-                  )}
-                </div>
-              </div>
-              {currentRole !== 'family' && (
-                <div className="space-y-1">
-                  <Label className="text-[10px] uppercase">{doc2Label} (Máx. {MAX_DOC_SIZE_MB}MB)</Label>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={isUploading === 'prof_doc'}>
-                      {isUploading === 'prof_doc' ? <Loader2 className="h-4 w-4 animate-spin" /> : (currentProfDocUrl ? "✓ Documento enviado" : "Selecionar arquivo")}
-                    </Button>
-                    <input type="file" ref={profDocRef} className="hidden" onChange={e => handleFileUpload(e, 'prof_doc')} />
-                    {currentProfDocUrl && (
-                      <a href={currentProfDocUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-xs flex items-center gap-1">
-                        <ExternalLink className="h-3 w-3" /> Ver
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <FormField
-              control={form.control}
-              name="is_verified"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel>Perfil Verificado</FormLabel>
-                    <FormDescription className="text-[10px]">Concede o selo de verificado ao perfil.</FormDescription>
-                  </div>
-                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="verification_sent"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel>Solicitação de Verificação Enviada</FormLabel>
-                    <FormDescription className="text-[10px]">Indica que o usuário enviou documentos para análise.</FormDescription>
-                  </div>
-                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="has_seen_onboarding"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel className="flex items-center gap-2"><PlayCircle className="h-4 w-4 text-primary" /> Tutorial de Boas-vindas</FormLabel>
-                    <FormDescription className="text-[10px]">Define se o usuário já viu o tutorial inicial.</FormDescription>
-                  </div>
-                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="notifications_enabled"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                  <div className="space-y-0.5">
-                    <FormLabel className="flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Notificações Ativadas</FormLabel>
-                    <FormDescription className="text-[10px]">Controla se o usuário recebe notificações push e do mural.</FormDescription>
-                  </div>
-                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
+        {!isProfessional && (
+          <Card>
+            <CardHeader><CardTitle>{isCompany ? "Sobre a Empresa *" : "Sobre a Família *"}</CardTitle></CardHeader>
+            <CardContent><Textarea value={form.watch("bio") || ""} onChange={e => form.setValue("bio", e.target.value)} rows={6} /></CardContent>
+          </Card>
+        )}
 
         <Button type="submit" className="w-full gap-2" disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

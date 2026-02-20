@@ -355,6 +355,7 @@ const ProfilePage = () => {
         registration: profile.registration,
         company_name: profile.company_name,
         cnpj: profile.cnpj,
+        ans_registration: profile.ans_registration, // Save new field
         hourly_rate: profile.hourly_rate,
         availability: profile.availability,
         patient_profiles: profile.patient_profiles,
@@ -495,7 +496,12 @@ const ProfilePage = () => {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2"><Label>{profile.role === 'company' ? "Razão Social" : "Nome do Responsável"}</Label><Input value={profile.company_name || ""} onChange={e => setProfile({...profile, company_name: e.target.value})} /></div>
-                  {profile.role === 'company' && <div className="grid gap-2"><Label>CNPJ</Label><Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} /></div>}
+                  {profile.role === 'company' && (
+                    <>
+                      <div className="grid gap-2"><Label>CNPJ</Label><Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} /></div>
+                      <div className="grid gap-2"><Label>Registro ANS</Label><Input value={profile.ans_registration || ""} onChange={e => setProfile({...profile, ans_registration: e.target.value})} /></div>
+                    </>
+                  )}
                 </div>
               )}
             </CardContent>

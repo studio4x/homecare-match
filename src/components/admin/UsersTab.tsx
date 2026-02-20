@@ -242,6 +242,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
               <TableHead>Plano / Status</TableHead>
               <TableHead>Verificado</TableHead>
               <TableHead>Busca</TableHead>
+              <TableHead>Registro ANS</TableHead> {/* New TableHead */}
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -362,6 +363,9 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                     ) : (
                       <span className="text-[9px] text-muted-foreground italic">N/A</span>
                     )}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {u.role === 'company' ? (u.ans_registration || 'N/A') : 'N/A'}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

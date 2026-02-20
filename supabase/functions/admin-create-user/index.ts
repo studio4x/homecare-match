@@ -61,6 +61,7 @@ serve(async (req) => {
       prof_registration_url,
       company_name,
       cnpj,
+      ans_registration, // New field
       availability,
       patient_profiles,
       address_zip,
@@ -111,6 +112,7 @@ serve(async (req) => {
         prof_registration_url,
         company_name,
         cnpj,
+        ans_registration, // New field
         availability,
         patient_profiles,
         address_zip,

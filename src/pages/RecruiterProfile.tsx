@@ -34,7 +34,7 @@ const RecruiterProfile = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, avatar_url, city, state, bio, role")
+        .select("id, full_name, avatar_url, city, state, bio, role, ans_registration") // Fetch ans_registration
         .eq("id", id)
         .single();
 
@@ -129,6 +129,11 @@ const RecruiterProfile = () => {
                       {profile.city && profile.state ? `${profile.city} - ${profile.state}` : 'Localização não informada'}
                     </div>
                   </div>
+                  {isCompany && profile.ans_registration && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Registro ANS: <span className="font-medium">{profile.ans_registration}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -226,7 +226,6 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-none shadow-2xl">
         <div className="flex flex-col h-full">
-          {/* Header Progress */}
           <div className="flex h-1.5 w-full bg-secondary">
             {steps.map((_, i) => (
               <div 

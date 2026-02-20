@@ -59,7 +59,6 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
   const [attachment, setAttachment] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Busca o perfil para verificar o plano e o papel
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["user-profile-support", user?.id],
     queryFn: async () => {
@@ -74,27 +73,19 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
     enabled: !!user && open,
   });
 
-  // Lógica de filtragem de prioridades
   const allowedPriorities = useMemo(() => {
     if (!profile) return [{ value: "low", label: "Baixa" }];
-
     if (profile.is_admin || profile.role === 'admin') return ALL_PRIORITIES;
-
     if (profile.role === 'company' || profile.role === 'family') {
       return ALL_PRIORITIES.filter(p => ["low", "medium", "high"].includes(p.value));
     }
-
-    // Profissionais
     if (profile.subscription_tier === 'yearly') return ALL_PRIORITIES;
     if (profile.subscription_tier === 'monthly') {
       return ALL_PRIORITIES.filter(p => ["low", "medium"].includes(p.value));
     }
-    
-    // Plano gratuito / free_trial
     return ALL_PRIORITIES.filter(p => p.value === "low");
   }, [profile]);
 
-  // Resetar estado ao fechar/abrir
   React.useEffect(() => {
     if (open) {
       setStep(initialStep);
@@ -103,7 +94,6 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
     }
   }, [open, initialStep]);
 
-  // Garante que a prioridade selecionada seja válida se o perfil mudar
   React.useEffect(() => {
     if (profile && !allowedPriorities.some(p => p.value === ticketData.priority)) {
       setTicketData(prev => ({ ...prev, priority: allowedPriorities[0].value }));
@@ -128,17 +118,9 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
         const fileExt = attachment.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `support/${user?.id}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('uploads')
-          .upload(filePath, attachment);
-
+        const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, attachment);
         if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('uploads')
-          .getPublicUrl(filePath);
-        
+        const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);
         attachmentUrl = publicUrl;
         attachmentName = attachment.name;
       }
@@ -161,7 +143,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
 
       supabase.functions.invoke('notify-support', {
         body: { type: 'new_ticket', ticketId: data.id, senderId: user?.id }
-      }).catch(err => console.warn("Falha ao notificar admin:", err));
+      }).catch(() => {});
 
       toast.success("Chamado aberto com sucesso!");
       onOpenChange(false);
@@ -242,7 +224,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
                 </div>
                 <div>
                   <DialogTitle>Novo Chamado</DialogTitle>
-                  <DialogDescription>Descreva seu problema ou dúvida.</DialogDescription>
+                  <DialogDescription>Descreva seu problema ou dúvida para nossa equipe.</DialogDescription>
                 </div>
               </div>
             </DialogHeader>

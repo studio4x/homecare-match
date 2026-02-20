@@ -6,11 +6,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { X } from 'lucide-react';
-import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
-import LandingVideoPlayer from "./LandingVideoPlayer"; // Import LandingVideoPlayer
+import LandingVideoPlayer from "./LandingVideoPlayer";
 
 interface FeatureVideoModalProps {
   open: boolean;
@@ -20,9 +20,6 @@ interface FeatureVideoModalProps {
 
 const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps) => {
   if (!video) return null;
-
-  // The LandingVideoPlayer will handle YouTube embed conversion internally
-  const videoSourceUrl = video.url;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -34,12 +31,15 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
               <X className="h-5 w-5" />
             </button>
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Vídeo demonstrativo da funcionalidade {video.title}.
+          </DialogDescription>
         </DialogHeader>
         <AspectRatio ratio={16/9}>
           <LandingVideoPlayer 
-            url={videoSourceUrl} 
+            url={video.url} 
             title={video.title} 
-            className="rounded-none" // Remove rounded corners as it's inside a dialog
+            className="border-none"
           />
         </AspectRatio>
       </DialogContent>

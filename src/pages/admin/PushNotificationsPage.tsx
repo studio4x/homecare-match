@@ -56,7 +56,8 @@ import {
   UserX,
   Copy,
   Sliders,
-  Eye
+  Eye,
+  MapPin
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";

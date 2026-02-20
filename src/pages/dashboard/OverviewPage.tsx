@@ -280,12 +280,12 @@ const OverviewPage = () => {
         };
       }
       return {
-        label: "Cancelada",
-        description: "Não será renovada.",
-        icon: AlertCircle,
-        color: "text-amber-600",
-        bg: "bg-amber-50 border-amber-200",
-        dateLabel: "Acesso até"
+        label: "Ativa",
+        description: "Período de acesso garantido.",
+        icon: Ticket,
+        color: "text-primary",
+        bg: "bg-primary/5 border-primary/20",
+        dateLabel: "Válido até"
       };
     }
 

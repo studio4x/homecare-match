@@ -13,7 +13,7 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-user-notifications] Iniciando sincronização robusta...");
+    console.log("[setup-user-notifications] Configurando Realtime e Identidade de Réplica...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
@@ -31,21 +31,18 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- Adiciona coluna de imagem se não existir
       ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS image_url TEXT;
 
-      -- 2. Configurar REPLICA IDENTITY para Realtime robusto
+      -- 2. Configurar REPLICA IDENTITY FULL (CRÍTICO para Realtime)
       ALTER TABLE public.notifications REPLICA IDENTITY FULL;
 
       -- 3. Habilitar Realtime com verificação de existência
       DO $$
       BEGIN
-        -- Cria a publicação se não existir
         IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
           CREATE PUBLICATION supabase_realtime;
         END IF;
 
-        -- Adiciona a tabela apenas se ela ainda não estiver na publicação
         IF NOT EXISTS (
           SELECT 1 FROM pg_publication_tables 
           WHERE pubname = 'supabase_realtime' 
@@ -56,7 +53,6 @@ serve(async (req) => {
         END IF;
       END $$;
 
-      -- 4. Notifica o recarregamento
       NOTIFY pgrst, 'reload schema';
     `;
 
@@ -64,7 +60,7 @@ serve(async (req) => {
     await client.end();
     client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de avisos sincronizado com sucesso!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de avisos sincronizado com REPLICA IDENTITY FULL!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

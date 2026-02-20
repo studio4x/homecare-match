@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Bell, 
@@ -31,7 +31,7 @@ const AdminNotificationWidget = () => {
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("admin_notifications")
@@ -47,18 +47,19 @@ const AdminNotificationWidget = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
 
-    // Realtime subscription
+    // Realtime subscription robusta
     const channel = supabase
-      .channel("admin-notifications")
+      .channel("admin-notifications-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "admin_notifications" },
-        () => {
+        (payload) => {
+          console.log("[AdminNotificationWidget] Mudança detectada:", payload.eventType);
           fetchNotifications();
         }
       )
@@ -67,7 +68,7 @@ const AdminNotificationWidget = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchNotifications]);
 
   const handleMarkAsCompleted = async (id: string) => {
     try {
@@ -77,7 +78,7 @@ const AdminNotificationWidget = () => {
         .eq("id", id);
 
       if (error) throw error;
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      // O estado será atualizado via Realtime
       toast.success("Notificação concluída.");
     } catch (err) {
       toast.error("Erro ao atualizar status.");
@@ -92,7 +93,7 @@ const AdminNotificationWidget = () => {
         .eq("id", id);
 
       if (error) throw error;
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      // O estado será atualizado via Realtime
       toast.success("Notificação excluída.");
     } catch (err) {
       toast.error("Erro ao excluir.");

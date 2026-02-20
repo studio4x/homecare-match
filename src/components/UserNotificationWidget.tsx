@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { 
@@ -33,28 +33,18 @@ const UserNotificationWidget = () => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [isAlertEnabled, setIsAlertEnabled] = useState(true);
 
-  const fetchNotifications = async (silent = false) => {
+  const fetchNotifications = useCallback(async (silent = false) => {
     if (!user) return;
     if (!silent) setLoading(true);
     else setIsRefreshing(true);
 
     try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("notifications_enabled")
-        .eq("id", user.id)
-        .maybeSingle();
-      
-      setIsAlertEnabled(profile?.notifications_enabled ?? true);
-
-      // BUSCA APENAS NOTIFICAÇÕES PESSOAIS (NÃO BROADCAST)
+      // Busca todas as notificações do usuário (pessoais e broadcast)
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", user.id)
-        .neq("type", "broadcast")
         .order("created_at", { ascending: false })
         .limit(30);
 
@@ -66,7 +56,7 @@ const UserNotificationWidget = () => {
       setLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user) return;
@@ -74,24 +64,26 @@ const UserNotificationWidget = () => {
     fetchNotifications();
 
     const channel = supabase
-      .channel(`user-personal-notifications-\${user.id}`)
+      .channel(`user-notifications-realtime-\${user.id}`)
       .on(
         "postgres_changes",
         { 
-          event: "INSERT", 
+          event: "*", 
           schema: "public", 
           table: "notifications",
           filter: `user_id=eq.\${user.id}`
         },
         (payload) => {
-          // Só adiciona ao widget se NÃO for broadcast
-          if (payload.new.type !== 'broadcast') {
+          console.log("[UserNotificationWidget] Mudança detectada:", payload.eventType);
+          
+          if (payload.eventType === 'INSERT') {
             setNotifications(prev => {
               if (prev.some(n => n.id === payload.new.id)) return prev;
               return [payload.new, ...prev];
             });
             
-            if (isAlertEnabled && !isOpen) {
+            // Alerta sonoro/visual apenas se não for broadcast (broadcast já tem o modal)
+            if (payload.new.type !== 'broadcast') {
               toast.info(payload.new.title, {
                 description: payload.new.content,
                 action: payload.new.link ? {
@@ -100,20 +92,26 @@ const UserNotificationWidget = () => {
                 } : undefined
               });
             }
+          } else if (payload.eventType === 'UPDATE') {
+            setNotifications(prev => prev.map(n => n.id === payload.new.id ? payload.new : n));
+          } else if (payload.eventType === 'DELETE') {
+            setNotifications(prev => prev.filter(n => n.id === payload.old.id));
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[UserNotificationWidget] Status da inscrição:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, isAlertEnabled, isOpen]);
+  }, [user?.id, fetchNotifications]);
 
   const handleMarkAsRead = async (id: string) => {
     try {
       await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+      // O estado será atualizado via Realtime (UPDATE event)
     } catch (err) {
       console.warn("Erro ao marcar como lido");
     }
@@ -122,7 +120,7 @@ const UserNotificationWidget = () => {
   const handleDelete = async (id: string) => {
     try {
       await supabase.from("notifications").delete().eq("id", id);
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      // O estado será atualizado via Realtime (DELETE event)
       toast.success("Removida.");
     } catch (err) {
       toast.error("Erro ao excluir.");
@@ -170,7 +168,7 @@ const UserNotificationWidget = () => {
                   <div key={n.id} className={cn("p-4 hover:bg-secondary/30 transition-colors group relative", !n.is_read && "bg-primary/5")}>
                     <div className="flex items-start gap-3">
                       {!n.is_read && <Circle className="h-2 w-2 fill-primary text-primary mt-1.5 shrink-0" />}
-                      <div className="flex-1 space-y-1 min-w-0">
+                      <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold leading-none">{n.title}</p>
                         <p className="text-xs text-muted-foreground leading-relaxed">{n.content}</p>
                         <p className="text-[10px] text-muted-foreground pt-1">{formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}</p>

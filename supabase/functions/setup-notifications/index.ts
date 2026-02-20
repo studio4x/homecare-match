@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 
 const corsHeaders = {
@@ -30,36 +29,34 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
+      -- Configurar REPLICA IDENTITY FULL
+      ALTER TABLE public.admin_notifications REPLICA IDENTITY FULL;
+
       ALTER TABLE public.admin_notifications ENABLE ROW LEVEL SECURITY;
-
-      -- Limpeza de políticas antigas
-      DROP POLICY IF EXISTS "Admins can manage notifications" ON public.admin_notifications;
-      DROP POLICY IF EXISTS "System can insert notifications" ON public.admin_notifications;
-
-      -- Apenas administradores podem ver e gerenciar (marcar como lido/excluir)
-      CREATE POLICY "Admins can manage notifications" ON public.admin_notifications 
-      FOR ALL TO authenticated USING (check_is_admin());
-
-      -- Permitir que qualquer usuário autenticado insira (para sugestões, indicações, etc)
-      CREATE POLICY "System can insert notifications" ON public.admin_notifications
-      FOR INSERT TO authenticated WITH CHECK (true);
 
       -- Habilitar Realtime
       DO $$
       BEGIN
-        BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+          CREATE PUBLICATION supabase_realtime;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_publication_tables 
+          WHERE pubname = 'supabase_realtime' 
+          AND schemaname = 'public' 
+          AND tablename = 'admin_notifications'
+        ) THEN
           ALTER PUBLICATION supabase_realtime ADD TABLE public.admin_notifications;
-        EXCEPTION WHEN others THEN NULL;
-        END;
-      END
-      $$;
+        END IF;
+      END $$;
 
       NOTIFY pgrst, 'reload schema';
     `;
     await client.queryObject(sql);
     await client.end();
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de notificações atualizado!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de notificações admin atualizado com Realtime robusto!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

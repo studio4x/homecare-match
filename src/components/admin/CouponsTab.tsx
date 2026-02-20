@@ -37,7 +37,8 @@ import {
   Edit2,
   Mail,
   User,
-  Save
+  Save,
+  UserPlus
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +64,8 @@ const CouponsTab = () => {
     code: "",
     free_days: 30,
     max_uses: 100,
-    is_active: true
+    is_active: true,
+    only_new_users: true
   });
 
   const fetchCoupons = async () => {
@@ -108,7 +110,8 @@ const CouponsTab = () => {
       code: coupon.code,
       free_days: coupon.free_days,
       max_uses: coupon.max_uses,
-      is_active: coupon.is_active
+      is_active: coupon.is_active,
+      only_new_users: coupon.only_new_users ?? true
     });
     setOpenDialog(true);
   };
@@ -148,7 +151,8 @@ const CouponsTab = () => {
         code: formData.code.trim().toUpperCase(),
         free_days: formData.free_days,
         max_uses: formData.max_uses,
-        is_active: formData.is_active
+        is_active: formData.is_active,
+        only_new_users: formData.only_new_users
       };
 
       if (editingId) {
@@ -168,7 +172,7 @@ const CouponsTab = () => {
       
       setOpenDialog(false);
       setEditingId(null);
-      setFormData({ code: "", free_days: 30, max_uses: 100, is_active: true });
+      setFormData({ code: "", free_days: 30, max_uses: 100, is_active: true, only_new_users: true });
       fetchCoupons();
     } catch (err: any) {
       toast.error(err.message.includes("unique") ? "Este código já existe." : "Erro ao salvar cupom.");
@@ -204,7 +208,7 @@ const CouponsTab = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button onClick={() => { setEditingId(null); setFormData({ code: "", free_days: 30, max_uses: 100, is_active: true }); setOpenDialog(true); }} className="gap-2">
+          <Button onClick={() => { setEditingId(null); setFormData({ code: "", free_days: 30, max_uses: 100, is_active: true, only_new_users: true }); setOpenDialog(true); }} className="gap-2">
             <Plus className="h-4 w-4" /> Novo Cupom
           </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={handleSync} disabled={isSyncing}>
@@ -231,6 +235,7 @@ const CouponsTab = () => {
               <TableRow>
                 <TableHead>Código</TableHead>
                 <TableHead>Benefício</TableHead>
+                <TableHead>Restrição</TableHead>
                 <TableHead>Uso / Limite</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -238,7 +243,7 @@ const CouponsTab = () => {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={5} className="h-32 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="h-32 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></TableCell></TableRow>
               ) : coupons.length > 0 ? (
                 coupons.map((c) => (
                   <TableRow key={c.id}>
@@ -250,6 +255,17 @@ const CouponsTab = () => {
                         <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                         {c.free_days} dias grátis
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {c.only_new_users ? (
+                        <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 gap-1">
+                          <UserPlus className="h-3 w-3" /> Novos Usuários
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 gap-1">
+                          <Users className="h-3 w-3" /> Todos
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -283,7 +299,7 @@ const CouponsTab = () => {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground italic">Nenhum cupom criado.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="h-32 text-center text-muted-foreground italic">Nenhum cupom criado.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
@@ -330,9 +346,25 @@ const CouponsTab = () => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/10">
-              <Label>Cupom Ativo</Label>
-              <Switch checked={formData.is_active} onCheckedChange={v => setFormData({...formData, is_active: v})} />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/10">
+                <div className="space-y-0.5">
+                  <Label>Cupom Ativo</Label>
+                  <p className="text-[10px] text-muted-foreground">Define se o cupom pode ser validado.</p>
+                </div>
+                <Switch checked={formData.is_active} onCheckedChange={v => setFormData({...formData, is_active: v})} />
+              </div>
+
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-amber-50/50 border-amber-100">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-2">
+                    <UserPlus className="h-3 w-3 text-amber-600" />
+                    Apenas Novos Usuários
+                  </Label>
+                  <p className="text-[10px] text-muted-foreground">Se ativo, o cupom só funcionará no formulário de cadastro.</p>
+                </div>
+                <Switch checked={formData.only_new_users} onCheckedChange={v => setFormData({...formData, only_new_users: v})} />
+              </div>
             </div>
 
             <DialogFooter className="pt-4">

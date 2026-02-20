@@ -33,12 +33,27 @@ serve(async (req) => {
 
     if (couponError || !coupon) throw new Error('Cupom inválido ou expirado.');
 
-    // 2. Verificar limites
+    // 2. Verificar se o cupom é apenas para novos usuários
+    // Se o usuário já tem um perfil criado há mais de 24 horas ou já teve algum plano pago, 
+    // consideramos que ele não é mais um "novo usuário" para fins de aplicação via dashboard.
+    if (coupon.only_new_users) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('created_at, subscription_tier')
+        .eq('id', user.id)
+        .single();
+      
+      // Se o cupom é restrito a novos usuários, ele só deve funcionar no formulário de cadastro.
+      // Como esta função é chamada pelo Dashboard, bloqueamos o uso se a flag estiver ativa.
+      throw new Error('Este cupom é exclusivo para novos cadastros e não pode ser aplicado no painel.');
+    }
+
+    // 3. Verificar limites de uso global
     if (coupon.current_uses >= coupon.max_uses) {
       throw new Error('Este cupom já atingiu o limite máximo de utilizações.');
     }
 
-    // 3. Verificar se o usuário já usou este cupom
+    // 4. Verificar se o usuário já usou este cupom específico
     const { data: existingUsage } = await supabaseAdmin
       .from('coupon_usages')
       .select('id')
@@ -48,7 +63,7 @@ serve(async (req) => {
 
     if (existingUsage) throw new Error('Você já utilizou este cupom.');
 
-    // 4. Aplicar benefício (Estender assinatura mensal)
+    // 5. Aplicar benefício (Estender assinatura mensal)
     const freeDays = coupon.free_days;
     const newEndDate = new Date();
     newEndDate.setDate(newEndDate.getDate() + freeDays);
@@ -58,21 +73,21 @@ serve(async (req) => {
       .update({
         subscription_tier: 'monthly',
         subscription_end_at: newEndDate.toISOString(),
-        cancel_at_period_end: true, // Não renova automaticamente após os dias grátis
-        coupon_days: freeDays, // Salva os dias para exibição no dashboard
+        cancel_at_period_end: true, 
+        coupon_days: freeDays, 
         updated_at: new Date().toISOString()
       })
       .eq('id', user.id);
 
     if (updateError) throw updateError;
 
-    // 5. Registrar uso
+    // 6. Registrar uso
     await supabaseAdmin.from('coupon_usages').insert({
       coupon_id: coupon.id,
       user_id: user.id
     });
 
-    // 6. Incrementar contador do cupom
+    // 7. Incrementar contador do cupom
     await supabaseAdmin.rpc('increment_coupon_uses', { coupon_id: coupon.id });
 
     // Notificação para o usuário

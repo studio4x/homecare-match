@@ -13,7 +13,7 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-coupons] Ajustando referências de integridade...");
+    console.log("[setup-coupons] Ajustando referências de integridade e novas colunas...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
@@ -27,14 +27,18 @@ serve(async (req) => {
         max_uses INTEGER NOT NULL DEFAULT 100,
         current_uses INTEGER NOT NULL DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
+        only_new_users BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- 2. Tabela de Uso (Ajustada para referenciar auth.users para maior robustez em triggers)
+      -- Garantir que a coluna existe caso a tabela já tenha sido criada
+      ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS only_new_users BOOLEAN DEFAULT TRUE;
+
+      -- 2. Tabela de Uso
       CREATE TABLE IF NOT EXISTS public.coupon_usages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         coupon_id UUID NOT NULL REFERENCES public.coupons(id) ON DELETE CASCADE,
-        user_id UUID NOT NULL, -- Referência lógica ao ID do usuário
+        user_id UUID NOT NULL, 
         used_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(coupon_id, user_id)
       );
@@ -79,7 +83,7 @@ serve(async (req) => {
     await client.queryObject(sql);
     await client.end();
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de cupons atualizado!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de cupons atualizado com suporte a restrição de novos usuários!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

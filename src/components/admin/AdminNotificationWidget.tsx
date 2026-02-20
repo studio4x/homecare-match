@@ -10,7 +10,8 @@ import {
   Loader2, 
   ExternalLink, 
   Inbox,
-  Circle
+  Circle,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,9 +30,14 @@ import { Link } from "react-router-dom";
 const AdminNotificationWidget = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true);
+
     try {
       const { data, error } = await supabase
         .from("admin_notifications")
@@ -46,21 +52,20 @@ const AdminNotificationWidget = () => {
       console.error("[Notifications] Erro ao carregar:", err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     fetchNotifications();
 
-    // Realtime subscription robusta
     const channel = supabase
       .channel("admin-notifications-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "admin_notifications" },
         (payload) => {
-          console.log("[AdminNotificationWidget] Mudança detectada:", payload.eventType);
-          fetchNotifications();
+          fetchNotifications(true);
         }
       )
       .subscribe();
@@ -78,7 +83,6 @@ const AdminNotificationWidget = () => {
         .eq("id", id);
 
       if (error) throw error;
-      // O estado será atualizado via Realtime
       toast.success("Notificação concluída.");
     } catch (err) {
       toast.error("Erro ao atualizar status.");
@@ -93,10 +97,30 @@ const AdminNotificationWidget = () => {
         .eq("id", id);
 
       if (error) throw error;
-      // O estado será atualizado via Realtime
       toast.success("Notificação excluída.");
     } catch (err) {
       toast.error("Erro ao excluir.");
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (notifications.length === 0) return;
+    if (!confirm("Deseja excluir todas as notificações administrativas pendentes?")) return;
+
+    setIsDeletingAll(true);
+    try {
+      const { error } = await supabase
+        .from("admin_notifications")
+        .delete()
+        .eq("is_completed", false);
+
+      if (error) throw error;
+      setNotifications([]);
+      toast.success("Todas as notificações foram excluídas.");
+    } catch (err) {
+      toast.error("Erro ao excluir notificações.");
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
@@ -126,9 +150,21 @@ const AdminNotificationWidget = () => {
               <Bell className="h-5 w-5" />
               <h3 className="font-bold">Notificações Admin</h3>
             </div>
-            <Badge variant="secondary" className="bg-white/20 text-white border-none">
-              {notifications.length} pendentes
-            </Badge>
+            <div className="flex items-center gap-2">
+              {notifications.length > 0 && (
+                <button 
+                  onClick={handleDeleteAll} 
+                  disabled={isDeletingAll}
+                  className="p-1 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
+                  title="Excluir todas"
+                >
+                  {isDeletingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                </button>
+              )}
+              <button onClick={() => fetchNotifications(true)} disabled={isRefreshing} className="p-1 hover:bg-white/20 rounded">
+                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              </button>
+            </div>
           </div>
 
           <ScrollArea className="h-[400px]">
@@ -199,12 +235,6 @@ const AdminNotificationWidget = () => {
               </div>
             )}
           </ScrollArea>
-          
-          <div className="p-2 bg-secondary/10 border-t text-center">
-            <Button variant="link" size="sm" className="text-[10px] text-muted-foreground" onClick={fetchNotifications}>
-              Atualizar Lista
-            </Button>
-          </div>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

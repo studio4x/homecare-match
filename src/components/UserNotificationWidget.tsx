@@ -32,6 +32,7 @@ const UserNotificationWidget = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
   const fetchNotifications = useCallback(async (silent = false) => {
@@ -73,15 +74,11 @@ const UserNotificationWidget = () => {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log("[UserNotificationWidget] Mudança detectada:", payload.eventType);
-          
           if (payload.eventType === 'INSERT') {
             setNotifications(prev => {
               if (prev.some(n => n.id === payload.new.id)) return prev;
               return [payload.new, ...prev];
             });
-            
-            // Removido o toast.info para manter apenas a atualização silenciosa do widget
           } else if (payload.eventType === 'UPDATE') {
             setNotifications(prev => prev.map(n => n.id === payload.new.id ? payload.new : n));
           } else if (payload.eventType === 'DELETE') {
@@ -113,6 +110,27 @@ const UserNotificationWidget = () => {
     }
   };
 
+  const handleDeleteAll = async () => {
+    if (!user || notifications.length === 0) return;
+    if (!confirm("Deseja excluir todas as suas notificações?")) return;
+
+    setIsDeletingAll(true);
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      setNotifications([]);
+      toast.success("Todas as notificações foram excluídas.");
+    } catch (err) {
+      toast.error("Erro ao excluir notificações.");
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   if (!user) return null;
@@ -140,9 +158,21 @@ const UserNotificationWidget = () => {
               <Bell className="h-5 w-5" />
               <h3 className="font-bold">Minhas Notificações</h3>
             </div>
-            <button onClick={() => fetchNotifications(true)} disabled={isRefreshing} className="p-1 hover:bg-white/20 rounded">
-              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-            </button>
+            <div className="flex items-center gap-2">
+              {notifications.length > 0 && (
+                <button 
+                  onClick={handleDeleteAll} 
+                  disabled={isDeletingAll}
+                  className="p-1 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
+                  title="Excluir todas"
+                >
+                  {isDeletingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                </button>
+              )}
+              <button onClick={() => fetchNotifications(true)} disabled={isRefreshing} className="p-1 hover:bg-white/20 rounded">
+                <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              </button>
+            </div>
           </div>
 
           <ScrollArea className="h-[350px]">

@@ -48,7 +48,7 @@ serve(async (req) => {
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS push_layout_json JSONB DEFAULT '{"bgColor": "#ffffff", "titleColor": "#0f172a", "bodyColor": "#64748b", "borderRadius": "32", "iconBgColor": "#007BFF1a", "iconColor": "#007BFF", "shadowIntensity": "0.25", "ctaBgColor": "#007BFF", "ctaTextColor": "#ffffff", "backdropColor": "rgba(0,0,0,0.05)", "duration": 15}'::jsonb;
 
-      -- ATUALIZAÇÃO DA FUNÇÃO DE CRIAÇÃO DE USUÁRIO PARA SUPORTAR CUPOM
+      -- ATUALIZAÇÃO DA FUNÇÃO DE CRIAÇÃO DE USUÁRIO PARA SUPORTAR CUPOM (INSERÇÃO ATÔMICA)
       CREATE OR REPLACE FUNCTION public.handle_new_user()
       RETURNS trigger
       LANGUAGE plpgsql
@@ -60,6 +60,9 @@ serve(async (req) => {
         user_role TEXT;
         meta_coupon TEXT;
         coupon_record RECORD;
+        final_tier TEXT;
+        final_end_at TIMESTAMP WITH TIME ZONE;
+        final_coupon_days INTEGER;
       BEGIN
         -- Captura metadados
         user_role := new.raw_user_meta_data ->> 'role';
@@ -77,17 +80,10 @@ serve(async (req) => {
           END IF;
         END IF;
 
-        -- Inserção básica do perfil
-        INSERT INTO public.profiles (id, full_name, email, is_admin, role, subscription_tier, trial_started_at)
-        VALUES (
-          new.id, 
-          new.raw_user_meta_data ->> 'full_name',
-          new.email,
-          (user_role = 'admin'),
-          user_role,
-          CASE WHEN user_role = 'professional' THEN 'free_trial' ELSE NULL END,
-          CASE WHEN user_role = 'professional' THEN NOW() ELSE NULL END
-        );
+        -- Valores padrão
+        final_tier := CASE WHEN user_role = 'professional' THEN 'free_trial' ELSE NULL END;
+        final_end_at := NULL;
+        final_coupon_days := NULL;
 
         -- APLICAÇÃO DE CUPOM NO CADASTRO (Apenas para profissionais)
         IF meta_coupon IS NOT NULL AND user_role = 'professional' THEN
@@ -98,15 +94,9 @@ serve(async (req) => {
           LIMIT 1;
           
           IF coupon_record.id IS NOT NULL THEN
-            -- Atualiza o perfil recém criado com o benefício do cupom
-            UPDATE public.profiles 
-            SET 
-              subscription_tier = 'monthly',
-              subscription_end_at = NOW() + (coupon_record.free_days || ' days')::interval,
-              cancel_at_period_end = true,
-              coupon_days = coupon_record.free_days,
-              updated_at = NOW()
-            WHERE id = new.id;
+            final_tier := 'monthly';
+            final_end_at := NOW() + (coupon_record.free_days || ' days')::interval;
+            final_coupon_days := coupon_record.free_days;
 
             -- Registra o uso do cupom
             INSERT INTO public.coupon_usages (coupon_id, user_id) VALUES (coupon_record.id, new.id);
@@ -115,6 +105,32 @@ serve(async (req) => {
             UPDATE public.coupons SET current_uses = current_uses + 1 WHERE id = coupon_record.id;
           END IF;
         END IF;
+
+        -- Inserção única do perfil com todos os dados (Evita race conditions)
+        INSERT INTO public.profiles (
+          id, 
+          full_name, 
+          email, 
+          is_admin, 
+          role, 
+          subscription_tier, 
+          subscription_end_at,
+          trial_started_at,
+          coupon_days,
+          cancel_at_period_end
+        )
+        VALUES (
+          new.id, 
+          new.raw_user_meta_data ->> 'full_name',
+          new.email,
+          (user_role = 'admin'),
+          user_role,
+          final_tier,
+          final_end_at,
+          CASE WHEN user_role = 'professional' AND final_coupon_days IS NULL THEN NOW() ELSE NULL END,
+          final_coupon_days,
+          (final_coupon_days IS NOT NULL)
+        );
 
         RETURN new;
       END;

@@ -45,22 +45,30 @@ const UserLayout = () => {
     const fetchProfile = async () => {
       if (!user) return;
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
         
-        if (data) {
-          if (data.is_admin || data.role === 'admin') {
-            setIsForbiddenAdmin(true);
-            navigate('/admin', { replace: true });
-            return;
-          }
-          
-          setRole(data.role);
-          setProfile(data);
+        if (error) throw error;
+
+        // Se o usuário está logado mas o perfil não existe, ele foi excluído
+        if (!data) {
+          console.warn("[UserLayout] Perfil não encontrado. Forçando logout...");
+          await signOut();
+          navigate('/login', { replace: true });
+          return;
         }
+
+        if (data.is_admin || data.role === 'admin') {
+          setIsForbiddenAdmin(true);
+          navigate('/admin', { replace: true });
+          return;
+        }
+        
+        setRole(data.role);
+        setProfile(data);
       } catch (err) {
         console.error("Erro ao carregar perfil no layout:", err);
       } finally {

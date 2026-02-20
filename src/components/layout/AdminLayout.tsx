@@ -69,11 +69,20 @@ const AdminLayout = () => {
         }
 
         const { data: rpcData } = await supabase.rpc('check_is_admin');
-        const { data: profileData } = await supabase
+        const { data: profileData, error } = await supabase
           .from('profiles')
           .select('role, is_admin')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (!profileData && !rpcData) {
+          console.warn("[AdminLayout] Perfil não encontrado. Forçando logout...");
+          await signOut();
+          navigate('/login', { replace: true });
+          return;
+        }
 
         if (rpcData === true || profileData?.is_admin === true || profileData?.role === 'admin') {
           setIsAdmin(true);

@@ -152,8 +152,6 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           throw error;
         }
 
-        // Se o Supabase retornar um usuário mas ele já existir (proteção de enumeração), 
-        // o signUpData.user.identities será um array vazio.
         if (signUpData.user && signUpData.user.identities && signUpData.user.identities.length === 0) {
           setShowEmailExistsModal(true);
           return;

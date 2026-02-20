@@ -36,6 +36,7 @@ import AdminNotificationWidget from "../admin/AdminNotificationWidget";
 
 const AdminLayout = () => {
   const { user, session, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -99,7 +100,7 @@ const AdminLayout = () => {
     };
 
     verifyAdmin();
-  }, [user, authLoading]);
+  }, [user, authLoading, navigate, signOut]);
 
   if (authLoading || (loading && !hasVerifiedOnce.current)) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;

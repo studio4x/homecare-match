@@ -440,6 +440,7 @@ const Index = () => {
               <LandingVideoPlayer 
                 url={landingVideoUrl} 
                 title="Apresentação para Profissionais"
+                autoplay={false} // Desativar autoplay
               />
             </div>
           </div>

@@ -254,7 +254,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
                       src={videoUrl} 
                       className="w-full h-full object-contain"
                       controls
-                      autoPlay
+                      autoPlay={false} // Desativar autoplay
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-3">

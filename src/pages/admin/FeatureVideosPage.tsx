@@ -251,6 +251,7 @@ const FeatureVideosPage = () => {
                         <LandingVideoPlayer 
                           url={sourceUrl}
                           title={feature.title}
+                          autoplay={false} // Desativar autoplay
                         />
                       )}
                     </div>
@@ -264,7 +265,7 @@ const FeatureVideosPage = () => {
                           onClick={() => handleUploadClick(feature.feature_key)}
                           disabled={isUploading === feature.feature_key}
                         >
-                          {isUploading === feature.feature_key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                          {isUploading === feature.feature_key ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                           Substituir por Upload
                         </Button>
                         <Button 

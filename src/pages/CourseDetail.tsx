@@ -618,7 +618,7 @@ const CourseDetail = () => {
                 src={videoToShow!}
                 className="h-full w-full object-contain"
                 controls
-                autoPlay
+                autoPlay={false} // Desativar autoplay
               />
             )}
           </AspectRatio>
@@ -655,6 +655,7 @@ const CourseDetail = () => {
                         <LandingVideoPlayer // Use LandingVideoPlayer for lesson videos
                           url={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
                           title={selectedLesson.title}
+                          autoplay={false} // Desativar autoplay
                         />
                       ) : (
                         <iframe 

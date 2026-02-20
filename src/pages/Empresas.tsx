@@ -183,6 +183,7 @@ const Empresas = () => {
               <LandingVideoPlayer 
                 url={landingVideoUrl} 
                 title="Apresentação para Empresas"
+                autoplay={false} // Desativar autoplay
               />
             </div>
           </div>

@@ -7,18 +7,22 @@ interface LandingVideoPlayerProps {
   url: string;
   title?: string;
   className?: string;
+  autoplay?: boolean; // Adicionando prop autoplay
 }
 
-const LandingVideoPlayer = ({ url, title, className }: LandingVideoPlayerProps) => {
+const LandingVideoPlayer = ({ url, title, className, autoplay = false }: LandingVideoPlayerProps) => {
   const isYouTubeUrl = url && (url.includes("youtube.com") || url.includes("youtu.be"));
   const processedUrl = isYouTubeUrl ? getYouTubeEmbedUrl(url) : url;
   const isEmbeddedVideo = isYouTubeUrl || processedUrl.includes("vimeo.com/video");
+
+  // Adiciona autoplay=1 apenas se a prop autoplay for verdadeira
+  const youtubeEmbedUrl = isYouTubeUrl ? getYouTubeEmbedUrl(url, autoplay) : processedUrl;
 
   return (
     <div className={cn("relative w-full h-full overflow-hidden bg-black shadow-2xl border border-border/50", className)}>
       {isEmbeddedVideo ? (
         <iframe
-          src={processedUrl}
+          src={youtubeEmbedUrl}
           title={title || "Vídeo"}
           className="absolute inset-0 w-full h-full border-0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -30,8 +34,8 @@ const LandingVideoPlayer = ({ url, title, className }: LandingVideoPlayerProps) 
           className="w-full h-full object-contain"
           controls
           playsInline
-          autoPlay
-          muted
+          autoPlay={autoplay} // Usando a prop autoplay aqui
+          muted={autoplay} // Muta se for autoplay para melhor UX
         />
       )}
 

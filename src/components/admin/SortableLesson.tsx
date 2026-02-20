@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import { Textarea } from '@/components/ui/textarea';
+import LandingVideoPlayer from '../LandingVideoPlayer'; // Import LandingVideoPlayer
+import { getYouTubeEmbedUrl } from '@/lib/video-utils'; // Import getYouTubeEmbedUrl
 
 interface Lesson {
   id: string;
@@ -50,6 +52,10 @@ const SortableLesson = ({
     zIndex: isDragging ? 50 : 'auto',
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const isYouTubeUrl = lesson.resource_url && (lesson.resource_url.includes("youtube.com") || lesson.resource_url.includes("youtu.be"));
+  const processedVideoUrl = isYouTubeUrl ? getYouTubeEmbedUrl(lesson.resource_url) : lesson.resource_url;
+  const isEmbeddedVideo = isYouTubeUrl || (processedVideoUrl && processedVideoUrl.includes("vimeo.com/video"));
 
   return (
     <div ref={setNodeRef} style={style} className="border bg-card rounded-md p-3 space-y-3 shadow-sm relative group">
@@ -129,6 +135,15 @@ const SortableLesson = ({
             placeholder="Link ou caminho do arquivo" 
             className="h-8 text-sm"
           />
+          {lesson.type === 'video' && lesson.resource_url && (
+            <div className="mt-2 aspect-video rounded-lg overflow-hidden bg-black border">
+              <LandingVideoPlayer 
+                url={lesson.resource_url} 
+                title={lesson.title} 
+                autoplay={false} // Desativar autoplay
+              />
+            </div>
+          )}
         </div>
       )}
 

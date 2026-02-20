@@ -159,6 +159,7 @@ const Familias = () => {
               <LandingVideoPlayer 
                 url={landingVideoUrl} 
                 title="Apresentação para Famílias"
+                autoplay={false} // Desativar autoplay
               />
             </div>
           </div>

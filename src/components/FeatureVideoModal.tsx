@@ -40,6 +40,7 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
             url={video.url} 
             title={video.title} 
             className="border-none"
+            autoplay={false} // Desativar autoplay
           />
         </AspectRatio>
       </DialogContent>

@@ -236,15 +236,28 @@ const PushManager = () => {
 
       const subJson = subscription.toJSON();
 
-      const { error } = await supabase.from("push_subscriptions").insert({
-        user_id: user?.id || null,
-        subscription: subJson,
-        device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "mobile" : "desktop",
+      // Detecta o navegador de forma simples
+      const ua = navigator.userAgent;
+      let browser = "Outro";
+      if (ua.includes("Firefox")) browser = "Firefox";
+      else if (ua.includes("SamsungBrowser")) browser = "Samsung";
+      else if (ua.includes("Opera") || ua.includes("OPR")) browser = "Opera";
+      else if (ua.includes("Edge")) browser = "Edge";
+      else if (ua.includes("Chrome")) browser = "Chrome";
+      else if (ua.includes("Safari")) browser = "Safari";
+
+      const { error } = await supabase.functions.invoke('subscribe-push', {
+        body: {
+          user_id: user?.id || null,
+          subscription: subJson,
+          device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "mobile" : "desktop",
+          browser: browser
+        }
       });
 
       if (error) {
-        console.error("[PushManager] Supabase insert error:", error);
-        toast.error("Erro ao salvar inscrição no servidor. Verifique os logs do admin.");
+        console.error("[PushManager] Edge Function error:", error);
+        toast.error("Erro ao salvar inscrição no servidor.");
         setIsSubscribing(false);
         return;
       }

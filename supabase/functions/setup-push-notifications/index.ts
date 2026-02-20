@@ -23,8 +23,16 @@ serve(async (req) => {
         user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
         subscription JSONB NOT NULL,
         device_type TEXT,
+        browser TEXT,
+        city TEXT,
+        ip_address TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      -- Garantir que as colunas existam caso a tabela já tenha sido criada
+      ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS browser TEXT;
+      ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS city TEXT;
+      ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS ip_address TEXT;
 
       CREATE TABLE IF NOT EXISTS public.push_notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

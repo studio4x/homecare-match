@@ -41,6 +41,7 @@ import {
   Smartphone,
   Monitor,
   User,
+  Globe,
   RotateCcw,
   Palette,
   Megaphone,
@@ -721,7 +722,8 @@ const PushNotificationsPage = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Usuário</TableHead>
-                    <TableHead>Dispositivo</TableHead>
+                    <TableHead>Dispositivo / Navegador</TableHead>
+                    <TableHead>Localização / IP</TableHead>
                     <TableHead>Data Inscrição</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -740,9 +742,27 @@ const PushNotificationsPage = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2 text-xs">
-                          {s.device_type === 'mobile' ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
-                          <span className="capitalize">{s.device_type || 'Desconhecido'}</span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-xs font-medium">
+                            {s.device_type === 'mobile' ? <Smartphone className="h-3 w-3 text-primary" /> : <Monitor className="h-3 w-3 text-primary" />}
+                            <span className="capitalize">{s.device_type || 'Desconhecido'}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <Globe className="h-3 w-3" />
+                            {s.browser || 'N/A'}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs font-medium">
+                            <MapPin className="h-3 w-3 text-destructive" />
+                            {s.city || 'Desconhecida'}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono">
+                            <ShieldCheck className="h-3 w-3" />
+                            {s.ip_address || '0.0.0.0'}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{format(new Date(s.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</TableCell>

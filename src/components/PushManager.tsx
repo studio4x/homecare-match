@@ -179,7 +179,7 @@ const PushManager = () => {
   return (
     <>
       <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
-        <DialogContent className="w-[95vw] max-w-[400px] rounded-3xl p-6 border-none shadow-2xl">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-[400px] rounded-3xl p-6 border-none shadow-2xl">
           <DialogHeader>
             <div className="mx-auto h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
               <BellRing className="h-7 w-7 text-primary animate-pulse" />
@@ -201,7 +201,7 @@ const PushManager = () => {
 
       <Dialog open={!!activeNotification} onOpenChange={(open) => !open && setActiveNotification(null)}>
         <DialogContent 
-          className="w-[95vw] max-w-[400px] p-0 overflow-hidden border-none shadow-2xl [&>button:last-child]:hidden"
+          className="w-[calc(100%-2rem)] max-w-[400px] p-0 overflow-hidden border-none shadow-2xl [&>button:last-child]:hidden"
           style={{ borderRadius: `${layout.borderRadius}px`, backgroundColor: layout.bgColor }}
         >
           {activeNotification && (

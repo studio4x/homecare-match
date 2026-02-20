@@ -66,7 +66,7 @@ const App = () => (
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Sonner />
+          <Sonner position="bottom-right" offset={24} />
           <SpeedInsights />
           <AppErrorBoundary>
             <Routes>

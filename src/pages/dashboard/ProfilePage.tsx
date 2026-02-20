@@ -43,7 +43,8 @@ import {
   PlayCircle,
   HelpCircle,
   MapPin,
-  Navigation
+  Navigation,
+  Bell
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import OnboardingModal from "@/components/OnboardingModal";
 import { getCoordinates } from "@/lib/geo-utils";
@@ -138,6 +140,7 @@ const ProfilePage = () => {
           ...data,
           availability: data.availability || [],
           patient_profiles: data.patient_profiles || [],
+          notifications_enabled: data.notifications_enabled ?? true
         });
       }
     } catch (err) {
@@ -368,6 +371,7 @@ const ProfilePage = () => {
         address_street: profile.address_street,
         address_number: profile.address_number,
         address_complement: profile.address_complement,
+        notifications_enabled: profile.notifications_enabled,
         lat: finalLat,
         lng: finalLng,
         updated_at: new Date().toISOString()
@@ -860,6 +864,27 @@ const ProfilePage = () => {
         </div>
 
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Preferências</CardTitle>
+              <CardDescription className="text-[10px]">
+                Gerencie como você deseja ser notificado sobre novidades e contatos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/10">
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-semibold">Notificações em Tempo Real</Label>
+                  <p className="text-[10px] text-muted-foreground">Alertas sonoros e visuais no dashboard.</p>
+                </div>
+                <Switch 
+                  checked={!!profile.notifications_enabled} 
+                  onCheckedChange={(v) => setProfile({ ...profile, notifications_enabled: v })} 
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação</CardTitle>

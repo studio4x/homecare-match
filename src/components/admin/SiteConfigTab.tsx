@@ -28,7 +28,8 @@ import {
   Send, 
   Timer, 
   Key,
-  Ticket
+  Ticket,
+  Settings2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -76,6 +77,7 @@ const SiteConfigTab = () => {
   const [isSyncingPush, setIsSyncingPush] = useState(false);
   const [isSyncingCron, setIsSyncingCron] = useState(false);
   const [isSyncingCoupons, setIsSyncingCoupons] = useState(false);
+  const [isSyncingPrefs, setIsSyncingPrefs] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -269,6 +271,19 @@ const SiteConfigTab = () => {
       toast.error("Erro ao configurar cupons.");
     } finally {
       setIsSyncingCoupons(false);
+    }
+  };
+
+  const handleSyncPrefs = async () => {
+    setIsSyncingPrefs(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-user-preferences');
+      if (error) throw error;
+      toast.success("Preferências de usuário sincronizadas!");
+    } catch (error: any) {
+      toast.error("Erro ao configurar preferências.");
+    } finally {
+      setIsSyncingPrefs(false);
     }
   };
 
@@ -649,6 +664,16 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncCoupons} disabled={isSyncingCoupons}>
               {isSyncingCoupons ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Preferências de Usuário</p>
+              <p className="text-xs text-amber-800/70">Adiciona colunas de controle de notificações no perfil.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncPrefs} disabled={isSyncingPrefs}>
+              {isSyncingPrefs ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings2 className="h-4 w-4" />}
             </Button>
           </div>
 

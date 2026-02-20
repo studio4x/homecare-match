@@ -33,6 +33,7 @@ const UserNotificationWidget = () => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(true);
 
   const fetchNotifications = async (silent = false) => {
     if (!user) return;
@@ -40,6 +41,22 @@ const UserNotificationWidget = () => {
     else setIsRefreshing(true);
 
     try {
+      // Busca perfil para checar se notificações estão ativas
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("notifications_enabled")
+        .eq("id", user.id)
+        .single();
+      
+      setIsEnabled(profile?.notifications_enabled ?? true);
+
+      if (profile?.notifications_enabled === false) {
+        setNotifications([]);
+        setLoading(false);
+        setIsRefreshing(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
@@ -62,7 +79,6 @@ const UserNotificationWidget = () => {
 
     fetchNotifications();
 
-    // Canal de Realtime corrigido (sem escape incorreto)
     const channel = supabase
       .channel(`user-notifications-${user.id}`)
       .on(
@@ -74,23 +90,34 @@ const UserNotificationWidget = () => {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log("[Realtime] Mudança detectada:", payload);
-          if (payload.eventType === 'INSERT') {
-            setNotifications(prev => [payload.new, ...prev]);
-            toast.info("Você tem uma nova notificação!");
-          } else {
-            fetchNotifications(true);
+          if (isEnabled) {
+            if (payload.eventType === 'INSERT') {
+              setNotifications(prev => [payload.new, ...prev]);
+              toast.info("Você tem uma nova notificação!");
+            } else {
+              fetchNotifications(true);
+            }
           }
         }
       )
-      .subscribe((status) => {
-        console.log(`[Realtime] Status da conexão: ${status}`);
-      });
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${user.id}`
+        },
+        (payload) => {
+          setIsEnabled(payload.new.notifications_enabled ?? true);
+        }
+      )
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, isEnabled]);
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -123,7 +150,7 @@ const UserNotificationWidget = () => {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
-  if (!user) return null;
+  if (!user || !isEnabled) return null;
 
   return (
     <div className="fixed bottom-20 right-6 z-[60]">
@@ -199,7 +226,7 @@ const UserNotificationWidget = () => {
                             variant="outline" 
                             size="sm" 
                             className="h-7 w-7 p-0 text-success hover:bg-success/10 border-success/20"
-                            onClick={() => handleMarkAsRead(n.id)}
+                            onClick={() => handleMarkAsRead(id)}
                             title="Marcar como lida"
                           >
                             <Check className="h-3.5 w-3.5" />

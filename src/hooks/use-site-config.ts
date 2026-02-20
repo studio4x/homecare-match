@@ -76,6 +76,7 @@ export const useSiteConfig = () => {
 
       return data;
     },
-    staleTime: 1000 * 60 * 5,
+    // Reduzido de 5 minutos para 30 segundos para refletir mudanças de layout mais rápido
+    staleTime: 1000 * 30,
   });
 };

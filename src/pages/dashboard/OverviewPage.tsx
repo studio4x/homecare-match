@@ -34,7 +34,8 @@ import {
   TrendingUp,
   Ticket,
   Gift,
-  Info
+  Info,
+  PlayCircle // Added PlayCircle icon
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -45,6 +46,8 @@ import PlanSelectionModal from "@/components/PlanSelectionModal";
 import OnboardingModal from "@/components/OnboardingModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
+import { Switch } from "@/components/ui/switch"; 
+import { Label } from "@/components/ui/label"; // Added Label import
 
 const OverviewPage = () => {
   const { user } = useAuth();
@@ -57,6 +60,7 @@ const OverviewPage = () => {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
+  const [isSavingOnboardingPref, setIsSavingOnboardingPref] = useState(false); // New state for saving onboarding preference
 
   // Busca detalhes do plano anual para o tooltip
   const { data: annualPlan } = useQuery({
@@ -79,10 +83,12 @@ const OverviewPage = () => {
         .single();
       
       if (error) throw error;
+
       setProfile(data);
       
       // Dispara onboarding se for profissional ou empresa e ainda não viu
-      if ((data.role === 'professional' || data.role === 'company' || data.role === 'family') && !data.has_seen_onboarding) {
+      // Apenas se o modal não estiver já aberto e o usuário não tiver desativado explicitamente
+      if ((data.role === 'professional' || data.role === 'company' || data.role === 'family') && !data.has_seen_onboarding && !isOnboardingOpen) {
         setIsOnboardingOpen(true);
       }
 
@@ -240,6 +246,28 @@ const OverviewPage = () => {
       fetchProfile();
     } catch (err) {
       toast.error("Erro ao reiniciar processo.");
+    }
+  };
+
+  const handleToggleOnboardingVisibility = async (checked: boolean) => {
+    if (!user) return;
+    setIsSavingOnboardingPref(true);
+    try {
+      // If checked is true, it means the user wants to see the tutorial again, so has_seen_onboarding should be false.
+      // If checked is false, it means the user does NOT want to see the tutorial again, so has_seen_onboarding should be true.
+      const newHasSeenOnboarding = !checked; 
+      const { error } = await supabase
+        .from("profiles")
+        .update({ has_seen_onboarding: newHasSeenOnboarding })
+        .eq("id", user.id);
+      
+      if (error) throw error;
+      setProfile(prev => prev ? { ...prev, has_seen_onboarding: newHasSeenOnboarding } : prev);
+      toast.success("Preferência de tutorial salva!");
+    } catch (err) {
+      toast.error("Erro ao salvar preferência.");
+    } finally {
+      setIsSavingOnboardingPref(false);
     }
   };
 
@@ -444,7 +472,7 @@ const OverviewPage = () => {
                         <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 space-y-3 animate-fade-in">
                           <div className="flex items-start gap-3">
                             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                              <Gift className="h-4 w-4 text-primary" />
+                              <Gift className="h-4 w-4" />
                             </div>
                             <div className="space-y-1">
                               <p className="text-xs font-bold text-primary uppercase tracking-wider">Bonificação Ativa</p>
@@ -639,7 +667,7 @@ const OverviewPage = () => {
                   <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 bg-primary/5 hover:bg-primary/10">
                     <Link to="/admin">
                       <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                        <Settings className="h-4 w-4 text-white" />
+                        <Settings className="h-4 w-4" />
                       </div>
                       <span className="font-bold text-primary">Painel Administrativo</span>
                     </Link>
@@ -649,7 +677,7 @@ const OverviewPage = () => {
                   <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 hover:bg-primary/5">
                     <Link to={`/profissional/${user?.id}`}>
                       <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Eye className="h-4 w-4 text-primary" />
+                        <Eye className="h-4 w-4" />
                       </div>
                       Ver Perfil Público
                     </Link>
@@ -726,6 +754,38 @@ const OverviewPage = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* New Card for Tutorial Settings */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <PlayCircle className="h-4 w-4 text-primary" /> Configurações do Tutorial
+                </CardTitle>
+                <CardDescription>Gerencie a exibição do tutorial de boas-vindas.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button 
+                  variant="outline" 
+                  className="w-full gap-2" 
+                  onClick={() => setIsOnboardingOpen(true)}
+                >
+                  <PlayCircle className="h-4 w-4" /> Rever Tutorial de Boas-vindas
+                </Button>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <Label>Exibir tutorial ao fazer login</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      Se desativado, o tutorial não aparecerá automaticamente.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={!profile?.has_seen_onboarding} // If has_seen_onboarding is true, it means user chose NOT to see it again. So, checked should be false.
+                    onCheckedChange={handleToggleOnboardingVisibility}
+                    disabled={isSavingOnboardingPref}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -738,6 +798,7 @@ const OverviewPage = () => {
           open={isOnboardingOpen} 
           onOpenChange={setIsOnboardingOpen} 
           role={profile?.role}
+          forceShow={true} // Always force show when opened from this button
         />
       </div>
     </TooltipProvider>

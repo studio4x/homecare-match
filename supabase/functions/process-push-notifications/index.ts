@@ -30,17 +30,13 @@ serve(async (req) => {
     const body = await req.json();
     const { notificationId, action } = body;
 
-    console.log(`[Push] Processando ação: ${action}`, { notificationId });
+    console.log(`[Push] Processando ação: \${action}`, { notificationId });
 
-    // --- NOVA AÇÃO: LIMPAR TODOS OS INSCRITOS ---
     if (action === 'clear_all_subscribers') {
-      console.log("[Push] Iniciando limpeza total de inscritos...");
       const { error, count } = await supabaseAdmin
         .from('push_subscriptions')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deleta tudo
-      
-      if (error) throw error;
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       
       return new Response(JSON.stringify({ success: true, deletedCount: count }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -61,7 +57,7 @@ serve(async (req) => {
 
       let totalSent = 0;
       for (const notification of notifications) {
-        const count = await sendToAllSubscribers(supabaseAdmin, notification);
+        const count = await processNotification(supabaseAdmin, notification);
         totalSent += count;
       }
 
@@ -78,27 +74,47 @@ serve(async (req) => {
   }
 });
 
-async function sendToAllSubscribers(supabaseAdmin, notification) {
-  let query = supabaseAdmin.from('push_subscriptions').select('*');
-  
+async function processNotification(supabaseAdmin, notification) {
+  // 1. BUSCAR TODOS OS USUÁRIOS DO PÚBLICO-ALVO (Para o Mural de Avisos)
+  let userQuery = supabaseAdmin.from('profiles').select('id');
   if (notification.target_role !== 'all') {
-    const { data: users } = await supabaseAdmin.from('profiles').select('id').eq('role', notification.target_role);
-    const ids = users?.map(u => u.id) || [];
-    if (ids.length === 0) return 0;
-    query = query.in('user_id', ids);
+    userQuery = userQuery.eq('role', notification.target_role);
+  }
+  const { data: targetUsers } = await userQuery;
+
+  // 2. SALVAR NO MURAL DE TODOS (Mesmo sem Push aprovado)
+  if (targetUsers && targetUsers.length > 0) {
+    const internalNotifs = targetUsers.map(u => ({
+      user_id: u.id,
+      title: `🔔 \${notification.title}`,
+      content: notification.body,
+      link: notification.link,
+      type: 'info'
+    }));
+    
+    // Inserção em massa (Supabase lida bem com até alguns milhares por vez)
+    await supabaseAdmin.from('notifications').insert(internalNotifs);
+    console.log(`[Push] Mural atualizado para \${targetUsers.length} usuários.`);
+  }
+
+  // 3. ENVIAR PUSH NATIVO (Apenas para quem tem dispositivo inscrito)
+  let subQuery = supabaseAdmin.from('push_subscriptions').select('*');
+  if (notification.target_role !== 'all') {
+    const userIds = targetUsers?.map(u => u.id) || [];
+    if (userIds.length === 0) return 0;
+    subQuery = subQuery.in('user_id', userIds);
   }
   
-  const { data: subs } = await query;
-  if (!subs || subs.length === 0) return 0;
+  const { data: subs } = await subQuery;
+  if (!subs || subs.length === 0) {
+    await markAsSent(supabaseAdmin, notification.id);
+    return 0;
+  }
 
   const uniqueEndpoints = new Map();
   subs.forEach(s => {
-    if (s.subscription?.endpoint) {
-      uniqueEndpoints.set(s.subscription.endpoint, s);
-    }
+    if (s.subscription?.endpoint) uniqueEndpoints.set(s.subscription.endpoint, s);
   });
-
-  console.log(`[Push] De-duplicação: de ${subs.length} registros para ${uniqueEndpoints.size} aparelhos únicos.`);
 
   const payload = JSON.stringify({
     title: notification.title,
@@ -108,41 +124,26 @@ async function sendToAllSubscribers(supabaseAdmin, notification) {
   });
 
   let successCount = 0;
-  const userIdsNotified = new Set();
-  
   for (const sub of uniqueEndpoints.values()) {
     if (VAPID_PUBLIC_KEY && sub.subscription?.endpoint) {
       try {
         await webpush.sendNotification(sub.subscription, payload);
         successCount++;
       } catch (e) {
-        console.warn("[Push] Falha ao enviar para endpoint:", sub.id, e.message);
         if (e.statusCode === 410 || e.statusCode === 404) {
           await supabaseAdmin.from('push_subscriptions').delete().eq('id', sub.id);
         }
       }
     }
-
-    if (sub.user_id) {
-      userIdsNotified.add(sub.user_id);
-    }
   }
 
-  if (userIdsNotified.size > 0) {
-    const internalNotifs = Array.from(userIdsNotified).map(uid => ({
-      user_id: uid,
-      title: `🔔 ${notification.title}`,
-      content: notification.body,
-      link: notification.link,
-      type: 'info'
-    }));
-    await supabaseAdmin.from('notifications').insert(internalNotifs);
-  }
+  await markAsSent(supabaseAdmin, notification.id);
+  return successCount;
+}
 
+async function markAsSent(supabaseAdmin, id) {
   await supabaseAdmin.from('push_notifications').update({ 
     status: 'sent', 
     sent_at: new Date().toISOString() 
-  }).eq('id', notification.id);
-
-  return successCount;
+  }).eq('id', id);
 }

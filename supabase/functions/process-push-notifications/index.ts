@@ -30,6 +30,18 @@ serve(async (req) => {
     const body = await req.json();
     const { notificationId, action } = body;
 
+    // Ação para limpar todos os inscritos
+    if (action === 'clear_all_subscribers') {
+      console.log("[process-push-notifications] Limpando todos os inscritos...");
+      const { error } = await supabaseAdmin
+        .from('push_subscriptions')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Deleta tudo
+
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     if (action === 'send_now' || action === 'process_scheduled') {
       let notifications = [];
       
@@ -50,6 +62,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ error: "Ação inválida" }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
+    console.error("[process-push-notifications] Erro:", error.message);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

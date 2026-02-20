@@ -12,8 +12,9 @@ export function getYouTubeEmbedUrl(url: string): string {
   const match = url.match(youtubeRegex);
 
   if (match && match[1]) {
-    // Adiciona parâmetros para ocultar controles, branding, informações e vídeos relacionados
-    return `https://www.youtube.com/embed/${match[1]}?rel=0&autoplay=1&controls=0&modestbranding=1&showinfo=0&fs=0&iv_load_policy=3`;
+    // Removendo os parâmetros que ocultam os controles e outras informações
+    // Agora, o player do YouTube exibirá os controles padrão.
+    return `https://www.youtube.com/embed/${match[1]}?rel=0&autoplay=1`;
   }
   return url;
 }

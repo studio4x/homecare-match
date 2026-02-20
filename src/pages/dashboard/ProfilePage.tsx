@@ -1,4 +1,4 @@
-' no JSX.">
+' dentro do texto do link para a entidade HTML '>'.">
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -628,8 +628,8 @@ const ProfilePage = () => {
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center"><Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" /><p className="font-semibold text-primary">Documentos em Análise</p></div>
               ) : (
                 <div className="space-y-3">
-                  <div className="space-y-1"><Label className="text-[10px] uppercase">{doc1Label}</Label><Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" onChange={e => handleFileUpload(e, 'id_doc')} /></div>
-                  {!isFamily && (<div className="space-y-1"><Label className="text-[10px] uppercase">{doc2Label}</Label><Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>{profile.prof_registration_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="prof_doc" ref={profDocRef} className="hidden" onChange={e => handleFileUpload(e, 'prof_doc')} /></div>)}
+                  <div className="space-y-1"><Label className="text-[10px] uppercase">{doc1Label}</Label><Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} /></div>
+                  {!isFamily && (<div className="space-y-1"><Label className="text-[10px] uppercase">{doc2Label}</Label><Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>{profile.prof_registration_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} /></div>)}
                   <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && !profile.id_document_url) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
                 </div>
               )}

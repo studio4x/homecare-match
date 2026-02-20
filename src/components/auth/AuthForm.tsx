@@ -124,6 +124,33 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         toast.error("As senhas não coincidem");
         return;
       }
+
+      // VALIDAÇÃO DE CUPOM ANTES DO REGISTRO
+      if (data.couponCode?.trim()) {
+        setLoading(true);
+        try {
+          const { data: coupon, error: couponError } = await supabase
+            .from('coupons')
+            .select('*')
+            .eq('code', data.couponCode.trim().toUpperCase())
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (couponError || !coupon) {
+            toast.error("Cupom inválido ou expirado.");
+            setLoading(false);
+            return;
+          }
+
+          if (coupon.current_uses >= coupon.max_uses) {
+            toast.error("Este cupom já atingiu o limite máximo de utilizações.");
+            setLoading(false);
+            return;
+          }
+        } catch (err) {
+          console.error("[Coupon Validation Error]", err);
+        }
+      }
     }
 
     if (mode === "login" && loginMethod === "password") {

@@ -319,7 +319,8 @@ const OverviewPage = () => {
   const isAdmin = profile?.is_admin || profile?.role === 'admin';
   const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
   
-  const hasPaidPlan = profile?.subscription_tier && profile?.subscription_tier !== 'free_trial';
+  // PRIORIDADE: Se tiver coupon_days, consideramos como plano pago/bonificado para a UI
+  const hasPaidPlan = (profile?.subscription_tier && profile?.subscription_tier !== 'free_trial') || profile?.coupon_days;
   const subStatus = getSubscriptionStatus();
 
   const getPlanLabel = (tier: string) => {
@@ -361,7 +362,7 @@ const OverviewPage = () => {
           </p>
         </div>
 
-        {isProfessional && trial?.isExpired && (
+        {isProfessional && trial?.isExpired && !profile?.coupon_days && (
           <Card className="border-destructive/50 bg-destructive/5 animate-pulse">
             <CardContent className="pt-6">
               <div className="flex items-start gap-4">
@@ -418,7 +419,7 @@ const OverviewPage = () => {
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-6">
-            {/* Gerenciar Assinatura - Agora como primeiro quadro */}
+            {/* Gerenciar Assinatura */}
             {isProfessional && (
               <Card className="border-amber-400/30 shadow-md">
                 <CardHeader className="pb-3">
@@ -439,7 +440,7 @@ const OverviewPage = () => {
                   
                   {hasPaidPlan ? (
                     <div className="space-y-4">
-                      {profile.coupon_days && profile.cancel_at_period_end && (
+                      {profile.coupon_days && (
                         <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 space-y-3 animate-fade-in">
                           <div className="flex items-start gap-3">
                             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -490,7 +491,6 @@ const OverviewPage = () => {
                           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                             {subStatus?.dateLabel || "Data"}
                           </p>
-                          {/* Oculta botão de sincronização se for cupom */}
                           {!profile.coupon_days && (
                             <Button 
                               variant="ghost" 
@@ -525,7 +525,6 @@ const OverviewPage = () => {
                         )}
                       </div>
 
-                      {/* Oculta botão de gerenciar faturamento se for cupom */}
                       {!profile.coupon_days && (
                         <Button 
                           variant="outline" 

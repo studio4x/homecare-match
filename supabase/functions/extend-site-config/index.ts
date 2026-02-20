@@ -48,6 +48,16 @@ serve(async (req) => {
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS push_layout_json JSONB DEFAULT '{"bgColor": "#ffffff", "titleColor": "#0f172a", "bodyColor": "#64748b", "borderRadius": "32", "iconBgColor": "#007BFF1a", "iconColor": "#007BFF", "shadowIntensity": "0.25", "ctaBgColor": "#007BFF", "ctaTextColor": "#ffffff", "backdropColor": "rgba(0,0,0,0.05)", "duration": 15}'::jsonb;
 
+      -- PERMISSÃO PARA ANONIMOS VALIDAREM CUPONS NO CADASTRO
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Allow anon to validate coupons') THEN
+          CREATE POLICY "Allow anon to validate coupons" ON public.coupons
+          FOR SELECT TO anon USING (is_active = true);
+        END IF;
+      END
+      $$;
+
       -- ATUALIZAÇÃO DA FUNÇÃO DE CRIAÇÃO DE USUÁRIO PARA SUPORTAR CUPOM (INSERÇÃO ATÔMICA)
       CREATE OR REPLACE FUNCTION public.handle_new_user()
       RETURNS trigger

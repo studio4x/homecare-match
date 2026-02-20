@@ -18,7 +18,8 @@ import {
   Search,
   LifeBuoy,
   CreditCard,
-  Mail
+  Mail,
+  Bell
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -95,6 +96,7 @@ const UserLayout = () => {
     { href: "/dashboard", label: "Início", icon: LayoutDashboard, end: true },
     { href: "/dashboard/perfil", label: "Meus Dados", icon: User },
     { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
+    { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell },
   ];
 
   if (isProfessional) {

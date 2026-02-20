@@ -25,7 +25,8 @@ import {
   TrendingUp,
   Video,
   Activity,
-  Bell
+  Bell,
+  Ticket
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";

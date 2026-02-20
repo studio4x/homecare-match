@@ -48,6 +48,7 @@ import CoursesAdminPage from "./pages/admin/CoursesPage";
 import MarketingPage from "./pages/admin/MarketingPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import SuggestionsPage from "./pages/admin/SuggestionsPage";
+import CouponsPage from "./pages/admin/CouponsPage";
 import SupportAdminPage from "./pages/admin/SupportAdminPage";
 import FaqAdminPage from "./pages/admin/FaqAdminPage";
 import ReportsPage from "./pages/admin/ReportsPage";

@@ -175,7 +175,8 @@ const CouponsTab = () => {
       setFormData({ code: "", free_days: 30, max_uses: 100, is_active: true, only_new_users: true });
       fetchCoupons();
     } catch (err: any) {
-      toast.error(err.message.includes("unique") ? "Este código já existe." : "Erro ao salvar cupom.");
+      console.error("[Coupons] Save error:", err);
+      toast.error(err.message?.includes("unique") ? "Este código já existe." : "Erro ao salvar cupom. Verifique se sincronizou o banco.");
     } finally {
       setIsSaving(false);
     }
@@ -277,7 +278,7 @@ const CouponsTab = () => {
                     <TableCell>
                       <button onClick={() => toggleStatus(c.id, c.is_active)}>
                         {c.is_active ? (
-                          <Badge className="bg-success hover:bg-success/90 gap-1"><CheckCircle2 className="h-3 w-3" /> Ativo</Badge>
+                          <Badge className="bg-success hover:bg-success/90 gap-1"><CheckCircle2 className="h-3 w-3 mr-1" /> Ativo</Badge>
                         ) : (
                           <Badge variant="secondary" className="gap-1"><XCircle className="h-3 w-3" /> Inativo</Badge>
                         )}
@@ -311,6 +312,9 @@ const CouponsTab = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Cupom" : "Criar Novo Cupom"}</DialogTitle>
+            <DialogDescription>
+              Configure as regras e benefícios do código promocional.
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-4 py-4">
             <div className="space-y-2">

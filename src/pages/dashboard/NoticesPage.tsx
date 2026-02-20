@@ -145,92 +145,97 @@ const NoticesPage = () => {
         </div>
       </div>
 
-      <Card className="border-none shadow-sm bg-transparent">
-        <CardContent className="p-0 space-y-4">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground bg-card rounded-2xl border">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm">Buscando seus avisos...</p>
-            </div>
-          ) : notifications.length > 0 ? (
-            <div className="grid gap-4">
-              {notifications.map((n) => (
-                <div 
-                  key={n.id} 
-                  className={cn(
-                    "group relative flex flex-col gap-0 rounded-2xl border transition-all duration-300 hover:shadow-md overflow-hidden",
-                    n.is_read ? "bg-card border-border/50" : "bg-primary/5 border-primary/20 ring-1 ring-primary/10"
-                  )}
-                  onMouseEnter={() => !n.is_read && handleMarkAsRead(n.id)}
-                >
-                  {n.image_url && (
-                    <div className="w-full aspect-[21/9] bg-slate-100 overflow-hidden border-b">
-                      <img src={n.image_url} className="w-full h-full object-cover" alt="Banner" />
+      <div className="p-0">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground bg-card rounded-2xl border">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm">Buscando seus avisos...</p>
+          </div>
+        ) : notifications.length > 0 ? (
+          <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {notifications.map((n) => (
+              <div 
+                key={n.id} 
+                className={cn(
+                  "group relative flex flex-col rounded-2xl border transition-all duration-300 hover:shadow-lg overflow-hidden h-full",
+                  n.is_read ? "bg-card border-border/50" : "bg-primary/5 border-primary/20 ring-1 ring-primary/10"
+                )}
+                onMouseEnter={() => !n.is_read && handleMarkAsRead(n.id)}
+              >
+                {n.image_url ? (
+                  <div className="w-full aspect-video bg-slate-100 overflow-hidden border-b">
+                    <img src={n.image_url} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt="Banner" />
+                  </div>
+                ) : (
+                  <div className="w-full aspect-video bg-secondary/20 flex items-center justify-center border-b">
+                    <Megaphone className="h-12 w-12 text-muted-foreground/20" />
+                  </div>
+                )}
+                
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className={cn(
+                      "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+                      n.is_read ? "bg-secondary/50" : "bg-white"
+                    )}>
+                      {getTypeIcon(n.type)}
                     </div>
-                  )}
-                  
-                  <div className="p-5 flex flex-col sm:flex-row gap-4">
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className={cn(
-                        "h-12 w-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
-                        n.is_read ? "bg-secondary/50" : "bg-white"
-                      )}>
-                        {getTypeIcon(n.type)}
+                    
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className={cn("font-bold text-base leading-tight line-clamp-2", !n.is_read && "text-primary")}>
+                          {n.title}
+                        </h3>
                       </div>
-                      
-                      <div className="space-y-1 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className={cn("font-bold text-base leading-tight", !n.is_read && "text-primary")}>
-                            {n.title}
-                          </h3>
-                          {!n.is_read && (
-                            <Badge className="h-4 text-[8px] uppercase bg-primary text-white border-none">Novo</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          {n.content}
-                        </p>
-                        
-                        <div className="flex items-center gap-4 pt-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="h-3 w-3" />
-                            {format(new Date(n.created_at), "dd 'de' MMMM", { locale: ptBR })}
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="h-3 w-3" />
-                            {format(new Date(n.created_at), "HH:mm")}
-                          </div>
-                        </div>
+                      {!n.is_read && (
+                        <Badge className="h-4 text-[8px] uppercase bg-primary text-white border-none">Novo</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4 mb-6 flex-1">
+                    {n.content}
+                  </p>
+                  
+                  <div className="flex items-center justify-between pt-4 border-t border-border/50 mt-auto">
+                    <div className="flex flex-col gap-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(n.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(n.created_at), "HH:mm")}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 sm:flex-col sm:justify-center shrink-0">
+                    <div className="flex items-center gap-2">
                       {n.link && (
-                        <Button variant="secondary" size="sm" className="h-9 gap-2 flex-1 sm:w-full" asChild>
+                        <Button variant="secondary" size="sm" className="h-8 gap-2 px-3" asChild>
                           <Link to={n.link}>
-                            <ExternalLink className="h-3.5 w-3.5" /> Ver Detalhes
+                            <ExternalLink className="h-3.5 w-3.5" /> Detalhes
                           </Link>
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteOne(n.id)} title="Excluir aviso">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteOne(n.id)} title="Excluir aviso">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-card rounded-2xl border border-dashed flex flex-col items-center justify-center">
-              <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
-                <Inbox className="h-8 w-8 text-muted-foreground opacity-20" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground">Seu mural está vazio</h3>
-              <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-1">Você não possui avisos no momento.</p>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-20 bg-card rounded-2xl border border-dashed flex flex-col items-center justify-center">
+            <div className="h-16 w-16 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+              <Inbox className="h-8 w-8 text-muted-foreground opacity-20" />
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <h3 className="text-lg font-semibold text-foreground">Seu mural está vazio</h3>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-1">Você não possui avisos no momento.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

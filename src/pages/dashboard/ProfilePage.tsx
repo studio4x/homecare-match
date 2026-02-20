@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -29,9 +28,7 @@ import {
   ShieldAlert,
   FileCheck,
   CheckCircle2,
-  ArrowRight,
   Clock,
-  Lock,
   ShieldCheck,
   KeyRound,
   AlertTriangle,
@@ -42,12 +39,9 @@ import {
   Mail,
   PlayCircle,
   HelpCircle,
-  MapPin,
-  Navigation,
-  Bell
+  Navigation
 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -61,7 +55,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Switch } from "@/components/ui/switch";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import OnboardingModal from "@/components/OnboardingModal";
 import { getCoordinates } from "@/lib/geo-utils";
@@ -145,30 +138,9 @@ const ProfilePage = () => {
       }
     } catch (err) {
       console.error("[ProfilePage] Erro ao carregar:", err);
-      toast.error("Erro ao carregar seus dados. Tente atualizar a página.");
+      toast.error("Erro ao carregar seus dados.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleToggleNotifications = async (enabled: boolean) => {
-    if (!user || !profile) return;
-    
-    // Atualiza estado local imediatamente para resposta rápida na UI
-    setProfile(prev => ({ ...prev, notifications_enabled: enabled }));
-    
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ notifications_enabled: enabled })
-        .eq('id', user.id);
-      
-      if (error) throw error;
-      toast.success(enabled ? "Avisos em tempo real ativados!" : "Avisos em tempo real desativados.");
-    } catch (err) {
-      // Reverte estado local em caso de erro
-      setProfile(prev => ({ ...prev, notifications_enabled: !enabled }));
-      toast.error("Erro ao salvar preferência de avisos.");
     }
   };
 
@@ -286,23 +258,13 @@ const ProfilePage = () => {
         }
       });
 
-      if (error) {
-        let msg = "Falha na comunicação com o servidor de IA.";
-        try {
-          const body = await error.context?.json();
-          if (body?.error) msg = body.error;
-        } catch {}
-        throw new Error(msg);
-      }
+      if (error) throw new Error("Falha na comunicação com o servidor de IA.");
 
       if (data?.bio) {
         setProfile(prev => ({ ...prev, bio: data.bio }));
         toast.success("Biografia gerada com sucesso!");
-      } else {
-        throw new Error(data?.error || "A IA não retornou um texto válido.");
       }
     } catch (err: any) {
-      console.error("[ProfilePage] Erro na geração:", err);
       toast.error(err.message || "Erro ao gerar biografia.");
     } finally {
       setIsGeneratingBio(false);
@@ -340,16 +302,6 @@ const ProfilePage = () => {
     if (!profile.bio?.trim()) {
       toast.error("A biografia/descrição é obrigatória.");
       return;
-    }
-    if (isProfessional) {
-      if (!profile.experience?.trim()) {
-        toast.error("O campo de formações é obrigatório.");
-        return;
-      }
-      if (!profile.professional_experiences?.trim()) {
-        toast.error("O campo de experiências profissionais é obrigatório.");
-        return;
-      }
     }
 
     setIsSaving(true);
@@ -392,7 +344,6 @@ const ProfilePage = () => {
         address_street: profile.address_street,
         address_number: profile.address_number,
         address_complement: profile.address_complement,
-        notifications_enabled: profile.notifications_enabled,
         lat: finalLat,
         lng: finalLng,
         updated_at: new Date().toISOString()
@@ -402,8 +353,7 @@ const ProfilePage = () => {
       toast.success("Perfil salvo com sucesso!");
       fetchProfile();
     } catch (err: any) {
-      console.error("[ProfileSave] Erro:", err);
-      toast.error("Erro ao salvar perfil: " + (err.message || "Erro desconhecido"));
+      toast.error("Erro ao salvar perfil.");
     } finally {
       setIsSaving(false);
     }
@@ -420,12 +370,10 @@ const ProfilePage = () => {
     try {
       const { error } = await supabase.functions.invoke('delete-user');
       if (error) throw error;
-      
       toast.success("Sua conta foi excluída permanentemente.");
       await signOut();
     } catch (err) {
-      console.error("[ProfilePage] Erro ao excluir conta:", err);
-      toast.error("Ocorreu um erro ao tentar excluir sua conta. Por favor, tente novamente.");
+      toast.error("Erro ao excluir conta.");
     } finally {
       setIsDeletingAccount(false);
     }
@@ -433,12 +381,10 @@ const ProfilePage = () => {
 
   const handleRequestVerification = async () => {
     const isFamily = profile?.role === 'family';
-    
     if (isFamily && !profile?.id_document_url) {
       toast.error("Envie o documento de identidade antes de solicitar análise.");
       return;
     }
-
     if (!isFamily && (!profile?.id_document_url || !profile?.prof_registration_url)) {
       toast.error("Envie os dois documentos antes de solicitar análise.");
       return;
@@ -446,18 +392,9 @@ const ProfilePage = () => {
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ verification_sent: true })
-        .eq("id", user?.id);
-      
+      const { error } = await supabase.from("profiles").update({ verification_sent: true }).eq("id", user?.id);
       if (error) throw error;
-
-      supabase.functions.invoke('notify-verification', {
-        body: { userName: profile.full_name, userEmail: profile.email, userId: user?.id }
-      }).catch(err => console.warn("Falha ao notificar admin:", err));
-
-      toast.success("Solicitação enviada! Analisaremos em breve.");
+      toast.success("Solicitação enviada!");
       fetchProfile();
     } catch (err) {
       toast.error("Erro ao enviar solicitação.");
@@ -468,17 +405,6 @@ const ProfilePage = () => {
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
 
-  if (!profile) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
-        <AlertCircle className="h-12 w-12 text-destructive opacity-50" />
-        <h2 className="text-xl font-bold">Erro ao carregar perfil</h2>
-        <p className="text-muted-foreground">Não foi possível recuperar seus dados do servidor.</p>
-        <Button onClick={() => window.location.reload()}>Tentar Novamente</Button>
-      </div>
-    );
-  }
-
   const isProfessional = profile.role === 'professional';
   const isCompany = profile.role === 'company';
   const isFamily = profile.role === 'family';
@@ -488,24 +414,9 @@ const ProfilePage = () => {
   const doc2Label = isCompany ? "RG ou CNH do Responsável" : "Registro (COREN/CREFITO)";
 
   const getBenefits = () => {
-    if (isProfessional) return [
-      "Visibilidade para centenas de empresas de Home Care.",
-      "Acesso a cursos de capacitação exclusivos.",
-      "Recebimento de propostas direto no WhatsApp.",
-      "Selo de verificação profissional."
-    ];
-    if (isCompany) return [
-      "Acesso ilimitado à base de profissionais qualificados.",
-      "Filtros avançados por região e especialidade.",
-      "Histórico de contatos e recrutamento centralizado.",
-      "Suporte prioritário para fechamento de escalas."
-    ];
-    return [
-      "Encontre cuidadores e enfermeiros verificados perto de você.",
-      "Contato direto sem taxas de agenciamento.",
-      "Segurança na análise de documentos dos profissionais.",
-      "Suporte humanizado para sua necessidade."
-    ];
+    if (isProfessional) return ["Visibilidade para empresas.", "Cursos exclusivos.", "Propostas no WhatsApp.", "Selo de verificação."];
+    if (isCompany) return ["Acesso a profissionais.", "Filtros avançados.", "Histórico centralizado.", "Suporte prioritário."];
+    return ["Cuidadores verificados.", "Contato direto.", "Segurança documental.", "Suporte humanizado."];
   };
 
   const CONFIRMATION_PHRASE = "EXCLUIR MINHA CONTA";
@@ -519,37 +430,10 @@ const ProfilePage = () => {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {(isProfessional || isCompany || isFamily) && (
-            <Card className="border-primary/20 bg-primary/5 overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row items-center gap-6">
-                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <HelpCircle className="h-8 w-8 text-primary" />
-                  </div>
-                  <div className="flex-1 text-center md:text-left space-y-1">
-                    <h3 className="font-bold text-lg">Precisa de ajuda com seu perfil?</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Reveja o tutorial de boas-vindas para aprender a utilizar todos os recursos da plataforma.
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={() => setIsOnboardingOpen(true)} 
-                    className="gap-2 h-12 px-6 shadow-md"
-                  >
-                    <PlayCircle className="h-5 w-5" />
-                    Abrir Tutorial
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle>Informações Básicas</CardTitle>
-              <CardDescription>
-                Esses dados são a sua porta de entrada. Um perfil com foto e nome completo transmite muito mais profissionalismo e confiança.
-              </CardDescription>
+              <CardDescription>Dados essenciais para identificação na plataforma.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
@@ -558,13 +442,7 @@ const ProfilePage = () => {
                     <AvatarImage src={profile.avatar_url} />
                     <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
                   </Avatar>
-                  <Button 
-                    size="icon" 
-                    variant="secondary" 
-                    className="absolute -bottom-1 -right-1 rounded-full shadow-md"
-                    onClick={() => avatarRef.current?.click()}
-                    disabled={!!isUploading}
-                  >
+                  <Button size="icon" variant="secondary" className="absolute -bottom-1 -right-1 rounded-full shadow-md" onClick={() => avatarRef.current?.click()} disabled={!!isUploading}>
                     {isUploading === 'avatar' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                   </Button>
                   <input type="file" ref={avatarRef} className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'avatar')} />
@@ -576,35 +454,13 @@ const ProfilePage = () => {
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label>Nome Completo *</Label>
-                  <Input 
-                    value={profile.full_name || ""} 
-                    onChange={e => setProfile({...profile, full_name: e.target.value})} 
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>WhatsApp *</Label>
-                  <Input 
-                    value={profile.phone || ""} 
-                    onChange={handlePhoneChange} 
-                    placeholder="(11) 99999-9999" 
-                  />
-                </div>
+                <div className="grid gap-2"><Label>Nome Completo *</Label><Input value={profile.full_name || ""} onChange={e => setProfile({...profile, full_name: e.target.value})} /></div>
+                <div className="grid gap-2"><Label>WhatsApp *</Label><Input value={profile.phone || ""} onChange={handlePhoneChange} placeholder="(11) 99999-9999" /></div>
               </div>
 
               <div className="grid gap-2">
-                <Label className="flex items-center gap-2">
-                  <Mail className="h-3 w-3 text-muted-foreground" />
-                  E-mail de Acesso
-                </Label>
-                <Input 
-                  value={profile.email || ""} 
-                  disabled
-                  readOnly
-                  className="bg-muted"
-                />
-                <p className="text-[10px] text-muted-foreground italic">O e-mail é usado para login e não pode ser alterado diretamente.</p>
+                <Label className="flex items-center gap-2"><Mail className="h-3 w-3 text-muted-foreground" /> E-mail de Acesso</Label>
+                <Input value={profile.email || ""} disabled readOnly className="bg-muted" />
               </div>
 
               {isProfessional ? (
@@ -613,37 +469,15 @@ const ProfilePage = () => {
                     <Label>Especialidade *</Label>
                     <Select value={profile.specialty} onValueChange={v => setProfile({...profile, specialty: v})}>
                       <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        {specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                      </SelectContent>
+                      <SelectContent>{specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="grid gap-2">
-                    <Label>Registro (COREN/CREFITO)</Label>
-                    <Input 
-                      value={profile.registration || ""} 
-                      onChange={e => setProfile({...profile, registration: e.target.value})} 
-                    />
-                  </div>
+                  <div className="grid gap-2"><Label>Registro (COREN/CREFITO)</Label><Input value={profile.registration || ""} onChange={e => setProfile({...profile, registration: e.target.value})} /></div>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label>{profile.role === 'company' ? "Razão Social" : "Nome do Responsável"}</Label>
-                    <Input 
-                      value={profile.company_name || ""} 
-                      onChange={e => setProfile({...profile, company_name: e.target.value})} 
-                    />
-                  </div>
-                  {profile.role === 'company' && (
-                    <div className="grid gap-2">
-                      <Label>CNPJ</Label>
-                      <Input 
-                        value={profile.cnpj || ""} 
-                        onChange={e => setProfile({...profile, cnpj: e.target.value})} 
-                      />
-                    </div>
-                  )}
+                  <div className="grid gap-2"><Label>{profile.role === 'company' ? "Razão Social" : "Nome do Responsável"}</Label><Input value={profile.company_name || ""} onChange={e => setProfile({...profile, company_name: e.target.value})} /></div>
+                  {profile.role === 'company' && <div className="grid gap-2"><Label>CNPJ</Label><Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} /></div>}
                 </div>
               )}
             </CardContent>
@@ -652,126 +486,43 @@ const ProfilePage = () => {
           <Card>
             <CardHeader>
               <CardTitle>Endereço e Localização *</CardTitle>
-              <CardDescription>
-                Sua localização é usada para te conectar a oportunidades próximas, facilitando o deslocamento e otimizando sua rotina.
-              </CardDescription>
+              <CardDescription>Sua localização é usada para te conectar a oportunidades próximas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
                   <Label>CEP *</Label>
                   <div className="relative">
-                    <Input 
-                      value={profile.address_zip || ""} 
-                      onChange={e => setProfile({...profile, address_zip: e.target.value})} 
-                      onBlur={handleCepBlur} 
-                    />
+                    <Input value={profile.address_zip || ""} onChange={e => setProfile({...profile, address_zip: e.target.value})} onBlur={handleCepBlur} />
                     {isLoadingCep && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
                   </div>
                 </div>
-                <div className="grid gap-2 md:col-span-2">
-                  <Label>Rua *</Label>
-                  <Input 
-                    value={profile.address_street || ""} 
-                    onChange={e => setProfile({...profile, address_street: e.target.value})} 
-                  />
-                </div>
+                <div className="grid gap-2 md:col-span-2"><Label>Rua *</Label><Input value={profile.address_street || ""} onChange={e => setProfile({...profile, address_street: e.target.value})} /></div>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="grid gap-2">
-                  <Label>Bairro *</Label>
-                  <Input 
-                    value={profile.neighborhood || ""} 
-                    onChange={e => setProfile({...profile, neighborhood: e.target.value})} 
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Cidade *</Label>
-                  <Input 
-                    value={profile.city || ""} 
-                    onChange={e => setProfile({...profile, city: e.target.value})} 
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Estado (UF) *</Label>
-                  <Input 
-                    value={profile.state || ""} 
-                    onChange={e => setProfile({...profile, state: e.target.value})} 
-                    maxLength={2} 
-                  />
-                </div>
+                <div className="grid gap-2"><Label>Bairro *</Label><Input value={profile.neighborhood || ""} onChange={e => setProfile({...profile, neighborhood: e.target.value})} /></div>
+                <div className="grid gap-2"><Label>Cidade *</Label><Input value={profile.city || ""} onChange={e => setProfile({...profile, city: e.target.value})} /></div>
+                <div className="grid gap-2"><Label>Estado (UF) *</Label><Input value={profile.state || ""} onChange={e => setProfile({...profile, state: e.target.value})} maxLength={2} /></div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label>Número</Label>
-                  <Input 
-                    value={profile.address_number || ""} 
-                    onChange={e => setProfile({...profile, address_number: e.target.value})} 
-                    onBlur={() => handleValidateLocation()}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Complemento</Label>
-                  <Input 
-                    value={profile.address_complement || ""} 
-                    onChange={e => setProfile({...profile, address_complement: e.target.value})} 
-                  />
-                </div>
+                <div className="grid gap-2"><Label>Número</Label><Input value={profile.address_number || ""} onChange={e => setProfile({...profile, address_number: e.target.value})} onBlur={() => handleValidateLocation()} /></div>
+                <div className="grid gap-2"><Label>Complemento</Label><Input value={profile.address_complement || ""} onChange={e => setProfile({...profile, address_complement: e.target.value})} /></div>
               </div>
 
               <div className="pt-4 border-t space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="flex items-center gap-2">
-                      <Navigation className="h-4 w-4 text-primary" />
-                      Coordenadas Geográficas
-                    </Label>
-                    <p className="text-[10px] text-muted-foreground">Detectadas automaticamente com base no seu endereço.</p>
+                    <Label className="flex items-center gap-2"><Navigation className="h-4 w-4 text-primary" /> Coordenadas Geográficas</Label>
+                    <p className="text-[10px] text-muted-foreground">Detectadas automaticamente.</p>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="gap-2 h-8 text-xs"
-                    onClick={() => handleValidateLocation()}
-                    disabled={isGeocoding}
-                  >
-                    {isGeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                    Recalcular Localização
+                  <Button variant="outline" size="sm" className="gap-2 h-8 text-xs" onClick={() => handleValidateLocation()} disabled={isGeocoding}>
+                    {isGeocoding ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Recalcular
                   </Button>
                 </div>
-
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-1.5">
-                    <Label className="text-[10px] uppercase text-muted-foreground">Latitude</Label>
-                    <Input 
-                      value={profile.lat || ""} 
-                      readOnly 
-                      className="bg-muted font-mono text-xs h-8" 
-                      placeholder="Aguardando endereço..."
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="text-[10px] uppercase text-muted-foreground">Longitude</Label>
-                    <Input 
-                      value={profile.lng || ""} 
-                      readOnly 
-                      className="bg-muted font-mono text-xs h-8" 
-                      placeholder="Aguardando endereço..."
-                    />
-                  </div>
+                  <div className="grid gap-1.5"><Label className="text-[10px] uppercase text-muted-foreground">Latitude</Label><Input value={profile.lat || ""} readOnly className="bg-muted font-mono text-xs h-8" /></div>
+                  <div className="grid gap-1.5"><Label className="text-[10px] uppercase text-muted-foreground">Longitude</Label><Input value={profile.lng || ""} readOnly className="bg-muted font-mono text-xs h-8" /></div>
                 </div>
-
-                {profile.lat && profile.lng ? (
-                  <div className="flex items-center gap-2 text-[10px] text-success font-medium bg-success/5 p-2 rounded border border-success/10">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Localização detectada e pronta para uso!
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-[10px] text-amber-600 font-medium bg-amber-50 p-2 rounded border border-amber-100">
-                    <AlertCircle className="h-3 w-3" />
-                    Preencha o endereço completo para detectar as coordenadas.
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -781,34 +532,13 @@ const ProfilePage = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Currículo e Biografia *</CardTitle>
-                  <CardDescription>
-                    Destaque suas competências e trajetória. Perfis detalhados têm 3x mais chances de atrair a atenção de recrutadores.
-                  </CardDescription>
+                  <CardDescription>Destaque suas competências e trajetória.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label>Formações *</Label>
-                    <Textarea value={profile.experience || ""} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} placeholder="Cursos e especializações..." />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Experiências Profissionais *</Label>
-                    <Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} placeholder="Locais onde trabalhou..." />
-                  </div>
-                  
+                  <div className="grid gap-2"><Label>Formações *</Label><Textarea value={profile.experience || ""} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} /></div>
+                  <div className="grid gap-2"><Label>Experiências Profissionais *</Label><Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} /></div>
                   <div className="pt-2 flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Biografia para o Perfil *</Label>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-8 gap-2 text-xs" 
-                        onClick={handleGenerateBio} 
-                        disabled={isGeneratingBio}
-                      >
-                        {isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
-                        Gerar com IA
-                      </Button>
-                    </div>
+                    <div className="flex items-center justify-between"><Label>Biografia para o Perfil *</Label><Button variant="outline" size="sm" className="h-8 gap-2 text-xs" onClick={handleGenerateBio} disabled={isGeneratingBio}>{isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />} Gerar com IA</Button></div>
                     <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} />
                   </div>
                 </CardContent>
@@ -817,44 +547,19 @@ const ProfilePage = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Detalhes do Atendimento *</CardTitle>
-                  <CardDescription>
-                    Defina suas preferências e valores para receber propostas que realmente se encaixam no seu perfil de trabalho.
-                  </CardDescription>
+                  <CardDescription>Defina suas preferências e valores.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="grid gap-2">
-                    <Label>Valor/Hora (R$) *</Label>
-                    <Input 
-                      type="number" 
-                      value={profile.hourly_rate || ""} 
-                      onChange={e => setProfile({...profile, hourly_rate: e.target.value})} 
-                      placeholder="0.00" 
-                    />
-                    <p className="text-[10px] text-muted-foreground italic">Visível apenas para famílias.</p>
-                  </div>
+                  <div className="grid gap-2"><Label>Valor/Hora (R$) *</Label><Input type="number" value={profile.hourly_rate || ""} onChange={e => setProfile({...profile, hourly_rate: e.target.value})} /></div>
                   <Separator />
                   <div className="space-y-3">
                     <Label className="text-xs uppercase">Disponibilidade *</Label>
-                    <div className="grid gap-2">
-                      {availabilityOptions.map(opt => (
-                        <div key={opt} className="flex items-center gap-2">
-                          <Checkbox id={opt} checked={profile.availability?.includes(opt)} onCheckedChange={() => handleCheckboxChange('availability', opt)} />
-                          <label htmlFor={opt} className="text-xs">{opt}</label>
-                        </div>
-                      ))}
-                    </div>
+                    <div className="grid gap-2">{availabilityOptions.map(opt => (<div key={opt} className="flex items-center gap-2"><Checkbox id={opt} checked={profile.availability?.includes(opt)} onCheckedChange={() => handleCheckboxChange('availability', opt)} /><label htmlFor={opt} className="text-xs">{opt}</label></div>))}</div>
                   </div>
                   <Separator />
                   <div className="space-y-3">
                     <Label className="text-xs uppercase">Público-alvo *</Label>
-                    <div className="grid gap-2">
-                      {patientProfileOptions.map(opt => (
-                        <div key={opt} className="flex items-center gap-2">
-                          <Checkbox id={opt} checked={profile.patient_profiles?.includes(opt)} onCheckedChange={() => handleCheckboxChange('patient_profiles', opt)} />
-                          <label htmlFor={opt} className="text-xs">{opt}</label>
-                        </div>
-                      ))}
-                    </div>
+                    <div className="grid gap-2">{patientProfileOptions.map(opt => (<div key={opt} className="flex items-center gap-2"><Checkbox id={opt} checked={profile.patient_profiles?.includes(opt)} onCheckedChange={() => handleCheckboxChange('patient_profiles', opt)} /><label htmlFor={opt} className="text-xs">{opt}</label></div>))}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -863,258 +568,77 @@ const ProfilePage = () => {
 
           {!isProfessional && (
             <Card>
-              <CardHeader>
-                <CardTitle>{profile.role === 'company' ? "Sobre a Empresa *" : "Sobre a Família *"}</CardTitle>
-                <CardDescription>
-                  Conte um pouco sobre suas necessidades e o perfil de atendimento que busca.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} placeholder="Conte um pouco sobre suas necessidades..." />
-              </CardContent>
+              <CardHeader><CardTitle>{profile.role === 'company' ? "Sobre a Empresa *" : "Sobre a Família *"}</CardTitle></CardHeader>
+              <CardContent><Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} /></CardContent>
             </Card>
           )}
 
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => fetchProfile()}>Descartar</Button>
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Salvar Alterações
-            </Button>
+            <Button onClick={handleSave} disabled={isSaving} className="gap-2">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar Alterações</Button>
           </div>
         </div>
 
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Preferências</CardTitle>
-              <CardDescription className="text-[10px]">
-                Gerencie como você deseja ser avisado sobre novidades e comunicados globais.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/10">
-                <div className="space-y-0.5">
-                  <Label className="text-xs font-semibold">Avisos em Tempo Real</Label>
-                  <p className="text-[10px] text-muted-foreground">Modais e alertas de comunicados globais.</p>
-                </div>
-                <Switch 
-                  checked={!!profile.notifications_enabled} 
-                  onCheckedChange={handleToggleNotifications} 
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação</CardTitle>
-              <CardDescription className="text-[10px]">
-                O selo de verificação comprova a autenticidade dos seus documentos e coloca seu perfil em destaque nas buscas.
-              </CardDescription>
+              <CardDescription className="text-[10px]">O selo de verificação comprova a autenticidade dos seus documentos.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-secondary/30 p-3 rounded-lg flex gap-3 items-start border border-border/50">
                 <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="text-xs font-semibold">Upload Seguro</p>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Seus documentos são armazenados em um servidor privado com criptografia. 
-                    Apenas administradores autorizados podem visualizá-los através de links temporários protegidos.
-                  </p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">Seus documentos são armazenados em um servidor privado com criptografia.</p>
                 </div>
               </div>
 
               {profile.is_verified ? (
-                <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center">
-                  <CheckCircle2 className="h-8 w-8 text-success mb-2" />
-                  <p className="font-semibold text-success">Perfil Verificado</p>
-                </div>
+                <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center"><CheckCircle2 className="h-8 w-8 text-success mb-2" /><p className="font-semibold text-success">Perfil Verificado</p></div>
               ) : profile.verification_sent ? (
-                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
-                  <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
-                  <p className="font-semibold text-primary">Documentos em Análise</p>
-                </div>
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center"><Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" /><p className="font-semibold text-primary">Documentos em Análise</p></div>
               ) : (
                 <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] uppercase">{doc1Label}</Label>
-                    <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>
-                        {profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}
-                    </Button>
-                    <input type="file" id="id_doc" ref={idDocRef} className="hidden" onChange={e => handleFileUpload(e, 'id_doc')} />
-                  </div>
-                  
-                  {!isFamily && (
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase">{doc2Label}</Label>
-                      <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>
-                          {profile.prof_registration_url ? "✓ Documento enviado" : "Selecionar arquivo"}
-                      </Button>
-                      <input type="file" id="prof_doc" ref={profDocRef} className="hidden" onChange={e => handleFileUpload(e, 'prof_doc')} />
-                    </div>
-                  )}
-
-                  <Button 
-                    className="w-full" 
-                    disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && !profile.id_document_url) || isSaving}
-                    onClick={handleRequestVerification}
-                  >
-                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Solicitar Análise
-                  </Button>
+                  <div className="space-y-1"><Label className="text-[10px] uppercase">{doc1Label}</Label><Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" onChange={e => handleFileUpload(e, 'id_doc')} /></div>
+                  {!isFamily && (<div className="space-y-1"><Label className="text-[10px] uppercase">{doc2Label}</Label><Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>{profile.prof_registration_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="prof_doc" ref={profDocRef} className="hidden" onChange={e => handleFileUpload(e, 'prof_doc')} /></div>)}
+                  <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && !profile.id_document_url) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-primary" /> Segurança
-              </CardTitle>
-              <CardDescription className="text-[10px]">
-                Mantenha sua conta protegida e seus dados de acesso sempre atualizados.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChangePasswordDialog />
-            </CardContent>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /> Segurança</CardTitle></CardHeader>
+            <CardContent><ChangePasswordDialog /></CardContent>
           </Card>
 
-          <Collapsible
-            open={isDangerZoneOpen}
-            onOpenChange={setIsDangerZoneOpen}
-            className="border border-destructive/20 rounded-xl bg-card overflow-hidden"
-          >
-            <CollapsibleTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="w-full flex items-center justify-between p-6 h-auto hover:bg-destructive/5 group"
-              >
-                <div className="flex items-center gap-2 text-destructive">
-                  <Trash2 className="h-4 w-4" />
-                  <span className="font-semibold text-base">Zona de Perigo</span>
-                </div>
-                {isDangerZoneOpen ? <ChevronUp className="h-4 w-4 text-destructive" /> : <ChevronDown className="h-4 w-4 text-destructive" />}
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="px-6 pb-6 space-y-4 animate-accordion-down">
-              <p className="text-[10px] text-muted-foreground">
-                Ações irreversíveis relacionadas à exclusão definitiva da sua conta e de todos os seus dados.
-              </p>
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                className="w-full justify-start gap-2 h-10" 
-                onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}
-              >
-                <Trash2 className="h-4 w-4" />
-                Excluir minha conta permanentemente
-              </Button>
-            </CollapsibleContent>
+          <Collapsible open={isDangerZoneOpen} onOpenChange={setIsDangerZoneOpen} className="border border-destructive/20 rounded-xl bg-card overflow-hidden">
+            <CollapsibleTrigger asChild><Button variant="ghost" className="w-full flex items-center justify-between p-6 h-auto hover:bg-destructive/5 group"><div className="flex items-center gap-2 text-destructive"><Trash2 className="h-4 w-4" /><span className="font-semibold text-base">Zona de Perigo</span></div>{isDangerZoneOpen ? <ChevronUp className="h-4 w-4 text-destructive" /> : <ChevronDown className="h-4 w-4 text-destructive" />}</Button></CollapsibleTrigger>
+            <CollapsibleContent className="px-6 pb-6 space-y-4 animate-accordion-down"><p className="text-[10px] text-muted-foreground">Ações irreversíveis relacionadas à exclusão definitiva da sua conta.</p><Button variant="destructive" size="sm" className="w-full justify-start gap-2 h-10" onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}><Trash2 className="h-4 w-4" /> Excluir minha conta permanentemente</Button></CollapsibleContent>
           </Collapsible>
         </div>
       </div>
 
-      <Dialog open={deleteAccountModalOpen} onOpenChange={(open) => {
-        setDeleteAccountModalOpen(open);
-        if (!open) {
-          setDeleteStep(1);
-          setDeleteConfirmationText("");
-        }
-      }}>
+      <Dialog open={deleteAccountModalOpen} onOpenChange={(open) => { setDeleteAccountModalOpen(open); if (!open) { setDeleteStep(1); setDeleteConfirmationText(""); } }}>
         <DialogContent className="sm:max-w-[500px]">
           {deleteStep === 1 ? (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-destructive">
-                  <ShieldAlert className="h-5 w-5" /> 
-                  Sentiremos sua falta!
-                </DialogTitle>
-                <DialogDescription className="pt-2 text-base">
-                  Você tem certeza que deseja excluir sua conta? Ao manter seu perfil ativo, você continua aproveitando:
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="py-4 space-y-3">
-                {getBenefits().map((benefit, i) => (
-                  <div key={i} className="flex items-start gap-3 bg-secondary/20 p-3 rounded-lg border border-border/50">
-                    <div className="h-5 w-5 rounded-full bg-success/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Check className="h-3 w-3 text-success" />
-                    </div>
-                    <span className="text-sm text-foreground/80">{benefit}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-destructive/5 border border-destructive/10 p-4 rounded-lg flex gap-3 items-start">
-                <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                <p className="text-xs text-destructive font-medium">
-                  A exclusão é irreversível. Todos os seus dados, documentos e histórico de contatos serão apagados permanentemente.
-                </p>
-              </div>
-
-              <DialogFooter className="mt-6 gap-2 sm:gap-0">
-                <Button variant="ghost" onClick={() => setDeleteAccountModalOpen(false)}>Manter Minha Conta</Button>
-                <Button variant="destructive" onClick={() => setDeleteStep(2)}>
-                  Prosseguir com a Exclusão
-                </Button>
-              </DialogFooter>
+              <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Sentiremos sua falta!</DialogTitle><DialogDescription className="pt-2 text-base">Você tem certeza que deseja excluir sua conta?</DialogDescription></DialogHeader>
+              <div className="py-4 space-y-3">{getBenefits().map((benefit, i) => (<div key={i} className="flex items-start gap-3 bg-secondary/20 p-3 rounded-lg border border-border/50"><div className="h-5 w-5 rounded-full bg-success/10 flex items-center justify-center shrink-0 mt-0.5"><Check className="h-3 w-3 text-success" /></div><span className="text-sm text-foreground/80">{benefit}</span></div>))}</div>
+              <DialogFooter className="mt-6 gap-2 sm:gap-0"><Button variant="ghost" onClick={() => setDeleteAccountModalOpen(false)}>Manter Minha Conta</Button><Button variant="destructive" onClick={() => setDeleteStep(2)}>Prosseguir com a Exclusão</Button></DialogFooter>
             </>
           ) : (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-destructive">
-                  <AlertTriangle className="h-5 w-5" /> 
-                  Confirmação Final
-                </DialogTitle>
-                <DialogDescription className="pt-2">
-                  Para confirmar a exclusão definitiva, digite a frase abaixo exatamente como aparece:
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="py-6 space-y-4">
-                <div className="text-center p-4 bg-muted rounded-lg border border-dashed border-muted-foreground/30">
-                  <span className="font-mono font-bold text-lg tracking-wider select-none">{CONFIRMATION_PHRASE}</span>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="delete-confirm-input">Digite a frase de confirmação</Label>
-                  <Input 
-                    id="delete-confirm-input"
-                    placeholder="Digite aqui..."
-                    value={deleteConfirmationText}
-                    onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                    className="h-12 text-center font-medium"
-                    autoFocus
-                  />
-                </div>
-              </div>
-
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button variant="ghost" onClick={() => setDeleteStep(1)} disabled={isDeletingAccount}>Voltar</Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={handleDeleteAccount} 
-                  disabled={isDeletingAccount || deleteConfirmationText !== CONFIRMATION_PHRASE}
-                  className="gap-2"
-                >
-                  {isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  Excluir Conta Permanentemente
-                </Button>
-              </DialogFooter>
+              <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5" /> Confirmação Final</DialogTitle><DialogDescription className="pt-2">Digite a frase abaixo exatamente como aparece:</DialogDescription></DialogHeader>
+              <div className="py-6 space-y-4"><div className="text-center p-4 bg-muted rounded-lg border border-dashed border-muted-foreground/30"><span className="font-mono font-bold text-lg tracking-wider select-none">{CONFIRMATION_PHRASE}</span></div><div className="space-y-2"><Label htmlFor="delete-confirm-input">Digite a frase de confirmação</Label><Input id="delete-confirm-input" placeholder="Digite aqui..." value={deleteConfirmationText} onChange={(e) => setDeleteConfirmationText(e.target.value)} className="h-12 text-center font-medium" autoFocus /></div></div>
+              <DialogFooter className="gap-2 sm:gap-0"><Button variant="ghost" onClick={() => setDeleteStep(1)} disabled={isDeletingAccount}>Voltar</Button><Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeletingAccount || deleteConfirmationText !== CONFIRMATION_PHRASE} className="gap-2">{isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Excluir Conta Permanentemente</Button></DialogFooter>
             </>
           )}
         </DialogContent>
       </Dialog>
 
-      <OnboardingModal 
-        open={isOnboardingOpen} 
-        onOpenChange={setIsOnboardingOpen} 
-        forceShow={true}
-        role={profile?.role}
-      />
+      <OnboardingModal open={isOnboardingOpen} onOpenChange={setIsOnboardingOpen} forceShow={true} role={profile?.role} />
     </div>
   );
 };

@@ -63,6 +63,10 @@ const PushManager = () => {
         (payload) => {
           if (payload.new.notifications_enabled !== undefined) {
             setNotificationsEnabled(payload.new.notifications_enabled);
+            // Se desativou agora, fecha qualquer modal aberto
+            if (payload.new.notifications_enabled === false) {
+              setActiveNotification(null);
+            }
           }
         }
       )
@@ -93,7 +97,6 @@ const PushManager = () => {
     }
   }, []);
 
-  // Efeito 1: Registro de Service Worker e Prompt de Permissão
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js", { scope: "/" })
@@ -106,7 +109,7 @@ const PushManager = () => {
     return () => window.removeEventListener("cookie-consent-accepted", handleConsent);
   }, [checkAndShowPrompt]);
 
-  // Efeito 2: Realtime Listener Global
+  // Realtime Listener Global para Push Notifications
   useEffect(() => {
     const channel = supabase
       .channel('global-broadcast-monitor')
@@ -121,14 +124,16 @@ const PushManager = () => {
         (payload) => {
           const data = payload.new as any;
           
-          // Se os avisos estiverem desativados nas preferências, ignora
-          if (!notificationsEnabled) return;
+          // VERIFICAÇÃO CRÍTICA: Se os avisos estiverem desativados, ignora completamente
+          if (!notificationsEnabled) {
+            console.log("[PushManager] Aviso ignorado: Preferência desativada.");
+            return;
+          }
 
           const isTargetAll = data.target_role === 'all';
           const isTargetMe = userRole && data.target_role === userRole;
           
           if (isTargetAll || isTargetMe) {
-            console.log("[PushManager] Novo aviso global recebido:", data.title);
             setActiveNotification({
               title: data.title,
               body: data.body,
@@ -136,7 +141,6 @@ const PushManager = () => {
               image_url: data.image_url
             });
 
-            // Se tiver permissão de Push nativo, dispara a notificação do sistema
             if (Notification.permission === "granted") {
               try {
                 navigator.serviceWorker.ready.then(registration => {
@@ -212,8 +216,6 @@ const PushManager = () => {
             <DialogTitle className="text-center text-xl font-bold">Fique por dentro!</DialogTitle>
             <DialogDescription className="text-center text-base">
               Deseja receber <strong>avisos</strong> sobre novos profissionais e atualizações importantes diretamente no seu dispositivo?
-              <br/><br/>
-              <span className="text-[10px] text-muted-foreground italic">Nota: Você pode desativar a qualquer momento nas configurações do navegador.</span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex flex-col gap-2 pt-4">
@@ -226,7 +228,8 @@ const PushManager = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!activeNotification} onOpenChange={(open) => !open && setActiveNotification(null)}>
+      {/* O modal de aviso só abre se activeNotification existir E as notificações estiverem habilitadas */}
+      <Dialog open={!!activeNotification && notificationsEnabled} onOpenChange={(open) => !open && setActiveNotification(null)}>
         <DialogContent 
           className="w-[calc(100%-2rem)] max-w-[400px] p-0 overflow-hidden border-none shadow-2xl [&>button:last-child]:hidden"
           style={{ borderRadius: `${layout.borderRadius}px`, backgroundColor: layout.bgColor }}

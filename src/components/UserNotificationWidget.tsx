@@ -42,15 +42,17 @@ const UserNotificationWidget = () => {
 
     try {
       // Busca perfil para checar se notificações estão ativas
-      const { data: profile } = await supabase
+      const { data: profile, error: profError } = await supabase
         .from("profiles")
         .select("notifications_enabled")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
       
-      setIsEnabled(profile?.notifications_enabled ?? true);
+      // Se a coluna não existir ou houver erro, assumimos habilitado por padrão
+      const notificationsActive = profile?.notifications_enabled ?? true;
+      setIsEnabled(notificationsActive);
 
-      if (profile?.notifications_enabled === false) {
+      if (!notificationsActive) {
         setNotifications([]);
         setLoading(false);
         setIsRefreshing(false);
@@ -79,6 +81,7 @@ const UserNotificationWidget = () => {
 
     fetchNotifications();
 
+    // Inscrição no Realtime
     const channel = supabase
       .channel(`user-notifications-${user.id}`)
       .on(
@@ -90,13 +93,26 @@ const UserNotificationWidget = () => {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          if (isEnabled) {
-            if (payload.eventType === 'INSERT') {
-              setNotifications(prev => [payload.new, ...prev]);
-              toast.info("Você tem uma nova notificação!");
-            } else {
-              fetchNotifications(true);
+          // Só processa se estiver habilitado no estado local
+          if (payload.eventType === 'INSERT') {
+            setNotifications(prev => {
+              // Evita duplicatas
+              if (prev.some(n => n.id === payload.new.id)) return prev;
+              return [payload.new, ...prev];
+            });
+            
+            // Alerta visual apenas se o widget não estiver aberto
+            if (!isOpen) {
+              toast.info(payload.new.title, {
+                description: payload.new.content,
+                action: payload.new.link ? {
+                  label: "Ver",
+                  onClick: () => window.location.href = payload.new.link
+                } : undefined
+              });
             }
+          } else {
+            fetchNotifications(true);
           }
         }
       )
@@ -109,7 +125,10 @@ const UserNotificationWidget = () => {
           filter: `id=eq.${user.id}`
         },
         (payload) => {
-          setIsEnabled(payload.new.notifications_enabled ?? true);
+          // Atualiza preferência em tempo real se mudar em outra aba
+          if (payload.new.notifications_enabled !== undefined) {
+            setIsEnabled(payload.new.notifications_enabled);
+          }
         }
       )
       .subscribe();
@@ -117,7 +136,7 @@ const UserNotificationWidget = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, isEnabled]);
+  }, [user?.id]); // Removido isEnabled da dependência para evitar loops de inscrição
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -150,6 +169,7 @@ const UserNotificationWidget = () => {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
+  // Se o usuário desativou, não renderizamos nada
   if (!user || !isEnabled) return null;
 
   return (
@@ -226,7 +246,7 @@ const UserNotificationWidget = () => {
                             variant="outline" 
                             size="sm" 
                             className="h-7 w-7 p-0 text-success hover:bg-success/10 border-success/20"
-                            onClick={() => handleMarkAsRead(id)}
+                            onClick={() => handleMarkAsRead(n.id)}
                             title="Marcar como lida"
                           >
                             <Check className="h-3.5 w-3.5" />

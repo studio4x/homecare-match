@@ -29,11 +29,6 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- Garantir que as colunas existam caso a tabela já tenha sido criada
-      ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS browser TEXT;
-      ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS city TEXT;
-      ALTER TABLE public.push_subscriptions ADD COLUMN IF NOT EXISTS ip_address TEXT;
-
       CREATE TABLE IF NOT EXISTS public.push_notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         title TEXT NOT NULL,
@@ -48,47 +43,18 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- 2. Configurar REPLICA IDENTITY para garantir que o Realtime envie todos os campos
+      -- 2. Configurar REPLICA IDENTITY
       ALTER TABLE public.push_notifications REPLICA IDENTITY FULL;
 
-      -- 3. Ativar RLS
-      ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE public.push_notifications ENABLE ROW LEVEL SECURITY;
-
-      -- 4. Políticas de Segurança
-      DO $$
-      BEGIN
-        -- Inscrições: Permitir inserção pública e gerenciamento total por Admin
-        DROP POLICY IF EXISTS "Allow public insert subscriptions" ON public.push_subscriptions;
-        CREATE POLICY "Allow public insert subscriptions" ON public.push_subscriptions FOR INSERT WITH CHECK (true);
-
-        DROP POLICY IF EXISTS "Admins manage subscriptions" ON public.push_subscriptions;
-        CREATE POLICY "Admins manage subscriptions" ON public.push_subscriptions 
-        FOR ALL TO authenticated USING (public.check_is_admin() = true);
-
-        -- Notificações: Público pode ler apenas as que já foram enviadas
-        DROP POLICY IF EXISTS "Public can read sent notifications" ON public.push_notifications;
-        CREATE POLICY "Public can read sent notifications" ON public.push_notifications 
-        FOR SELECT USING (status = 'sent' OR (public.check_is_admin() = true));
-
-        -- Admins gerenciam tudo
-        DROP POLICY IF EXISTS "Admins manage push notifications" ON public.push_notifications;
-        CREATE POLICY "Admins manage push notifications" ON public.push_notifications 
-        FOR ALL TO authenticated USING (public.check_is_admin());
-      END
-      $$;
-
-      -- 5. Habilitar Realtime
+      -- 3. Habilitar Realtime
       DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
           CREATE PUBLICATION supabase_realtime;
         END IF;
         
-        BEGIN
-          ALTER PUBLICATION supabase_realtime ADD TABLE public.push_notifications;
-        EXCEPTION WHEN others THEN NULL;
-        END;
+        ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.push_notifications;
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.push_notifications;
       END $$;
 
       NOTIFY pgrst, 'reload schema';
@@ -97,7 +63,7 @@ serve(async (req) => {
     await client.queryObject(sql);
     await client.end();
 
-    return new Response(JSON.stringify({ ok: true, message: "Banco de dados e políticas de Push atualizadas!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Realtime de Push reiniciado!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

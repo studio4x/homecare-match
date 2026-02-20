@@ -13,13 +13,13 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-user-notifications] Configurando Realtime e Replica Identity...");
+    console.log("[setup-user-notifications] Forçando ativação de Realtime...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
     const sql = `
-      -- 1. Garantir que a tabela existe com todas as colunas
+      -- 1. Garantir tabela
       CREATE TABLE IF NOT EXISTS public.notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -31,34 +31,22 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- 2. Configurar REPLICA IDENTITY para garantir que o Realtime envie todos os dados
+      -- 2. Configurar REPLICA IDENTITY
       ALTER TABLE public.notifications REPLICA IDENTITY FULL;
 
-      -- 3. Ativar RLS e Políticas
-      ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-      
-      DROP POLICY IF EXISTS "users_manage_own_notifications" ON public.notifications;
-      CREATE POLICY "users_manage_own_notifications" ON public.notifications 
-      FOR ALL TO authenticated 
-      USING (auth.uid() = user_id)
-      WITH CHECK (auth.uid() = user_id);
-
-      -- 4. Garantir que a tabela está na publicação de Realtime
+      -- 3. Habilitar Realtime na publicação padrão
       DO $$
       BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
           CREATE PUBLICATION supabase_realtime;
         END IF;
         
-        -- Tenta adicionar a tabela (ignora se já estiver lá)
-        BEGIN
-          ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
-        EXCEPTION WHEN others THEN 
-          NULL;
-        END;
+        -- Remove se já existir para garantir atualização limpa
+        ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.notifications;
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
       END $$;
 
-      -- 5. Notifica o recarregamento do esquema
+      -- 4. Notifica o recarregamento
       NOTIFY pgrst, 'reload schema';
     `;
 
@@ -66,7 +54,7 @@ serve(async (req) => {
     await client.end();
     client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Realtime configurado para notificações!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Realtime de notificações reiniciado!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

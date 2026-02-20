@@ -39,7 +39,8 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  User
+  User,
+  Ticket
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, addDays, isAfter, subDays } from "date-fns";
@@ -66,8 +67,9 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
 
   const getTierLabel = (tier: string) => {
     switch (tier.toLowerCase()) {
-      case 'monthly': return 'Mensal';
-      case 'yearly': return 'Anual';
+      case 'monthly': return 'Plano Mensal';
+      case 'yearly': return 'Plano Anual';
+      case 'free_trial': return 'Teste Grátis (Sistema)';
       default: return tier;
     }
   };
@@ -102,6 +104,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       const updateData: any = { subscription_tier: newPlan };
       if (newPlan === 'free_trial') {
         updateData.trial_started_at = new Date().toISOString();
+        updateData.coupon_days = null; // Remove cupom se voltar pro trial
       }
       const { error } = await supabase
         .from("profiles")
@@ -286,11 +289,19 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                           onValueChange={(value) => handleUpdatePlan(u.id, value)}
                           disabled={u.role !== 'professional'}
                         >
-                          <SelectTrigger className="w-[130px] h-8 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="w-[130px] h-8 text-[10px]">
+                            <SelectValue>
+                              {u.coupon_days && u.subscription_tier === 'monthly' 
+                                ? "Teste Grátis (via Cupom)" 
+                                : getTierLabel(u.subscription_tier || 'monthly')}
+                            </SelectValue>
+                          </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="free_trial">Teste Grátis</SelectItem>
-                            {plans.map(plan => (
-                              <SelectItem key={plan.id} value={plan.id}>{getTierLabel(plan.name)}</SelectItem>
+                            <SelectItem value="free_trial">Teste Grátis (Sistema)</SelectItem>
+                            {plans.filter(p => p.id !== 'free_trial').map(plan => (
+                              <SelectItem key={plan.id} value={plan.id}>
+                                {u.coupon_days && plan.id === 'monthly' ? "Teste Grátis (via Cupom)" : getTierLabel(plan.id)}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -299,6 +310,12 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                         <div className={`text-[9px] font-medium flex items-center gap-1 ${daysLeft <= 0 ? 'text-destructive' : 'text-primary'}`}>
                           <Calendar className="h-3 w-3" />
                           {daysLeft <= 0 ? 'Expirado' : `${daysLeft}d restantes`}
+                        </div>
+                      )}
+                      {u.coupon_days && (
+                        <div className="text-[9px] font-bold text-success flex items-center gap-1">
+                          <Ticket className="h-3 w-3" />
+                          Cupom Ativo
                         </div>
                       )}
                     </div>

@@ -201,7 +201,7 @@ const PushManager = () => {
 
       <Dialog open={!!activeNotification} onOpenChange={(open) => !open && setActiveNotification(null)}>
         <DialogContent 
-          className="w-[95vw] max-w-[400px] p-0 overflow-hidden border-none shadow-2xl"
+          className="w-[95vw] max-w-[400px] p-0 overflow-hidden border-none shadow-2xl [&>button:last-child]:hidden"
           style={{ borderRadius: `${layout.borderRadius}px`, backgroundColor: layout.bgColor }}
         >
           {activeNotification && (

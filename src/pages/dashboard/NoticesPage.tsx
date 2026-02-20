@@ -38,10 +38,12 @@ const NoticesPage = () => {
     else setIsRefreshing(true);
 
     try {
+      // BUSCA APENAS COMUNICADOS GLOBAIS (BROADCAST)
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", user.id)
+        .eq("type", "broadcast")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -56,7 +58,32 @@ const NoticesPage = () => {
   };
 
   useEffect(() => {
+    if (!user) return;
+    
     fetchNotifications();
+
+    // REALTIME PARA O MURAL
+    const channel = supabase
+      .channel(`user-broadcasts-\${user.id}`)
+      .on(
+        "postgres_changes",
+        { 
+          event: "INSERT", 
+          schema: "public", 
+          table: "notifications",
+          filter: `user_id=eq.\${user.id}`
+        },
+        (payload) => {
+          if (payload.new.type === 'broadcast') {
+            setNotifications(prev => [payload.new, ...prev]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   const handleDeleteOne = async (id: string) => {
@@ -82,7 +109,8 @@ const NoticesPage = () => {
       const { error } = await supabase
         .from("notifications")
         .delete()
-        .eq("user_id", user?.id);
+        .eq("user_id", user?.id)
+        .eq("type", "broadcast");
 
       if (error) throw error;
       setNotifications([]);

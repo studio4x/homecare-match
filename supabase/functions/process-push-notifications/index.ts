@@ -86,13 +86,12 @@ async function processNotification(supabaseAdmin, notification) {
   if (targetUsers && targetUsers.length > 0) {
     const internalNotifs = targetUsers.map(u => ({
       user_id: u.id,
-      title: `🔔 \${notification.title}`,
+      title: notification.title,
       content: notification.body,
       link: notification.link,
-      type: 'info'
+      type: 'broadcast' // TIPO ESPECIAL PARA O MURAL
     }));
     
-    // Inserção em massa (Supabase lida bem com até alguns milhares por vez)
     await supabaseAdmin.from('notifications').insert(internalNotifs);
     console.log(`[Push] Mural atualizado para \${targetUsers.length} usuários.`);
   }

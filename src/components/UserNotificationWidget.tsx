@@ -41,7 +41,6 @@ const UserNotificationWidget = () => {
     else setIsRefreshing(true);
 
     try {
-      // Busca preferência de alertas
       const { data: profile } = await supabase
         .from("profiles")
         .select("notifications_enabled")
@@ -50,11 +49,12 @@ const UserNotificationWidget = () => {
       
       setIsAlertEnabled(profile?.notifications_enabled ?? true);
 
-      // Busca histórico (Sempre carrega para o mural)
+      // BUSCA APENAS NOTIFICAÇÕES PESSOAIS (NÃO BROADCAST)
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
         .eq("user_id", user.id)
+        .neq("type", "broadcast")
         .order("created_at", { ascending: false })
         .limit(30);
 
@@ -74,7 +74,7 @@ const UserNotificationWidget = () => {
     fetchNotifications();
 
     const channel = supabase
-      .channel(`user-notifications-realtime-\${user.id}`)
+      .channel(`user-personal-notifications-\${user.id}`)
       .on(
         "postgres_changes",
         { 
@@ -84,29 +84,22 @@ const UserNotificationWidget = () => {
           filter: `user_id=eq.\${user.id}`
         },
         (payload) => {
-          setNotifications(prev => {
-            if (prev.some(n => n.id === payload.new.id)) return prev;
-            return [payload.new, ...prev];
-          });
-          
-          // Só mostra o toast se os alertas estiverem ativados no perfil
-          if (isAlertEnabled && !isOpen) {
-            toast.info(payload.new.title, {
-              description: payload.new.content,
-              action: payload.new.link ? {
-                label: "Ver",
-                onClick: () => window.location.href = payload.new.link
-              } : undefined
+          // Só adiciona ao widget se NÃO for broadcast
+          if (payload.new.type !== 'broadcast') {
+            setNotifications(prev => {
+              if (prev.some(n => n.id === payload.new.id)) return prev;
+              return [payload.new, ...prev];
             });
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.\${user.id}` },
-        (payload) => {
-          if (payload.new.notifications_enabled !== undefined) {
-            setIsAlertEnabled(payload.new.notifications_enabled);
+            
+            if (isAlertEnabled && !isOpen) {
+              toast.info(payload.new.title, {
+                description: payload.new.content,
+                action: payload.new.link ? {
+                  label: "Ver",
+                  onClick: () => window.location.href = payload.new.link
+                } : undefined
+              });
+            }
           }
         }
       )

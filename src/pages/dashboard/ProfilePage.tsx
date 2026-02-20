@@ -1,4 +1,3 @@
-' dentro do texto do link para a entidade HTML '>'.">
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";

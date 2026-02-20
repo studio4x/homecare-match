@@ -27,6 +27,7 @@ import {
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import PlanSelectionModal from "@/components/PlanSelectionModal";
 
 interface PaymentRecord {
   id: string;
@@ -44,6 +45,7 @@ const PaymentsPage = () => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
   const fetchHistory = async (silent = false) => {
     if (!silent) {
@@ -114,6 +116,15 @@ const PaymentsPage = () => {
         >
           {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Atualizar
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2 border-primary/50 text-primary hover:bg-primary/5"
+          onClick={() => setIsPlanModalOpen(true)}
+        >
+          <Ticket className="h-4 w-4" />
+          Inserir Cupom
         </Button>
       </div>
 
@@ -196,6 +207,11 @@ const PaymentsPage = () => {
           </CardContent>
         </Card>
       )}
+
+      <PlanSelectionModal
+        open={isPlanModalOpen}
+        onOpenChange={setIsPlanModalOpen}
+      />
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
         <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />

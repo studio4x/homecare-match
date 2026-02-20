@@ -29,7 +29,8 @@ import {
   Timer, 
   Key,
   Ticket,
-  Settings2
+  Settings2,
+  Video
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -78,6 +79,7 @@ const SiteConfigTab = () => {
   const [isSyncingCron, setIsSyncingCron] = useState(false);
   const [isSyncingCoupons, setIsSyncingCoupons] = useState(false);
   const [isSyncingPrefs, setIsSyncingPrefs] = useState(false);
+  const [isSyncingFeatureVideos, setIsSyncingFeatureVideos] = useState(false); // New state for feature videos
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -284,6 +286,20 @@ const SiteConfigTab = () => {
       toast.error("Erro ao configurar preferências.");
     } finally {
       setIsSyncingPrefs(false);
+    }
+  };
+
+  const handleSyncFeatureVideos = async () => { // New handler for feature videos
+    setIsSyncingFeatureVideos(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-feature-videos');
+      if (error) throw error;
+      toast.success("Tabela de vídeos de funcionalidades configurada!");
+      queryClient.invalidateQueries({ queryKey: ["feature-videos"] }); // Invalidate query for feature videos
+    } catch (error: any) {
+      toast.error("Erro ao configurar vídeos de funcionalidades.");
+    } finally {
+      setIsSyncingFeatureVideos(false);
     }
   };
 
@@ -674,6 +690,16 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncPrefs} disabled={isSyncingPrefs}>
               {isSyncingPrefs ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings2 className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Vídeos de Funcionalidades</p>
+              <p className="text-xs text-amber-800/70">Cria a tabela para gerenciar vídeos de demonstração.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncFeatureVideos} disabled={isSyncingFeatureVideos}>
+              {isSyncingFeatureVideos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
             </Button>
           </div>
 

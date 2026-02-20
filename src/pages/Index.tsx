@@ -35,6 +35,7 @@ import {
 import { useState, useEffect } from "react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
+import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -432,7 +433,7 @@ const Index = () => {
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <LandingVideoPlayer 
-                url={config.video_url_professionals} 
+                url={getYouTubeEmbedUrl(config.video_url_professionals)} 
                 title="Apresentação para Profissionais"
               />
             </div>

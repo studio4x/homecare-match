@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { features as frontendFeatures } from "@/pages/Funcionalidades"; // Import features from frontend page
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 
 const VIDEO_STORAGE_BUCKET = "uploads";
 const VIDEO_STORAGE_FOLDER = "feature-videos";
@@ -232,11 +233,16 @@ const FeatureVideosPage = () => {
           const currentVideoUrl = video?.video_url || "";
 
           // Determine the URL to display/play
-          const displayUrl = video?.video_storage_path 
+          let displayUrl = video?.video_storage_path 
             ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/${VIDEO_STORAGE_BUCKET}/${video.video_storage_path}` // Direct public URL for storage
             : currentVideoUrl;
           
-          const isEmbeddedVideo = displayUrl && (displayUrl.includes("youtube.com") || displayUrl.includes("youtu.be") || displayUrl.includes("vimeo.com"));
+          // Apply YouTube embed conversion if it's a YouTube URL
+          if (displayUrl && (displayUrl.includes("youtube.com") || displayUrl.includes("youtu.be"))) {
+            displayUrl = getYouTubeEmbedUrl(displayUrl);
+          }
+
+          const isEmbeddedVideo = displayUrl && (displayUrl.includes("youtube.com/embed") || displayUrl.includes("vimeo.com/video"));
 
           return (
             <Card key={feature.feature_key} className="overflow-hidden">
@@ -260,6 +266,7 @@ const FeatureVideosPage = () => {
                           src={displayUrl}
                           title={feature.title}
                           className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                         />
                       ) : (

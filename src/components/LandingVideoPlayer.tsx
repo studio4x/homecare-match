@@ -3,6 +3,7 @@
 import { Play, Volume2, VolumeX } from "lucide-react";
 import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 
 interface LandingVideoPlayerProps {
   url: string;
@@ -14,9 +15,19 @@ const LandingVideoPlayer = ({ url, title, className }: LandingVideoPlayerProps) 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Convert YouTube URL to embed format
+  const processedUrl = getYouTubeEmbedUrl(url);
+  const isEmbeddedVideo = processedUrl.includes("youtube.com/embed") || processedUrl.includes("vimeo.com/video");
 
   const togglePlay = () => {
-    if (videoRef.current) {
+    if (isEmbeddedVideo && iframeRef.current) {
+      // For embedded videos, we can't directly control play/pause easily.
+      // The autoplay=1 in the embed URL handles initial play.
+      // For now, we'll just toggle the overlay.
+      setIsPlaying(!isPlaying);
+    } else if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
@@ -28,16 +39,27 @@ const LandingVideoPlayer = ({ url, title, className }: LandingVideoPlayerProps) 
 
   return (
     <div className={cn("relative group rounded-3xl overflow-hidden bg-black shadow-2xl border border-border/50", className)}>
-      <video
-        ref={videoRef}
-        src={url}
-        className="w-full h-full object-cover"
-        loop
-        muted={isMuted}
-        playsInline
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-      />
+      {isEmbeddedVideo ? (
+        <iframe
+          ref={iframeRef}
+          src={processedUrl}
+          className="w-full h-full object-cover"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          onLoad={() => setIsPlaying(true)} // Assume it starts playing on load
+        />
+      ) : (
+        <video
+          ref={videoRef}
+          src={processedUrl}
+          className="w-full h-full object-cover"
+          loop
+          muted={isMuted}
+          playsInline
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+        />
+      )}
 
       {/* Overlay de Controle */}
       <div className={cn(

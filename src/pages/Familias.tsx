@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/accordion";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
+import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 
 const Familias = () => {
   const { data: config } = useSiteConfig();
@@ -151,7 +152,7 @@ const Familias = () => {
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <LandingVideoPlayer 
-                url={config.video_url_families} 
+                url={getYouTubeEmbedUrl(config.video_url_families)} 
                 title="Apresentação para Famílias"
               />
             </div>

@@ -26,6 +26,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
+import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 
 const Empresas = () => {
   const { data: config } = useSiteConfig();
@@ -175,7 +176,7 @@ const Empresas = () => {
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <LandingVideoPlayer 
-                url={config.video_url_companies} 
+                url={getYouTubeEmbedUrl(config.video_url_companies)} 
                 title="Apresentação para Empresas"
               />
             </div>

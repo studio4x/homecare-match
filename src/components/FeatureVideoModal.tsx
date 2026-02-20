@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { X } from 'lucide-react';
+import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 
 interface FeatureVideoModalProps {
   open: boolean;
@@ -19,7 +20,13 @@ interface FeatureVideoModalProps {
 const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps) => {
   if (!video) return null;
 
-  const isEmbeddedVideo = video.url.includes("youtube.com") || video.url.includes("youtu.be") || video.url.includes("vimeo.com");
+  let videoSrc = video.url;
+  // Apply YouTube embed conversion if it's a YouTube URL
+  if (videoSrc.includes("youtube.com") || videoSrc.includes("youtu.be")) {
+    videoSrc = getYouTubeEmbedUrl(videoSrc);
+  }
+
+  const isEmbeddedVideo = videoSrc.includes("youtube.com/embed") || videoSrc.includes("vimeo.com/video");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -35,7 +42,7 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
         <AspectRatio ratio={16/9}>
           {isEmbeddedVideo ? (
             <iframe
-              src={video.url}
+              src={videoSrc}
               title={video.title}
               className="h-full w-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -43,7 +50,7 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
             />
           ) : (
             <video
-              src={video.url}
+              src={videoSrc}
               className="h-full w-full object-contain"
               controls
               autoPlay

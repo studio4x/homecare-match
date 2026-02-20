@@ -34,18 +34,43 @@ const PushManager = () => {
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [activeNotification, setActiveNotification] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  // Busca o papel do usuário logado para filtrar notificações direcionadas
+  // Busca o papel e as preferências do usuário logado
   useEffect(() => {
-    const fetchRole = async () => {
+    const fetchProfilePrefs = async () => {
       if (user) {
-        const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        const { data } = await supabase.from('profiles').select('role, notifications_enabled').eq('id', user.id).single();
         setUserRole(data?.role || null);
+        setNotificationsEnabled(data?.notifications_enabled ?? true);
       } else {
         setUserRole(null);
+        setNotificationsEnabled(true);
       }
     };
-    fetchRole();
+    fetchProfilePrefs();
+  }, [user]);
+
+  // Sincroniza a preferência de notificações em tempo real
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`profile-prefs-sync-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        (payload) => {
+          if (payload.new.notifications_enabled !== undefined) {
+            setNotificationsEnabled(payload.new.notifications_enabled);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const urlBase64ToUint8Array = (base64String: string) => {
@@ -96,6 +121,9 @@ const PushManager = () => {
         (payload) => {
           const data = payload.new as any;
           
+          // Se as notificações estiverem desativadas nas preferências, ignora
+          if (!notificationsEnabled) return;
+
           const isTargetAll = data.target_role === 'all';
           const isTargetMe = userRole && data.target_role === userRole;
           
@@ -128,7 +156,7 @@ const PushManager = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userRole]);
+  }, [userRole, notificationsEnabled]);
 
   const handleSubscribe = async () => {
     if (!config?.vapid_public_key) {

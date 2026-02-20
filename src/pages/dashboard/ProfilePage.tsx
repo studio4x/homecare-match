@@ -151,6 +151,27 @@ const ProfilePage = () => {
     }
   };
 
+  const handleToggleNotifications = async (enabled: boolean) => {
+    if (!user || !profile) return;
+    
+    // Atualiza estado local imediatamente para resposta rápida na UI
+    setProfile(prev => ({ ...prev, notifications_enabled: enabled }));
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ notifications_enabled: enabled })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      toast.success(enabled ? "Notificações em tempo real ativadas!" : "Notificações em tempo real desativadas.");
+    } catch (err) {
+      // Reverte estado local em caso de erro
+      setProfile(prev => ({ ...prev, notifications_enabled: !enabled }));
+      toast.error("Erro ao salvar preferência de notificação.");
+    }
+  };
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numbers = e.target.value.replace(/\D/g, '').slice(0, 11);
     let formatted = numbers;
@@ -879,7 +900,7 @@ const ProfilePage = () => {
                 </div>
                 <Switch 
                   checked={!!profile.notifications_enabled} 
-                  onCheckedChange={(v) => setProfile({ ...profile, notifications_enabled: v })} 
+                  onCheckedChange={handleToggleNotifications} 
                 />
               </div>
             </CardContent>

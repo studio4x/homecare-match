@@ -27,7 +27,8 @@ import {
   Activity,
   Bell,
   Ticket,
-  PlayCircle // New import
+  PlayCircle,
+  UserPlus // New import
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -135,12 +136,13 @@ const AdminLayout = () => {
     { href: "/admin/metricas", label: "Métricas", icon: TrendingUp },
     { href: "/admin/verificacoes", label: "Verificações", icon: FileCheck },
     { href: "/admin/usuarios", label: "Usuários", icon: Users },
+    { href: "/admin/criar-usuario", label: "Criar Usuário", icon: UserPlus }, // New nav item
     { href: "/admin/planos", label: "Planos", icon: CreditCard },
     { href: "/admin/cupons", label: "Cupons", icon: Ticket },
     { href: "/admin/indicacoes", label: "Indicações", icon: Award },
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
     { href: "/admin/videos", label: "Vídeos do Site", icon: Video },
-    { href: "/admin/videos-funcionalidades", label: "Vídeos Funcionalidades", icon: PlayCircle }, // New nav item
+    { href: "/admin/videos-funcionalidades", label: "Vídeos Funcionalidades", icon: PlayCircle },
     { href: "/admin/push", label: "Avisos (Push)", icon: Bell },
     { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },
     { href: "/admin/suporte", label: "Tickets", icon: LifeBuoy },

@@ -57,7 +57,8 @@ import AnalyticsPage from "./pages/admin/AnalyticsPage";
 import VideosPage from "./pages/admin/VideosPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import PushNotificationsPage from "./pages/admin/PushNotificationsPage";
-import FeatureVideosPage from "./pages/admin/FeatureVideosPage"; // New import
+import FeatureVideosPage from "./pages/admin/FeatureVideosPage";
+import CreateUserPage from "./pages/admin/CreateUserPage"; // New import
 
 const queryClient = new QueryClient();
 
@@ -108,6 +109,7 @@ const App = () => (
                 <Route index element={<Navigate to="verificacoes" replace />} />
                 <Route path="verificacoes" element={<VerificationsPage />} />
                 <Route path="usuarios" element={<UsersPage />} />
+                <Route path="criar-usuario" element={<CreateUserPage />} /> {/* New route */}
                 <Route path="planos" element={<PlansPage />} />
                 <Route path="indicacoes" element={<ReferralsAdminPage />} />
                 <Route path="cursos" element={<CoursesAdminPage />} />
@@ -123,7 +125,7 @@ const App = () => (
                 <Route path="faq" element={<FaqAdminPage />} />
                 <Route path="metricas" element={<AnalyticsPage />} />
                 <Route path="auditoria" element={<AuditLogsPage />} />
-                <Route path="videos-funcionalidades" element={<FeatureVideosPage />} /> {/* New route */}
+                <Route path="videos-funcionalidades" element={<FeatureVideosPage />} />
               </Route>
 
               {/* 404 */}

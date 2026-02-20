@@ -41,7 +41,39 @@ serve(async (req) => {
       return new Response('Forbidden: Acesso restrito a administradores', { status: 403, headers: corsHeaders })
     }
 
-    const { email, password, fullName, role } = await req.json()
+    const { 
+      email, 
+      password, 
+      fullName, 
+      role,
+      registration,
+      specialty,
+      city,
+      state,
+      neighborhood,
+      experience,
+      professional_experiences,
+      bio,
+      avatar_url,
+      phone,
+      hourly_rate,
+      id_document_url,
+      prof_registration_url,
+      company_name,
+      cnpj,
+      availability,
+      patient_profiles,
+      address_zip,
+      address_street,
+      address_number,
+      address_complement,
+      lat,
+      lng,
+      is_verified,
+      verification_sent,
+      has_seen_onboarding,
+      notifications_enabled
+    } = await req.json()
     
     // Comprehensive input validation
     if (!email || typeof email !== 'string' || !isValidEmail(email)) {
@@ -61,12 +93,46 @@ serve(async (req) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: fullName }
+      user_metadata: { 
+        full_name: fullName,
+        role: sanitizedRole, // Pass role to metadata for handle_new_user
+        registration,
+        specialty,
+        city,
+        state,
+        neighborhood,
+        experience,
+        professional_experiences,
+        bio,
+        avatar_url,
+        phone,
+        hourly_rate,
+        id_document_url,
+        prof_registration_url,
+        company_name,
+        cnpj,
+        availability,
+        patient_profiles,
+        address_zip,
+        address_street,
+        address_number,
+        address_complement,
+        lat,
+        lng,
+        is_verified,
+        verification_sent,
+        has_seen_onboarding,
+        notifications_enabled
+      }
     })
 
     if (createError) throw createError
 
-    await supabaseAdmin.from('profiles').update({ role: sanitizedRole }).eq('id', newUser.user.id)
+    // The role is now set via the handle_new_user trigger using metadata,
+    // so this direct update is no longer strictly necessary for the role itself,
+    // but keeping it for other potential profile updates if needed.
+    // For now, we rely on the trigger for initial profile population.
+    // await supabaseAdmin.from('profiles').update({ role: sanitizedRole }).eq('id', newUser.user.id)
 
     return new Response(JSON.stringify({ message: 'Usuário criado com sucesso' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {

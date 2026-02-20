@@ -37,7 +37,7 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 
 const Index = () => {
-  const { session, user } = useAuth();
+  const { session, user, loading: authLoading } = useAuth();
   const { data: config } = useSiteConfig();
   const navigate = useNavigate();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -53,22 +53,18 @@ const Index = () => {
     enabled: !!user
   });
 
-  // Redirecionamento automático APENAS se vier de um link de confirmação/auth
+  // Redirecionamento automático para usuários já logados
   useEffect(() => {
-    const hasAuthParams = window.location.hash.includes('access_token') || 
-                         window.location.hash.includes('type=signup') ||
-                         window.location.hash.includes('type=recovery') ||
-                         window.location.hash.includes('type=invite');
-
-    if (session && !isLoadingProfile && profile && hasAuthParams) {
-      console.log("[Index] Detectado fluxo de autenticação, redirecionando...");
+    // Só redireciona se não estiver carregando auth nem perfil, e se houver uma sessão ativa
+    if (!authLoading && session && !isLoadingProfile && profile) {
+      console.log("[Index] Usuário logado detectado, redirecionando para o painel...");
       if (profile.is_admin || profile.role === 'admin') {
         navigate('/admin', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
       }
     }
-  }, [session, profile, isLoadingProfile, navigate]);
+  }, [session, authLoading, profile, isLoadingProfile, navigate]);
 
   const userTier = profile?.subscription_tier || null;
 
@@ -367,6 +363,15 @@ const Index = () => {
 
   const cardContent = getAcademyCardContent();
   const CardIcon = cardContent.icon;
+
+  // Se estiver carregando a autenticação, mostra um loader centralizado para evitar flashes de conteúdo
+  if (authLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <Layout>

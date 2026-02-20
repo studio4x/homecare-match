@@ -38,11 +38,12 @@ import ReviewForm from "./ReviewForm";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import InteractionProfileModal from "./InteractionProfileModal"; // Import the new modal component
 
 const WhatsAppIcon = ({ className, ...props }: React.ComponentProps<"svg">) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className} {...props}>
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.272-.57-.422z" />
-    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.08L2 22l5.05-1.32A9.95 9.95 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.65 0-3.21-.49-4.54-1.33l-.33-.21-3.37.88.9-3.28-.21-.34A7.95 7.95 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z" />
+    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.08L2 22l5.05-1.32A9.95 9.95 0 0112 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.65 0-3.21-.49-4.54-1.33l-.33-.21-3.37.88.9-3.28-.21-.34A7.95 7.95 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z" />
   </svg>
 );
 
@@ -60,6 +61,12 @@ interface Interaction {
     state?: string;
     neighborhood?: string;
     bio?: string;
+    specialty?: string; // Added for professional profiles
+    registration?: string; // Added for professional profiles
+    experience?: string; // Added for professional profiles
+    professional_experiences?: string; // Added for professional profiles
+    is_verified?: boolean; // Added for professional profiles
+    ans_registration?: string; // Added for company profiles
   };
 }
 
@@ -75,17 +82,16 @@ interface InteractionHistoryProps {
   viewerRole: 'professional' | 'company' | 'family';
 }
 
-// Função auxiliar para mascarar o número de telefone
+// Função auxiliar para mascarar o número de telefone (últimos 4 dígitos)
 const maskPhoneNumber = (phone: string | undefined): string => {
   if (!phone) return "Número não disponível";
   const cleanPhone = phone.replace(/\D/g, ''); // Remove non-digits
   if (cleanPhone.length < 11) return phone; // Don't mask if too short or invalid format
   
   const ddd = cleanPhone.substring(0, 2);
-  const firstPart = cleanPhone.substring(2, 7);
-  const secondPart = cleanPhone.substring(7, 9); // Get the first two digits of the last part
+  const firstPart = cleanPhone.substring(2, 7); // First 5 digits after DDD
   
-  return `(${ddd}) ${firstPart}-${secondPart}**`;
+  return `(${ddd}) ${firstPart}-****`; // Mask the last 4 digits
 };
 
 const InteractionHistory = ({
@@ -111,6 +117,9 @@ const InteractionHistory = ({
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [statusInfoModalOpen, setStatusInfoModalOpen] = useState(false);
   const [activeInteraction, setActiveInteraction] = useState<Interaction | null>(null);
+
+  const [showProfileModal, setShowProfileModal] = useState(false); // State for profile modal
+  const [selectedProfileForView, setSelectedProfileForView] = useState<Interaction['profile'] | null>(null); // State for profile data in modal
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -184,6 +193,11 @@ const InteractionHistory = ({
   const handleReviewClick = (profile: Interaction['profile']) => {
     setProfileToReview(profile);
     setReviewModalOpen(true);
+  };
+
+  const handleViewProfileClick = (profile: Interaction['profile']) => {
+    setSelectedProfileForView(profile);
+    setShowProfileModal(true);
   };
 
   const getInitials = (name: string) =>
@@ -323,10 +337,8 @@ const InteractionHistory = ({
                   </div>
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     {renderStatusButton(interaction)}
-                    <Button variant="ghost" size="sm" asChild className="h-8">
-                      <Link to={viewerRole === 'professional' ? `/recruiter/${interaction.profile.id}` : `/profissional/${interaction.profile.id}`}>
-                        <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
-                      </Link>
+                    <Button variant="ghost" size="sm" className="h-8" onClick={() => handleViewProfileClick(interaction.profile)}>
+                      <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Perfil</span>
                     </Button>
                     <Button variant="default" size="sm" onClick={() => handleContactClick(interaction.profile)} className="gap-2 h-8 bg-green-600 hover:bg-green-700">
                       <span className="hidden sm:inline">WhatsApp</span> <WhatsAppIcon className="h-4 w-4" />
@@ -368,7 +380,10 @@ const InteractionHistory = ({
       <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Confirmar Atendimento?</AlertDialogTitle><AlertDialogDescription>Você confirma que o atendimento com <strong>{activeInteraction?.profile.full_name}</strong> foi efetivamente realizado?</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Não</AlertDialogCancel><AlertDialogAction onClick={handleStatusUpdate}>Sim, foi realizado</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Não</AlertDialogCancel>
+            <AlertDialogAction onClick={handleStatusUpdate}>Sim, foi realizado</AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
@@ -396,6 +411,12 @@ const InteractionHistory = ({
           {user && profileToReview && <ReviewForm reviewerId={user.id} subjectId={profileToReview.id} onSuccess={() => { setReviewModalOpen(false); setReviewedProfiles(prev => [...prev, profileToReview.id]); }} />}
         </DialogContent>
       </Dialog>
+
+      <InteractionProfileModal 
+        open={showProfileModal} 
+        onOpenChange={setShowProfileModal} 
+        profile={selectedProfileForView} 
+      />
     </>
   );
 };

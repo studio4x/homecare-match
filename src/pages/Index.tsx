@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import PricingCard from "@/components/PricingCard";
@@ -41,6 +41,7 @@ const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
   const { data: config } = useSiteConfig();
   const navigate = useNavigate();
+  const location = useLocation(); // Importando useLocation
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   // Busca o perfil do usuário para saber o plano atual e o papel
@@ -56,16 +57,22 @@ const Index = () => {
 
   // Redirecionamento automático para usuários já logados
   useEffect(() => {
+    const isSupabaseAuthRedirect = location.hash.includes('_supabase=true');
+
     // Só redireciona se não estiver carregando auth nem perfil, e se houver uma sessão ativa
-    if (!authLoading && session && !isLoadingProfile && profile) {
-      console.log("[Index] Usuário logado detectado, redirecionando para o painel...");
+    // E se a navegação for proveniente de um fluxo de autenticação do Supabase (ex: magic link, confirmação de e-mail)
+    if (!authLoading && session && !isLoadingProfile && profile && isSupabaseAuthRedirect) {
+      console.log("[Index] Usuário logado detectado via redirect de auth, redirecionando para o painel...");
       if (profile.is_admin || profile.role === 'admin') {
         navigate('/admin', { replace: true });
       } else {
         navigate('/dashboard', { replace: true });
       }
+    } else if (!authLoading && session && !isLoadingProfile && profile && !isSupabaseAuthRedirect) {
+      // Usuário logado, mas não vindo de um redirect de auth. Permite que ele fique na página.
+      console.log("[Index] Usuário logado acessou a página diretamente, permitindo visualização.");
     }
-  }, [session, authLoading, profile, isLoadingProfile, navigate]);
+  }, [session, authLoading, profile, isLoadingProfile, navigate, location.hash]); // Adicionando location.hash às dependências
 
   const userTier = profile?.subscription_tier || null;
 

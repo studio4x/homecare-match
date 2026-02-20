@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { 
   Table, 
   TableBody, 
@@ -19,7 +20,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle,
-  DialogFooter
+  DialogFooter,
+  DialogDescription
 } from "@/components/ui/dialog";
 import { 
   Loader2, 
@@ -31,7 +33,11 @@ import {
   CheckCircle2, 
   XCircle,
   RefreshCw,
-  Database
+  Database,
+  Edit2,
+  Mail,
+  User,
+  Save
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +51,13 @@ const CouponsTab = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Estados para visualização de usuários
+  const [viewUsersOpen, setViewUsersOpen] = useState(false);
+  const [selectedCouponForUsers, setSelectedCouponForUsers] = useState<any>(null);
+  const [couponUsages, setCouponUsages] = useState<any[]>([]);
+  const [loadingUsages, setLoadingUsages] = useState(false);
   
   const [formData, setFormData] = useState({
     code: "",
@@ -65,7 +78,7 @@ const CouponsTab = () => {
       setCoupons(data || []);
     } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao carregar cupons. Certifique-se de sincronizar o banco.");
+      toast.error("Erro ao carregar cupons.");
     } finally {
       setLoading(false);
     }
@@ -89,25 +102,72 @@ const CouponsTab = () => {
     }
   };
 
+  const handleEdit = (coupon: any) => {
+    setEditingId(coupon.id);
+    setFormData({
+      code: coupon.code,
+      free_days: coupon.free_days,
+      max_uses: coupon.max_uses,
+      is_active: coupon.is_active
+    });
+    setOpenDialog(true);
+  };
+
+  const handleViewUsers = async (coupon: any) => {
+    setSelectedCouponForUsers(coupon);
+    setViewUsersOpen(true);
+    setLoadingUsages(true);
+    try {
+      const { data, error } = await supabase
+        .from("coupon_usages")
+        .select(`
+          id,
+          used_at,
+          profile:profiles(full_name, email)
+        `)
+        .eq("coupon_id", coupon.id)
+        .order("used_at", { ascending: false });
+
+      if (error) throw error;
+      setCouponUsages(data || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao carregar usuários do cupom.");
+    } finally {
+      setLoadingUsages(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.code) return;
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("coupons")
-        .insert({
-          code: formData.code.trim().toUpperCase(),
-          free_days: formData.free_days,
-          max_uses: formData.max_uses,
-          is_active: formData.is_active
-        });
+      const payload = {
+        code: formData.code.trim().toUpperCase(),
+        free_days: formData.free_days,
+        max_uses: formData.max_uses,
+        is_active: formData.is_active
+      };
 
-      if (error) throw error;
+      if (editingId) {
+        const { error } = await supabase
+          .from("coupons")
+          .update(payload)
+          .eq("id", editingId);
+        if (error) throw error;
+        toast.success("Cupom atualizado!");
+      } else {
+        const { error } = await supabase
+          .from("coupons")
+          .insert(payload);
+        if (error) throw error;
+        toast.success("Cupom criado!");
+      }
       
-      toast.success("Cupom criado com sucesso!");
       setOpenDialog(false);
+      setEditingId(null);
       setFormData({ code: "", free_days: 30, max_uses: 100, is_active: true });
       fetchCoupons();
     } catch (err: any) {
@@ -118,7 +178,7 @@ const CouponsTab = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Deseja excluir este cupom?")) return;
+    if (!confirm("Deseja excluir este cupom? Isso removerá o registro, mas não afetará quem já o utilizou.")) return;
     try {
       const { error } = await supabase.from("coupons").delete().eq("id", id);
       if (error) throw error;
@@ -144,7 +204,7 @@ const CouponsTab = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button onClick={() => setOpenDialog(true)} className="gap-2">
+          <Button onClick={() => { setEditingId(null); setFormData({ code: "", free_days: 30, max_uses: 100, is_active: true }); setOpenDialog(true); }} className="gap-2">
             <Plus className="h-4 w-4" /> Novo Cupom
           </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={handleSync} disabled={isSyncing}>
@@ -161,9 +221,9 @@ const CouponsTab = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Ticket className="h-5 w-5 text-primary" />
-            Cupons Ativos
+            Gestão de Cupons
           </CardTitle>
-          <CardDescription>Gerencie os códigos promocionais para o lançamento.</CardDescription>
+          <CardDescription>Crie códigos promocionais e acompanhe quem os utilizou.</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -208,9 +268,17 @@ const CouponsTab = () => {
                       </button>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => handleDelete(c.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="sm" className="h-8 gap-1.5" onClick={() => handleViewUsers(c)}>
+                          <Users className="h-4 w-4" /> Usuários
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(c)}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDelete(c.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -222,10 +290,11 @@ const CouponsTab = () => {
         </CardContent>
       </Card>
 
+      {/* Modal de Criação/Edição */}
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Criar Novo Cupom</DialogTitle>
+            <DialogTitle>{editingId ? "Editar Cupom" : "Criar Novo Cupom"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-4 py-4">
             <div className="space-y-2">
@@ -235,8 +304,9 @@ const CouponsTab = () => {
                 value={formData.code}
                 onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
                 required
+                disabled={!!editingId}
               />
-              <p className="text-[10px] text-muted-foreground">O código será convertido para maiúsculas automaticamente.</p>
+              <p className="text-[10px] text-muted-foreground">O código não pode ser alterado após a criação.</p>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
@@ -260,14 +330,87 @@ const CouponsTab = () => {
               </div>
             </div>
 
+            <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/10">
+              <Label>Cupom Ativo</Label>
+              <Switch checked={formData.is_active} onCheckedChange={v => setFormData({...formData, is_active: v})} />
+            </div>
+
             <DialogFooter className="pt-4">
               <Button type="button" variant="ghost" onClick={() => setOpenDialog(false)}>Cancelar</Button>
               <Button type="submit" disabled={isSaving || !formData.code}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Ticket className="h-4 w-4 mr-2" />}
-                Criar Cupom
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                {editingId ? "Salvar Alterações" : "Criar Cupom"}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Visualização de Usuários */}
+      <Dialog open={viewUsersOpen} onOpenChange={setViewUsersOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="p-6 border-b bg-card">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle>Usuários do Cupom: {selectedCouponForUsers?.code}</DialogTitle>
+                <DialogDescription>Lista de profissionais que utilizaram este código no cadastro.</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            {loadingUsages ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Buscando utilizações...</p>
+              </div>
+            ) : couponUsages.length > 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>E-mail</TableHead>
+                      <TableHead className="text-right">Data de Uso</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {couponUsages.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <User className="h-3 w-3 text-muted-foreground" />
+                            {u.profile?.full_name || "Usuário Desconhecido"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Mail className="h-3 w-3" />
+                            {u.profile?.email || "N/A"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {format(new Date(u.used_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-secondary/10 rounded-xl border border-dashed">
+                <Ticket className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <p className="text-muted-foreground">Ninguém utilizou este cupom ainda.</p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="p-4 border-t bg-card">
+            <Button variant="outline" onClick={() => setViewUsersOpen(false)}>Fechar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

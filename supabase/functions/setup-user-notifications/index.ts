@@ -13,7 +13,7 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-user-notifications] Adicionando coluna de imagem e reiniciando Realtime...");
+    console.log("[setup-user-notifications] Iniciando sincronização robusta...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
@@ -37,15 +37,23 @@ serve(async (req) => {
       -- 2. Configurar REPLICA IDENTITY para Realtime robusto
       ALTER TABLE public.notifications REPLICA IDENTITY FULL;
 
-      -- 3. Habilitar Realtime na publicação padrão
+      -- 3. Habilitar Realtime com verificação de existência
       DO $$
       BEGIN
+        -- Cria a publicação se não existir
         IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
           CREATE PUBLICATION supabase_realtime;
         END IF;
-        
-        ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.notifications;
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+
+        -- Adiciona a tabela apenas se ela ainda não estiver na publicação
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_publication_tables 
+          WHERE pubname = 'supabase_realtime' 
+          AND schemaname = 'public' 
+          AND tablename = 'notifications'
+        ) THEN
+          ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+        END IF;
       END $$;
 
       -- 4. Notifica o recarregamento
@@ -56,11 +64,12 @@ serve(async (req) => {
     await client.end();
     client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de avisos atualizado com suporte a imagens!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de avisos sincronizado com sucesso!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    console.error("[setup-user-notifications] Erro fatal:", e.message);
     if (client) try { await client.end(); } catch {}
     return new Response(JSON.stringify({ error: e.message }), { 
       status: 500, 

@@ -13,6 +13,7 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
+    console.log("[setup-push-notifications] Iniciando sincronização robusta...");
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
@@ -46,15 +47,23 @@ serve(async (req) => {
       -- 2. Configurar REPLICA IDENTITY
       ALTER TABLE public.push_notifications REPLICA IDENTITY FULL;
 
-      -- 3. Habilitar Realtime
+      -- 3. Habilitar Realtime com verificação
       DO $$
       BEGIN
+        -- Cria a publicação se não existir
         IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
           CREATE PUBLICATION supabase_realtime;
         END IF;
-        
-        ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.push_notifications;
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.push_notifications;
+
+        -- Adiciona a tabela apenas se ela ainda não estiver na publicação
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_publication_tables 
+          WHERE pubname = 'supabase_realtime' 
+          AND schemaname = 'public' 
+          AND tablename = 'push_notifications'
+        ) THEN
+          ALTER PUBLICATION supabase_realtime ADD TABLE public.push_notifications;
+        END IF;
       END $$;
 
       NOTIFY pgrst, 'reload schema';
@@ -62,13 +71,18 @@ serve(async (req) => {
 
     await client.queryObject(sql);
     await client.end();
+    client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Realtime de Push reiniciado!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de Push sincronizado com sucesso!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    console.error("[setup-push-notifications] Erro fatal:", e.message);
     if (client) try { await client.end(); } catch {}
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: e.message }), { 
+      status: 500, 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   }
 });

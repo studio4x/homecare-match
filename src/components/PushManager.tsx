@@ -21,6 +21,9 @@ const PushManager = () => {
   const { data: config } = useSiteConfig();
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
+  
+  // Estado para a notificação ativa (modal)
+  const [activeNotification, setActiveNotification] = useState<any>(null);
 
   const urlBase64ToUint8Array = (base64String: string) => {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
@@ -31,11 +34,6 @@ const PushManager = () => {
       outputArray[i] = rawData.charCodeAt(i);
     }
     return outputArray;
-  };
-
-  const truncate = (text: string, limit: number) => {
-    if (!text) return "";
-    return text.length > limit ? text.substring(0, limit) + "..." : text;
   };
 
   const checkAndShowPrompt = useCallback(() => {
@@ -53,89 +51,10 @@ const PushManager = () => {
       .on("postgres_changes", { event: "*", schema: "public", table: "push_notifications" }, async (payload) => {
         const data = payload.new as any;
         if (data && data.status === "sent") {
-          const safeTitle = truncate(data.title, 45);
-          const safeBody = truncate(data.body, 120);
-          const defaultLayout = {
-            bgColor: "#ffffff",
-            titleColor: "#0f172a",
-            bodyColor: "#64748b",
-            borderRadius: "20",
-            iconBgColor: "#007BFF1a",
-            iconColor: "#007BFF",
-            shadowIntensity: "0.15",
-            ctaBgColor: "#007BFF",
-            ctaTextColor: "#ffffff",
-            duration: 12,
-          };
-          const layout = config?.push_layout_json ? { ...defaultLayout, ...config.push_layout_json } : defaultLayout;
+          // Em vez de toast, agora abrimos o modal
+          setActiveNotification(data);
 
-          toast.custom(
-            (t) => (
-              <div
-                className="overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto w-[calc(100vw-32px)] max-w-[400px]"
-                style={{
-                  backgroundColor: layout.bgColor,
-                  borderRadius: `${layout.borderRadius}px`,
-                  boxShadow: `0 15px 40px rgba(0,0,0,${layout.shadowIntensity})`,
-                }}
-              >
-                <div className="relative">
-                  <button 
-                    onClick={() => toast.dismiss(t)} 
-                    className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-
-                  {data.image_url && (
-                    <div className="w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
-                      <img src={data.image_url} className="w-full h-full object-contain" alt="Banner" />
-                    </div>
-                  )}
-
-                  <div className="p-5 space-y-4">
-                    <div className="flex gap-3">
-                      <div
-                        className="h-9 w-9 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: layout.iconBgColor }}
-                      >
-                        <Megaphone className="h-4 w-4" style={{ color: layout.iconColor }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
-                          <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
-                        </div>
-                        <h4 className="font-bold leading-tight text-sm sm:text-base pr-6" style={{ color: layout.titleColor }}>
-                          {safeTitle}
-                        </h4>
-                        <p className="text-xs sm:text-sm leading-relaxed" style={{ color: layout.bodyColor }}>
-                          {safeBody}
-                        </p>
-                      </div>
-                    </div>
-                    {data.link && (
-                      <div className="pt-1">
-                        <Button
-                          size="sm"
-                          className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md border-none"
-                          style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
-                          onClick={() => {
-                            toast.dismiss(t);
-                            window.location.href = data.link;
-                          }}
-                        >
-                          Ver Detalhes <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ),
-            { duration: (layout.duration || 12) * 1000, position: "bottom-center" }
-          );
-
+          // Fallback para notificação nativa se permitido
           try {
             if (typeof window !== "undefined" && "serviceWorker" in navigator && Notification.permission === "granted") {
               const registration = await navigator.serviceWorker.ready;
@@ -183,28 +102,22 @@ const PushManager = () => {
 
     setIsSubscribing(true);
     try {
-      // Request permission using a more robust approach for different browsers
       let permission: NotificationPermission;
       
       try {
-        // Try the modern Promise-based API
         const result = await Notification.requestPermission();
         permission = result;
-        
-        // Fallback for older browsers where requestPermission returns undefined
         if (permission === undefined) {
           permission = await new Promise<NotificationPermission>((resolve) => {
             Notification.requestPermission((res) => resolve(res));
           });
         }
       } catch (err) {
-        // Fallback if the promise-based call fails
         permission = await new Promise<NotificationPermission>((resolve) => {
           Notification.requestPermission((res) => resolve(res));
         });
       }
 
-      // Final check of the static property if it's still default
       if (permission === "default") {
         permission = Notification.permission;
       }
@@ -241,7 +154,6 @@ const PushManager = () => {
 
       const subJson = subscription.toJSON();
 
-      // Detecta o navegador de forma simples
       const ua = navigator.userAgent;
       let browser = "Outro";
       if (ua.includes("Firefox")) browser = "Firefox";
@@ -283,8 +195,21 @@ const PushManager = () => {
     }
   };
 
+  // Configurações de layout vindas do banco ou padrão
+  const layout = config?.push_layout_json || {
+    bgColor: "#ffffff",
+    titleColor: "#0f172a",
+    bodyColor: "#64748b",
+    borderRadius: "32",
+    iconBgColor: "#007BFF1a",
+    iconColor: "#007BFF",
+    ctaBgColor: "#007BFF",
+    ctaTextColor: "#ffffff",
+  };
+
   return (
     <>
+      {/* Modal de Convite para Inscrição */}
       <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
         <DialogContent className="w-[95vw] max-w-[400px] rounded-3xl p-6 border-none shadow-2xl">
           <DialogHeader>
@@ -307,6 +232,78 @@ const PushManager = () => {
               </Button>
             </div>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Exibição da Notificação Recebida */}
+      <Dialog open={!!activeNotification} onOpenChange={(open) => !open && setActiveNotification(null)}>
+        <DialogContent 
+          className="w-[95vw] max-w-[400px] p-0 overflow-hidden border-none shadow-2xl"
+          style={{ borderRadius: `${layout.borderRadius}px`, backgroundColor: layout.bgColor }}
+        >
+          {activeNotification && (
+            <div className="relative">
+              <button 
+                onClick={() => setActiveNotification(null)} 
+                className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+
+              {activeNotification.image_url && (
+                <div className="w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
+                  <img src={activeNotification.image_url} className="w-full h-full object-contain" alt="Banner" />
+                </div>
+              )}
+
+              <div className="p-6 space-y-6">
+                <div className="flex gap-4">
+                  <div
+                    className="h-12 w-12 rounded-full flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: layout.iconBgColor }}
+                  >
+                    <Megaphone className="h-6 w-6" style={{ color: layout.iconColor }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
+                    </div>
+                    <DialogTitle className="text-xl font-bold leading-tight" style={{ color: layout.titleColor }}>
+                      {activeNotification.title}
+                    </DialogTitle>
+                  </div>
+                </div>
+
+                <DialogDescription className="text-base leading-relaxed" style={{ color: layout.bodyColor }}>
+                  {activeNotification.body}
+                </DialogDescription>
+
+                {activeNotification.link && (
+                  <Button
+                    size="lg"
+                    className="w-full gap-2 h-12 text-sm font-bold rounded-full shadow-lg border-none"
+                    style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
+                    onClick={() => {
+                      const link = activeNotification.link;
+                      setActiveNotification(null);
+                      window.location.href = link;
+                    }}
+                  >
+                    Ver Detalhes <ExternalLink className="h-4 w-4" />
+                  </Button>
+                )}
+                
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-xs text-muted-foreground"
+                  onClick={() => setActiveNotification(null)}
+                >
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

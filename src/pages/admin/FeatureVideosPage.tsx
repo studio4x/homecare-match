@@ -48,6 +48,8 @@ const FeatureVideosPage = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeFeatureKeyForUpload, setActiveFeatureKeyForUpload] = useState<string | null>(null);
+  const [editingUrlForFeatureKey, setEditingUrlForFeatureKey] = useState<string | null>(null);
+  const [tempVideoUrl, setTempVideoUrl] = useState<string>(""); // Temporary state for the URL input
 
   const fetchFeatureVideos = async () => {
     setLoading(true);
@@ -161,6 +163,7 @@ const FeatureVideosPage = () => {
         }, { onConflict: 'feature_key' });
       if (error) throw error;
       toast.success("URL do vídeo atualizada!");
+      setEditingUrlForFeatureKey(null); // Close the input field
       fetchFeatureVideos();
     } catch (err: any) {
       console.error("[FeatureVideosPage] Error saving URL:", err);
@@ -228,6 +231,13 @@ const FeatureVideosPage = () => {
           const hasVideo = video && (video.video_url || video.video_storage_path);
           const currentVideoUrl = video?.video_url || "";
 
+          // Determine the URL to display/play
+          const displayUrl = video?.video_storage_path 
+            ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/${VIDEO_STORAGE_BUCKET}/${video.video_storage_path}` // Direct public URL for storage
+            : currentVideoUrl;
+          
+          const isEmbeddedVideo = displayUrl && (displayUrl.includes("youtube.com") || displayUrl.includes("youtu.be") || displayUrl.includes("vimeo.com"));
+
           return (
             <Card key={feature.feature_key} className="overflow-hidden">
               <CardHeader className="pb-4">
@@ -245,88 +255,137 @@ const FeatureVideosPage = () => {
                 {hasVideo ? (
                   <div className="grid md:grid-cols-2 gap-6 items-start">
                     <div className="aspect-video rounded-xl overflow-hidden bg-black border shadow-inner relative group">
-                      {video.video_storage_path ? (
-                        <video 
-                          src={currentVideoUrl} // Use publicUrl for direct access if available
-                          className="w-full h-full object-contain"
-                          controls
-                        />
-                      ) : (
+                      {isEmbeddedVideo ? (
                         <iframe
-                          src={currentVideoUrl}
+                          src={displayUrl}
                           title={feature.title}
                           className="w-full h-full"
                           allowFullScreen
                         />
+                      ) : (
+                        <video 
+                          src={displayUrl} 
+                          className="w-full h-full object-contain"
+                          controls
+                        />
                       )}
                     </div>
                     <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>URL do Vídeo (Externa)</Label>
-                        <Input 
-                          placeholder="https://www.youtube.com/watch?v=..."
-                          value={currentVideoUrl}
-                          onChange={e => setFeatureVideos(prev => ({
-                            ...prev,
-                            [feature.feature_key]: { ...prev[feature.feature_key], video_url: e.target.value, video_storage_path: null, video_mime: null }
-                          }))}
-                          onBlur={e => handleUpdateVideoUrl(feature.feature_key, e.target.value)}
-                          disabled={isSaving}
-                        />
-                        <p className="text-[10px] text-muted-foreground">Cole um link do YouTube, Vimeo ou link direto para MP4.</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="flex-1 gap-2"
-                          onClick={() => handleUploadClick(feature.feature_key)}
-                          disabled={isUploading === feature.feature_key}
-                        >
-                          {isUploading === feature.feature_key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                          Substituir por Upload
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDeleteVideo(feature.feature_key)}
-                          disabled={isSaving}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {editingUrlForFeatureKey === feature.feature_key ? (
+                        <div className="space-y-2 animate-fade-in">
+                          <Label>URL do Vídeo (Externa)</Label>
+                          <Input 
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            value={tempVideoUrl}
+                            onChange={e => setTempVideoUrl(e.target.value)}
+                            disabled={isSaving}
+                            autoFocus
+                          />
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setEditingUrlForFeatureKey(null)}>Cancelar</Button>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleUpdateVideoUrl(feature.feature_key, tempVideoUrl)} 
+                              disabled={isSaving || !tempVideoUrl.trim()}
+                            >
+                              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar URL
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Opções de Vídeo</Label>
+                          <div className="flex flex-col gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="gap-2"
+                              onClick={() => handleUploadClick(feature.feature_key)}
+                              disabled={isUploading === feature.feature_key}
+                            >
+                              {isUploading === feature.feature_key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                              Substituir por Upload
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="gap-2"
+                              onClick={() => {
+                                setEditingUrlForFeatureKey(feature.feature_key);
+                                setTempVideoUrl(currentVideoUrl); // Initialize with current URL
+                              }}
+                            >
+                              <ExternalLink className="h-4 w-4" /> Substituir por URL
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-destructive hover:bg-destructive/10 gap-2"
+                              onClick={() => handleDeleteVideo(feature.feature_key)}
+                              disabled={isSaving}
+                            >
+                              <Trash2 className="h-4 w-4" /> Remover Vídeo
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
                   <div 
-                    className="border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center text-center space-y-4 hover:bg-secondary/10 transition-colors cursor-pointer"
-                    onClick={() => handleUploadClick(feature.feature_key)}
+                    className="border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center text-center space-y-4 hover:bg-secondary/10 transition-colors"
                   >
                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Upload className="h-6 w-6 text-primary" />
+                      <Video className="h-6 w-6 text-primary" />
                     </div>
                     <div className="space-y-1">
                       <p className="font-medium">Nenhum vídeo configurado</p>
-                      <p className="text-xs text-muted-foreground">Clique para fazer upload do vídeo MP4 (máx. {MAX_FILE_SIZE_MB}MB) ou cole uma URL.</p>
+                      <p className="text-xs text-muted-foreground">Adicione um vídeo de demonstração para esta funcionalidade.</p>
                     </div>
-                    <Button variant="outline" size="sm" disabled={isUploading === feature.feature_key}>
-                      {isUploading === feature.feature_key ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      Selecionar Arquivo
-                    </Button>
-                    <div className="w-full max-w-xs">
-                      <Input 
-                        placeholder="Ou cole uma URL externa (YouTube, Vimeo...)" 
-                        value={currentVideoUrl}
-                        onChange={e => setFeatureVideos(prev => ({
-                          ...prev,
-                          [feature.feature_key]: { ...prev[feature.feature_key], video_url: e.target.value, video_storage_path: null, video_mime: null }
-                        }))}
-                        onBlur={e => handleUpdateVideoUrl(feature.feature_key, e.target.value)}
-                        disabled={isSaving}
-                        className="mt-4"
-                      />
+                    <div className="flex flex-col gap-3 w-full max-w-xs">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => handleUploadClick(feature.feature_key)}
+                        disabled={isUploading === feature.feature_key}
+                      >
+                        {isUploading === feature.feature_key ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4" />}
+                        Upload de Arquivo
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={() => {
+                          setEditingUrlForFeatureKey(feature.feature_key);
+                          setTempVideoUrl(""); // Clear for new entry
+                        }}
+                      >
+                        <ExternalLink className="h-4 w-4" /> Inserir URL Externa
+                      </Button>
                     </div>
+                    {editingUrlForFeatureKey === feature.feature_key && (
+                      <div className="w-full max-w-xs space-y-2 mt-4 animate-fade-in">
+                        <Label className="sr-only">URL do Vídeo</Label>
+                        <Input
+                          placeholder="https://www.youtube.com/watch?v=..."
+                          value={tempVideoUrl}
+                          onChange={e => setTempVideoUrl(e.target.value)}
+                          disabled={isSaving}
+                          autoFocus
+                        />
+                        <Button
+                          size="sm"
+                          className="w-full gap-2"
+                          onClick={() => handleUpdateVideoUrl(feature.feature_key, tempVideoUrl)}
+                          disabled={isSaving || !tempVideoUrl.trim()}
+                        >
+                          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar URL
+                        </Button>
+                        <Button variant="ghost" size="sm" className="w-full" onClick={() => setEditingUrlForFeatureKey(null)}>Cancelar</Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

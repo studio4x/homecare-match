@@ -1,3 +1,4 @@
+' character in JSX by replacing it with '>'.">
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";

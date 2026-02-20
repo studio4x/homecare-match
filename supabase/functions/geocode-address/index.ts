@@ -51,7 +51,13 @@ serve(async (req) => {
     const data = await response.json()
 
     if (data.status !== 'OK') {
-      return new Response(JSON.stringify({ error: data.status }), { status: 400, headers: corsHeaders })
+      let errorMessage = data.status;
+      if (data.status === 'REQUEST_DENIED') {
+        errorMessage = "A chave da API do Google Maps está inválida ou não tem permissões. Verifique as configurações no Painel Admin.";
+      } else if (data.error_message) {
+        errorMessage = data.error_message;
+      }
+      return new Response(JSON.stringify({ error: errorMessage }), { status: 400, headers: corsHeaders })
     }
 
     const result = data.results[0]

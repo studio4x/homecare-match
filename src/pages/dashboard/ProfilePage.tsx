@@ -1,3 +1,4 @@
+' no JSX.">
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -58,9 +59,12 @@ import {
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import OnboardingModal from "@/components/OnboardingModal";
 import { getCoordinates } from "@/lib/geo-utils";
+import { useSiteConfig } from "@/hooks/use-site-config"; // Import useSiteConfig
+import { Link } from "react-router-dom"; // Import Link
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
+  const { data: siteConfig } = useSiteConfig(); // Fetch site config
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -156,6 +160,12 @@ const ProfilePage = () => {
     const p = currentProfile || profile;
     if (!p?.address_street || !p?.city || !p?.state || !p?.address_zip) return;
 
+    // Check if Google Maps API key is available
+    if (!siteConfig?.google_maps_api_key) {
+      toast.error("Chave da API do Google Maps não configurada. Acesse o Painel Admin > Configurações.");
+      return;
+    }
+
     setIsGeocoding(true);
     try {
       const coords = await getCoordinates({
@@ -176,7 +186,7 @@ const ProfilePage = () => {
     } finally {
       setIsGeocoding(false);
     }
-  }, [profile]);
+  }, [profile, siteConfig?.google_maps_api_key]); // Add siteConfig to dependencies
 
   const handleCepBlur = async () => {
     if (!profile?.address_zip) return;
@@ -310,6 +320,13 @@ const ProfilePage = () => {
       let finalLng = profile.lng;
 
       if (!finalLat || !finalLng) {
+        // Check if Google Maps API key is available before attempting geocoding
+        if (!siteConfig?.google_maps_api_key) {
+          toast.error("Chave da API do Google Maps não configurada. Acesse o Painel Admin > Configurações.");
+          setIsSaving(false);
+          return;
+        }
+
         const coords = await getCoordinates({
           street: profile.address_street,
           number: profile.address_number,
@@ -321,6 +338,10 @@ const ProfilePage = () => {
         if (coords) {
           finalLat = coords.lat;
           finalLng = coords.lng;
+        } else {
+          toast.error("Não foi possível obter coordenadas para o endereço. Verifique o endereço ou a chave da API de mapas.");
+          setIsSaving(false);
+          return;
         }
       }
 
@@ -489,6 +510,15 @@ const ProfilePage = () => {
               <CardDescription>Sua localização é usada para te conectar a oportunidades próximas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {!siteConfig?.google_maps_api_key && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3 text-destructive">
+                  <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-bold">Chave da API do Google Maps ausente!</p>
+                    <p className="text-xs">A geolocalização automática não funcionará. Configure a chave em <Link to="/admin/configuracoes" className="underline">Painel Admin > Configurações</Link>.</p>
+                  </div>
+                </div>
+              )}
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-2">
                   <Label>CEP *</Label>
@@ -589,7 +619,7 @@ const ProfilePage = () => {
               <div className="bg-secondary/30 p-3 rounded-lg flex gap-3 items-start border border-border/50">
                 <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold">Upload Seguro</p>
+                  <p className="text-sm font-semibold">Upload Seguro</p>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">Seus documentos são armazenados em um servidor privado com criptografia.</p>
                 </div>
               </div>

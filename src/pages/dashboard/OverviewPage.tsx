@@ -499,7 +499,7 @@ const OverviewPage = () => {
                               onClick={handleSyncStripe}
                               disabled={isSyncingStripe}
                             >
-                              {isSyncingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                              {isSyncingStripe ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                               Sincronizar Agora
                             </Button>
                           )}
@@ -614,51 +614,6 @@ const OverviewPage = () => {
                 </CardContent>
               </Card>
             )}
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {profile?.is_verified ? (
-                  <div className="flex items-center gap-3 text-success bg-success/5 p-4 rounded-lg border border-success/10">
-                    <CheckCircle2 className="h-5 w-5" />
-                    <div>
-                      <p className="text-sm font-semibold">Perfil Verificado</p>
-                      <p className="text-[10px] opacity-80">Selo de confiança ativo.</p>
-                    </div>
-                  </div>
-                ) : profile?.rejection_reason ? (
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 text-destructive bg-destructive/5 p-4 rounded-lg border border-destructive/10">
-                      <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold">Documentos Reprovados</p>
-                        <p className="text-xs mt-1">{profile.rejection_reason}</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleRetryVerification}>
-                      <RotateCcw className="h-3 w-3" /> Reiniciar Processo
-                    </Button>
-                  </div>
-                ) : profile?.verification_sent ? (
-                  <div className="flex items-center gap-3 text-primary bg-primary/5 p-4 rounded-lg border border-primary/10">
-                    <Clock className="h-5 w-5 animate-pulse" />
-                    <div>
-                      <p className="text-sm font-semibold">Em Análise</p>
-                      <p className="text-[10px] opacity-80">Aguarde o retorno por e-mail.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
-                    <Button asChild variant="outline" size="sm" className="w-full">
-                      <Link to="/dashboard/perfil">Enviar Documentos</Link>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
           <div className="space-y-6">
@@ -725,6 +680,51 @@ const OverviewPage = () => {
                     Central de Ajuda (FAQs)
                   </Link>
                 </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {profile?.is_verified ? (
+                  <div className="flex items-center gap-3 text-success bg-success/5 p-4 rounded-lg border border-success/10">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <div>
+                      <p className="text-sm font-semibold">Perfil Verificado</p>
+                      <p className="text-[10px] opacity-80">Selo de confiança ativo.</p>
+                    </div>
+                  </div>
+                ) : profile?.rejection_reason ? (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 text-destructive bg-destructive/5 p-4 rounded-lg border border-destructive/10">
+                      <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-semibold">Documentos Reprovados</p>
+                        <p className="text-xs mt-1">{profile.rejection_reason}</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleRetryVerification}>
+                      <RotateCcw className="h-3 w-3" /> Reiniciar Processo
+                    </Button>
+                  </div>
+                ) : profile?.verification_sent ? (
+                  <div className="flex items-center gap-3 text-primary bg-primary/5 p-4 rounded-lg border border-primary/10">
+                    <Clock className="h-5 w-5 animate-pulse" />
+                    <div>
+                      <p className="text-sm font-semibold">Em Análise</p>
+                      <p className="text-[10px] opacity-80">Aguardu o retorno por e-mail.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
+                    <Button asChild variant="outline" size="sm" className="w-full">
+                      <Link to="/dashboard/perfil">Enviar Documentos</Link>
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

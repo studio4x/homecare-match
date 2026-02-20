@@ -18,7 +18,8 @@ import {
   BookOpen,
   GraduationCap,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  LayoutDashboard
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
@@ -52,6 +53,22 @@ const Index = () => {
     enabled: !!user
   });
 
+  // Redirecionamento automático APENAS se vier de um link de confirmação/auth
+  useEffect(() => {
+    const hasAuthParams = window.location.hash.includes('access_token') || 
+                         window.location.hash.includes('type=signup') ||
+                         window.location.hash.includes('type=recovery') ||
+                         window.location.hash.includes('type=invite');
+
+    if (session && !isLoadingProfile && profile && hasAuthParams) {
+      console.log("[Index] Detectado fluxo de autenticação, redirecionando...");
+      if (profile.is_admin || profile.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [session, profile, isLoadingProfile, navigate]);
 
   const userTier = profile?.subscription_tier || null;
 
@@ -381,12 +398,21 @@ const Index = () => {
             </p>
 
             <div className="animate-slide-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.2s" }}>
-              <Button size="lg" asChild className="gap-2">
-                <Link to="/login#auth-sign-up">
-                  Escolher Plano e Começar
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              {session ? (
+                <Button size="lg" asChild className="gap-2">
+                  <Link to={profile?.is_admin || profile?.role === 'admin' ? "/admin" : "/dashboard"}>
+                    <LayoutDashboard className="h-4 w-4" />
+                    Ir para Meu Painel
+                  </Link>
+                </Button>
+              ) : (
+                <Button size="lg" asChild className="gap-2">
+                  <Link to="/login#auth-sign-up">
+                    Escolher Plano e Começar
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
               <Button size="lg" variant="outline" asChild>
                 <Link to="/empresas">Sou uma Empresa</Link>
               </Button>

@@ -31,7 +31,8 @@ import {
   RefreshCw,
   Mail,
   Award,
-  TrendingUp
+  TrendingUp,
+  Ticket
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";

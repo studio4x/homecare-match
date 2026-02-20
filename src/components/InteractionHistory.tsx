@@ -75,6 +75,19 @@ interface InteractionHistoryProps {
   viewerRole: 'professional' | 'company' | 'family';
 }
 
+// Função auxiliar para mascarar o número de telefone
+const maskPhoneNumber = (phone: string | undefined): string => {
+  if (!phone) return "Número não disponível";
+  const cleanPhone = phone.replace(/\D/g, ''); // Remove non-digits
+  if (cleanPhone.length < 11) return phone; // Don't mask if too short or invalid format
+  
+  const ddd = cleanPhone.substring(0, 2);
+  const firstPart = cleanPhone.substring(2, 7);
+  const secondPart = cleanPhone.substring(7, 9); // Get the first two digits of the last part
+  
+  return `(${ddd}) ${firstPart}-${secondPart}**`;
+};
+
 const InteractionHistory = ({
   title,
   interactions,
@@ -178,10 +191,27 @@ const InteractionHistory = ({
 
   const handleWhatsAppClick = async (contact: Interaction['profile']) => {
     if (!user) return;
+
+    // Record the click
     supabase.from('whatsapp_clicks').insert({ profile_id: contact.id, clicker_id: user.id, clicker_role: viewerRole });
-    const message = encodeURIComponent("Olá.");
+
+    const myName = user.user_metadata.full_name || "Um usuário";
+    const contactName = contact.full_name || "o profissional/recrutador";
+    let defaultMessage = "";
+
+    if (viewerRole === 'professional') {
+      defaultMessage = `Olá ${contactName}, sou ${myName} da HomeCare Match. Tenho interesse em sua vaga/necessidade.`;
+    } else { // company or family
+      defaultMessage = `Olá ${contactName}, sou ${myName} da HomeCare Match. Tenho interesse em seu perfil para uma vaga/necessidade.`;
+    }
+
+    const encodedMessage = encodeURIComponent(defaultMessage);
     const phone = contact.phone?.replace(/\D/g, '');
-    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    } else {
+      toast.error("Número de WhatsApp não disponível.");
+    }
   };
 
   const totalPages = Math.ceil(totalItems / itemsPerPage);
@@ -354,7 +384,7 @@ const InteractionHistory = ({
         <DialogContent>
           <DialogHeader><DialogTitle>Informações de Contato</DialogTitle></DialogHeader>
           <div className="py-4 space-y-4">
-            <div className="flex items-center gap-3 rounded-lg border p-4"><WhatsAppIcon className="h-6 w-6 text-green-600" /><div><p className="text-sm text-muted-foreground">WhatsApp</p><p className="font-semibold">{selectedContact?.phone}</p></div></div>
+            <div className="flex items-center gap-3 rounded-lg border p-4"><WhatsAppIcon className="h-6 w-6 text-green-600" /><div><p className="text-sm text-muted-foreground">WhatsApp</p><p className="font-semibold">{maskPhoneNumber(selectedContact?.phone)}</p></div></div>
             {selectedContact?.phone && <Button onClick={() => handleWhatsAppClick(selectedContact)} className="w-full gap-2 bg-green-600 hover:bg-green-700"><WhatsAppIcon className="h-4 w-4" /> Iniciar Conversa</Button>}
           </div>
         </DialogContent>

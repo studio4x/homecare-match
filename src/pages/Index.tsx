@@ -52,16 +52,6 @@ const Index = () => {
     enabled: !!user
   });
 
-  // Redirecionamento automático se já estiver logado
-  useEffect(() => {
-    if (session && !isLoadingProfile && profile) {
-      if (profile.is_admin || profile.role === 'admin') {
-        navigate('/admin', { replace: true });
-      } else {
-        navigate('/dashboard', { replace: true });
-      }
-    }
-  }, [session, profile, isLoadingProfile, navigate]);
 
   const userTier = profile?.subscription_tier || null;
 

@@ -490,16 +490,19 @@ const OverviewPage = () => {
                           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                             {subStatus?.dateLabel || "Data"}
                           </p>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 text-[10px] gap-1 text-primary hover:bg-primary/10"
-                            onClick={handleSyncStripe}
-                            disabled={isSyncingStripe}
-                          >
-                            {isSyncingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                            Sincronizar Agora
-                          </Button>
+                          {/* Oculta botão de sincronização se for cupom */}
+                          {!profile.coupon_days && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-[10px] gap-1 text-primary hover:bg-primary/10"
+                              onClick={handleSyncStripe}
+                              disabled={isSyncingStripe}
+                            >
+                              {isSyncingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                              Sincronizar Agora
+                            </Button>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-primary" />
@@ -522,16 +525,19 @@ const OverviewPage = () => {
                         )}
                       </div>
 
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full gap-2 h-10" 
-                        onClick={handleManageBilling}
-                        disabled={isManagingBilling}
-                      >
-                        {isManagingBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                        Gerenciar Assinatura
-                      </Button>
+                      {/* Oculta botão de gerenciar faturamento se for cupom */}
+                      {!profile.coupon_days && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full gap-2 h-10" 
+                          onClick={handleManageBilling}
+                          disabled={isManagingBilling}
+                        >
+                          {isManagingBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                          Gerenciar Assinatura
+                        </Button>
+                      )}
                     </div>
                   ) : trial && (
                     <div className="space-y-3">

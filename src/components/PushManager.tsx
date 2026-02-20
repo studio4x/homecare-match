@@ -33,6 +33,20 @@ const PushManager = () => {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [activeNotification, setActiveNotification] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Busca o papel do usuário logado para filtrar notificações direcionadas
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (user) {
+        const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+        setUserRole(data?.role || null);
+      } else {
+        setUserRole(null);
+      }
+    };
+    fetchRole();
+  }, [user]);
 
   const urlBase64ToUint8Array = (base64String: string) => {
     const padding = "=".repeat((4 - base64String.length % 4) % 4);
@@ -54,7 +68,7 @@ const PushManager = () => {
     }
   }, []);
 
-  // Efeito 1: Registro de Service Worker e Prompt (Para todos)
+  // Efeito 1: Registro de Service Worker e Prompt de Permissão
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js", { scope: "/" })
@@ -62,45 +76,50 @@ const PushManager = () => {
         .catch((err) => console.error("[Push] SW Error:", err));
     }
 
-    // Escuta o evento de consentimento de cookies para mostrar o prompt imediatamente se aceito
     const handleConsent = () => checkAndShowPrompt();
     window.addEventListener("cookie-consent-accepted", handleConsent);
     return () => window.removeEventListener("cookie-consent-accepted", handleConsent);
   }, [checkAndShowPrompt]);
 
-  // Efeito 2: Realtime Listener para Broadcasts (Apenas logados)
+  // Efeito 2: Realtime Listener Global (Para Visitantes e Logados)
   useEffect(() => {
-    if (!user) return;
-
+    // Ouvimos a tabela push_notifications. Quando o status muda para 'sent', mostramos o modal.
     const channel = supabase
-      .channel(`user-broadcast-modal-${user.id}`)
+      .channel('global-broadcast-monitor')
       .on(
         "postgres_changes", 
         { 
-          event: "INSERT", 
+          event: "UPDATE", 
           schema: "public", 
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`
+          table: "push_notifications",
+          filter: "status=eq.sent"
         }, 
-        async (payload) => {
+        (payload) => {
           const data = payload.new as any;
           
-          if (data && data.type === "broadcast") {
-            console.log("[PushManager] Novo comunicado detectado:", data.title);
+          // Lógica de Filtro de Público no Cliente
+          const isTargetAll = data.target_role === 'all';
+          const isTargetMe = userRole && data.target_role === userRole;
+          
+          // Se for para todos OU se eu for o alvo específico, mostro o modal
+          if (isTargetAll || isTargetMe) {
+            console.log("[PushManager] Novo comunicado global recebido:", data.title);
             setActiveNotification({
               title: data.title,
-              body: data.content,
+              body: data.body,
               link: data.link,
               image_url: data.image_url
             });
 
+            // Se tiver permissão de Push nativo, dispara também a notificação do sistema
             if (Notification.permission === "granted") {
               try {
-                const registration = await navigator.serviceWorker.ready;
-                registration.showNotification(data.title, {
-                  body: data.content,
-                  icon: "/favicon.png",
-                  data: { url: data.link || "/" }
+                navigator.serviceWorker.ready.then(registration => {
+                  registration.showNotification(data.title, {
+                    body: data.body,
+                    icon: "/favicon.png",
+                    data: { url: data.link || "/" }
+                  });
                 });
               } catch (e) {}
             }
@@ -112,7 +131,7 @@ const PushManager = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [userRole]);
 
   const handleSubscribe = async () => {
     if (!config?.vapid_public_key) {

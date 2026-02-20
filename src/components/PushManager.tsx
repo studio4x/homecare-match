@@ -21,8 +21,6 @@ const PushManager = () => {
   const { data: config } = useSiteConfig();
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
-  
-  // Estado para a notificação ativa (modal)
   const [activeNotification, setActiveNotification] = useState<any>(null);
 
   const urlBase64ToUint8Array = (base64String: string) => {
@@ -46,156 +44,96 @@ const PushManager = () => {
   }, []);
 
   useEffect(() => {
-    const channel = supabase
-      .channel("public-announcements")
-      .on("postgres_changes", { event: "*", schema: "public", table: "push_notifications" }, async (payload) => {
-        const data = payload.new as any;
-        if (data && data.status === "sent") {
-          // Em vez de toast, agora abrimos o modal
-          setActiveNotification(data);
+    if (!user) return;
 
-          // Fallback para notificação nativa se permitido
-          try {
-            if (typeof window !== "undefined" && "serviceWorker" in navigator && Notification.permission === "granted") {
-              const registration = await navigator.serviceWorker.ready;
-              const options: any = {
-                body: data.body,
-                icon: data.image_url || "/favicon.png",
-                badge: "/favicon.png",
-                data: { url: data.link || "/" },
-                vibrate: [100, 50, 100],
-                tag: `hcm-notification-${data.id || Date.now()}`,
-                renotify: true,
-              };
-              (registration as any).showNotification(data.title, options);
+    // ESCUTA A TABELA DE NOTIFICAÇÕES DO USUÁRIO (MURAL)
+    // Isso é muito mais confiável no Desktop pois a tabela é do próprio usuário
+    const channel = supabase
+      .channel(`user-broadcast-modal-\${user.id}`)
+      .on(
+        "postgres_changes", 
+        { 
+          event: "INSERT", 
+          schema: "public", 
+          table: "notifications",
+          filter: `user_id=eq.\${user.id}`
+        }, 
+        async (payload) => {
+          const data = payload.new as any;
+          
+          // Se for um comunicado global (broadcast), mostramos o modal em tempo real
+          if (data && data.type === "broadcast") {
+            console.log("[PushManager] Novo comunicado detectado:", data.title);
+            setActiveNotification({
+              title: data.title,
+              body: data.content,
+              link: data.link,
+              image_url: data.image_url
+            });
+
+            // Fallback para notificação nativa se permitido
+            if (Notification.permission === "granted") {
+              try {
+                const registration = await navigator.serviceWorker.ready;
+                registration.showNotification(data.title, {
+                  body: data.content,
+                  icon: "/favicon.png",
+                  data: { url: data.link || "/" }
+                });
+              } catch (e) {}
             }
-          } catch (swErr) {
-            console.warn("[PushManager] SW.showNotification fallback falhou:", swErr);
           }
         }
-      })
+      )
       .subscribe();
 
-    if (typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window) {
-      navigator.serviceWorker
-        .register("/sw.js", { scope: "/" })
-        .then(() => {
-          console.log("[Push] Service Worker registrado.");
-          checkAndShowPrompt();
-        })
-        .catch((err) => console.error("[Push] Erro ao registrar SW:", err));
+    // Registro do Service Worker
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" })
+        .then(() => checkAndShowPrompt())
+        .catch((err) => console.error("[Push] SW Error:", err));
     }
-
-    window.addEventListener("cookie-consent-accepted", checkAndShowPrompt);
 
     return () => {
       supabase.removeChannel(channel);
-      window.removeEventListener("cookie-consent-accepted", checkAndShowPrompt);
     };
-  }, [config, checkAndShowPrompt]);
+  }, [user?.id, checkAndShowPrompt]);
 
   const handleSubscribe = async () => {
-    if (!config?.vapid_public_key) {
-      toast.error("Configuração do servidor incompleta (VAPID Key ausente).");
-      return;
-    }
-
+    if (!config?.vapid_public_key) return;
     setIsSubscribing(true);
     try {
-      let permission: NotificationPermission;
-      
-      try {
-        const result = await Notification.requestPermission();
-        permission = result;
-        if (permission === undefined) {
-          permission = await new Promise<NotificationPermission>((resolve) => {
-            Notification.requestPermission((res) => resolve(res));
-          });
-        }
-      } catch (err) {
-        permission = await new Promise<NotificationPermission>((resolve) => {
-          Notification.requestPermission((res) => resolve(res));
-        });
-      }
-
-      if (permission === "default") {
-        permission = Notification.permission;
-      }
-
+      const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        if (permission === "denied") {
-          toast.error(
-            "Notificações negadas: abra Configurações do Chrome → Configurações do site → Notificações e permita para este site."
-          );
-        } else {
-          toast.error("Você fechou o diálogo sem escolher. Para ativar, abra Configurações do site e permita notificações.");
-        }
-        setIsSubscribing(false);
-        return;
-      }
-
-      if (!("serviceWorker" in navigator)) {
-        toast.error("Service Worker não suportado neste navegador.");
+        toast.error("Notificações bloqueadas no navegador.");
         setIsSubscribing(false);
         return;
       }
 
       const registration = await navigator.serviceWorker.ready;
-      if (!registration || !registration.pushManager) {
-        toast.error("PushManager não disponível. Verifique se o site está em HTTPS e que o Service Worker está ativo.");
-        setIsSubscribing(false);
-        return;
-      }
-
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(config.vapid_public_key),
       });
 
-      const subJson = subscription.toJSON();
-
-      const ua = navigator.userAgent;
-      let browser = "Outro";
-      if (ua.includes("Firefox")) browser = "Firefox";
-      else if (ua.includes("SamsungBrowser")) browser = "Samsung";
-      else if (ua.includes("Opera") || ua.includes("OPR")) browser = "Opera";
-      else if (ua.includes("Edge")) browser = "Edge";
-      else if (ua.includes("Chrome")) browser = "Chrome";
-      else if (ua.includes("Safari")) browser = "Safari";
-
-      const { error } = await supabase.functions.invoke('subscribe-push', {
+      await supabase.functions.invoke('subscribe-push', {
         body: {
           user_id: user?.id || null,
-          subscription: subJson,
+          subscription: subscription.toJSON(),
           device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "mobile" : "desktop",
-          browser: browser
+          browser: "Browser"
         }
       });
 
-      if (error) {
-        console.error("[PushManager] Edge Function error:", error);
-        toast.error("Erro ao salvar inscrição no servidor.");
-        setIsSubscribing(false);
-        return;
-      }
-
       toast.success("Notificações ativadas!");
       setShowPrompt(false);
-    } catch (err: any) {
-      console.error("[PushManager] subscribe error:", err);
-      if (err?.message && /permission/i.test(err.message)) {
-        toast.error(
-          "Notificações bloqueadas pelo navegador: abra Configurações do Chrome → Configurações do site → Notificações e ative para este site."
-        );
-      } else {
-        toast.error("Erro ao ativar notificações. Verifique se o site está em HTTPS e se o Service Worker foi registrado.");
-      }
+    } catch (err) {
+      toast.error("Erro ao ativar notificações.");
     } finally {
       setIsSubscribing(false);
     }
   };
 
-  // Configurações de layout vindas do banco ou padrão
   const layout = config?.push_layout_json || {
     bgColor: "#ffffff",
     titleColor: "#0f172a",
@@ -209,7 +147,6 @@ const PushManager = () => {
 
   return (
     <>
-      {/* Modal de Convite para Inscrição */}
       <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
         <DialogContent className="w-[95vw] max-w-[400px] rounded-3xl p-6 border-none shadow-2xl">
           <DialogHeader>
@@ -226,16 +163,11 @@ const PushManager = () => {
               {isSubscribing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
               Ativar Notificações
             </Button>
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => setShowPrompt(false)} className="flex-1 text-muted-foreground">
-                Agora não
-              </Button>
-            </div>
+            <Button variant="ghost" onClick={() => setShowPrompt(false)} className="w-full text-muted-foreground">Agora não</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Exibição da Notificação Recebida */}
       <Dialog open={!!activeNotification} onOpenChange={(open) => !open && setActiveNotification(null)}>
         <DialogContent 
           className="w-[95vw] max-w-[400px] p-0 overflow-hidden border-none shadow-2xl"
@@ -243,10 +175,7 @@ const PushManager = () => {
         >
           {activeNotification && (
             <div className="relative">
-              <button 
-                onClick={() => setActiveNotification(null)} 
-                className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors"
-              >
+              <button onClick={() => setActiveNotification(null)} className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors">
                 <X className="h-4 w-4" />
               </button>
 
@@ -258,10 +187,7 @@ const PushManager = () => {
 
               <div className="p-6 space-y-6">
                 <div className="flex gap-4">
-                  <div
-                    className="h-12 w-12 rounded-full flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: layout.iconBgColor }}
-                  >
+                  <div className="h-12 w-12 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: layout.iconBgColor }}>
                     <Megaphone className="h-6 w-6" style={{ color: layout.iconColor }} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -293,14 +219,7 @@ const PushManager = () => {
                     Ver Detalhes <ExternalLink className="h-4 w-4" />
                   </Button>
                 )}
-                
-                <Button 
-                  variant="ghost" 
-                  className="w-full text-xs text-muted-foreground"
-                  onClick={() => setActiveNotification(null)}
-                >
-                  Fechar
-                </Button>
+                <Button variant="ghost" className="w-full text-xs text-muted-foreground" onClick={() => setActiveNotification(null)}>Fechar</Button>
               </div>
             </div>
           )}

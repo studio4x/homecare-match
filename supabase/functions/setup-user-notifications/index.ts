@@ -13,13 +13,13 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-user-notifications] Forçando ativação de Realtime...");
+    console.log("[setup-user-notifications] Adicionando coluna de imagem e reiniciando Realtime...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
     
     const sql = `
-      -- 1. Garantir tabela
+      -- 1. Garantir tabela e colunas
       CREATE TABLE IF NOT EXISTS public.notifications (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -31,7 +31,10 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- 2. Configurar REPLICA IDENTITY
+      -- Adiciona coluna de imagem se não existir
+      ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+      -- 2. Configurar REPLICA IDENTITY para Realtime robusto
       ALTER TABLE public.notifications REPLICA IDENTITY FULL;
 
       -- 3. Habilitar Realtime na publicação padrão
@@ -41,7 +44,6 @@ serve(async (req) => {
           CREATE PUBLICATION supabase_realtime;
         END IF;
         
-        -- Remove se já existir para garantir atualização limpa
         ALTER PUBLICATION supabase_realtime DROP TABLE IF EXISTS public.notifications;
         ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
       END $$;
@@ -54,7 +56,7 @@ serve(async (req) => {
     await client.end();
     client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Realtime de notificações reiniciado!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de avisos atualizado com suporte a imagens!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

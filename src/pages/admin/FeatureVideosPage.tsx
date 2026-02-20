@@ -134,7 +134,11 @@ const FeatureVideosPage = () => {
       fetchFeatureVideos(); // Re-fetch to update state
     } catch (error: any) {
       console.error("[FeatureVideosPage] Upload/Save error:", error);
-      toast.error(error.message || "Erro ao enviar vídeo.");
+      if (error.message?.includes("404")) {
+        toast.error("Erro: Tabela de vídeos não encontrada. Clique em 'Sincronizar Banco' para configurar.", { duration: 8000 });
+      } else {
+        toast.error(error.message || "Erro ao enviar vídeo.");
+      }
     } finally {
       setIsUploading(null);
       setActiveFeatureKeyForUpload(null);
@@ -158,8 +162,13 @@ const FeatureVideosPage = () => {
       if (error) throw error;
       toast.success("URL do vídeo atualizada!");
       fetchFeatureVideos();
-    } catch (err) {
-      toast.error("Erro ao salvar URL.");
+    } catch (err: any) {
+      console.error("[FeatureVideosPage] Error saving URL:", err);
+      if (err.message?.includes("404")) {
+        toast.error("Erro: Tabela de vídeos não encontrada. Clique em 'Sincronizar Banco' para configurar.", { duration: 8000 });
+      } else {
+        toast.error(err.message || "Erro ao salvar URL.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -176,8 +185,13 @@ const FeatureVideosPage = () => {
       if (error) throw error;
       toast.success("Vídeo removido!");
       fetchFeatureVideos();
-    } catch (err) {
-      toast.error("Erro ao remover vídeo.");
+    } catch (err: any) {
+      console.error("[FeatureVideosPage] Error deleting video:", err);
+      if (err.message?.includes("404")) {
+        toast.error("Erro: Tabela de vídeos não encontrada. Clique em 'Sincronizar Banco' para configurar.", { duration: 8000 });
+      } else {
+        toast.error(err.message || "Erro ao remover vídeo.");
+      }
     } finally {
       setIsSaving(false);
     }

@@ -235,7 +235,7 @@ const ProfilePage = () => {
       }
 
       const updateData = type === 'avatar' ? { avatar_url: storageValue } : 
-                        type === 'id_doc' ? { id_document_url: storageValue } : 
+                        type === 'id_document_url' ? { id_document_url: storageValue } : 
                         { prof_registration_url: storageValue };
       
       await supabase.from("profiles").update(updateData).eq("id", user.id);
@@ -338,7 +338,7 @@ const ProfilePage = () => {
           finalLng = coords.lng;
         } else {
           toast.error("Não foi possível obter coordenadas para o endereço. Verifique o endereço ou a chave da API de mapas.");
-          setLoading(false);
+          setIsSaving(false);
           return;
         }
       }
@@ -510,7 +510,7 @@ const ProfilePage = () => {
             <CardContent className="space-y-6">
               {!siteConfig?.google_maps_api_key && (
                 <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3 text-destructive">
-                  <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <ShieldAlert className="h-5 w-5 shrink-0 mt-0.5" />
                   <div className="text-sm">
                     <p className="font-bold">Chave da API do Google Maps ausente!</p>
                     <p className="text-xs">A geolocalização automática não funcionará. Configure a chave em <Link to="/admin/configuracoes" className="underline">Painel Admin > Configurações</Link>.</p>

@@ -44,9 +44,12 @@ serve(async (req) => {
     const { address } = await req.json()
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')?.trim()
 
+    // Log temporário para depuração
+    console.log(`[geocode-address] API Key (primeiros 5 caracteres): ${apiKey ? apiKey.substring(0, 5) : 'N/A'}`);
+
     if (!apiKey) throw new Error("Configuração de Mapas ausente.");
 
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=\${encodeURIComponent(address)}&key=\${apiKey}&language=pt-BR`
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}&language=pt-BR`
     const response = await fetch(url)
     const data = await response.json()
 

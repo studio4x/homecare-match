@@ -45,7 +45,7 @@ serve(async (req) => {
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')?.trim()
 
     // Log temporário para depuração
-    console.log(`[geocode-address] API Key (primeiros 5 caracteres): ${apiKey ? apiKey.substring(0, 5) : 'N/A'}`);
+    // console.log(`[geocode-address] API Key (primeiros 5 caracteres): ${apiKey ? apiKey.substring(0, 5) : 'N/A'}`);
 
     if (!apiKey) throw new Error("Configuração de Mapas ausente.");
 

@@ -20,7 +20,8 @@ import {
   Sparkles,
   KeyRound,
   UserPlus,
-  HelpCircle
+  HelpCircle,
+  Ticket
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -39,6 +40,7 @@ const authSchema = z.object({
   email: z.string({ required_error: "E-mail é obrigatório" }).email("Digite um e-mail válido"),
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
+  couponCode: z.string().optional(),
 });
 
 type AuthFormData = z.infer<typeof authSchema>;
@@ -78,7 +80,8 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
       email: "",
       password: "",
       fullName: "",
-      confirmPassword: ""
+      confirmPassword: "",
+      couponCode: ""
     }
   });
 
@@ -140,6 +143,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
             emailRedirectTo: window.location.origin + "/dashboard",
             data: {
               full_name: data.fullName,
+              coupon_code: data.couponCode?.trim().toUpperCase() || null
             }
           }
         });
@@ -323,18 +327,34 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         )}
 
         {mode === "register" && (
-          <div className="space-y-2 animate-fade-in">
-            <Label htmlFor="confirmPassword">Confirmar Senha</Label>
-            <Input
-              id="confirmPassword"
-              type={showPassword ? "text" : "password"}
-              {...register("confirmPassword")}
-              className={errors.confirmPassword ? "border-destructive" : ""}
-            />
-            {errors.confirmPassword && (
-              <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
-            )}
-          </div>
+          <>
+            <div className="space-y-2 animate-fade-in">
+              <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+              <Input
+                id="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                {...register("confirmPassword")}
+                className={errors.confirmPassword ? "border-destructive" : ""}
+              />
+              {errors.confirmPassword && (
+                <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2 animate-fade-in pt-2">
+              <Label htmlFor="couponCode" className="flex items-center gap-2">
+                <Ticket className="h-4 w-4 text-primary" />
+                Cupom de Lançamento (Opcional)
+              </Label>
+              <Input
+                id="couponCode"
+                placeholder="Ex: LANÇAMENTO30"
+                {...register("couponCode")}
+                className="uppercase font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground italic">Se você possui um código promocional, insira-o aqui para ganhar dias grátis.</p>
+            </div>
+          </>
         )}
 
         <Button type="submit" className="w-full" disabled={loading}>

@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import PlanSelectionModal from "@/components/PlanSelectionModal";
 import OnboardingModal from "@/components/OnboardingModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useQuery } from "@tanstack/react-query";
 
 const OverviewPage = () => {
   const { user } = useAuth();
@@ -56,6 +57,15 @@ const OverviewPage = () => {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
+
+  // Busca detalhes do plano anual para o tooltip
+  const { data: annualPlan } = useQuery({
+    queryKey: ["annual-plan-details"],
+    queryFn: async () => {
+      const { data } = await supabase.from('plans').select('features').eq('id', 'yearly').single();
+      return data;
+    }
+  });
 
   const fetchProfile = async (showToast = false) => {
     if (!user) return;
@@ -303,8 +313,6 @@ const OverviewPage = () => {
     };
   };
 
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
-
   const completeness = getProfileCompleteness();
   const trial = getTrialInfo();
   const isProfessional = profile?.role === 'professional';
@@ -410,6 +418,149 @@ const OverviewPage = () => {
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-6">
+            {/* Gerenciar Assinatura - Agora como primeiro quadro */}
+            {isProfessional && (
+              <Card className="border-amber-400/30 shadow-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" /> Gerenciar Assinatura</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-4">
+                    <Badge variant="outline" className="capitalize text-base px-3 py-1">
+                      {getPlanLabel(profile?.subscription_tier)}
+                    </Badge>
+                    {subStatus && (
+                      <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium", subStatus.bg, subStatus.color)}>
+                        <subStatus.icon className="h-3.5 w-3.5" />
+                        {subStatus.label}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {hasPaidPlan ? (
+                    <div className="space-y-4">
+                      {profile.coupon_days && profile.cancel_at_period_end && (
+                        <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 space-y-3 animate-fade-in">
+                          <div className="flex items-start gap-3">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                              <Gift className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-bold text-primary uppercase tracking-wider">Bonificação Ativa</p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                Sua assinatura atual foi bonificada com <strong>{profile.coupon_days} dias</strong> através de um cupom de desconto.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="pl-11">
+                            <p className="text-[10px] text-muted-foreground leading-relaxed">
+                              Ao término deste período, você poderá optar por renovar o plano mensal ou atualizar para o{" "}
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-primary font-bold cursor-help underline decoration-dotted underline-offset-2">plano Anual</span>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs p-4 space-y-2">
+                                  <p className="font-bold text-xs uppercase tracking-wider border-b pb-1 mb-2">Benefícios do Plano Anual:</p>
+                                  <ul className="space-y-1.5">
+                                    {annualPlan?.features ? (
+                                      annualPlan.features.map((f: string, i: number) => (
+                                        <li key={i} className="flex items-center gap-2 text-[10px]">
+                                          <CheckCircle2 className="h-3 w-3 text-success" /> {f}
+                                        </li>
+                                      ))
+                                    ) : (
+                                      <>
+                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Destaque no topo das buscas</li>
+                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Selo dourado de verificação</li>
+                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Acesso grátis aos cursos Academy</li>
+                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Suporte prioritário</li>
+                                      </>
+                                    )}
+                                  </ul>
+                                </TooltipContent>
+                              </Tooltip>
+                              {" "}e ganhar novos benefícios exclusivos.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-4 rounded-lg border bg-secondary/10 flex flex-col gap-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                            {subStatus?.dateLabel || "Data"}
+                          </p>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 text-[10px] gap-1 text-primary hover:bg-primary/10"
+                            onClick={handleSyncStripe}
+                            disabled={isSyncingStripe}
+                          >
+                            {isSyncingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                            Sincronizar Agora
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-bold text-foreground">
+                            {profile.subscription_end_at 
+                              ? format(parseISO(profile.subscription_end_at), "dd/MM/yyyy", { locale: ptBR })
+                              : "Aguardando sistema..."
+                            }
+                          </span>
+                        </div>
+                        {!profile.subscription_end_at && (
+                          <p className="text-[10px] text-muted-foreground mt-1 italic">
+                            Clique em sincronizar se você já realizou o pagamento.
+                          </p>
+                        )}
+                        {profile.cancel_at_period_end && !profile.coupon_days && (
+                          <p className="text-[10px] text-amber-600 mt-1 font-medium">
+                            Sua assinatura não será renovada automaticamente.
+                          </p>
+                        )}
+                      </div>
+
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full gap-2 h-10" 
+                        onClick={handleManageBilling}
+                        disabled={isManagingBilling}
+                      >
+                        {isManagingBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
+                        Gerenciar Assinatura
+                      </Button>
+                    </div>
+                  ) : trial && (
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">Período de Teste</span>
+                        <span className={cn("font-medium", trial.daysRemaining <= 5 ? "text-destructive" : "text-primary")}>
+                          {trial.daysRemaining} dias restantes
+                        </span>
+                      </div>
+                      <Progress value={trial.progress} className="h-2" />
+                      
+                      <p className="text-[10px] text-muted-foreground italic text-center pt-1">
+                        Expira em: <strong>{format(trial.endDate, "dd/MM/yyyy")}</strong>
+                      </p>
+                      
+                      <Button 
+                        size="sm" 
+                        className="w-full mt-2" 
+                        variant={trial.isExpired ? "default" : "outline"}
+                        onClick={() => setIsPlanModalOpen(true)}
+                      >
+                        Assinar Agora
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Nível de Indicação (Apenas para Profissionais) */}
             {isProfessional && referralStats && (
               <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
@@ -502,139 +653,6 @@ const OverviewPage = () => {
                 )}
               </CardContent>
             </Card>
-
-            {isProfessional && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2"><Star className="h-4 w-4 text-amber-500" /> Gerenciar Assinatura</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between mb-4">
-                    <Badge variant="outline" className="capitalize text-base px-3 py-1">
-                      {getPlanLabel(profile?.subscription_tier)}
-                    </Badge>
-                    {subStatus && (
-                      <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium", subStatus.bg, subStatus.color)}>
-                        <subStatus.icon className="h-3.5 w-3.5" />
-                        {subStatus.label}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {hasPaidPlan ? (
-                    <div className="space-y-4">
-                      {profile.coupon_days && profile.cancel_at_period_end && (
-                        <div className="bg-primary/5 border border-primary/10 rounded-xl p-4 space-y-3 animate-fade-in">
-                          <div className="flex items-start gap-3">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                              <Gift className="h-4 w-4 text-primary" />
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-xs font-bold text-primary uppercase tracking-wider">Bonificação Ativa</p>
-                              <p className="text-xs text-muted-foreground leading-relaxed">
-                                Sua assinatura atual foi bonificada com <strong>{profile.coupon_days} dias</strong> através de um cupom de desconto.
-                              </p>
-                            </div>
-                          </div>
-                          <div className="pl-11">
-                            <p className="text-[10px] text-muted-foreground leading-relaxed">
-                              Ao término deste período, você poderá optar por renovar o plano mensal ou atualizar para o{" "}
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <span className="text-primary font-bold cursor-help underline decoration-dotted underline-offset-2">plano Anual</span>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs p-4 space-y-2">
-                                  <p className="font-bold text-xs uppercase tracking-wider border-b pb-1 mb-2">Benefícios do Plano Anual:</p>
-                                  <ul className="space-y-1.5">
-                                    <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Destaque no topo das buscas</li>
-                                    <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Selo dourado de verificação</li>
-                                    <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Acesso grátis aos cursos Academy</li>
-                                    <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Suporte prioritário</li>
-                                    <li className="flex items-center gap-2 text-[10px] font-bold text-primary"><CheckCircle2 className="h-3 w-3" /> Economia de R$ 120,00/ano</li>
-                                  </ul>
-                                </TooltipContent>
-                              </Tooltip>
-                              {" "}e ganhar novos benefícios exclusivos.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="p-4 rounded-lg border bg-secondary/10 flex flex-col gap-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                            {subStatus?.dateLabel || "Data"}
-                          </p>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-6 text-[10px] gap-1 text-primary hover:bg-primary/10"
-                            onClick={handleSyncStripe}
-                            disabled={isSyncingStripe}
-                          >
-                            {isSyncingStripe ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                            Sincronizar Agora
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-primary" />
-                          <span className="text-sm font-bold text-foreground">
-                            {profile.subscription_end_at 
-                              ? format(parseISO(profile.subscription_end_at), "dd/MM/yyyy", { locale: ptBR })
-                              : "Aguardando sistema..."
-                            }
-                          </span>
-                        </div>
-                        {!profile.subscription_end_at && (
-                          <p className="text-[10px] text-muted-foreground mt-1 italic">
-                            Clique em sincronizar se você já realizou o pagamento.
-                          </p>
-                        )}
-                        {profile.cancel_at_period_end && !profile.coupon_days && (
-                          <p className="text-[10px] text-amber-600 mt-1 font-medium">
-                            Sua assinatura não será renovada automaticamente.
-                          </p>
-                        )}
-                      </div>
-
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full gap-2 h-10" 
-                        onClick={handleManageBilling}
-                        disabled={isManagingBilling}
-                      >
-                        {isManagingBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                        Gerenciar Assinatura
-                      </Button>
-                    </div>
-                  ) : trial && (
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-muted-foreground">Período de Teste</span>
-                        <span className={cn("font-medium", trial.daysRemaining <= 5 ? "text-destructive" : "text-primary")}>
-                          {trial.daysRemaining} dias restantes
-                        </span>
-                      </div>
-                      <Progress value={trial.progress} className="h-2" />
-                      
-                      <p className="text-[10px] text-muted-foreground italic text-center pt-1">
-                        Expira em: <strong>{format(trial.endDate, "dd/MM/yyyy")}</strong>
-                      </p>
-                      
-                      <Button 
-                        size="sm" 
-                        className="w-full mt-2" 
-                        variant={trial.isExpired ? "default" : "outline"}
-                        onClick={() => setIsPlanModalOpen(true)}
-                      >
-                        Assinar Agora
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           <div className="space-y-6">

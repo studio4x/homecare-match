@@ -52,6 +52,8 @@ This document outlines the technical standards and architectural guidelines for 
 ### 8. Alterações por agentes de IA
 - O agente de IA NUNCA deve apagar funcionalidades já implementadas, a não ser por solicitação expressa.
 - Ao inserir uma nova funcionalidade ou alterar alguma existente por solicitação expressa, o agente deve se limitar a incluir e alterar somente o que for solicitado.
+- **Ao executar uma tarefa, não envie textos de diálogo; limite-se a apenas executar a tarefa.**
+- **Sempre execute uma tarefa e retorne ao usuário com a mensagem de "Concluído". Se ocorrer algum erro, informe o usuário detalhadamente.**
 
 ### 9. Versão do Build
 - O agente de IA DEVE sempre atualizar o número da versão do build a cada alteração realizada no app, garantindo rastreabilidade das mudanças.

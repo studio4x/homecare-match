@@ -71,67 +71,66 @@ const PushManager = () => {
 
           toast.custom(
             (t) => (
-              <div
-                className="overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto"
-                style={{
-                  backgroundColor: layout.bgColor,
-                  borderRadius: `${layout.borderRadius}px`,
-                  boxShadow: `0 15px 40px rgba(0,0,0,${layout.shadowIntensity})`,
-                  width: 'calc(100vw - 40px)', // Força largura responsiva
-                  maxWidth: '400px', // Limite para desktop
-                  margin: '0 auto' // Centraliza no container do toast
-                }}
-              >
-                <div className="relative">
-                  <button 
-                    onClick={() => toast.dismiss(t)} 
-                    className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+              <div className="flex w-full justify-center px-4 pointer-events-none">
+                <div
+                  className="overflow-hidden border border-slate-100 bg-white shadow-2xl pointer-events-auto w-full max-w-[400px]"
+                  style={{
+                    backgroundColor: layout.bgColor,
+                    borderRadius: `${layout.borderRadius}px`,
+                    boxShadow: `0 15px 40px rgba(0,0,0,${layout.shadowIntensity})`,
+                  }}
+                >
+                  <div className="relative">
+                    <button 
+                      onClick={() => toast.dismiss(t)} 
+                      className="absolute top-3 right-3 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
 
-                  {data.image_url && (
-                    <div className="w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
-                      <img src={data.image_url} className="w-full h-full object-contain" alt="Banner" />
-                    </div>
-                  )}
-
-                  <div className="p-5 space-y-4">
-                    <div className="flex gap-3">
-                      <div
-                        className="h-9 w-9 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: layout.iconBgColor }}
-                      >
-                        <Megaphone className="h-4 w-4" style={{ color: layout.iconColor }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-1">
-                          <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
-                          <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
-                        </div>
-                        <h4 className="font-bold leading-tight text-sm sm:text-base pr-6" style={{ color: layout.titleColor }}>
-                          {safeTitle}
-                        </h4>
-                        <p className="text-xs sm:text-sm leading-relaxed" style={{ color: layout.bodyColor }}>
-                          {safeBody}
-                        </p>
-                      </div>
-                    </div>
-                    {data.link && (
-                      <div className="pt-1">
-                        <Button
-                          size="sm"
-                          className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md border-none"
-                          style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
-                          onClick={() => {
-                            toast.dismiss(t);
-                            window.location.href = data.link;
-                          }}
-                        >
-                          Ver Detalhes <ExternalLink className="h-3 w-3" />
-                        </Button>
+                    {data.image_url && (
+                      <div className="w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
+                        <img src={data.image_url} className="w-full h-full object-contain" alt="Banner" />
                       </div>
                     )}
+
+                    <div className="p-5 space-y-4">
+                      <div className="flex gap-3">
+                        <div
+                          className="h-9 w-9 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: layout.iconBgColor }}
+                        >
+                          <Megaphone className="h-4 w-4" style={{ color: layout.iconColor }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
+                            <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
+                          </div>
+                          <h4 className="font-bold leading-tight text-sm sm:text-base pr-6" style={{ color: layout.titleColor }}>
+                            {safeTitle}
+                          </h4>
+                          <p className="text-xs sm:text-sm leading-relaxed" style={{ color: layout.bodyColor }}>
+                            {safeBody}
+                          </p>
+                        </div>
+                      </div>
+                      {data.link && (
+                        <div className="pt-1">
+                          <Button
+                            size="sm"
+                            className="h-10 w-full gap-1.5 text-xs font-bold rounded-full shadow-md border-none"
+                            style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
+                            onClick={() => {
+                              toast.dismiss(t);
+                              window.location.href = data.link;
+                            }}
+                          >
+                            Ver Detalhes <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

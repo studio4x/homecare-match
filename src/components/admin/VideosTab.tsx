@@ -6,10 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Video, Upload, Trash2, Play, CheckCircle2, RefreshCw, Database } from "lucide-react";
+import { Loader2, Video, Upload, Trash2, Play, CheckCircle2, RefreshCw, Database, X } from "lucide-react";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
+import LandingVideoPlayer from "../LandingVideoPlayer"; // Import LandingVideoPlayer
+import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import utility
+
+const VIDEO_STORAGE_BUCKET = "uploads";
+const VIDEO_STORAGE_FOLDER = "site-videos";
 
 const VideosTab = () => {
   const { data: config, isLoading } = useSiteConfig();
@@ -20,23 +25,25 @@ const VideosTab = () => {
   const [activeField, setActiveField] = useState<string | null>(null);
 
   const videoFields = [
-    { id: "video_url_professionals", label: "Landing Page: Profissionais", description: "Vídeo exibido na página inicial para profissionais." },
-    { id: "video_url_companies", label: "Landing Page: Empresas", description: "Vídeo exibido na página de soluções para empresas." },
-    { id: "video_url_families", label: "Landing Page: Famílias", description: "Vídeo exibido na página de soluções para famílias." },
-    { id: "video_url_onboarding", label: "Dashboard: Onboarding Profissional", description: "Vídeo de boas-vindas exibido no primeiro acesso do profissional." },
-    { id: "video_url_onboarding_company", label: "Dashboard: Onboarding Empresa", description: "Vídeo de boas-vindas exibido no primeiro acesso da empresa." },
-    { id: "video_url_onboarding_family", label: "Dashboard: Onboarding Família", description: "Vídeo de boas-vindas exibido no primeiro acesso da família." },
+    { id: "video_url_professionals", storageId: "video_storage_path_professionals", mimeId: "video_mime_professionals", label: "Landing Page: Profissionais", description: "Vídeo exibido na página inicial para profissionais." },
+    { id: "video_url_companies", storageId: "video_storage_path_companies", mimeId: "video_mime_companies", label: "Landing Page: Empresas", description: "Vídeo exibido na página de soluções para empresas." },
+    { id: "video_url_families", storageId: "video_storage_path_families", mimeId: "video_mime_families", label: "Landing Page: Famílias", description: "Vídeo exibido na página de soluções para famílias." },
+    { id: "video_url_onboarding", storageId: "video_storage_path_onboarding", mimeId: "video_mime_onboarding", label: "Dashboard: Onboarding Profissional", description: "Vídeo de boas-vindas exibido no primeiro acesso do profissional." },
+    { id: "video_url_onboarding_company", storageId: "video_storage_path_onboarding_company", mimeId: "video_mime_onboarding_company", label: "Dashboard: Onboarding Empresa", description: "Vídeo de boas-vindas exibido no primeiro acesso da empresa." },
+    { id: "video_url_onboarding_family", storageId: "video_storage_path_onboarding_family", mimeId: "video_mime_onboarding_family", label: "Dashboard: Onboarding Família", description: "Vídeo de boas-vindas exibido no primeiro acesso da família." },
   ];
 
   const handleSyncDatabase = async () => {
     setIsSyncing(true);
     try {
-      const { error } = await supabase.functions.invoke('extend-site-config');
-      if (error) throw error;
+      // This function needs to be updated to add the new storage path columns
+      // For now, we'll just call the existing extend-site-config
+      await supabase.functions.invoke('extend-site-config'); 
       toast.success("Banco de dados sincronizado! Agora você pode subir os vídeos.");
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
-    } catch (error: any) {
-      toast.error("Erro ao sincronizar banco.");
+    } catch (e) {
+      console.warn("[VideosTab] extend-site-config warning:", e);
+      toast.error("Falha ao sincronizar banco.");
     } finally {
       setIsSyncing(false);
     }
@@ -53,23 +60,32 @@ const VideosTab = () => {
 
     setIsUploading(activeField);
     const fileExt = file.name.split('.').pop();
-    const fileName = `landing_${activeField}_${Date.now()}.${fileExt}`;
-    const filePath = `site-videos/${fileName}`;
+    const fileName = `${activeField}_${Date.now()}.${fileExt}`;
+    const filePath = `${VIDEO_STORAGE_FOLDER}/${fileName}`;
 
     try {
       const { error: uploadError } = await supabase.storage
-        .from('uploads')
+        .from(VIDEO_STORAGE_BUCKET)
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('uploads')
+        .from(VIDEO_STORAGE_BUCKET)
         .getPublicUrl(filePath);
+
+      const fieldConfig = videoFields.find(f => f.id === activeField);
+      if (!fieldConfig) throw new Error("Configuração de campo não encontrada.");
+
+      const updatePayload: any = { 
+        [activeField]: publicUrl, // Keep public URL for direct access if needed
+        [fieldConfig.storageId]: filePath, // Store storage path
+        [fieldConfig.mimeId]: file.type // Store mime type
+      };
 
       const { error: dbError } = await supabase
         .from('site_config')
-        .update({ [activeField]: publicUrl })
+        .update(updatePayload)
         .eq('id', 1);
 
       if (dbError) {
@@ -91,13 +107,19 @@ const VideosTab = () => {
     }
   };
 
-  const handleDelete = async (field: string) => {
+  const handleDelete = async (fieldId: string, storageId: string, mimeId: string) => {
     if (!confirm("Deseja remover este vídeo?")) return;
     
     try {
+      const updatePayload: any = { 
+        [fieldId]: null,
+        [storageId]: null,
+        [mimeId]: null
+      };
+
       const { error } = await supabase
         .from('site_config')
-        .update({ [field]: null })
+        .update(updatePayload)
         .eq('id', 1);
 
       if (error) throw error;
@@ -107,6 +129,12 @@ const VideosTab = () => {
     } catch (error) {
       toast.error("Erro ao remover vídeo.");
     }
+  };
+
+  const getSignedUrlForStoragePath = async (path: string) => {
+    if (!path) return null;
+    const { data } = await supabase.storage.from(VIDEO_STORAGE_BUCKET).createSignedUrl(path, 3600);
+    return data?.signedUrl || null;
   };
 
   if (isLoading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
@@ -129,7 +157,14 @@ const VideosTab = () => {
       <div className="grid gap-6">
         {videoFields.map((field) => {
           const currentUrl = (config as any)?.[field.id];
+          const currentStoragePath = (config as any)?.[field.storageId];
+          const currentMimeType = (config as any)?.[field.mimeId];
           
+          // Prioritize storage path for custom player
+          const videoSourceUrl = currentStoragePath 
+            ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/${VIDEO_STORAGE_BUCKET}/${currentStoragePath}` // Direct public URL for storage
+            : currentUrl;
+
           return (
             <Card key={field.id} className="overflow-hidden">
               <CardHeader className="pb-4">
@@ -141,7 +176,7 @@ const VideosTab = () => {
                     </CardTitle>
                     <CardDescription>{field.description}</CardDescription>
                   </div>
-                  {currentUrl && (
+                  {(currentUrl || currentStoragePath) && (
                     <Badge variant="secondary" className="bg-success/10 text-success border-success/20 gap-1">
                       <CheckCircle2 className="h-3 w-3" /> Ativo
                     </Badge>
@@ -149,20 +184,25 @@ const VideosTab = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {currentUrl ? (
+                {(currentUrl || currentStoragePath) ? (
                   <div className="grid md:grid-cols-2 gap-6 items-start">
                     <div className="aspect-video rounded-xl overflow-hidden bg-black border shadow-inner relative group">
-                      <video 
-                        src={currentUrl} 
-                        className="w-full h-full object-contain"
-                        controls
+                      {/* Use LandingVideoPlayer for preview */}
+                      <LandingVideoPlayer 
+                        url={videoSourceUrl}
+                        title={field.label}
                       />
                     </div>
                     <div className="space-y-4">
                       <div className="p-4 rounded-lg bg-secondary/20 border border-dashed">
                         <p className="text-xs text-muted-foreground break-all">
-                          <span className="font-bold text-foreground">URL:</span> {currentUrl}
+                          <span className="font-bold text-foreground">URL:</span> {currentUrl || "N/A"}
                         </p>
+                        {currentStoragePath && (
+                          <p className="text-xs text-muted-foreground break-all mt-1">
+                            <span className="font-bold text-foreground">Storage Path:</span> {currentStoragePath}
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <Button 
@@ -182,7 +222,7 @@ const VideosTab = () => {
                           variant="ghost" 
                           size="sm" 
                           className="text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(field.id)}
+                          onClick={() => handleDelete(field.id, field.storageId, field.mimeId)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

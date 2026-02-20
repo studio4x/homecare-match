@@ -91,6 +91,11 @@ const Familias = () => {
 
   const canUseSpecialtySearch = (stats?.total ?? 0) >= 10;
 
+  // Determine video URL for LandingVideoPlayer
+  const landingVideoUrl = config?.video_storage_path_families
+    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/site-videos/${config.video_storage_path_families}`
+    : config?.video_url_families;
+
   return (
     <Layout>
       {/* Hero Section */}
@@ -147,12 +152,12 @@ const Familias = () => {
       </section>
 
       {/* Seção de Vídeo de Apresentação */}
-      {config?.video_url_families && (
+      {landingVideoUrl && (
         <section className="py-12 bg-secondary/10">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <LandingVideoPlayer 
-                url={getYouTubeEmbedUrl(config.video_url_families)} 
+                url={landingVideoUrl} 
                 title="Apresentação para Famílias"
               />
             </div>

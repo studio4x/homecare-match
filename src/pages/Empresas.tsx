@@ -125,6 +125,11 @@ const Empresas = () => {
 
   const showLocationCard = !isLoadingLocations && (locationData?.total || 0) >= 10;
 
+  // Determine video URL for LandingVideoPlayer
+  const landingVideoUrl = config?.video_storage_path_companies
+    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/site-videos/${config.video_storage_path_companies}`
+    : config?.video_url_companies;
+
   return (
     <Layout>
       {/* Hero Section */}
@@ -171,12 +176,12 @@ const Empresas = () => {
       </section>
 
       {/* Seção de Vídeo de Apresentação */}
-      {config?.video_url_companies && (
+      {landingVideoUrl && (
         <section className="py-12 bg-secondary/10">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <LandingVideoPlayer 
-                url={getYouTubeEmbedUrl(config.video_url_companies)} 
+                url={landingVideoUrl} 
                 title="Apresentação para Empresas"
               />
             </div>

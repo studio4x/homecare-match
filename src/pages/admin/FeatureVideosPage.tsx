@@ -25,6 +25,7 @@ import { features as frontendFeatures } from "@/pages/Funcionalidades"; // Impor
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
+import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import LandingVideoPlayer
 
 const VIDEO_STORAGE_BUCKET = "uploads";
 const VIDEO_STORAGE_FOLDER = "feature-videos";
@@ -115,10 +116,6 @@ const FeatureVideosPage = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from(VIDEO_STORAGE_BUCKET)
-        .getPublicUrl(filePath);
-
       const featureTitle = frontendFeatures.find(f => f.feature_key === activeFeatureKeyForUpload)?.title || activeFeatureKeyForUpload;
 
       const { error: dbError } = await supabase
@@ -126,8 +123,8 @@ const FeatureVideosPage = () => {
         .upsert({
           feature_key: activeFeatureKeyForUpload,
           title: featureTitle,
-          video_url: publicUrl, // For direct public access
-          video_storage_path: filePath, // For signed URL access if bucket is private
+          video_url: null, // Clear external URL if uploading to storage
+          video_storage_path: filePath, // Store storage path
           video_mime: file.type
         }, { onConflict: 'feature_key' });
 
@@ -201,14 +198,14 @@ const FeatureVideosPage = () => {
     }
   };
 
-  const getSignedUrl = async (path: string) => {
-    const { data, error } = await supabase.storage.from(VIDEO_STORAGE_BUCKET).createSignedUrl(path, 60);
-    if (error) {
-      console.error("Error getting signed URL:", error);
-      toast.error("Erro ao gerar link seguro para o vídeo.");
-      return null;
+  const getVideoSourceUrl = (video: FeatureVideo | undefined) => {
+    if (!video) return null;
+    if (video.video_storage_path) {
+      // For storage path, generate a public URL (assuming bucket is public or RLS allows)
+      // If bucket is private, you'd need a signed URL here. For simplicity, using public URL for now.
+      return `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/${VIDEO_STORAGE_BUCKET}/${video.video_storage_path}`;
     }
-    return data.signedUrl;
+    return video.video_url;
   };
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
@@ -231,18 +228,7 @@ const FeatureVideosPage = () => {
           const video = featureVideos[feature.feature_key];
           const hasVideo = video && (video.video_url || video.video_storage_path);
           const currentVideoUrl = video?.video_url || "";
-
-          // Determine the URL to display/play
-          let displayUrl = video?.video_storage_path 
-            ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/${VIDEO_STORAGE_BUCKET}/${video.video_storage_path}` // Direct public URL for storage
-            : currentVideoUrl;
-          
-          // Apply YouTube embed conversion if it's a YouTube URL
-          if (displayUrl && (displayUrl.includes("youtube.com") || displayUrl.includes("youtu.be"))) {
-            displayUrl = getYouTubeEmbedUrl(displayUrl);
-          }
-
-          const isEmbeddedVideo = displayUrl && (displayUrl.includes("youtube.com/embed") || displayUrl.includes("vimeo.com/video"));
+          const sourceUrl = getVideoSourceUrl(video);
 
           return (
             <Card key={feature.feature_key} className="overflow-hidden">
@@ -261,19 +247,10 @@ const FeatureVideosPage = () => {
                 {hasVideo ? (
                   <div className="space-y-4">
                     <div className="aspect-video rounded-xl overflow-hidden bg-black border shadow-inner relative group">
-                      {isEmbeddedVideo ? (
-                        <iframe
-                          src={displayUrl}
+                      {sourceUrl && (
+                        <LandingVideoPlayer 
+                          url={sourceUrl}
                           title={feature.title}
-                          className="w-full h-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <video 
-                          src={displayUrl} 
-                          className="w-full h-full object-contain"
-                          controls
                         />
                       )}
                     </div>

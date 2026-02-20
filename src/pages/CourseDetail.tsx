@@ -42,6 +42,7 @@ import {
 import PlanSelectionModal from "@/components/PlanSelectionModal";
 import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
+import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import LandingVideoPlayer
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -540,6 +541,14 @@ const CourseDetail = () => {
                           const isFree = !course.price || course.price === 0;
                           const isLocked = isFree && !isYearlyPlan && !isEnrolled && !isAdmin;
                           
+                          // Determine the URL for the lesson video/resource
+                          let lessonResourceUrl = l.resource_url;
+                          if (l.type === 'video' && l.resource_url && !l.resource_url.startsWith('http')) {
+                            lessonResourceUrl = signedUrls[l.resource_url]; // Use signed URL for storage videos
+                          } else if (l.type === 'video' && l.resource_url && (l.resource_url.includes("youtube.com") || l.resource_url.includes("youtu.be"))) {
+                            lessonResourceUrl = getYouTubeEmbedUrl(l.resource_url); // Convert YouTube to embed
+                          }
+
                           return (
                             <div
                               key={l.id}
@@ -570,7 +579,7 @@ const CourseDetail = () => {
                                       size="sm"
                                       className="h-7 sm:h-8 px-2 sm:px-3 text-[10px] sm:text-xs gap-1 sm:gap-1.5"
                                     >
-                                      <Eye size={12} className="sm:w-3.5 sm:h-3.5" /> <span className="hidden xs:inline sm:inline">Acessar</span>
+                                      <Eye size={12} className="sm:w-3.5 sm:h-3.5" /> <span className="hidden xs:inline">Acessar</span>
                                     </Button>
                                     <ChevronRight size={14} className="text-muted-foreground/50 sm:w-4 sm:h-4" />
                                   </>
@@ -589,7 +598,7 @@ const CourseDetail = () => {
             </div>
           </div>
         </div>
-      </div> {/* This is the missing closing div tag */}
+      </div>
 
       <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black border-none">
@@ -643,11 +652,9 @@ const CourseDetail = () => {
                   <div className="space-y-4">
                     <AspectRatio ratio={16/9} className="bg-black rounded-xl overflow-hidden shadow-2xl">
                       {selectedLesson.resource_url?.includes('.mp4') || selectedLesson.mime_type?.startsWith('video/') ? (
-                        <video 
-                          src={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
-                          className="w-full h-full" 
-                          controls 
-                          onEnded={() => setVideoEnded(true)}
+                        <LandingVideoPlayer // Use LandingVideoPlayer for lesson videos
+                          url={signedUrls[selectedLesson.resource_url] || selectedLesson.resource_url} 
+                          title={selectedLesson.title}
                         />
                       ) : (
                         <iframe 

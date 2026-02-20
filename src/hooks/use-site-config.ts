@@ -43,6 +43,19 @@ export interface SiteConfig {
   video_url_onboarding?: string | null;
   video_url_onboarding_company?: string | null;
   video_url_onboarding_family?: string | null;
+  // New storage paths for landing page videos
+  video_storage_path_professionals?: string | null;
+  video_mime_professionals?: string | null;
+  video_storage_path_companies?: string | null;
+  video_mime_companies?: string | null;
+  video_storage_path_families?: string | null;
+  video_mime_families?: string | null;
+  video_storage_path_onboarding?: string | null;
+  video_mime_onboarding?: string | null;
+  video_storage_path_onboarding_company?: string | null;
+  video_mime_onboarding_company?: string | null;
+  video_storage_path_onboarding_family?: string | null;
+  video_mime_onboarding_family?: string | null;
 }
 
 export const useSiteConfig = () => {

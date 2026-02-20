@@ -10,6 +10,7 @@ import {
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { X } from 'lucide-react';
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
+import LandingVideoPlayer from "./LandingVideoPlayer"; // Import LandingVideoPlayer
 
 interface FeatureVideoModalProps {
   open: boolean;
@@ -20,11 +21,8 @@ interface FeatureVideoModalProps {
 const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps) => {
   if (!video) return null;
 
-  // Processa a URL imediatamente para garantir que seja a URL de incorporação do YouTube, se aplicável.
-  const processedVideoUrl = getYouTubeEmbedUrl(video.url);
-  
-  // Agora verifica se é um vídeo incorporável (YouTube embed ou Vimeo) usando a URL já processada.
-  const isEmbeddedVideo = processedVideoUrl.includes("youtube.com/embed") || processedVideoUrl.includes("vimeo.com/video");
+  // The LandingVideoPlayer will handle YouTube embed conversion internally
+  const videoSourceUrl = video.url;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -38,22 +36,11 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
           </DialogTitle>
         </DialogHeader>
         <AspectRatio ratio={16/9}>
-          {isEmbeddedVideo ? (
-            <iframe
-              src={processedVideoUrl} // Usa a URL processada aqui
-              title={video.title}
-              className="h-full w-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          ) : (
-            <video
-              src={processedVideoUrl} // Também usa a URL processada para vídeos não incorporados, por consistência
-              className="h-full w-full object-contain"
-              controls
-              autoPlay
-            />
-          )}
+          <LandingVideoPlayer 
+            url={videoSourceUrl} 
+            title={video.title} 
+            className="rounded-none" // Remove rounded corners as it's inside a dialog
+          />
         </AspectRatio>
       </DialogContent>
     </Dialog>

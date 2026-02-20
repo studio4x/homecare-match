@@ -365,6 +365,11 @@ const Index = () => {
   const cardContent = getAcademyCardContent();
   const CardIcon = cardContent.icon;
 
+  // Determine video URL for LandingVideoPlayer
+  const landingVideoUrl = config?.video_storage_path_professionals
+    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/site-videos/${config.video_storage_path_professionals}`
+    : config?.video_url_professionals;
+
   // Se estiver carregando a autenticação, mostra um loader centralizado para evitar flashes de conteúdo
   if (authLoading) {
     return (
@@ -428,12 +433,12 @@ const Index = () => {
       </section>
 
       {/* Seção de Vídeo de Apresentação */}
-      {config?.video_url_professionals && (
+      {landingVideoUrl && (
         <section className="py-12 bg-secondary/10">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <LandingVideoPlayer 
-                url={getYouTubeEmbedUrl(config.video_url_professionals)} 
+                url={landingVideoUrl} 
                 title="Apresentação para Profissionais"
               />
             </div>

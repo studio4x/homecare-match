@@ -45,13 +45,13 @@ const PushManager = () => {
         setNotificationsEnabled(data?.notifications_enabled ?? true);
       } else {
         setUserRole(null);
-        setNotificationsEnabled(true);
+        setNotificationsEnabled(true); // Habilitado por padrão para não logados
       }
     };
     fetchProfilePrefs();
   }, [user]);
 
-  // Sincroniza a preferência de notificações em tempo real
+  // Sincroniza a preferência de avisos em tempo real (apenas para logados)
   useEffect(() => {
     if (!user) return;
 
@@ -121,14 +121,14 @@ const PushManager = () => {
         (payload) => {
           const data = payload.new as any;
           
-          // Se as notificações estiverem desativadas nas preferências, ignora
+          // Se os avisos estiverem desativados nas preferências, ignora
           if (!notificationsEnabled) return;
 
           const isTargetAll = data.target_role === 'all';
           const isTargetMe = userRole && data.target_role === userRole;
           
           if (isTargetAll || isTargetMe) {
-            console.log("[PushManager] Novo comunicado global recebido:", data.title);
+            console.log("[PushManager] Novo aviso global recebido:", data.title);
             setActiveNotification({
               title: data.title,
               body: data.body,
@@ -160,14 +160,14 @@ const PushManager = () => {
 
   const handleSubscribe = async () => {
     if (!config?.vapid_public_key) {
-      toast.error("Configuração de notificações ainda não carregada.");
+      toast.error("Configuração de avisos ainda não carregada.");
       return;
     }
     setIsSubscribing(true);
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        toast.error("Notificações bloqueadas no navegador.");
+        toast.error("Avisos bloqueados no navegador.");
         setIsSubscribing(false);
         return;
       }
@@ -187,10 +187,10 @@ const PushManager = () => {
         }
       });
 
-      toast.success("Notificações ativadas!");
+      toast.success("Avisos ativados com sucesso!");
       setShowPrompt(false);
     } catch (err) {
-      toast.error("Erro ao ativar notificações.");
+      toast.error("Erro ao ativar avisos.");
     } finally {
       setIsSubscribing(false);
     }
@@ -211,7 +211,7 @@ const PushManager = () => {
             </div>
             <DialogTitle className="text-center text-xl font-bold">Fique por dentro!</DialogTitle>
             <DialogDescription className="text-center text-base">
-              Deseja receber alertas sobre novos profissionais e atualizações importantes diretamente no seu dispositivo?
+              Deseja receber <strong>avisos</strong> sobre novos profissionais e atualizações importantes diretamente no seu dispositivo?
               <br/><br/>
               <span className="text-[10px] text-muted-foreground italic">Nota: Você pode desativar a qualquer momento nas configurações do navegador.</span>
             </DialogDescription>
@@ -219,7 +219,7 @@ const PushManager = () => {
           <DialogFooter className="flex flex-col gap-2 pt-4">
             <Button onClick={handleSubscribe} disabled={isSubscribing} className="w-full gap-2 h-12 text-base shadow-lg">
               {isSubscribing ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />}
-              Ativar Notificações
+              Ativar Avisos
             </Button>
             <Button variant="ghost" onClick={() => setShowPrompt(false)} className="w-full text-muted-foreground">Agora não</Button>
           </DialogFooter>

@@ -62,14 +62,14 @@ const NoticesPage = () => {
     fetchNotifications();
 
     const channel = supabase
-      .channel(`user-broadcasts-\${user.id}`)
+      .channel(`user-broadcasts-${user.id}`)
       .on(
         "postgres_changes",
         { 
           event: "INSERT", 
           schema: "public", 
           table: "notifications",
-          filter: `user_id=eq.\${user.id}`
+          filter: `user_id=eq.${user.id}`
         },
         (payload) => {
           if (payload.new.type === 'broadcast') {

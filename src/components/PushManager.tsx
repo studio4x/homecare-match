@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
@@ -15,6 +15,17 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+
+const DEFAULT_LAYOUT = {
+  bgColor: "#ffffff",
+  titleColor: "#0f172a",
+  bodyColor: "#64748b",
+  borderRadius: "32",
+  iconBgColor: "#007BFF1a",
+  iconColor: "#007BFF",
+  ctaBgColor: "#007BFF",
+  ctaTextColor: "#ffffff",
+};
 
 const PushManager = () => {
   const { user } = useAuth();
@@ -43,25 +54,37 @@ const PushManager = () => {
     }
   }, []);
 
+  // Efeito 1: Registro de Service Worker e Prompt (Para todos)
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" })
+        .then(() => checkAndShowPrompt())
+        .catch((err) => console.error("[Push] SW Error:", err));
+    }
+
+    // Escuta o evento de consentimento de cookies para mostrar o prompt imediatamente se aceito
+    const handleConsent = () => checkAndShowPrompt();
+    window.addEventListener("cookie-consent-accepted", handleConsent);
+    return () => window.removeEventListener("cookie-consent-accepted", handleConsent);
+  }, [checkAndShowPrompt]);
+
+  // Efeito 2: Realtime Listener para Broadcasts (Apenas logados)
   useEffect(() => {
     if (!user) return;
 
-    // ESCUTA A TABELA DE NOTIFICAÇÕES DO USUÁRIO (MURAL)
-    // Isso é muito mais confiável no Desktop pois a tabela é do próprio usuário
     const channel = supabase
-      .channel(`user-broadcast-modal-\${user.id}`)
+      .channel(`user-broadcast-modal-${user.id}`)
       .on(
         "postgres_changes", 
         { 
           event: "INSERT", 
           schema: "public", 
           table: "notifications",
-          filter: `user_id=eq.\${user.id}`
+          filter: `user_id=eq.${user.id}`
         }, 
         async (payload) => {
           const data = payload.new as any;
           
-          // Se for um comunicado global (broadcast), mostramos o modal em tempo real
           if (data && data.type === "broadcast") {
             console.log("[PushManager] Novo comunicado detectado:", data.title);
             setActiveNotification({
@@ -71,7 +94,6 @@ const PushManager = () => {
               image_url: data.image_url
             });
 
-            // Fallback para notificação nativa se permitido
             if (Notification.permission === "granted") {
               try {
                 const registration = await navigator.serviceWorker.ready;
@@ -87,20 +109,16 @@ const PushManager = () => {
       )
       .subscribe();
 
-    // Registro do Service Worker
-    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js", { scope: "/" })
-        .then(() => checkAndShowPrompt())
-        .catch((err) => console.error("[Push] SW Error:", err));
-    }
-
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, checkAndShowPrompt]);
+  }, [user?.id]);
 
   const handleSubscribe = async () => {
-    if (!config?.vapid_public_key) return;
+    if (!config?.vapid_public_key) {
+      toast.error("Configuração de notificações ainda não carregada.");
+      return;
+    }
     setIsSubscribing(true);
     try {
       const permission = await Notification.requestPermission();
@@ -121,7 +139,7 @@ const PushManager = () => {
           user_id: user?.id || null,
           subscription: subscription.toJSON(),
           device_type: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? "mobile" : "desktop",
-          browser: "Browser"
+          browser: navigator.userAgent.split(' ').pop() || "Browser"
         }
       });
 
@@ -134,16 +152,10 @@ const PushManager = () => {
     }
   };
 
-  const layout = config?.push_layout_json || {
-    bgColor: "#ffffff",
-    titleColor: "#0f172a",
-    bodyColor: "#64748b",
-    borderRadius: "32",
-    iconBgColor: "#007BFF1a",
-    iconColor: "#007BFF",
-    ctaBgColor: "#007BFF",
-    ctaTextColor: "#ffffff",
-  };
+  const layout = useMemo(() => ({
+    ...DEFAULT_LAYOUT,
+    ...(config?.push_layout_json || {})
+  }), [config?.push_layout_json]);
 
   return (
     <>

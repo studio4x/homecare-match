@@ -40,7 +40,6 @@ const UserNotificationWidget = () => {
     else setIsRefreshing(true);
 
     try {
-      // Busca todas as notificações do usuário (pessoais e broadcast)
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
@@ -64,14 +63,14 @@ const UserNotificationWidget = () => {
     fetchNotifications();
 
     const channel = supabase
-      .channel(`user-notifications-realtime-\${user.id}`)
+      .channel(`user-notifications-realtime-${user.id}`)
       .on(
         "postgres_changes",
         { 
           event: "*", 
           schema: "public", 
           table: "notifications",
-          filter: `user_id=eq.\${user.id}`
+          filter: `user_id=eq.${user.id}`
         },
         (payload) => {
           console.log("[UserNotificationWidget] Mudança detectada:", payload.eventType);
@@ -82,7 +81,6 @@ const UserNotificationWidget = () => {
               return [payload.new, ...prev];
             });
             
-            // Alerta sonoro/visual apenas se não for broadcast (broadcast já tem o modal)
             if (payload.new.type !== 'broadcast') {
               toast.info(payload.new.title, {
                 description: payload.new.content,
@@ -95,13 +93,11 @@ const UserNotificationWidget = () => {
           } else if (payload.eventType === 'UPDATE') {
             setNotifications(prev => prev.map(n => n.id === payload.new.id ? payload.new : n));
           } else if (payload.eventType === 'DELETE') {
-            setNotifications(prev => prev.filter(n => n.id === payload.old.id));
+            setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
           }
         }
       )
-      .subscribe((status) => {
-        console.log("[UserNotificationWidget] Status da inscrição:", status);
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -111,7 +107,6 @@ const UserNotificationWidget = () => {
   const handleMarkAsRead = async (id: string) => {
     try {
       await supabase.from("notifications").update({ is_read: true }).eq("id", id);
-      // O estado será atualizado via Realtime (UPDATE event)
     } catch (err) {
       console.warn("Erro ao marcar como lido");
     }
@@ -120,7 +115,6 @@ const UserNotificationWidget = () => {
   const handleDelete = async (id: string) => {
     try {
       await supabase.from("notifications").delete().eq("id", id);
-      // O estado será atualizado via Realtime (DELETE event)
       toast.success("Removida.");
     } catch (err) {
       toast.error("Erro ao excluir.");

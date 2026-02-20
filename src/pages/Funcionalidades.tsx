@@ -25,7 +25,9 @@ import {
   Lightbulb,
   Sparkles,
   PlayCircle,
-  FileCheck
+  FileCheck,
+  LifeBuoy, // Added import for LifeBuoy icon
+  HelpCircle // Added import for HelpCircle icon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -172,6 +174,24 @@ export const features = [
       color: "text-blue-600",
       bg: "bg-blue-50",
       feature_key: "tutorial-de-boas-vindas"
+    },
+    {
+      title: "Suporte via Ticket",
+      description: "Abra chamados diretamente com nossa equipe para resolver dúvidas e problemas.",
+      icon: LifeBuoy,
+      profiles: ["professional", "company", "family"],
+      color: "text-indigo-500",
+      bg: "bg-indigo-50",
+      feature_key: "suporte-via-ticket"
+    },
+    {
+      title: "Página de Dúvidas Frequentes (FAQ)",
+      description: "Consulte nossa base de conhecimento para encontrar respostas rápidas e tutoriais.",
+      icon: HelpCircle,
+      profiles: ["professional", "company", "family"],
+      color: "text-teal-500",
+      bg: "bg-teal-50",
+      feature_key: "pagina-de-duvidas-frequentes"
     },
     {
       title: "Segurança e Denúncias",

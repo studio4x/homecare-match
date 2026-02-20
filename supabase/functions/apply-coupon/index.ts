@@ -59,6 +59,7 @@ serve(async (req) => {
         subscription_tier: 'monthly',
         subscription_end_at: newEndDate.toISOString(),
         cancel_at_period_end: true, // Não renova automaticamente após os dias grátis
+        coupon_days: freeDays, // Salva os dias para exibição no dashboard
         updated_at: new Date().toISOString()
       })
       .eq('id', user.id);

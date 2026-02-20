@@ -28,6 +28,10 @@ serve(async (req) => {
       ALTER TABLE public.profiles
         ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0;
 
+      -- Coluna para rastrear dias de bonificação via cupom
+      ALTER TABLE public.profiles
+        ADD COLUMN IF NOT EXISTS coupon_days INTEGER;
+
       -- Coluna para Chave de API do Google Maps (Lado do Cliente)
       ALTER TABLE public.site_config
         ADD COLUMN IF NOT EXISTS google_maps_api_key TEXT;

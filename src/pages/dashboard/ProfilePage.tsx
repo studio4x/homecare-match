@@ -338,7 +338,7 @@ const ProfilePage = () => {
           finalLng = coords.lng;
         } else {
           toast.error("Não foi possível obter coordenadas para o endereço. Verifique o endereço ou a chave da API de mapas.");
-          setIsSaving(false);
+          setLoading(false);
           return;
         }
       }

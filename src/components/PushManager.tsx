@@ -16,23 +16,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const DEFAULT_LAYOUT = {
-  bgColor: "#ffffff",
-  titleColor: "#0f172a",
-  bodyColor: "#64748b",
-  borderRadius: "32",
-  iconBgColor: "#007BFF1a",
-  iconColor: "#007BFF",
-  ctaBgColor: "#007BFF",
-  ctaTextColor: "#ffffff",
-};
-
 const PushManager = () => {
   const { user } = useAuth();
   const { data: config } = useSiteConfig();
   const [showPrompt, setShowPrompt] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
-  const [activeNotification, setActiveNotification] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   // Busca o papel do usuário logado para filtrar notificações direcionadas
@@ -81,9 +69,8 @@ const PushManager = () => {
     return () => window.removeEventListener("cookie-consent-accepted", handleConsent);
   }, [checkAndShowPrompt]);
 
-  // Efeito 2: Realtime Listener Global (Para Visitantes e Logados)
+  // Efeito 2: Realtime Listener Global (Apenas para Push Nativo)
   useEffect(() => {
-    // Ouvimos a tabela push_notifications. Quando o status muda para 'sent', mostramos o modal.
     const channel = supabase
       .channel('global-broadcast-monitor')
       .on(
@@ -97,21 +84,11 @@ const PushManager = () => {
         (payload) => {
           const data = payload.new as any;
           
-          // Lógica de Filtro de Público no Cliente
           const isTargetAll = data.target_role === 'all';
           const isTargetMe = userRole && data.target_role === userRole;
           
-          // Se for para todos OU se eu for o alvo específico, mostro o modal
           if (isTargetAll || isTargetMe) {
-            console.log("[PushManager] Novo comunicado global recebido:", data.title);
-            setActiveNotification({
-              title: data.title,
-              body: data.body,
-              link: data.link,
-              image_url: data.image_url
-            });
-
-            // Se tiver permissão de Push nativo, dispara também a notificação do sistema
+            // Se tiver permissão de Push nativo, dispara a notificação do sistema
             if (Notification.permission === "granted") {
               try {
                 navigator.serviceWorker.ready.then(registration => {
@@ -171,11 +148,6 @@ const PushManager = () => {
     }
   };
 
-  const layout = useMemo(() => ({
-    ...DEFAULT_LAYOUT,
-    ...(config?.push_layout_json || {})
-  }), [config?.push_layout_json]);
-
   return (
     <>
       <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
@@ -187,6 +159,8 @@ const PushManager = () => {
             <DialogTitle className="text-center text-xl font-bold">Fique por dentro!</DialogTitle>
             <DialogDescription className="text-center text-base">
               Deseja receber alertas sobre novos profissionais e atualizações importantes diretamente no seu dispositivo?
+              <br/><br/>
+              <span className="text-[10px] text-muted-foreground italic">Nota: Você pode desativar a qualquer momento nas configurações do navegador.</span>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex flex-col gap-2 pt-4">
@@ -196,64 +170,6 @@ const PushManager = () => {
             </Button>
             <Button variant="ghost" onClick={() => setShowPrompt(false)} className="w-full text-muted-foreground">Agora não</Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!activeNotification} onOpenChange={(open) => !open && setActiveNotification(null)}>
-        <DialogContent 
-          className="w-[calc(100%-2rem)] max-w-[400px] p-0 overflow-hidden border-none shadow-2xl [&>button:last-child]:hidden"
-          style={{ borderRadius: `${layout.borderRadius}px`, backgroundColor: layout.bgColor }}
-        >
-          {activeNotification && (
-            <div className="relative">
-              <button onClick={() => setActiveNotification(null)} className="absolute top-4 right-4 z-20 p-1.5 rounded-full bg-black/5 text-slate-400 hover:bg-black/10 transition-colors">
-                <X className="h-4 w-4" />
-              </button>
-
-              {activeNotification.image_url && (
-                <div className="w-full aspect-video bg-slate-50 overflow-hidden border-b border-slate-100">
-                  <img src={activeNotification.image_url} className="w-full h-full object-contain" alt="Banner" />
-                </div>
-              )}
-
-              <div className="p-6 space-y-6">
-                <div className="flex gap-4">
-                  <div className="h-12 w-12 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: layout.iconBgColor }}>
-                    <Megaphone className="h-6 w-6" style={{ color: layout.iconColor }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <ShieldCheck className="h-3 w-3" style={{ color: layout.iconColor }} />
-                      <span className="text-[10px] font-bold uppercase tracking-widest opacity-80" style={{ color: layout.iconColor }}>Administração</span>
-                    </div>
-                    <DialogTitle className="text-xl font-bold leading-tight" style={{ color: layout.titleColor }}>
-                      {activeNotification.title}
-                    </DialogTitle>
-                  </div>
-                </div>
-
-                <DialogDescription className="text-base leading-relaxed" style={{ color: layout.bodyColor }}>
-                  {activeNotification.body}
-                </DialogDescription>
-
-                {activeNotification.link && (
-                  <Button
-                    size="lg"
-                    className="w-full gap-2 h-12 text-sm font-bold rounded-full shadow-lg border-none"
-                    style={{ backgroundColor: layout.ctaBgColor, color: layout.ctaTextColor }}
-                    onClick={() => {
-                      const link = activeNotification.link;
-                      setActiveNotification(null);
-                      window.location.href = link;
-                    }}
-                  >
-                    Ver Detalhes <ExternalLink className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button variant="ghost" className="w-full text-xs text-muted-foreground" onClick={() => setActiveNotification(null)}>Fechar</Button>
-              </div>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </>

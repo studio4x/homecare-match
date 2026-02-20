@@ -81,15 +81,7 @@ const UserNotificationWidget = () => {
               return [payload.new, ...prev];
             });
             
-            if (payload.new.type !== 'broadcast') {
-              toast.info(payload.new.title, {
-                description: payload.new.content,
-                action: payload.new.link ? {
-                  label: "Ver",
-                  onClick: () => window.location.href = payload.new.link
-                } : undefined
-              });
-            }
+            // Removido o toast.info para manter apenas a atualização silenciosa do widget
           } else if (payload.eventType === 'UPDATE') {
             setNotifications(prev => prev.map(n => n.id === payload.new.id ? payload.new : n));
           } else if (payload.eventType === 'DELETE') {

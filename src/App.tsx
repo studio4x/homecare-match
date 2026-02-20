@@ -57,6 +57,7 @@ import AnalyticsPage from "./pages/admin/AnalyticsPage";
 import VideosPage from "./pages/admin/VideosPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import PushNotificationsPage from "./pages/admin/PushNotificationsPage";
+import FeatureVideosPage from "./pages/admin/FeatureVideosPage"; // New import
 
 const queryClient = new QueryClient();
 
@@ -122,6 +123,7 @@ const App = () => (
                 <Route path="faq" element={<FaqAdminPage />} />
                 <Route path="metricas" element={<AnalyticsPage />} />
                 <Route path="auditoria" element={<AuditLogsPage />} />
+                <Route path="videos-funcionalidades" element={<FeatureVideosPage />} /> {/* New route */}
               </Route>
 
               {/* 404 */}

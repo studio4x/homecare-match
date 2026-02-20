@@ -26,7 +26,8 @@ import {
   Video,
   Activity,
   Bell,
-  Ticket
+  Ticket,
+  PlayCircle // New import
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -139,6 +140,7 @@ const AdminLayout = () => {
     { href: "/admin/indicacoes", label: "Indicações", icon: Award },
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
     { href: "/admin/videos", label: "Vídeos do Site", icon: Video },
+    { href: "/admin/videos-funcionalidades", label: "Vídeos Funcionalidades", icon: PlayCircle }, // New nav item
     { href: "/admin/push", label: "Avisos (Push)", icon: Bell },
     { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },
     { href: "/admin/suporte", label: "Tickets", icon: LifeBuoy },

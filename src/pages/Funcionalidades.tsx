@@ -34,11 +34,180 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
+import FeatureVideoModal from "@/components/FeatureVideoModal"; 
+import { toast } from "sonner"; // Added import
+
+export const features = [ 
+    {
+      title: "Busca Inteligente de Profissionais",
+      description: "Filtre especialistas por bairro, cidade, especialidade e disponibilidade imediata.",
+      icon: Search,
+      profiles: ["company", "family"],
+      color: "text-blue-500",
+      bg: "bg-blue-50",
+      feature_key: "busca-inteligente-de-profissionais"
+    },
+    {
+      title: "Perfil Profissional Completo",
+      description: "Exibição de currículo, formações, experiências e biografia humanizada.",
+      icon: UserCheck,
+      profiles: ["professional"],
+      color: "text-primary",
+      bg: "bg-primary/5",
+      feature_key: "perfil-profissional-completo"
+    },
+    {
+      title: "Selo de Verificação Profissional",
+      description: "Análise manual de documentos e registros (COREN/CREFITO) para garantir segurança.",
+      icon: ShieldCheck,
+      profiles: ["professional"],
+      color: "text-success",
+      bg: "bg-success/5",
+      feature_key: "selo-de-verificacao-profissional"
+    },
+    {
+      title: "Academy (Cursos de Capacitação)",
+      description: "Acesso a conteúdos educativos exclusivos com emissão de selos de conquista.",
+      icon: BookOpen,
+      profiles: ["professional"],
+      color: "text-purple-500",
+      bg: "bg-purple-50",
+      feature_key: "academy-cursos-de-capacitacao"
+    },
+    {
+      title: "Validação Pública de Conquistas",
+      description: "Página dedicada para validar a autenticidade dos seus selos da Academy por terceiros.",
+      icon: FileCheck,
+      profiles: ["professional"],
+      color: "text-indigo-600",
+      bg: "bg-indigo-50",
+      feature_key: "validacao-publica-de-conquistas"
+    },
+    {
+      title: "Programa de Indicações (Embaixador)",
+      description: "Indique colegas e suba no ranking de visibilidade da plataforma.",
+      icon: Award,
+      profiles: ["professional"],
+      color: "text-amber-500",
+      bg: "bg-amber-50",
+      feature_key: "programa-de-indicacoes-embaixador"
+    },
+    {
+      title: "Mural de Avisos e Comunicados",
+      description: "Central de notícias e atualizações importantes diretamente no seu painel.",
+      icon: Bell,
+      profiles: ["professional", "company", "family"],
+      color: "text-rose-500",
+      bg: "bg-rose-50",
+      feature_key: "mural-de-avisos-e-comunicados"
+    },
+    {
+      title: "Notificações em Tempo Real",
+      description: "Receba avisos instantâneos sobre novos contatos e mensagens no seu dispositivo.",
+      icon: Zap,
+      profiles: ["professional", "company", "family"],
+      color: "text-yellow-600",
+      bg: "bg-yellow-50",
+      feature_key: "notificacoes-em-tempo-real"
+    },
+    {
+      title: "IA para Biografia Profissional",
+      description: "Crie uma biografia humanizada e profissional em segundos com ajuda da nossa IA.",
+      icon: Sparkles,
+      profiles: ["professional"],
+      color: "text-cyan-600",
+      bg: "bg-cyan-50",
+      feature_key: "ia-para-biografia-profissional"
+    },
+    {
+      title: "Gestão de Pagamentos e Faturas",
+      description: "Histórico completo de recibos e controle total sobre suas assinaturas.",
+      icon: CreditCard,
+      profiles: ["professional"],
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+      feature_key: "gestao-de-pagamentos-e-faturas"
+    },
+    {
+      title: "Contato Direto via WhatsApp",
+      description: "Inicie conversas sem intermediários e sem taxas de agenciamento.",
+      icon: MessageSquare,
+      profiles: ["company", "family"],
+      color: "text-green-600",
+      bg: "bg-green-50",
+      feature_key: "contato-direto-via-whatsapp"
+    },
+    {
+      title: "Gestão de Contatos",
+      description: "Histórico centralizado de todos os profissionais ou recrutadores contatados.",
+      icon: LayoutGrid,
+      profiles: ["professional", "company", "family"],
+      color: "text-slate-600",
+      bg: "bg-slate-50",
+      feature_key: "gestao-de-contatos"
+    },
+    {
+      title: "Sistema de Avaliações",
+      description: "Deixe feedbacks e leia depoimentos reais sobre atendimentos realizados.",
+      icon: Star,
+      profiles: ["professional", "company", "family"],
+      color: "text-yellow-500",
+      bg: "bg-yellow-50",
+      feature_key: "sistema-de-avaliacoes"
+    },
+    {
+      title: "Busca por Geolocalização",
+      description: "Visualize no mapa os profissionais que estão mais próximos da sua residência.",
+      icon: MapPin,
+      profiles: ["company", "family"],
+      color: "text-rose-500",
+      bg: "bg-rose-50",
+      feature_key: "busca-por-geolocalizacao"
+    },
+    {
+      title: "Tutorial de Boas-vindas",
+      description: "Guia interativo para ajudar você a extrair o máximo da plataforma desde o início.",
+      icon: PlayCircle,
+      profiles: ["professional", "company", "family"],
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+      feature_key: "tutorial-de-boas-vindas"
+    },
+    {
+      title: "Segurança e Denúncias",
+      description: "Ferramentas para reportar comportamentos inadequados e manter a comunidade segura.",
+      icon: ShieldAlert,
+      profiles: ["professional", "company", "family"],
+      color: "text-destructive",
+      bg: "bg-destructive/5",
+      feature_key: "seguranca-e-denuncias"
+    },
+    {
+      title: "Canal de Sugestões",
+      description: "Envie suas ideias de melhorias diretamente para nossa equipe de desenvolvimento.",
+      icon: Lightbulb,
+      profiles: ["professional", "company", "family"],
+      color: "text-amber-600",
+      bg: "bg-amber-100",
+      feature_key: "canal-de-sugestoes"
+    },
+    {
+      title: "Serviço de Concierge",
+      description: "Busca manual e personalizada realizada por nossa equipe para casos urgentes.",
+      icon: Headset,
+      profiles: ["company", "family"],
+      color: "text-cyan-600",
+      bg: "bg-cyan-50",
+      feature_key: "servico-de-concierge"
+    }
+];
 
 const Funcionalidades = () => {
   const { session, user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [featureVideos, setFeatureVideos] = useState<Record<string, { video_url?: string; video_storage_path?: string; video_mime?: string }>>({});
+  const [selectedVideo, setSelectedVideo] = useState<{ url: string; title: string; type: 'url' | 'storage' } | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -57,152 +226,23 @@ const Funcionalidades = () => {
     fetchProfile();
   }, [user]);
 
-  const features = [
-    {
-      title: "Busca Inteligente de Profissionais",
-      description: "Filtre especialistas por bairro, cidade, especialidade e disponibilidade imediata.",
-      icon: Search,
-      profiles: ["company", "family"],
-      color: "text-blue-500",
-      bg: "bg-blue-50"
-    },
-    {
-      title: "Perfil Profissional Completo",
-      description: "Exibição de currículo, formações, experiências e biografia humanizada.",
-      icon: UserCheck,
-      profiles: ["professional"],
-      color: "text-primary",
-      bg: "bg-primary/5"
-    },
-    {
-      title: "Selo de Verificação Profissional",
-      description: "Análise manual de documentos e registros (COREN/CREFITO) para garantir segurança.",
-      icon: ShieldCheck,
-      profiles: ["professional"],
-      color: "text-success",
-      bg: "bg-success/5"
-    },
-    {
-      title: "Academy (Cursos de Capacitação)",
-      description: "Acesso a conteúdos educativos exclusivos com emissão de selos de conquista.",
-      icon: BookOpen,
-      profiles: ["professional"],
-      color: "text-purple-500",
-      bg: "bg-purple-50"
-    },
-    {
-      title: "Validação Pública de Conquistas",
-      description: "Página dedicada para validar a autenticidade dos seus selos da Academy por terceiros.",
-      icon: FileCheck,
-      profiles: ["professional"],
-      color: "text-indigo-600",
-      bg: "bg-indigo-50"
-    },
-    {
-      title: "Programa de Indicações (Embaixador)",
-      description: "Indique colegas e suba no ranking de visibilidade da plataforma.",
-      icon: Award,
-      profiles: ["professional"],
-      color: "text-amber-500",
-      bg: "bg-amber-50"
-    },
-    {
-      title: "Mural de Avisos e Comunicados",
-      description: "Central de notícias e atualizações importantes diretamente no seu painel.",
-      icon: Bell,
-      profiles: ["professional", "company", "family"],
-      color: "text-rose-500",
-      bg: "bg-rose-50"
-    },
-    {
-      title: "Notificações em Tempo Real",
-      description: "Receba avisos instantâneos sobre novos contatos e mensagens no seu dispositivo.",
-      icon: Zap,
-      profiles: ["professional", "company", "family"],
-      color: "text-yellow-600",
-      bg: "bg-yellow-50"
-    },
-    {
-      title: "IA para Biografia Profissional",
-      description: "Crie uma biografia humanizada e profissional em segundos com ajuda da nossa IA.",
-      icon: Sparkles,
-      profiles: ["professional"],
-      color: "text-cyan-600",
-      bg: "bg-cyan-50"
-    },
-    {
-      title: "Gestão de Pagamentos e Faturas",
-      description: "Histórico completo de recibos e controle total sobre suas assinaturas.",
-      icon: CreditCard,
-      profiles: ["professional"],
-      color: "text-emerald-600",
-      bg: "bg-emerald-50"
-    },
-    {
-      title: "Contato Direto via WhatsApp",
-      description: "Inicie conversas sem intermediários e sem taxas de agenciamento.",
-      icon: MessageSquare,
-      profiles: ["company", "family"],
-      color: "text-green-600",
-      bg: "bg-green-50"
-    },
-    {
-      title: "Gestão de Contatos",
-      description: "Histórico centralizado de todos os profissionais ou recrutadores contatados.",
-      icon: LayoutGrid,
-      profiles: ["professional", "company", "family"],
-      color: "text-slate-600",
-      bg: "bg-slate-50"
-    },
-    {
-      title: "Sistema de Avaliações",
-      description: "Deixe feedbacks e leia depoimentos reais sobre atendimentos realizados.",
-      icon: Star,
-      profiles: ["professional", "company", "family"],
-      color: "text-yellow-500",
-      bg: "bg-yellow-50"
-    },
-    {
-      title: "Busca por Geolocalização",
-      description: "Visualize no mapa os profissionais que estão mais próximos da sua residência.",
-      icon: MapPin,
-      profiles: ["company", "family"],
-      color: "text-rose-500",
-      bg: "bg-rose-50"
-    },
-    {
-      title: "Tutorial de Boas-vindas",
-      description: "Guia interativo para ajudar você a extrair o máximo da plataforma desde o início.",
-      icon: PlayCircle,
-      profiles: ["professional", "company", "family"],
-      color: "text-blue-600",
-      bg: "bg-blue-50"
-    },
-    {
-      title: "Segurança e Denúncias",
-      description: "Ferramentas para reportar comportamentos inadequados e manter a comunidade segura.",
-      icon: ShieldAlert,
-      profiles: ["professional", "company", "family"],
-      color: "text-destructive",
-      bg: "bg-destructive/5"
-    },
-    {
-      title: "Canal de Sugestões",
-      description: "Envie suas ideias de melhorias diretamente para nossa equipe de desenvolvimento.",
-      icon: Lightbulb,
-      profiles: ["professional", "company", "family"],
-      color: "text-amber-600",
-      bg: "bg-amber-100"
-    },
-    {
-      title: "Serviço de Concierge",
-      description: "Busca manual e personalizada realizada por nossa equipe para casos urgentes.",
-      icon: Headset,
-      profiles: ["company", "family"],
-      color: "text-cyan-600",
-      bg: "bg-cyan-50"
-    }
-  ];
+  useEffect(() => {
+    const fetchFeatureVideos = async () => {
+      const { data, error } = await supabase.from('feature_videos').select('*');
+      if (!error && data) {
+        const videoMap: Record<string, { video_url?: string; video_storage_path?: string; video_mime?: string }> = {};
+        data.forEach(fv => {
+          videoMap[fv.feature_key] = {
+            video_url: fv.video_url,
+            video_storage_path: fv.video_storage_path,
+            video_mime: fv.video_mime
+          };
+        });
+        setFeatureVideos(videoMap);
+      }
+    };
+    fetchFeatureVideos();
+  }, []);
 
   const getProfileBadge = (role: string) => {
     switch (role) {
@@ -275,6 +315,26 @@ const Funcionalidades = () => {
 
   const cta = getCtaContent();
 
+  const handleOpenVideoModal = async (featureKey: string) => {
+    const videoInfo = featureVideos[featureKey];
+    if (!videoInfo || (!videoInfo.video_url && !videoInfo.video_storage_path)) {
+      toast.info("Nenhum vídeo de demonstração disponível para esta funcionalidade.");
+      return;
+    }
+
+    if (videoInfo.video_storage_path) {
+      const { data, error } = await supabase.storage.from('uploads').createSignedUrl(videoInfo.video_storage_path, 3600);
+      if (error) {
+        toast.error("Erro ao carregar vídeo.");
+        console.error("Error getting signed URL:", error);
+        return;
+      }
+      setSelectedVideo({ url: data.signedUrl, title: features.find(f => f.feature_key === featureKey)?.title || "Vídeo de Demonstração", type: 'storage' });
+    } else if (videoInfo.video_url) {
+      setSelectedVideo({ url: videoInfo.video_url, title: features.find(f => f.feature_key === featureKey)?.title || "Vídeo de Demonstração", type: 'url' });
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-12">
@@ -303,10 +363,20 @@ const Funcionalidades = () => {
                   {f.title}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-4">
-                <p className="text-sm text-muted-foreground leading-relaxed">
+              <CardContent className="pt-4 flex flex-col flex-1">
+                <p className="text-sm text-muted-foreground leading-relaxed flex-1">
                   {f.description}
                 </p>
+                {featureVideos[f.feature_key] && (featureVideos[f.feature_key].video_url || featureVideos[f.feature_key].video_storage_path) && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-4 w-full gap-2"
+                    onClick={() => handleOpenVideoModal(f.feature_key)}
+                  >
+                    <PlayCircle className="h-4 w-4" /> Ver Demonstração
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -334,6 +404,12 @@ const Funcionalidades = () => {
           </div>
         </div>
       </div>
+
+      <FeatureVideoModal 
+        open={!!selectedVideo} 
+        onOpenChange={() => setSelectedVideo(null)} 
+        video={selectedVideo} 
+      />
     </Layout>
   );
 };

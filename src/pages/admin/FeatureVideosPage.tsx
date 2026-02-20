@@ -225,7 +225,7 @@ const FeatureVideosPage = () => {
         </Button>
       </div>
 
-      <div className="grid gap-6">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {frontendFeatures.map((feature) => {
           const video = featureVideos[feature.feature_key];
           const hasVideo = video && (video.video_url || video.video_storage_path);
@@ -253,7 +253,7 @@ const FeatureVideosPage = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 {hasVideo ? (
-                  <div className="grid md:grid-cols-2 gap-6 items-start">
+                  <div className="space-y-4">
                     <div className="aspect-video rounded-xl overflow-hidden bg-black border shadow-inner relative group">
                       {isEmbeddedVideo ? (
                         <iframe
@@ -270,65 +270,40 @@ const FeatureVideosPage = () => {
                         />
                       )}
                     </div>
-                    <div className="space-y-4">
-                      {editingUrlForFeatureKey === feature.feature_key ? (
-                        <div className="space-y-2 animate-fade-in">
-                          <Label>URL do Vídeo (Externa)</Label>
-                          <Input 
-                            placeholder="https://www.youtube.com/watch?v=..."
-                            value={tempVideoUrl}
-                            onChange={e => setTempVideoUrl(e.target.value)}
-                            disabled={isSaving}
-                            autoFocus
-                          />
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => setEditingUrlForFeatureKey(null)}>Cancelar</Button>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleUpdateVideoUrl(feature.feature_key, tempVideoUrl)} 
-                              disabled={isSaving || !tempVideoUrl.trim()}
-                            >
-                              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar URL
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Label className="text-[10px] uppercase font-bold text-muted-foreground">Opções de Vídeo</Label>
-                          <div className="flex flex-col gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="gap-2"
-                              onClick={() => handleUploadClick(feature.feature_key)}
-                              disabled={isUploading === feature.feature_key}
-                            >
-                              {isUploading === feature.feature_key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                              Substituir por Upload
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="gap-2"
-                              onClick={() => {
-                                setEditingUrlForFeatureKey(feature.feature_key);
-                                setTempVideoUrl(currentVideoUrl); // Initialize with current URL
-                              }}
-                            >
-                              <ExternalLink className="h-4 w-4" /> Substituir por URL
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-destructive hover:bg-destructive/10 gap-2"
-                              onClick={() => handleDeleteVideo(feature.feature_key)}
-                              disabled={isSaving}
-                            >
-                              <Trash2 className="h-4 w-4" /> Remover Vídeo
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                    <div className="space-y-2">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Opções de Vídeo</Label>
+                      <div className="flex flex-col gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-2"
+                          onClick={() => handleUploadClick(feature.feature_key)}
+                          disabled={isUploading === feature.feature_key}
+                        >
+                          {isUploading === feature.feature_key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                          Substituir por Upload
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="gap-2"
+                          onClick={() => {
+                            setEditingUrlForFeatureKey(feature.feature_key);
+                            setTempVideoUrl(currentVideoUrl); // Initialize with current URL
+                          }}
+                        >
+                          <ExternalLink className="h-4 w-4" /> Substituir por URL
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-destructive hover:bg-destructive/10 gap-2"
+                          onClick={() => handleDeleteVideo(feature.feature_key)}
+                          disabled={isSaving}
+                        >
+                          <Trash2 className="h-4 w-4" /> Remover Vídeo
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : (

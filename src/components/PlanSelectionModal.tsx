@@ -9,9 +9,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, Loader2, Star, Zap } from "lucide-react";
+import { Check, Loader2, Star, Zap, Ticket, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -23,7 +24,10 @@ interface PlanSelectionModalProps {
 
 const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ["user-profile-tier-modal", user?.id],
@@ -83,6 +87,41 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
     }
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    
+    setIsApplyingCoupon(true);
+    const toastId = toast.loading("Validando cupom...");
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('apply-coupon', {
+        body: { code: couponCode }
+      });
+
+      if (error) {
+        let msg = "Erro ao aplicar cupom.";
+        try {
+          const body = await error.context?.json();
+          if (body?.error) msg = body.error;
+        } catch {}
+        throw new Error(msg);
+      }
+
+      toast.success(data.message, { id: toastId });
+      setCouponCode("");
+      queryClient.invalidateQueries({ queryKey: ["user-profile-tier-modal"] });
+      onOpenChange(false);
+      
+      // Recarrega a página para atualizar o estado global do dashboard
+      setTimeout(() => window.location.reload(), 1500);
+      
+    } catch (err: any) {
+      toast.error(err.message || "Cupom inválido.", { id: toastId });
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
   const getPlanButtonConfig = (planId: string) => {
     if (!userTier) return { text: "Assinar Agora", disabled: false };
 
@@ -120,7 +159,32 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-8">
+        <div className="p-8 space-y-8">
+          {/* Seção de Cupom */}
+          <div className="bg-secondary/30 p-4 rounded-2xl border border-dashed border-primary/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Ticket className="h-4 w-4 text-primary" />
+              <span className="text-sm font-bold uppercase tracking-wider">Possui um cupom de lançamento?</span>
+            </div>
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Digite o código aqui..." 
+                className="bg-white uppercase font-mono"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                disabled={isApplyingCoupon}
+              />
+              <Button 
+                onClick={handleApplyCoupon} 
+                disabled={isApplyingCoupon || !couponCode.trim()}
+                className="gap-2"
+              >
+                {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                Aplicar
+              </Button>
+            </div>
+          </div>
+
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -190,7 +254,7 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
             </div>
           )}
           
-          <p className="mt-6 text-center text-[10px] text-muted-foreground">
+          <p className="text-center text-[10px] text-muted-foreground">
             Pagamento processado com segurança via Stripe. Cancele a qualquer momento.
           </p>
         </div>

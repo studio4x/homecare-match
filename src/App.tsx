@@ -111,6 +111,7 @@ const App = () => (
                 <Route path="push" element={<PushNotificationsPage />} />
                 <Route path="denuncias" element={<ReportsPage />} />
                 <Route path="sugestoes" element={<SuggestionsPage />} />
+                <Route path="cupons" element={<CouponsPage />} />
                 <Route path="marketing" element={<MarketingPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />
                 <Route path="suporte" element={<SupportAdminPage />} />

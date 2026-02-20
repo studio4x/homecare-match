@@ -123,6 +123,7 @@ const AdminLayout = () => {
     { href: "/admin/verificacoes", label: "Verificações", icon: FileCheck },
     { href: "/admin/usuarios", label: "Usuários", icon: Users },
     { href: "/admin/planos", label: "Planos", icon: CreditCard },
+    { href: "/admin/cupons", label: "Cupons", icon: Ticket },
     { href: "/admin/indicacoes", label: "Indicações", icon: Award },
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
     { href: "/admin/videos", label: "Vídeos do Site", icon: Video },

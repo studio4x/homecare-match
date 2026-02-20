@@ -49,6 +49,7 @@ const SiteConfigTab = () => {
   const [isSyncingUserNotifications, setIsSyncingUserNotifications] = useState(false);
   const [isSyncingPush, setIsSyncingPush] = useState(false);
   const [isSyncingCron, setIsSyncingCron] = useState(false);
+  const [isSyncingCoupons, setIsSyncingCoupons] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -229,6 +230,19 @@ const SiteConfigTab = () => {
       toast.error("Erro ao ativar automação. Verifique se as extensões pg_net e pg_cron estão disponíveis no seu plano.");
     } finally {
       setIsSyncingCron(false);
+    }
+  };
+
+  const handleSyncCoupons = async () => {
+    setIsSyncingCoupons(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-coupons');
+      if (error) throw error;
+      toast.success("Sistema de cupons configurado!");
+    } catch (error: any) {
+      toast.error("Erro ao configurar cupons.");
+    } finally {
+      setIsSyncingCoupons(false);
     }
   };
 
@@ -599,6 +613,16 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncCron} disabled={isSyncingCron}>
               {isSyncingCron ? <Loader2 className="h-4 w-4 animate-spin" /> : <Timer className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Sistema de Cupons Promocionais</p>
+              <p className="text-xs text-amber-800/70">Cria tabelas e políticas para gestão de cupons de lançamento.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncCoupons} disabled={isSyncingCoupons}>
+              {isSyncingCoupons ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
             </Button>
           </div>
 

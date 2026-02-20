@@ -20,13 +20,11 @@ interface FeatureVideoModalProps {
 const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps) => {
   if (!video) return null;
 
-  let videoSrc = video.url;
-  // Apply YouTube embed conversion if it's a YouTube URL
-  if (videoSrc.includes("youtube.com") || videoSrc.includes("youtu.be")) {
-    videoSrc = getYouTubeEmbedUrl(videoSrc);
-  }
-
-  const isEmbeddedVideo = videoSrc.includes("youtube.com/embed") || videoSrc.includes("vimeo.com/video");
+  // Processa a URL imediatamente para garantir que seja a URL de incorporação do YouTube, se aplicável.
+  const processedVideoUrl = getYouTubeEmbedUrl(video.url);
+  
+  // Agora verifica se é um vídeo incorporável (YouTube embed ou Vimeo) usando a URL já processada.
+  const isEmbeddedVideo = processedVideoUrl.includes("youtube.com/embed") || processedVideoUrl.includes("vimeo.com/video");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,7 +40,7 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
         <AspectRatio ratio={16/9}>
           {isEmbeddedVideo ? (
             <iframe
-              src={videoSrc}
+              src={processedVideoUrl} // Usa a URL processada aqui
               title={video.title}
               className="h-full w-full"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -50,7 +48,7 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
             />
           ) : (
             <video
-              src={videoSrc}
+              src={processedVideoUrl} // Também usa a URL processada para vídeos não incorporados, por consistência
               className="h-full w-full object-contain"
               controls
               autoPlay

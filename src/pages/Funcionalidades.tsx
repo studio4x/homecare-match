@@ -18,7 +18,14 @@ import {
   CheckCircle2,
   GraduationCap,
   ArrowRight,
-  Loader2
+  Loader2,
+  Bell,
+  CreditCard,
+  ShieldAlert,
+  Lightbulb,
+  Sparkles,
+  PlayCircle,
+  FileCheck
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,12 +91,52 @@ const Funcionalidades = () => {
       bg: "bg-purple-50"
     },
     {
+      title: "Validação Pública de Conquistas",
+      description: "Página dedicada para validar a autenticidade dos seus selos da Academy por terceiros.",
+      icon: FileCheck,
+      profiles: ["professional"],
+      color: "text-indigo-600",
+      bg: "bg-indigo-50"
+    },
+    {
       title: "Programa de Indicações (Embaixador)",
       description: "Indique colegas e suba no ranking de visibilidade da plataforma.",
       icon: Award,
       profiles: ["professional"],
       color: "text-amber-500",
       bg: "bg-amber-50"
+    },
+    {
+      title: "Mural de Avisos e Comunicados",
+      description: "Central de notícias e atualizações importantes diretamente no seu painel.",
+      icon: Bell,
+      profiles: ["professional", "company", "family"],
+      color: "text-rose-500",
+      bg: "bg-rose-50"
+    },
+    {
+      title: "Notificações em Tempo Real",
+      description: "Receba avisos instantâneos sobre novos contatos e mensagens no seu dispositivo.",
+      icon: Zap,
+      profiles: ["professional", "company", "family"],
+      color: "text-yellow-600",
+      bg: "bg-yellow-50"
+    },
+    {
+      title: "IA para Biografia Profissional",
+      description: "Crie uma biografia humanizada e profissional em segundos com ajuda da nossa IA.",
+      icon: Sparkles,
+      profiles: ["professional"],
+      color: "text-cyan-600",
+      bg: "bg-cyan-50"
+    },
+    {
+      title: "Gestão de Pagamentos e Faturas",
+      description: "Histórico completo de recibos e controle total sobre suas assinaturas.",
+      icon: CreditCard,
+      profiles: ["professional"],
+      color: "text-emerald-600",
+      bg: "bg-emerald-50"
     },
     {
       title: "Contato Direto via WhatsApp",
@@ -124,28 +171,36 @@ const Funcionalidades = () => {
       bg: "bg-rose-50"
     },
     {
+      title: "Tutorial de Boas-vindas",
+      description: "Guia interativo para ajudar você a extrair o máximo da plataforma desde o início.",
+      icon: PlayCircle,
+      profiles: ["professional", "company", "family"],
+      color: "text-blue-600",
+      bg: "bg-blue-50"
+    },
+    {
+      title: "Segurança e Denúncias",
+      description: "Ferramentas para reportar comportamentos inadequados e manter a comunidade segura.",
+      icon: ShieldAlert,
+      profiles: ["professional", "company", "family"],
+      color: "text-destructive",
+      bg: "bg-destructive/5"
+    },
+    {
+      title: "Canal de Sugestões",
+      description: "Envie suas ideias de melhorias diretamente para nossa equipe de desenvolvimento.",
+      icon: Lightbulb,
+      profiles: ["professional", "company", "family"],
+      color: "text-amber-600",
+      bg: "bg-amber-100"
+    },
+    {
       title: "Serviço de Concierge",
       description: "Busca manual e personalizada realizada por nossa equipe para casos urgentes.",
       icon: Headset,
       profiles: ["company", "family"],
       color: "text-cyan-600",
       bg: "bg-cyan-50"
-    },
-    {
-      title: "Destaque Premium",
-      description: "Apareça no topo dos resultados de busca com o plano anual.",
-      icon: Zap,
-      profiles: ["professional"],
-      color: "text-amber-600",
-      bg: "bg-amber-100"
-    },
-    {
-      title: "Central de Suporte (Tickets)",
-      description: "Canal direto de comunicação com nossa equipe técnica e de atendimento.",
-      icon: ShieldCheck,
-      profiles: ["professional", "company", "family"],
-      color: "text-blue-600",
-      bg: "bg-blue-50"
     }
   ];
 
@@ -204,8 +259,8 @@ const Funcionalidades = () => {
 
     // Empresa ou Família
     return {
-      title: "Precisa fechar sua escala?",
-      description: "Acesse nossa base de especialistas verificados e encontre o profissional ideal para sua necessidade agora mesmo.",
+      title: "Precisa de profissionais?",
+      description: "Acesse nossa base de especialistas verificados e feche sua escala com segurança.",
       buttons: (
         <Button size="lg" asChild className="gap-2 shadow-lg">
           <Link to="/buscar">
@@ -249,7 +304,7 @@ const Funcionalidades = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-4">
-                <p className="text-muted-foreground text-sm leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   {f.description}
                 </p>
               </CardContent>

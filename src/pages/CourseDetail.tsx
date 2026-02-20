@@ -755,9 +755,10 @@ const CourseDetail = () => {
         </DialogContent>
       </Dialog>
 
-      <PlanSelectionModal 
-        open={isPlanModalOpen} 
-        onOpenChange={setIsPlanModalOpen} 
+      <PlanSelectionModal
+        open={isPlanModalOpen}
+        onOpenChange={setIsPlanModalOpen}
+        showCoupon={false}
       />
     </Layout>
   );

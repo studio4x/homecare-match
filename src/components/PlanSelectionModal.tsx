@@ -20,9 +20,10 @@ import { useAuth } from "@/components/auth/AuthProvider";
 interface PlanSelectionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  showCoupon?: boolean;
 }
 
-const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => {
+const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelectionModalProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -160,30 +161,32 @@ const PlanSelectionModal = ({ open, onOpenChange }: PlanSelectionModalProps) => 
         </DialogHeader>
 
         <div className="p-8 space-y-8">
-          {/* Seção de Cupom */}
-          <div className="bg-secondary/30 p-4 rounded-2xl border border-dashed border-primary/20">
-            <div className="flex items-center gap-2 mb-3">
-              <Ticket className="h-4 w-4 text-primary" />
-              <span className="text-sm font-bold uppercase tracking-wider">Possui um cupom de lançamento?</span>
+          {/* Seção de Cupom - Oculta se showCoupon for false */}
+          {showCoupon && (
+            <div className="bg-secondary/30 p-4 rounded-2xl border border-dashed border-primary/20">
+              <div className="flex items-center gap-2 mb-3">
+                <Ticket className="h-4 w-4 text-primary" />
+                <span className="text-sm font-bold uppercase tracking-wider">Possui um cupom de lançamento?</span>
+              </div>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Digite o código aqui..." 
+                  className="bg-white uppercase font-mono"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  disabled={isApplyingCoupon}
+                />
+                <Button 
+                  onClick={handleApplyCoupon} 
+                  disabled={isApplyingCoupon || !couponCode.trim()}
+                  className="gap-2"
+                >
+                  {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Aplicar
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Input 
-                placeholder="Digite o código aqui..." 
-                className="bg-white uppercase font-mono"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                disabled={isApplyingCoupon}
-              />
-              <Button 
-                onClick={handleApplyCoupon} 
-                disabled={isApplyingCoupon || !couponCode.trim()}
-                className="gap-2"
-              >
-                {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Aplicar
-              </Button>
-            </div>
-          </div>
+          )}
 
           {isLoading ? (
             <div className="flex h-40 items-center justify-center">

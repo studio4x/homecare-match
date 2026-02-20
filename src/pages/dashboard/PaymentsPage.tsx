@@ -22,7 +22,8 @@ import {
   Calendar,
   AlertCircle,
   RefreshCw,
-  XCircle
+  XCircle,
+  Ticket
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -107,25 +108,27 @@ const PaymentsPage = () => {
           </h1>
           <p className="text-muted-foreground">Consulte suas faturas e recibos de assinaturas e cursos.</p>
         </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="gap-2" 
-          onClick={() => fetchHistory(true)}
-          disabled={isRefreshing || loading}
-        >
-          {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Atualizar
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2 border-primary/50 text-primary hover:bg-primary/5"
-          onClick={() => setIsPlanModalOpen(true)}
-        >
-          <Ticket className="h-4 w-4" />
-          Inserir Cupom
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2" 
+            onClick={() => fetchHistory(true)}
+            disabled={isRefreshing || loading}
+          >
+            {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Atualizar
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 border-primary/50 text-primary hover:bg-primary/5" 
+            onClick={() => setIsPlanModalOpen(true)}
+          >
+            <Ticket className="h-4 w-4" />
+            Inserir Cupom
+          </Button>
+        </div>
       </div>
 
       {error ? (
@@ -208,9 +211,9 @@ const PaymentsPage = () => {
         </Card>
       )}
 
-      <PlanSelectionModal
-        open={isPlanModalOpen}
-        onOpenChange={setIsPlanModalOpen}
+      <PlanSelectionModal 
+        open={isPlanModalOpen} 
+        onOpenChange={setIsPlanModalOpen} 
       />
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">

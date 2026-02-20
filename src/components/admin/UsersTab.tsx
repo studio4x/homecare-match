@@ -40,10 +40,11 @@ import {
   Eye,
   EyeOff,
   User,
-  Ticket
+  Ticket,
+  Clock
 } from "lucide-react";
 import { toast } from "sonner";
-import { differenceInDays, addDays, isAfter, subDays } from "date-fns";
+import { differenceInDays, addDays, isAfter, subDays, parseISO, isValid } from "date-fns";
 import { translateAuthError } from "@/lib/error-utils";
 import { Link } from "react-router-dom";
 
@@ -193,11 +194,25 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     }
   };
 
-  const getTrialStatus = (user: any) => {
-    if (user.subscription_tier !== 'free_trial' || !user.trial_started_at) return null;
-    const startDate = new Date(user.trial_started_at);
-    const endDate = addDays(startDate, 30);
-    return differenceInDays(endDate, new Date());
+  const getDaysRemaining = (u: any) => {
+    // Caso 1: Plano pago ou Cupom (tem subscription_end_at)
+    if (u.subscription_end_at) {
+      const endDate = parseISO(u.subscription_end_at);
+      if (isValid(endDate)) {
+        return differenceInDays(endDate, new Date());
+      }
+    }
+    
+    // Caso 2: Teste grátis do sistema
+    if (u.subscription_tier === 'free_trial' && u.trial_started_at) {
+      const startDate = parseISO(u.trial_started_at);
+      if (isValid(startDate)) {
+        const endDate = addDays(startDate, 30);
+        return differenceInDays(endDate, new Date());
+      }
+    }
+    
+    return null;
   };
 
   const checkVisibility = (u: any) => {
@@ -232,7 +247,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
           </TableHeader>
           <TableBody>
             {allUsers.map(u => {
-              const daysLeft = getTrialStatus(u);
+              const daysLeft = getDaysRemaining(u);
               const profileLink = getProfileLink(u);
               const isVisible = checkVisibility(u);
               
@@ -292,7 +307,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                           <SelectTrigger className="w-[130px] h-8 text-[10px]">
                             <SelectValue>
                               {u.coupon_days && u.subscription_tier === 'monthly' 
-                                ? "Teste Grátis (via Cupom)" 
+                                ? "Plano Mensal (Via Cupom)" 
                                 : getTierLabel(u.subscription_tier || 'monthly')}
                             </SelectValue>
                           </SelectTrigger>
@@ -300,7 +315,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                             <SelectItem value="free_trial">Teste Grátis (Sistema)</SelectItem>
                             {plans.filter(p => p.id !== 'free_trial').map(plan => (
                               <SelectItem key={plan.id} value={plan.id}>
-                                {u.coupon_days && plan.id === 'monthly' ? "Teste Grátis (via Cupom)" : getTierLabel(plan.id)}
+                                {u.coupon_days && plan.id === 'monthly' ? "Plano Mensal (Via Cupom)" : getTierLabel(plan.id)}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -308,7 +323,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                       )}
                       {daysLeft !== null && (
                         <div className={`text-[9px] font-medium flex items-center gap-1 ${daysLeft <= 0 ? 'text-destructive' : 'text-primary'}`}>
-                          <Calendar className="h-3 w-3" />
+                          <Clock className="h-3 w-3" />
                           {daysLeft <= 0 ? 'Expirado' : `${daysLeft}d restantes`}
                         </div>
                       )}

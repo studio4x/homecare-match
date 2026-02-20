@@ -4,14 +4,16 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import InteractionHistory from "@/components/InteractionHistory";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button"; // Import Button component
 
 const InteractionsPage = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [interactions, setInteractions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false); // New state for refresh button loading
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
@@ -38,7 +40,10 @@ const InteractionsPage = () => {
     load();
   }, [user]);
 
-  const fetchInteractions = async (userId: string, userRole: string) => {
+  const fetchInteractions = async (userId: string, userRole: string, silent = false) => {
+    if (!silent) setLoading(true);
+    else setIsRefreshing(true); // Set refreshing state for silent calls
+
     try {
       const profileFields = 'id, full_name, avatar_url, specialty, role, phone, bio, city, state, neighborhood';
       const isProf = userRole === 'professional';
@@ -81,6 +86,9 @@ const InteractionsPage = () => {
     } catch (err: any) {
       console.error("[InteractionsPage] Erro fatal:", err);
       toast.error("Erro ao carregar contatos.");
+    } finally {
+      if (!silent) setLoading(false);
+      else setIsRefreshing(false); // Reset refreshing state
     }
   };
 
@@ -119,9 +127,21 @@ const InteractionsPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Meus Contatos</h1>
-        <p className="text-muted-foreground">Pessoas e empresas que demonstraram interesse em seu trabalho.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"> {/* Added flex container */}
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-bold tracking-tight">Meus Contatos</h1>
+          <p className="text-muted-foreground">Pessoas e empresas que demonstraram interesse em seu trabalho.</p>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => fetchInteractions(user?.id!, profile?.role!, true)} // Call with silent=true
+          disabled={isRefreshing}
+          className="gap-2"
+        >
+          {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          Atualizar
+        </Button>
       </div>
 
       <InteractionHistory

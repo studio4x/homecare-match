@@ -1,4 +1,4 @@
-' no JSX.">
+' character in JSX to fix compilation errors.">
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -59,12 +59,12 @@ import {
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import OnboardingModal from "@/components/OnboardingModal";
 import { getCoordinates } from "@/lib/geo-utils";
-import { useSiteConfig } from "@/hooks/use-site-config"; // Import useSiteConfig
-import { Link } from "react-router-dom"; // Import Link
+import { useSiteConfig } from "@/hooks/use-site-config";
+import { Link } from "react-router-dom";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
-  const { data: siteConfig } = useSiteConfig(); // Fetch site config
+  const { data: siteConfig } = useSiteConfig();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -160,7 +160,6 @@ const ProfilePage = () => {
     const p = currentProfile || profile;
     if (!p?.address_street || !p?.city || !p?.state || !p?.address_zip) return;
 
-    // Check if Google Maps API key is available
     if (!siteConfig?.google_maps_api_key) {
       toast.error("Chave da API do Google Maps não configurada. Acesse o Painel Admin > Configurações.");
       return;
@@ -186,7 +185,7 @@ const ProfilePage = () => {
     } finally {
       setIsGeocoding(false);
     }
-  }, [profile, siteConfig?.google_maps_api_key]); // Add siteConfig to dependencies
+  }, [profile, siteConfig?.google_maps_api_key]);
 
   const handleCepBlur = async () => {
     if (!profile?.address_zip) return;
@@ -320,7 +319,6 @@ const ProfilePage = () => {
       let finalLng = profile.lng;
 
       if (!finalLat || !finalLng) {
-        // Check if Google Maps API key is available before attempting geocoding
         if (!siteConfig?.google_maps_api_key) {
           toast.error("Chave da API do Google Maps não configurada. Acesse o Painel Admin > Configurações.");
           setIsSaving(false);

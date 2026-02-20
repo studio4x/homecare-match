@@ -164,11 +164,11 @@ const ProfilePage = () => {
         .eq('id', user.id);
       
       if (error) throw error;
-      toast.success(enabled ? "Notificações em tempo real ativadas!" : "Notificações em tempo real desativadas.");
+      toast.success(enabled ? "Avisos em tempo real ativados!" : "Avisos em tempo real desativados.");
     } catch (err) {
       // Reverte estado local em caso de erro
       setProfile(prev => ({ ...prev, notifications_enabled: !enabled }));
-      toast.error("Erro ao salvar preferência de notificação.");
+      toast.error("Erro ao salvar preferência de avisos.");
     }
   };
 
@@ -889,14 +889,14 @@ const ProfilePage = () => {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><Bell className="h-4 w-4 text-primary" /> Preferências</CardTitle>
               <CardDescription className="text-[10px]">
-                Gerencie como você deseja ser notificado sobre novidades e contatos.
+                Gerencie como você deseja ser avisado sobre novidades e comunicados globais.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between p-3 border rounded-lg bg-secondary/10">
                 <div className="space-y-0.5">
-                  <Label className="text-xs font-semibold">Notificações em Tempo Real</Label>
-                  <p className="text-[10px] text-muted-foreground">Alertas sonoros e visuais no dashboard.</p>
+                  <Label className="text-xs font-semibold">Avisos em Tempo Real</Label>
+                  <p className="text-[10px] text-muted-foreground">Modais e alertas de comunicados globais.</p>
                 </div>
                 <Switch 
                   checked={!!profile.notifications_enabled} 

@@ -45,6 +45,7 @@ const UserNotificationWidget = () => {
         .from("notifications")
         .select("*")
         .eq("user_id", user.id)
+        .neq("type", "broadcast") // EXCLUSIVIDADE: Não mostra avisos globais no widget
         .order("created_at", { ascending: false })
         .limit(30);
 
@@ -75,10 +76,13 @@ const UserNotificationWidget = () => {
         },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            setNotifications(prev => {
-              if (prev.some(n => n.id === payload.new.id)) return prev;
-              return [payload.new, ...prev];
-            });
+            // Só adiciona se não for broadcast
+            if (payload.new.type !== 'broadcast') {
+              setNotifications(prev => {
+                if (prev.some(n => n.id === payload.new.id)) return prev;
+                return [payload.new, ...prev];
+              });
+            }
           } else if (payload.eventType === 'UPDATE') {
             setNotifications(prev => prev.map(n => n.id === payload.new.id ? payload.new : n));
           } else if (payload.eventType === 'DELETE') {
@@ -112,14 +116,15 @@ const UserNotificationWidget = () => {
 
   const handleDeleteAll = async () => {
     if (!user || notifications.length === 0) return;
-    if (!confirm("Deseja excluir todas as suas notificações?")) return;
+    if (!confirm("Deseja excluir todas as suas notificações pessoais?")) return;
 
     setIsDeletingAll(true);
     try {
       const { error } = await supabase
         .from("notifications")
         .delete()
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .neq("type", "broadcast");
 
       if (error) throw error;
       setNotifications([]);

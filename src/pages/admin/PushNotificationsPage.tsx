@@ -191,7 +191,7 @@ const PushNotificationsPage = () => {
   };
 
   const handleResend = async (notification: any) => {
-    if (!confirm(`Deseja reenviar a notificação "${notification.title}" agora?`)) return;
+    if (!confirm(`Deseja reenviar o aviso "${notification.title}" agora?`)) return;
     
     const toastId = toast.loading("Reenviando...");
     try {
@@ -199,7 +199,7 @@ const PushNotificationsPage = () => {
         body: { notificationId: notification.id, action: 'send_now' }
       });
       if (error) throw error;
-      toast.success("Notificação reenviada com sucesso!", { id: toastId });
+      toast.success("Aviso reenviado com sucesso!", { id: toastId });
       fetchHistory(true);
     } catch (err) {
       toast.error("Erro ao reenviar.", { id: toastId });
@@ -285,7 +285,7 @@ const PushNotificationsPage = () => {
       fetchHistory();
       setActiveTab("history");
     } catch (err) {
-      toast.error("Erro ao processar notificação.");
+      toast.error("Erro ao processar aviso.");
     } finally {
       setIsSending(false);
     }
@@ -366,7 +366,7 @@ const PushNotificationsPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Notificações Push</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Avisos (Push)</h1>
           <p className="text-muted-foreground">Envie mensagens diretas para os dispositivos dos usuários.</p>
         </div>
         <Button variant="outline" size="sm" className="gap-2" onClick={handleSync} disabled={isSyncing}>
@@ -377,7 +377,7 @@ const PushNotificationsPage = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full max-w-2xl grid-cols-4">
-          <TabsTrigger value="new" className="gap-2"><Send className="h-4 w-4" /> Nova Mensagem</TabsTrigger>
+          <TabsTrigger value="new" className="gap-2"><Send className="h-4 w-4" /> Novo Aviso</TabsTrigger>
           <TabsTrigger value="layout" className="gap-2"><Palette className="h-4 w-4" /> Layout do Card</TabsTrigger>
           <TabsTrigger value="history" className="gap-2"><History className="h-4 w-4" /> Histórico</TabsTrigger>
           <TabsTrigger value="subscribers" className="gap-2"><Users className="h-4 w-4" /> Inscritos ({subscribers.length})</TabsTrigger>
@@ -387,14 +387,14 @@ const PushNotificationsPage = () => {
           <div className="grid gap-6 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle>Criar Notificação</CardTitle>
+                <CardTitle>Criar Aviso</CardTitle>
                 <CardDescription>Preencha os detalhes da mensagem que será enviada.</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSend} className="space-y-6">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Título da Notificação</Label>
+                      <Label>Título do Aviso</Label>
                       <Input 
                         placeholder="Ex: Novas vagas disponíveis!" 
                         value={formData.title}
@@ -406,7 +406,7 @@ const PushNotificationsPage = () => {
                     <div className="space-y-2">
                       <Label>Mensagem (Corpo)</Label>
                       <Textarea 
-                        placeholder="Descreva o conteúdo da notificação..." 
+                        placeholder="Descreva o conteúdo do aviso..." 
                         rows={4}
                         value={formData.body}
                         onChange={e => setFormData({...formData, body: e.target.value})}
@@ -463,7 +463,7 @@ const PushNotificationsPage = () => {
 
                     <Button type="submit" className="w-full gap-2 h-12" disabled={isSending || isUploading}>
                       {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />}
-                      {formData.scheduled_for ? "Agendar Notificação" : "Enviar Agora"}
+                      {formData.scheduled_for ? "Agendar Aviso" : "Enviar Agora"}
                     </Button>
                   </div>
                 </form>
@@ -475,7 +475,7 @@ const PushNotificationsPage = () => {
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <History className="h-4 w-4 text-primary" />
-                    Últimas Enviadas
+                    Últimos Enviados
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -499,7 +499,7 @@ const PushNotificationsPage = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-muted-foreground text-xs italic">Nenhuma notificação enviada ainda.</div>
+                    <div className="p-8 text-center text-muted-foreground text-xs italic">Nenhum aviso enviado ainda.</div>
                   )}
                 </CardContent>
               </Card>
@@ -513,7 +513,7 @@ const PushNotificationsPage = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2"><Palette className="h-5 w-5 text-primary" /> Estilo do Card</CardTitle>
-                  <CardDescription>Personalize as cores e o formato do card de notificação no desktop.</CardDescription>
+                  <CardDescription>Personalize as cores e o formato do card de aviso no desktop.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -632,9 +632,9 @@ const PushNotificationsPage = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 mb-1">
                             <ShieldCheck className="h-3 w-3" style={{ color: layoutData.iconColor }} />
-                            <span className="text-[8px] font-bold uppercase tracking-widest opacity-80" style={{ color: layoutData.iconColor }}>Administração</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-80" style={{ color: layoutData.iconColor }}>Administração</span>
                           </div>
-                          <h4 className="font-bold leading-tight text-sm pr-6" style={{ color: layoutData.titleColor }}>{formData.title || "Título da Notificação"}</h4>
+                          <h4 className="font-bold leading-tight text-sm pr-6" style={{ color: layoutData.titleColor }}>{formData.title || "Título do Aviso"}</h4>
                           <p className="text-xs leading-relaxed" style={{ color: layoutData.bodyColor }}>{formData.body || "Corpo da mensagem..."}</p>
                         </div>
                       </div>
@@ -665,7 +665,7 @@ const PushNotificationsPage = () => {
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle>Histórico de Envios</CardTitle>
-                <CardDescription>Acompanhe o status das notificações.</CardDescription>
+                <CardDescription>Acompanhe o status dos avisos.</CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 gap-2" onClick={handleClearHistory} disabled={loading || history.length === 0}><Trash2 className="h-4 w-4" /> Limpar Tudo</Button>
@@ -676,7 +676,7 @@ const PushNotificationsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Notificação</TableHead>
+                    <TableHead>Aviso</TableHead>
                     <TableHead>Público</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -711,7 +711,7 @@ const PushNotificationsPage = () => {
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle>Dispositivos Inscritos</CardTitle>
-                <CardDescription>Lista de navegadores que autorizaram notificações.</CardDescription>
+                <CardDescription>Lista de navegadores que autorizaram avisos.</CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10 gap-2" onClick={handleClearSubscribers} disabled={loading || subscribers.length === 0}><UserX className="h-4 w-4" /> Limpar Todos</Button>

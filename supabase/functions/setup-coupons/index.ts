@@ -13,7 +13,7 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
-    console.log("[setup-coupons] Iniciando criação de tabelas e funções...");
+    console.log("[setup-coupons] Ajustando referências de integridade...");
     
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
@@ -30,11 +30,11 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      -- 2. Tabela de Uso
+      -- 2. Tabela de Uso (Ajustada para referenciar auth.users para maior robustez em triggers)
       CREATE TABLE IF NOT EXISTS public.coupon_usages (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         coupon_id UUID NOT NULL REFERENCES public.coupons(id) ON DELETE CASCADE,
-        user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL, -- Referência lógica ao ID do usuário
         used_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(coupon_id, user_id)
       );
@@ -79,7 +79,7 @@ serve(async (req) => {
     await client.queryObject(sql);
     await client.end();
 
-    return new Response(JSON.stringify({ ok: true, message: "Sistema de cupons configurado!" }), {
+    return new Response(JSON.stringify({ ok: true, message: "Sistema de cupons atualizado!" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

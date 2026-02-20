@@ -1,4 +1,3 @@
-' character in JSX by replacing it with '>'.">
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -513,7 +512,7 @@ const ProfilePage = () => {
                   <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                   <div className="text-sm">
                     <p className="font-bold">Chave da API do Google Maps ausente!</p>
-                    <p className="text-xs">A geolocalização automática não funcionará. Configure a chave em <Link to="/admin/configuracoes" className="underline">Painel Admin > Configurações</Link>.</p>
+                    <p className="text-xs">A geolocalização automática não funcionará. Configure a chave em <Link to="/admin/configuracoes" className="underline">Painel Admin {'>'} Configurações</Link>.</p>
                   </div>
                 </div>
               )}

@@ -20,13 +20,16 @@ serve(async (req) => {
       CREATE TABLE IF NOT EXISTS public.feature_videos (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         feature_key TEXT UNIQUE NOT NULL, -- e.g., 'busca-inteligente-de-profissionais'
-        title TEXT NOT NULL, -- Redundant but good for display in admin
+        title TEXT NOT NULL DEFAULT 'Video de Funcionalidade', -- Adicionado DEFAULT aqui
         video_url TEXT,
         video_storage_path TEXT,
         video_mime TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      -- Garante que o default seja aplicado se a coluna existir mas sem um default
+      ALTER TABLE public.feature_videos ALTER COLUMN title SET DEFAULT 'Video de Funcionalidade';
 
       ALTER TABLE public.feature_videos ENABLE ROW LEVEL SECURITY;
 

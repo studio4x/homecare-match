@@ -572,7 +572,12 @@ const ProfilePage = () => {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2"><Label>{profile.role === 'company' ? "Razão Social" : "Nome do Responsável"}</Label><Input value={profile.company_name || ""} onChange={e => setProfile({...profile, company_name: e.target.value})} /></div>
+                  {isCompany && ( // Render only if it's a company profile
+                    <div className="grid gap-2">
+                      <Label>Razão Social</Label>
+                      <Input value={profile.company_name || ""} onChange={e => setProfile({...profile, company_name: e.target.value})} />
+                    </div>
+                  )}
                   {profile.role === 'company' && (
                     <>
                       <div className="grid gap-2"><Label>CNPJ</Label><Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} /></div>

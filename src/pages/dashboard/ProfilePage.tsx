@@ -42,7 +42,7 @@ import {
   Navigation,
   User, // Added User icon for patient name
   HeartPulse, // Added HeartPulse for medical conditions
-  Walk, // Added Walk for mobility
+  Footprints, // Replaced Walk with Footprints for mobility
   Brain, // Added Brain for cognitive state
   Syringe, // Added Syringe for special equipment
   MessageSquare // Added MessageSquare for communication skills
@@ -712,7 +712,7 @@ const ProfilePage = () => {
                 <Separator />
 
                 <div className="space-y-3">
-                  <Label className="text-xs uppercase flex items-center gap-2"><Walk className="h-4 w-4 text-primary" /> Nível de Mobilidade</Label>
+                  <Label className="text-xs uppercase flex items-center gap-2"><Footprints className="h-4 w-4 text-primary" /> Nível de Mobilidade</Label>
                   <div className="grid gap-2 md:grid-cols-2">
                     {mobilityLevelOptions.map(opt => (
                       <div key={opt} className="flex items-center gap-2">
@@ -855,7 +855,7 @@ const ProfilePage = () => {
             <CardContent><ChangePasswordDialog /></CardContent>
           </Card>
 
-          <Collapsible open={isDangerZoneOpen} onOpenChange={setIsDangerZoneZoneOpen} className="border border-destructive/20 rounded-xl bg-card overflow-hidden">
+          <Collapsible open={isDangerZoneOpen} onOpenChange={setIsDangerZoneOpen} className="border border-destructive/20 rounded-xl bg-card overflow-hidden">
             <CollapsibleTrigger asChild><Button variant="ghost" className="w-full flex items-center justify-between p-6 h-auto hover:bg-destructive/5 group"><div className="flex items-center gap-2 text-destructive"><Trash2 className="h-4 w-4" /><span className="font-semibold text-base">Zona de Perigo</span></div>{isDangerZoneOpen ? <ChevronUp className="h-4 w-4 text-destructive" /> : <ChevronDown className="h-4 w-4 text-destructive" />}</Button></CollapsibleTrigger>
             <CollapsibleContent className="px-6 pb-6 space-y-4 animate-accordion-down"><p className="text-[10px] text-muted-foreground">Ações irreversíveis relacionadas à exclusão definitiva da sua conta.</p><Button variant="destructive" size="sm" className="w-full justify-start gap-2 h-10" onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}><Trash2 className="h-4 w-4" /> Excluir minha conta permanentemente</Button></CollapsibleContent>
           </Collapsible>

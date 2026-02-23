@@ -477,22 +477,31 @@ const ProfilePage = () => {
   };
 
   const handleRequestVerification = async () => {
+    console.log("[handleRequestVerification] Iniciando solicitação de verificação para user:", user?.id);
     const isFamily = profile?.role === 'family';
     if (isFamily && !profile?.id_document_url) {
       toast.error("Envie o documento de identidade antes de solicitar análise.");
+      console.log("[handleRequestVerification] Erro: Documento de identidade ausente para família.");
       return;
     }
     if (!isFamily && (!profile?.id_document_url || !profile?.prof_registration_url)) {
       toast.error("Envie os dois documentos antes de solicitar análise.");
+      console.log("[handleRequestVerification] Erro: Um ou ambos os documentos ausentes para profissional/empresa.");
       return;
     }
 
     setIsSaving(true);
     try {
+      console.log("[handleRequestVerification] Atualizando profile.verification_sent para true no banco de dados.");
       const { error } = await supabase.from("profiles").update({ verification_sent: true }).eq("id", user?.id);
       if (error) throw error;
+      
+      console.log("[handleRequestVerification] Profile.verification_sent atualizado com sucesso no banco.");
       toast.success("Solicitação enviada!");
-      fetchProfile();
+      
+      // Re-fetch profile data to update the local state and UI
+      await fetchProfile(); 
+      console.log("[handleRequestVerification] fetchProfile() chamado para atualizar o estado local.");
 
       // NOTIFICAÇÃO ADMIN: Envia e-mail e notificação no dashboard
       await supabase.functions.invoke('notify-verification', {
@@ -504,9 +513,11 @@ const ProfilePage = () => {
       }).catch(err => console.warn("Falha ao notificar admin sobre verificação:", err));
 
     } catch (err) {
+      console.error("[handleRequestVerification] Erro ao enviar solicitação:", err);
       toast.error("Erro ao enviar solicitação.");
     } finally {
       setIsSaving(false);
+      console.log("[handleRequestVerification] Finalizando processo de solicitação.");
     }
   };
 

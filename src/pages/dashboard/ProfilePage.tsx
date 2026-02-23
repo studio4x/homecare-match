@@ -528,11 +528,22 @@ const ProfilePage = () => {
     try {
       const { error } = await supabase
         .from("profiles")
-        .update({ rejection_reason: null, verification_sent: false })
+        .update({ 
+          rejection_reason: null, 
+          verification_sent: false,
+          id_document_url: null, // Clear document URLs
+          prof_registration_url: null // Clear document URLs
+        })
         .eq("id", user.id);
       if (error) throw error;
       toast.success("Agora você pode reenviar seus documentos na seção Meus Dados.");
-      setProfile((prev: any) => ({ ...prev, rejection_reason: null, verification_sent: false }));
+      setProfile((prev: any) => ({ 
+        ...prev, 
+        rejection_reason: null, 
+        verification_sent: false,
+        id_document_url: null, // Clear document URLs in state
+        prof_registration_url: null // Clear document URLs in state
+      }));
     } catch (err) {
       toast.error("Erro ao reiniciar processo.");
     }

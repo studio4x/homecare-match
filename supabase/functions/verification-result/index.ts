@@ -20,6 +20,7 @@ serve(async (req) => {
 
     const { status, reason, userName, userEmail, userId } = await req.json()
 
+    // Notificação no painel do usuário
     await supabaseAdmin.from('notifications').insert({
       user_id: userId,
       title: status === 'approved' ? "✅ Documentos Aprovados!" : "⚠️ Documentos Rejeitados",
@@ -30,6 +31,7 @@ serve(async (req) => {
       type: status === 'approved' ? 'success' : 'error'
     });
 
+    // Log de auditoria
     await supabaseAdmin.from('admin_logs').insert({
       admin_id: adminUser.id,
       action_type: status === 'approved' ? 'VERIFICATION_APPROVED' : 'VERIFICATION_REJECTED',
@@ -39,8 +41,64 @@ serve(async (req) => {
         : `Reprovou os documentos de: ${userName} (${userEmail}). Motivo: ${reason}`
     })
 
+    // Envio de e-mail para o profissional
+    const smtpHost = Deno.env.get('SMTP_HOST');
+    const smtpUser = Deno.env.get('SMTP_USER');
+    const smtpPass = Deno.env.get('SMTP_PASS');
+    const smtpPort = Deno.env.get('SMTP_PORT');
+
+    if (smtpHost && smtpUser && smtpPass && smtpPort) {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(smtpPort),
+        secure: smtpPort === "465", // true for 465, false for other ports
+        auth: { user: smtpUser, pass: smtpPass },
+      });
+
+      let emailSubject = "";
+      let emailHtml = "";
+
+      if (status === 'approved') {
+        emailSubject = "✅ Sua Verificação de Perfil Foi Aprovada!";
+        emailHtml = `
+          <div style="font-family: sans-serif; padding: 20px; color: #333;">
+            <h2 style="color: #28a745;">Parabéns, ${userName}!</h2>
+            <p>Temos uma ótima notícia! Seus documentos foram validados com sucesso pela nossa equipe.</p>
+            <p>Seu perfil agora possui o <strong>Selo de Verificado</strong>, o que aumenta sua credibilidade e visibilidade na plataforma HomeCare Match.</p>
+            <p>Você já pode acessar seu painel para conferir:</p>
+            <p><a href="${Deno.env.get('SITE_URL')}/dashboard/perfil" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Ir para Meu Perfil</a></p>
+            <p>Agradecemos a sua paciência e confiança!</p>
+            <p>Atenciosamente,<br>Equipe HomeCare Match</p>
+          </div>
+        `;
+      } else { // status === 'rejected'
+        emailSubject = "⚠️ Sua Verificação de Perfil Foi Rejeitada";
+        emailHtml = `
+          <div style="font-family: sans-serif; padding: 20px; color: #333;">
+            <h2 style="color: #dc3545;">Olá, ${userName}!</h2>
+            <p>Informamos que sua solicitação de verificação de perfil foi rejeitada.</p>
+            <p><strong>Motivo da rejeição:</strong> ${reason || 'Não especificado.'}</p>
+            <p>Para que possamos aprovar seu perfil, por favor, acesse a seção "Meus Dados" no seu painel, corrija as informações ou reenvie os documentos necessários.</p>
+            <p><a href="${Deno.env.get('SITE_URL')}/dashboard/perfil" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Acessar Meu Perfil</a></p>
+            <p>Se precisar de ajuda, entre em contato com nosso suporte.</p>
+            <p>Atenciosamente,<br>Equipe HomeCare Match</p>
+          </div>
+        `;
+      }
+
+      await transporter.sendMail({
+        from: `"HomeCare Match" <${smtpUser}>`,
+        to: userEmail,
+        subject: emailSubject,
+        html: emailHtml,
+      });
+    } else {
+      console.warn("[verification-result] Variáveis SMTP não configuradas. E-mail para o profissional não enviado.");
+    }
+
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (error) {
+    console.error("[verification-result] Erro crítico:", error.message);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders })
   }
 })

@@ -23,6 +23,7 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null); // Use a ref for the map instance
   const initialFitDone = useRef(false); // Track if initial fit has been done
+  const prevRefitTrigger = useRef(0); // Store previous refitTrigger value
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -46,6 +47,7 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
     setMap(mapInstance);
     mapRef.current = mapInstance;
     initialFitDone.current = false; // Reset on map load
+    prevRefitTrigger.current = 0; // Reset trigger on map load
   }, []);
 
   const onUnmount = useCallback(() => {
@@ -63,9 +65,8 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
   useEffect(() => {
     if (!mapRef.current || typeof google === 'undefined' || professionals.length === 0) return;
 
-    // Only fit bounds if it's the initial load or if refitTrigger has changed
-    // We use a ref to prevent re-fitting on every render if data is the same
-    if (!initialFitDone.current || refitTrigger > 0) { // refitTrigger > 0 ensures it runs after initial load
+    // Only run if refitTrigger has changed or it's the initial fit
+    if (refitTrigger !== prevRefitTrigger.current || !initialFitDone.current) {
       const bounds = new google.maps.LatLngBounds();
       let hasValidPoints = false;
 
@@ -90,10 +91,11 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
             google.maps.event.removeListener(listener);
           });
         }
-        initialFitDone.current = true; // Mark initial fit as done
+        initialFitDone.current = true;
       }
+      prevRefitTrigger.current = refitTrigger; // Update the ref
     }
-  }, [mapRef.current, professionals, userLocation, refitTrigger]); // Add refitTrigger to dependencies
+  }, [mapRef.current, professionals, userLocation, refitTrigger]); // Keep all dependencies for correctness
 
   if (loadError) {
     return (

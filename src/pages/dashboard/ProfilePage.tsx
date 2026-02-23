@@ -501,8 +501,8 @@ const ProfilePage = () => {
       console.log("[handleRequestVerification] Profile.verification_sent atualizado com sucesso no banco.");
       toast.success("Solicitação enviada!");
       
-      setProfile((prev: any) => ({ ...prev, verification_sent: true }));
-      console.log("[handleRequestVerification] Estado local atualizado para refletir a solicitação enviada.");
+      // Call fetchProfile to re-fetch the latest data from the database
+      await fetchProfile(); // <--- ADDED THIS LINE
 
       // NOTIFICAÇÃO ADMIN: Envia e-mail e notificação no dashboard
       await supabase.functions.invoke('notify-verification', {

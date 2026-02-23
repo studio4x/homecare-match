@@ -35,7 +35,10 @@ serve(async (req) => {
           NEW.trial_started_at := OLD.trial_started_at;
           NEW.subscription_end_at := OLD.subscription_end_at;
           NEW.referral_count := OLD.referral_count;
-          NEW.verification_sent := OLD.verification_sent;
+          -- Permite que verification_sent mude de FALSE para TRUE, mas não o contrário
+          IF OLD.verification_sent = TRUE AND NEW.verification_sent = FALSE THEN
+            NEW.verification_sent := TRUE; -- Impede que não-admin desfaça o envio da verificação
+          END IF;
         END IF;
 
         -- CASO 2: Administrador tentando remover o próprio acesso (Trava de Segurança)

@@ -848,7 +848,11 @@ const ProfilePage = () => {
               {profile.is_verified ? (
                 <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center"><CheckCircle2 className="h-8 w-8 text-success mb-2" /><p className="font-semibold text-success">Perfil Verificado</p></div>
               ) : profile.verification_sent ? (
-                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center"><Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" /><p className="font-semibold text-primary">Documentos em Análise</p></div>
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
+                  <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
+                  <p className="font-semibold text-primary">Documentos em Análise</p>
+                  <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
+                </div>
               ) : (
                 <div className="space-y-3">
                   <div className="space-y-1"><Label className="text-[10px] uppercase">{doc1Label}</Label><Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} /></div>

@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 
 const corsHeaders = {
@@ -158,6 +158,26 @@ serve(async (req) => {
         RETURN new;
       END;
       $function$;
+
+      -- Configurar REPLICA IDENTITY FULL para a tabela profiles (CRÍTICO para Realtime)
+      ALTER TABLE public.profiles REPLICA IDENTITY FULL;
+
+      -- Habilitar Realtime para a tabela profiles com verificação de existência
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+          CREATE PUBLICATION supabase_realtime;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_publication_tables 
+          WHERE pubname = 'supabase_realtime' 
+          AND schemaname = 'public' 
+          AND tablename = 'profiles'
+        ) THEN
+          ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+        END IF;
+      END $$;
 
       -- Notifica o PostgREST para recarregar o esquema
       NOTIFY pgrst, 'reload schema';

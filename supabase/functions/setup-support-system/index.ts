@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
 
 const corsHeaders = {
@@ -128,7 +128,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ ok: true, message: "Sistema de suporte sincronizado!" }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   } catch (e) {
     console.error("[setup-support-system] Erro fatal:", e.message);

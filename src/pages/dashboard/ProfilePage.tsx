@@ -601,7 +601,7 @@ const ProfilePage = () => {
 
           {!isProfessional && (
             <Card>
-              <CardHeader><CardTitle>{profile.role === 'company' ? "Sobre a Empresa *" : "Sobre a Família *"}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>{profile.role === 'company' ? "Sobre a Empresa *" : "Sobre o paciente que precisa de atendimento *"}</CardTitle></CardHeader>
               <CardContent><Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} /></CardContent>
             </Card>
           )}

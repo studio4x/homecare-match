@@ -165,12 +165,15 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
               <TableHead>Usuário</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Documentos</TableHead>
+              {/* New column for CNPJ/ANS if it's a company */}
+              <TableHead>Info Adicional</TableHead> 
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pendingProfiles.length > 0 ? pendingProfiles.map(p => {
               const labels = getDocLabels(p.role);
+              const isCompany = p.role === 'company';
               return (
                 <TableRow key={p.id}>
                   <TableCell>
@@ -206,6 +209,15 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
                       )}
                     </div>
                   </TableCell>
+                  {/* New TableCell for additional info */}
+                  <TableCell>
+                    {isCompany && (
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-muted-foreground">CNPJ: <span className="font-medium text-foreground">{p.cnpj || 'N/A'}</span></p>
+                        <p className="text-xs text-muted-foreground">ANS: <span className="font-medium text-foreground">{p.ans_registration || 'N/A'}</span></p>
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
                     <Button variant="ghost" size="sm" className="text-success" onClick={() => { setSelectedProfile(p); setApproveModalOpen(true); }}><ThumbsUp className="h-4 w-4 mr-1" />Aprovar</Button>
@@ -214,7 +226,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
               );
             }) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
                   Nenhuma solicitação pendente.
                 </TableCell>
               </TableRow>

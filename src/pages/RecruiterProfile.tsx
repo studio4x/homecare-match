@@ -16,11 +16,20 @@ import {
   Home,
   Info,
   MessageCircle,
-  AlertTriangle
+  AlertTriangle,
+  Users,
+  HeartPulse,
+  Footprints,
+  Brain,
+  Syringe,
+  MessageSquare,
+  Calendar,
+  User // Added User import
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
 import ReportModal from "@/components/ReportModal";
+import SafeHTML from "@/components/SafeHTML"; // Import SafeHTML
 
 const RecruiterProfile = () => {
   const { id } = useParams();
@@ -28,13 +37,15 @@ const RecruiterProfile = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [companyPatients, setCompanyPatients] = useState<any[]>([]);
+  const [loadingPatients, setLoadingPatients] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, avatar_url, city, state, bio, role, ans_registration") // Fetch ans_registration
+        .select("id, full_name, avatar_url, city, state, bio, role, ans_registration")
         .eq("id", id)
         .single();
 
@@ -49,6 +60,32 @@ const RecruiterProfile = () => {
 
     fetchProfile();
   }, [id]);
+
+  useEffect(() => {
+    const fetchCompanyPatients = async () => {
+      if (!id || profile?.role !== 'company') return;
+      setLoadingPatients(true);
+      try {
+        const { data, error } = await supabase
+          .from('company_patients')
+          .select('*')
+          .eq('company_id', id)
+          .eq('is_visible', true) // Only fetch visible patients
+          .order('patient_name', { ascending: true });
+
+        if (error) throw error;
+        setCompanyPatients(data || []);
+      } catch (err) {
+        console.error("[RecruiterProfile] Erro ao carregar pacientes da empresa:", err);
+      } finally {
+        setLoadingPatients(false);
+      }
+    };
+
+    if (profile?.id && profile?.role === 'company') {
+      fetchCompanyPatients();
+    }
+  }, [profile?.id, profile?.role]);
 
   if (loading) {
     return (
@@ -82,6 +119,27 @@ const RecruiterProfile = () => {
     .toUpperCase() || "??";
 
   const isCompany = profile.role === 'company';
+
+  const renderPatientDetail = (label: string, value: string | number | string[] | undefined, Icon: any) => {
+    if (!value || (Array.isArray(value) && value.length === 0)) return null;
+    return (
+      <div className="flex items-center gap-3">
+        <Icon className="h-5 w-5 text-primary shrink-0" />
+        <div>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase">{label}</p>
+          {Array.isArray(value) ? (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {value.map((item, idx) => (
+                <Badge key={idx} variant="secondary" className="text-xs">{item}</Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="font-semibold text-sm">{value}</p>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Layout>
@@ -147,6 +205,40 @@ const RecruiterProfile = () => {
                 </p>
               </div>
             </div>
+
+            {isCompany && (
+              <div className="rounded-2xl border bg-card p-8 shadow-card">
+                <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" /> Pacientes da Empresa
+                </h3>
+                {loadingPatients ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : companyPatients.length > 0 ? (
+                  <div className="space-y-6">
+                    {companyPatients.map((patient) => (
+                      <div key={patient.id} className="border rounded-lg p-4 space-y-3 bg-secondary/10">
+                        <div className="flex items-center gap-3">
+                          <User className="h-5 w-5 text-primary" />
+                          <h4 className="font-bold text-lg">{patient.patient_name}</h4>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                          {renderPatientDetail("Idade", patient.patient_age, Calendar)}
+                          {renderPatientDetail("Condições Médicas", patient.patient_medical_conditions, HeartPulse)}
+                          {renderPatientDetail("Mobilidade", patient.patient_mobility_level, Footprints)}
+                          {renderPatientDetail("Estado Cognitivo", patient.patient_cognitive_state, Brain)}
+                          {renderPatientDetail("Equipamentos", patient.patient_special_equipment, Syringe)}
+                          {renderPatientDetail("Comunicação", patient.patient_communication_skills, MessageSquare)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">Nenhum paciente visível cadastrado por esta empresa.</p>
+                )}
+              </div>
+            )}
 
             <div className="rounded-2xl border bg-card p-8 shadow-card">
               <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">

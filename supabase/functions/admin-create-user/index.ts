@@ -48,6 +48,9 @@ serve(async (req) => {
       role,
       phone,
       avatar_url,
+      company_name, // New field
+      cnpj, // New field
+      ans_registration, // New field
       is_verified,
       verification_sent,
       has_seen_onboarding,
@@ -77,6 +80,9 @@ serve(async (req) => {
         role: sanitizedRole, // Pass role to metadata for handle_new_user
         phone,
         avatar_url,
+        company_name, // Pass new field
+        cnpj, // Pass new field
+        ans_registration, // Pass new field
         is_verified,
         verification_sent,
         has_seen_onboarding,

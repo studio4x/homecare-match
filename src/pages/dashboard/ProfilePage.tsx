@@ -335,6 +335,7 @@ const ProfilePage = () => {
     if (!user || !profile) return;
 
     const isProfessional = profile.role === 'professional';
+    const isCompany = profile.role === 'company';
     const isFamily = profile.role === 'family';
     const cleanPhone = profile.phone?.replace(/\D/g, "") || "";
 
@@ -482,14 +483,21 @@ const ProfilePage = () => {
   const handleRequestVerification = async () => {
     console.log("[handleRequestVerification] Iniciando solicitação de verificação para user:", user?.id);
     const isFamily = profile?.role === 'family';
+    const isCompany = profile?.role === 'company';
+
     if (isFamily && !profile?.id_document_url) {
-      toast.error("Envie o documento de identidade antes de solicitar análise.");
+      toast.error("Envie o documento de identidade do responsável antes de solicitar análise.");
       console.log("[handleRequestVerification] Erro: Documento de identidade ausente para família.");
       return;
     }
-    if (!isFamily && (!profile?.id_document_url || !profile?.prof_registration_url)) {
+    if (isCompany && (!profile?.cnpj || !profile?.id_document_url)) {
+      toast.error("Envie o CNPJ e o documento de identidade do responsável antes de solicitar análise.");
+      console.log("[handleRequestVerification] Erro: CNPJ ou documento de identidade ausente para empresa.");
+      return;
+    }
+    if (!isFamily && !isCompany && (!profile?.id_document_url || !profile?.prof_registration_url)) {
       toast.error("Envie os dois documentos antes de solicitar análise.");
-      console.log("[handleRequestVerification] Erro: Um ou ambos os documentos ausentes para profissional/empresa.");
+      console.log("[handleRequestVerification] Erro: Um ou ambos os documentos ausentes para profissional.");
       return;
     }
 
@@ -532,7 +540,9 @@ const ProfilePage = () => {
           rejection_reason: null, 
           verification_sent: false,
           id_document_url: null, // Clear document URLs
-          prof_registration_url: null // Clear document URLs
+          prof_registration_url: null, // Clear document URLs
+          cnpj: null, // Clear CNPJ for company
+          ans_registration: null // Clear ANS registration for company
         })
         .eq("id", user.id);
       if (error) throw error;
@@ -542,7 +552,9 @@ const ProfilePage = () => {
         rejection_reason: null, 
         verification_sent: false,
         id_document_url: null, // Clear document URLs in state
-        prof_registration_url: null // Clear document URLs in state
+        prof_registration_url: null, // Clear document URLs in state
+        cnpj: null, // Clear CNPJ for company
+        ans_registration: null // Clear ANS registration for company
       }));
     } catch (err) {
       toast.error("Erro ao reiniciar processo.");
@@ -626,13 +638,11 @@ const ProfilePage = () => {
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {isCompany && ( // Render only if it's a company profile
-                    <div className="grid gap-2">
-                      <Label>Razão Social</Label>
-                      <Input value={profile.company_name || ""} onChange={e => setProfile({...profile, company_name: e.target.value})} />
-                    </div>
-                  )}
-                  {profile.role === 'company' && (
                     <>
+                      <div className="grid gap-2">
+                        <Label>Razão Social</Label>
+                        <Input value={profile.company_name || ""} onChange={e => setProfile({...profile, company_name: e.target.value})} />
+                      </div>
                       <div className="grid gap-2"><Label>CNPJ</Label><Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} /></div>
                       <div className="grid gap-2"><Label>Registro ANS</Label><Input value={profile.ans_registration || ""} onChange={e => setProfile({...profile, ans_registration: e.target.value})} /></div>
                     </>
@@ -921,9 +931,13 @@ const ProfilePage = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="space-y-1"><Label className="text-[10px] uppercase">{doc1Label}</Label><Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} /></div>
+                  <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase">{doc1Label}</Label>
+                    {isCompany && <Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} placeholder="CNPJ da Empresa" className="mb-2" />}
+                    <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} /></div>
                   {!isFamily && (<div className="space-y-1"><Label className="text-[10px] uppercase">{doc2Label}</Label><Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>{profile.prof_registration_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} /></div>)}
-                  <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && !profile.id_document_url) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
+                  <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && !profile.id_document_url) || (isCompany && (!profile.cnpj || !profile.id_document_url)) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
                 </div>
               )}
             </CardContent>

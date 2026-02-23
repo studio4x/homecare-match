@@ -82,6 +82,7 @@ const SiteConfigTab = () => {
   const [isSyncingPrefs, setIsSyncingPrefs] = useState(false);
   const [isSyncingFeatureVideos, setIsSyncingFeatureVideos] = useState(false);
   const [isSyncingFamilyProfileFields, setIsSyncingFamilyProfileFields] = useState(false); // New state for family profile fields
+  const [isSyncingCompanyPatients, setIsSyncingCompanyPatients] = useState(false); // New state for company patients
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -319,6 +320,19 @@ const SiteConfigTab = () => {
     }
   };
 
+  const handleSyncCompanyPatients = async () => { // New handler for company patients
+    setIsSyncingCompanyPatients(true);
+    try {
+      const { error } = await supabase.functions.invoke('setup-company-patients');
+      if (error) throw error;
+      toast.success("Sistema de pacientes da empresa sincronizado!");
+    } catch (error: any) {
+      toast.error("Erro ao sincronizar sistema de pacientes da empresa.");
+    } finally {
+      setIsSyncingCompanyPatients(false);
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, field: 'logo_url' | 'footer_logo_url' | 'favicon_url') => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -381,7 +395,7 @@ const SiteConfigTab = () => {
       }
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       toast.success("Configurações salvas!");
-    } catch (error) {
+    } catch (error: any) {
       toast.error("Erro ao salvar configurações.");
     } finally {
       setIsSaving(false);
@@ -726,6 +740,16 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncFamilyProfileFields} disabled={isSyncingFamilyProfileFields}>
               {isSyncingFamilyProfileFields ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Sistema de Pacientes da Empresa</p>
+              <p className="text-xs text-amber-800/70">Cria a tabela para empresas gerenciarem múltiplos pacientes.</p>
+            </div>
+            <Button variant="outline" onClick={handleSyncCompanyPatients} disabled={isSyncingCompanyPatients}>
+              {isSyncingCompanyPatients ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
             </Button>
           </div>
 

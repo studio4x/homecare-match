@@ -19,7 +19,8 @@ import {
   LifeBuoy,
   CreditCard,
   Mail,
-  Bell
+  Bell,
+  Users // Added Users icon for company patients
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -92,6 +93,7 @@ const UserLayout = () => {
   }
 
   const isProfessional = role === 'professional';
+  const isCompany = role === 'company'; // Check if user is a company
 
   const navItems = [
     { href: "/dashboard", label: "Início", icon: LayoutDashboard, end: true },
@@ -106,7 +108,12 @@ const UserLayout = () => {
       { href: "/dashboard/indicacoes", label: "Indicações", icon: Award },
       { href: "/dashboard/pagamentos", label: "Pagamentos", icon: CreditCard }
     );
-  } else {
+  } else if (isCompany) { // Add new nav item for companies
+    navItems.push(
+      { href: "/dashboard/pacientes", label: "Meus Pacientes", icon: Users },
+      { href: "/buscar", label: "Buscar Profissionais", icon: Search }
+    );
+  } else { // For families
     navItems.push({ href: "/buscar", label: "Buscar Profissionais", icon: Search });
   }
 

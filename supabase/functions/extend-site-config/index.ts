@@ -52,6 +52,11 @@ serve(async (req) => {
       ALTER TABLE public.profiles
         ADD COLUMN IF NOT EXISTS ans_registration TEXT;
 
+      -- Novas colunas para nome da empresa e CNPJ
+      ALTER TABLE public.profiles
+        ADD COLUMN IF NOT EXISTS company_name TEXT,
+        ADD COLUMN IF NOT EXISTS cnpj TEXT;
+
       -- PERMISSÃO PARA ANONIMOS VALIDAREM CUPONS NO CADASTRO
       DO $$
       BEGIN
@@ -127,7 +132,10 @@ serve(async (req) => {
           subscription_end_at,
           trial_started_at,
           coupon_days,
-          cancel_at_period_end
+          cancel_at_period_end,
+          company_name, -- New field
+          cnpj, -- New field
+          ans_registration -- New field
         )
         VALUES (
           new.id, 
@@ -139,7 +147,10 @@ serve(async (req) => {
           final_end_at,
           CASE WHEN user_role = 'professional' AND final_coupon_days IS NULL THEN NOW() ELSE NULL END,
           final_coupon_days,
-          (final_coupon_days IS NOT NULL)
+          (final_coupon_days IS NOT NULL),
+          new.raw_user_meta_data ->> 'company_name', -- New field
+          new.raw_user_meta_data ->> 'cnpj', -- New field
+          new.raw_user_meta_data ->> 'ans_registration' -- New field
         );
 
         -- 3. REGISTRA O USO DO CUPOM (Após o perfil existir)
@@ -157,7 +168,7 @@ serve(async (req) => {
 
         RETURN new;
       END;
-      $function$;
+      $$ LANGUAGE plpgsql SECURITY DEFINER;
 
       -- Configurar REPLICA IDENTITY FULL para a tabela profiles (CRÍTICO para Realtime)
       ALTER TABLE public.profiles REPLICA IDENTITY FULL;

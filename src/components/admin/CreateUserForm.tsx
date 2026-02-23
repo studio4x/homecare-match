@@ -59,6 +59,11 @@ const formSchema = z.object({
   phone: z.string().optional(),
   avatar_url: z.string().optional(),
   
+  // Company-specific fields
+  company_name: z.string().optional(),
+  cnpj: z.string().optional(),
+  ans_registration: z.string().optional(),
+
   // Admin-controlled flags
   is_verified: z.boolean().default(false),
   verification_sent: z.boolean().default(false),
@@ -88,6 +93,9 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
       role: "professional",
       phone: "",
       avatar_url: "",
+      company_name: "",
+      cnpj: "",
+      ans_registration: "",
       is_verified: false,
       verification_sent: false,
       has_seen_onboarding: false,
@@ -153,6 +161,9 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
           role: data.role,
           phone: data.phone,
           avatar_url: data.avatar_url,
+          company_name: data.company_name,
+          cnpj: data.cnpj,
+          ans_registration: data.ans_registration,
           is_verified: data.is_verified,
           verification_sent: data.verification_sent,
           has_seen_onboarding: data.has_seen_onboarding,
@@ -292,6 +303,44 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
                 </FormItem>
               )}
             />
+
+            {isCompany && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="company_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome da Empresa</FormLabel>
+                      <FormControl><Input placeholder="Nome Fantasia da Empresa" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="cnpj"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CNPJ</FormLabel>
+                      <FormControl><Input placeholder="XX.XXX.XXX/XXXX-XX" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="ans_registration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Registro ANS</FormLabel>
+                      <FormControl><Input placeholder="Registro na ANS (se aplicável)" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
           </CardContent>
         </Card>
 

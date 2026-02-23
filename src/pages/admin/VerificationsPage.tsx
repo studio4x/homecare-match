@@ -14,7 +14,7 @@ const VerificationsPage = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, email, id_document_url, prof_registration_url, role") // Added role to select
+        .select("id, full_name, email, id_document_url, prof_registration_url, role, cnpj, ans_registration") // Added cnpj and ans_registration to select
         .eq("verification_sent", true)
         .eq("is_verified", false);
       

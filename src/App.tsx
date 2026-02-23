@@ -40,6 +40,7 @@ import SupportTicketsPage from "./pages/dashboard/SupportTicketsPage";
 import TicketDetailPage from "./pages/dashboard/TicketDetailPage";
 import PaymentsPage from "./pages/dashboard/PaymentsPage";
 import NoticesPage from "./pages/dashboard/NoticesPage";
+import CompanyPatientsPage from "./pages/dashboard/CompanyPatientsPage"; // New import
 
 // Admin Layout & Pages
 import AdminLayout from "./components/layout/AdminLayout";
@@ -106,6 +107,7 @@ const App = () => (
                 <Route path="avisos" element={<NoticesPage />} />
                 <Route path="suporte" element={<SupportTicketsPage />} />
                 <Route path="suporte/:id" element={<TicketDetailPage />} />
+                <Route path="pacientes" element={<CompanyPatientsPage />} /> {/* New route */}
               </Route>
 
               {/* Área Administrativa (Aninhada) */}

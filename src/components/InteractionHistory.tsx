@@ -416,6 +416,8 @@ const InteractionHistory = ({
         open={showProfileModal} 
         onOpenChange={setShowProfileModal} 
         profile={selectedProfileForView} 
+        viewerFullName={user?.user_metadata.full_name || "Usuário"}
+        viewerRole={viewerRole}
       />
     </>
   );

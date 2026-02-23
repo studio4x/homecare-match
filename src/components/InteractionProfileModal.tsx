@@ -6,6 +6,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter, // Import DialogFooter
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -13,12 +15,34 @@ import { MapPin, Building2, Home, Info, MessageCircle, ShieldCheck } from "lucid
 import SafeHTML from './SafeHTML';
 import ReviewList from './ReviewList';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button'; // Import Button
+
+// WhatsApp Icon component (copied from InteractionHistory)
+const WhatsAppIcon = ({ className, ...props }: React.ComponentProps<"svg">) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className} {...props}>
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.272-.57-.422z" />
+    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.08L2 22l5.05-1.32A9.95 9.95 0 0112 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.65 0-3.21-.49-4.54-1.33l-.33-.21-3.37.88.9-3.28-.21-.34A7.95 7.95 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z" />
+  </svg>
+);
+
+// Função auxiliar para mascarar o número de telefone (últimos 4 dígitos)
+const maskPhoneNumber = (phone: string | undefined): string => {
+  if (!phone) return "Número não disponível";
+  const cleanPhone = phone.replace(/\D/g, ''); // Remove non-digits
+  if (cleanPhone.length < 11) return phone; // Don't mask if too short or invalid format
+  
+  const ddd = cleanPhone.substring(0, 2);
+  const firstPart = cleanPhone.substring(2, 7); // First 5 digits after DDD
+  
+  return `(${ddd}) ${firstPart}-****`; // Mask the last 4 digits
+};
 
 interface ProfileData {
   id: string;
   full_name: string;
   avatar_url: string;
   role?: string;
+  phone?: string; // Ensure phone is included
   city?: string;
   state?: string;
   neighborhood?: string;
@@ -35,9 +59,11 @@ interface InteractionProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profile: ProfileData | null;
+  viewerFullName: string; // Name of the logged-in user (professional)
+  viewerRole: 'professional' | 'company' | 'family'; // Role of the logged-in user
 }
 
-const InteractionProfileModal = ({ open, onOpenChange, profile }: InteractionProfileModalProps) => {
+const InteractionProfileModal = ({ open, onOpenChange, profile, viewerFullName, viewerRole }: InteractionProfileModalProps) => {
   if (!profile) return null;
 
   const initials = (profile.full_name || "")
@@ -57,6 +83,26 @@ const InteractionProfileModal = ({ open, onOpenChange, profile }: InteractionPro
     if (role === 'company') return <Badge variant="secondary" className="capitalize flex items-center gap-1.5 bg-success/10 text-success border-success/20"><Building2 className="h-3 w-3" /> Empresa</Badge>;
     if (role === 'family') return <Badge variant="outline" className="capitalize flex items-center gap-1.5 bg-amber-50 text-amber-700 border-amber-200"><Home className="h-3 w-3" /> Família</Badge>;
     return null;
+  };
+
+  const handleWhatsAppClick = () => {
+    const contactName = profile.full_name || "o contato";
+    let defaultMessage = "";
+
+    if (viewerRole === 'professional') {
+      defaultMessage = `Olá ${contactName}, sou ${viewerFullName} da HomeCare Match. Tenho interesse em sua vaga/necessidade.`;
+    } else { // company or family
+      defaultMessage = `Olá ${contactName}, sou ${viewerFullName} da HomeCare Match. Tenho interesse em seu perfil para uma vaga/necessidade.`;
+    }
+
+    const encodedMessage = encodeURIComponent(defaultMessage);
+    const phone = profile.phone?.replace(/\D/g, '');
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+    } else {
+      // This case should ideally not happen if the button is only shown when phone exists
+      console.error("Número de WhatsApp não disponível para iniciar conversa.");
+    }
   };
 
   return (
@@ -137,6 +183,17 @@ const InteractionProfileModal = ({ open, onOpenChange, profile }: InteractionPro
             <ReviewList subjectId={profile.id} />
           </section>
         </div>
+
+        {profile.phone && (
+          <DialogFooter className="p-6 border-t bg-card">
+            <Button 
+              onClick={handleWhatsAppClick} 
+              className="w-full gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <WhatsAppIcon className="h-5 w-5" /> Iniciar Conversa no WhatsApp
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

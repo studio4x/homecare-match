@@ -39,7 +39,13 @@ import {
   Mail,
   PlayCircle,
   HelpCircle,
-  Navigation
+  Navigation,
+  User, // Added User icon for patient name
+  HeartPulse, // Added HeartPulse for medical conditions
+  Walk, // Added Walk for mobility
+  Brain, // Added Brain for cognitive state
+  Syringe, // Added Syringe for special equipment
+  MessageSquare // Added MessageSquare for communication skills
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -116,6 +122,36 @@ const ProfilePage = () => {
     "Reabilitação Neurológica",
   ];
 
+  // New options for patient-specific fields
+  const mobilityLevelOptions = [
+    "Acamado",
+    "Cadeira de Rodas",
+    "Anda com Auxílio",
+    "Totalmente Móvel",
+  ];
+
+  const cognitiveStateOptions = [
+    "Alerta e Orientado",
+    "Comprometimento Leve",
+    "Demência",
+    "Confusão/Agitação",
+  ];
+
+  const specialEquipmentOptions = [
+    "Oxigênio",
+    "Sonda de Alimentação",
+    "Cateter",
+    "Ventilador",
+    "Ostomia",
+  ];
+
+  const communicationSkillsOptions = [
+    "Verbal",
+    "Não-Verbal",
+    "Com Dificuldade",
+    "Prancha de Comunicação",
+  ];
+
   useEffect(() => {
     fetchProfile();
   }, [user]);
@@ -136,7 +172,15 @@ const ProfilePage = () => {
           ...data,
           availability: data.availability || [],
           patient_profiles: data.patient_profiles || [],
-          notifications_enabled: data.notifications_enabled ?? true
+          notifications_enabled: data.notifications_enabled ?? true,
+          // New patient-specific fields
+          patient_name: data.patient_name || "",
+          patient_age: data.patient_age || "",
+          patient_medical_conditions: data.patient_medical_conditions || "",
+          patient_mobility_level: data.patient_mobility_level || [],
+          patient_cognitive_state: data.patient_cognitive_state || [],
+          patient_special_equipment: data.patient_special_equipment || [],
+          patient_communication_skills: data.patient_communication_skills || [],
         });
       }
     } catch (err) {
@@ -283,6 +327,7 @@ const ProfilePage = () => {
     if (!user || !profile) return;
 
     const isProfessional = profile.role === 'professional';
+    const isFamily = profile.role === 'family';
     const cleanPhone = profile.phone?.replace(/\D/g, "") || "";
 
     if (!profile.avatar_url) {
@@ -310,6 +355,26 @@ const ProfilePage = () => {
     if (!profile.bio?.trim()) {
       toast.error("A biografia/descrição é obrigatória.");
       return;
+    }
+
+    // New validation for family profile fields
+    if (isFamily) {
+      if (!profile.patient_name?.trim()) {
+        toast.error("O nome do paciente é obrigatório.");
+        return;
+      }
+      if (!profile.patient_age) {
+        toast.error("A idade do paciente é obrigatória.");
+        return;
+      }
+      if (!profile.patient_medical_conditions?.trim()) {
+        toast.error("A condição médica do paciente é obrigatória.");
+        return;
+      }
+      if (profile.availability?.length === 0) {
+        toast.error("O horário de atendimento é obrigatório.");
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -365,7 +430,15 @@ const ProfilePage = () => {
         address_complement: profile.address_complement,
         lat: finalLat,
         lng: finalLng,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        // New patient-specific fields
+        patient_name: profile.patient_name,
+        patient_age: profile.patient_age,
+        patient_medical_conditions: profile.patient_medical_conditions,
+        patient_mobility_level: profile.patient_mobility_level,
+        patient_cognitive_state: profile.patient_cognitive_state,
+        patient_special_equipment: profile.patient_special_equipment,
+        patient_communication_skills: profile.patient_communication_skills,
       }).eq("id", user.id);
 
       if (error) throw error;
@@ -378,7 +451,7 @@ const ProfilePage = () => {
     }
   };
 
-  const handleCheckboxChange = (field: 'availability' | 'patient_profiles', value: string) => {
+  const handleCheckboxChange = (field: 'availability' | 'patient_profiles' | 'patient_mobility_level' | 'patient_cognitive_state' | 'patient_special_equipment' | 'patient_communication_skills', value: string) => {
     const current = profile[field] || [];
     const updated = current.includes(value) ? current.filter((i: any) => i !== value) : [...current, value];
     setProfile({ ...profile, [field]: updated });
@@ -599,10 +672,146 @@ const ProfilePage = () => {
             </>
           )}
 
-          {!isProfessional && (
+          {isCompany && (
             <Card>
-              <CardHeader><CardTitle>{profile.role === 'company' ? "Sobre a Empresa *" : "Sobre o paciente que precisa de atendimento *"}</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Sobre a Empresa *</CardTitle></CardHeader>
               <CardContent><Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} /></CardContent>
+            </Card>
+          )}
+
+          {isFamily && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Informações do Paciente *</CardTitle>
+                <CardDescription>Detalhes sobre a pessoa que precisa de atendimento.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label className="flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Nome do Paciente *</Label>
+                    <Input value={profile.patient_name || ""} onChange={e => setProfile({...profile, patient_name: e.target.value})} />
+                    <p className="text-[10px] text-muted-foreground">Pode ser apenas o primeiro nome ou iniciais para privacidade.</p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Idade *</Label>
+                    <Input type="number" value={profile.patient_age || ""} onChange={e => setProfile({...profile, patient_age: parseInt(e.target.value) || ""})} />
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label className="flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary" /> Condição Médica/Histórico de Doenças *</Label>
+                  <Textarea 
+                    value={profile.patient_medical_conditions || ""} 
+                    onChange={e => setProfile({...profile, patient_medical_conditions: e.target.value})} 
+                    rows={3} 
+                    placeholder="Ex: AVC com sequelas motoras, Alzheimer em estágio inicial, Diabetes tipo 2."
+                  />
+                  <p className="text-[10px] text-muted-foreground">Descreva o diagnóstico principal e outras condições relevantes.</p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase flex items-center gap-2"><Walk className="h-4 w-4 text-primary" /> Nível de Mobilidade</Label>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {mobilityLevelOptions.map(opt => (
+                      <div key={opt} className="flex items-center gap-2">
+                        <Checkbox 
+                          id={`mobility-${opt}`} 
+                          checked={profile.patient_mobility_level?.includes(opt)} 
+                          onCheckedChange={() => handleCheckboxChange('patient_mobility_level', opt)} 
+                        />
+                        <label htmlFor={`mobility-${opt}`} className="text-sm">{opt}</label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Selecione as opções que melhor descrevem a capacidade de movimentação do paciente.</p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase flex items-center gap-2"><Brain className="h-4 w-4 text-primary" /> Estado Cognitivo</Label>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {cognitiveStateOptions.map(opt => (
+                      <div key={opt} className="flex items-center gap-2">
+                        <Checkbox 
+                          id={`cognitive-${opt}`} 
+                          checked={profile.patient_cognitive_state?.includes(opt)} 
+                          onCheckedChange={() => handleCheckboxChange('patient_cognitive_state', opt)} 
+                        />
+                        <label htmlFor={`cognitive-${opt}`} className="text-sm">{opt}</label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Indique o nível de clareza mental e orientação do paciente.</p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase flex items-center gap-2"><Syringe className="h-4 w-4 text-primary" /> Equipamentos Especiais Utilizados</Label>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {specialEquipmentOptions.map(opt => (
+                      <div key={opt} className="flex items-center gap-2">
+                        <Checkbox 
+                          id={`equipment-${opt}`} 
+                          checked={profile.patient_special_equipment?.includes(opt)} 
+                          onCheckedChange={() => handleCheckboxChange('patient_special_equipment', opt)} 
+                        />
+                        <label htmlFor={`equipment-${opt}`} className="text-sm">{opt}</label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Marque os equipamentos que o profissional precisará manusear.</p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" /> Habilidades de Comunicação</Label>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {communicationSkillsOptions.map(opt => (
+                      <div key={opt} className="flex items-center gap-2">
+                        <Checkbox 
+                          id={`communication-${opt}`} 
+                          checked={profile.patient_communication_skills?.includes(opt)} 
+                          onCheckedChange={() => handleCheckboxChange('patient_communication_skills', opt)} 
+                        />
+                        <label htmlFor={`communication-${opt}`} className="text-sm">{opt}</label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Como o paciente se comunica com o ambiente e as pessoas?</p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase">Horário de Atendimento *</Label>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {availabilityOptions.map(opt => (
+                      <div key={opt} className="flex items-center gap-2">
+                        <Checkbox 
+                          id={`availability-${opt}`} 
+                          checked={profile.availability?.includes(opt)} 
+                          onCheckedChange={() => handleCheckboxChange('availability', opt)} 
+                        />
+                        <label htmlFor={`availability-${opt}`} className="text-xs">{opt}</label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Selecione os períodos em que o atendimento é necessário.</p>
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-2">
+                  <Label>Outras observações sobre o paciente *</Label>
+                  <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} />
+                  <p className="text-[10px] text-muted-foreground">Informações adicionais que o profissional precisa saber (ex: preferências, rotina, temperamento).</p>
+                </div>
+              </CardContent>
             </Card>
           )}
 
@@ -646,7 +855,7 @@ const ProfilePage = () => {
             <CardContent><ChangePasswordDialog /></CardContent>
           </Card>
 
-          <Collapsible open={isDangerZoneOpen} onOpenChange={setIsDangerZoneOpen} className="border border-destructive/20 rounded-xl bg-card overflow-hidden">
+          <Collapsible open={isDangerZoneOpen} onOpenChange={setIsDangerZoneZoneOpen} className="border border-destructive/20 rounded-xl bg-card overflow-hidden">
             <CollapsibleTrigger asChild><Button variant="ghost" className="w-full flex items-center justify-between p-6 h-auto hover:bg-destructive/5 group"><div className="flex items-center gap-2 text-destructive"><Trash2 className="h-4 w-4" /><span className="font-semibold text-base">Zona de Perigo</span></div>{isDangerZoneOpen ? <ChevronUp className="h-4 w-4 text-destructive" /> : <ChevronDown className="h-4 w-4 text-destructive" />}</Button></CollapsibleTrigger>
             <CollapsibleContent className="px-6 pb-6 space-y-4 animate-accordion-down"><p className="text-[10px] text-muted-foreground">Ações irreversíveis relacionadas à exclusão definitiva da sua conta.</p><Button variant="destructive" size="sm" className="w-full justify-start gap-2 h-10" onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}><Trash2 className="h-4 w-4" /> Excluir minha conta permanentemente</Button></CollapsibleContent>
           </Collapsible>

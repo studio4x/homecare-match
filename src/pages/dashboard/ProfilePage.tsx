@@ -46,7 +46,9 @@ import {
   Brain, // Added Brain for cognitive state
   Syringe, // Added Syringe for special equipment
   MessageSquare, // Added MessageSquare for communication skills
-  Calendar // Added Calendar icon for age
+  Calendar, // Added Calendar icon for age
+  AlertOctagon,
+  RotateCcw
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -499,9 +501,8 @@ const ProfilePage = () => {
       console.log("[handleRequestVerification] Profile.verification_sent atualizado com sucesso no banco.");
       toast.success("Solicitação enviada!");
       
-      // Re-fetch profile data to update the local state and UI
-      await fetchProfile(); 
-      console.log("[handleRequestVerification] fetchProfile() chamado para atualizar o estado local.");
+      setProfile((prev: any) => ({ ...prev, verification_sent: true }));
+      console.log("[handleRequestVerification] Estado local atualizado para refletir a solicitação enviada.");
 
       // NOTIFICAÇÃO ADMIN: Envia e-mail e notificação no dashboard
       await supabase.functions.invoke('notify-verification', {
@@ -518,6 +519,21 @@ const ProfilePage = () => {
     } finally {
       setIsSaving(false);
       console.log("[handleRequestVerification] Finalizando processo de solicitação.");
+    }
+  };
+
+  const handleRetryVerification = async () => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ rejection_reason: null, verification_sent: false })
+        .eq("id", user.id);
+      if (error) throw error;
+      toast.success("Agora você pode reenviar seus documentos na seção Meus Dados.");
+      setProfile((prev: any) => ({ ...prev, rejection_reason: null, verification_sent: false }));
+    } catch (err) {
+      toast.error("Erro ao reiniciar processo.");
     }
   };
 
@@ -872,6 +888,19 @@ const ProfilePage = () => {
 
               {profile.is_verified ? (
                 <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center"><CheckCircle2 className="h-8 w-8 text-success mb-2" /><p className="font-semibold text-success">Perfil Verificado</p></div>
+              ) : profile.rejection_reason ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 text-destructive bg-destructive/5 p-4 rounded-lg border border-destructive/10">
+                    <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold">Documentos Reprovados</p>
+                      <p className="text-xs mt-1">{profile.rejection_reason}</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleRetryVerification}>
+                    <RotateCcw className="h-3 w-3" /> Reiniciar Processo
+                  </Button>
+                </div>
               ) : profile.verification_sent ? (
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
                   <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />

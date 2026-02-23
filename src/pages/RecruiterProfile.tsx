@@ -140,7 +140,7 @@ const RecruiterProfile = () => {
               <div className="mt-10">
                 <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
                   <Info className="h-5 w-5 text-primary" />
-                  {isCompany ? 'Sobre a Empresa' : 'Descrição da Necessidade'}
+                  {isCompany ? 'Sobre a Empresa' : 'Sobre o paciente que precisa de atendimento'}
                 </h3>
                 <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
                   {profile.bio || "Nenhuma descrição fornecida."}

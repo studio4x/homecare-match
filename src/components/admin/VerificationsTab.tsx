@@ -53,13 +53,15 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
     setIsGeneratingUrl(type);
     try {
       let path = pathOrUrl;
-      if (pathOrUrl.includes('storage/v1/object/public/')) {
-        path = pathOrUrl.split('documents/')[1];
+      // Verifica se já é uma URL pública ou se precisa de signed URL
+      if (pathOrUrl.startsWith('http')) {
+        window.open(pathOrUrl, '_blank');
+        return;
       }
-
+      // Se for um path de storage, cria signed URL
       const { data, error } = await supabase.storage
         .from('documents')
-        .createSignedUrl(path, 60);
+        .createSignedUrl(path, 60); // URL válida por 60 segundos
 
       if (error) throw error;
       window.open(data.signedUrl, '_blank');
@@ -90,7 +92,8 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
           body: {
             status: 'approved',
             userName: userToNotify.full_name,
-            userEmail: userToNotify.email
+            userEmail: userToNotify.email,
+            userId: userToNotify.id // Pass userId for notification
           }
         });
       }
@@ -122,7 +125,8 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
           status: 'rejected',
           reason: rejectionReason,
           userName: selectedProfile.full_name,
-          userEmail: selectedProfile.email
+          userEmail: selectedProfile.email,
+          userId: selectedProfile.id // Pass userId for notification
         }
       });
 
@@ -208,7 +212,13 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
                   </TableCell>
                 </TableRow>
               );
-            }) : <TableRow><TableCell colSpan={4} className="h-32 text-center text-muted-foreground">Nenhuma solicitação pendente.</TableCell></TableRow>}
+            }) : (
+              <TableRow>
+                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
+                  Nenhuma solicitação pendente.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

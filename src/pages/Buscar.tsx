@@ -41,6 +41,7 @@ const Buscar = () => {
   const [selectedProfessional, setSelectedProfessional] = useState<any | null>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [searchTrigger, setSearchTrigger] = useState(0);
+  const [mapRefitTrigger, setMapRefitTrigger] = useState(0); // NEW: Trigger for map refit
   
   const [filters, setFilters] = useState({
     specialty: getInitialSpecialtyFromUrl(),
@@ -88,6 +89,7 @@ const Buscar = () => {
       if (config && config.enable_professional_list === false) {
         setAllProfessionals([]);
         setLoading(false);
+        setMapRefitTrigger(prev => prev + 1); // Trigger map refit
         return;
       }
 
@@ -133,6 +135,7 @@ const Buscar = () => {
       }
       
       setLoading(false);
+      setMapRefitTrigger(prev => prev + 1); // Trigger map refit after new data is loaded
     };
 
     fetchProfessionals();
@@ -356,9 +359,10 @@ const Buscar = () => {
             {!isLoadingConfig && config?.google_maps_api_key ? (
               <ProfessionalMap 
                 userLocation={hasLocation ? { lat: Number(userProfile.lat), lng: Number(userProfile.lng) } : null}
-                professionals={allProfessionals}
+                professionals={allProfessionals} // Pass allProfessionals to the map for initial fitting
                 onProfessionalClick={setSelectedProfessional}
                 onBoundsChange={setMapBounds}
+                refitTrigger={mapRefitTrigger} // Pass the new trigger
               />
             ) : (
               <div className="w-full h-[450px] bg-secondary/20 rounded-3xl flex flex-col items-center justify-center gap-3 border border-dashed">

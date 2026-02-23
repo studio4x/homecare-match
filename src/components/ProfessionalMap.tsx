@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState, useMemo, useEffect } from 'react';
+import React, { useCallback, useState, useMemo, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, MarkerF } from '@react-google-maps/api';
 import { Loader2, MapPin, AlertCircle } from 'lucide-react';
 import { useSiteConfig } from '@/hooks/use-site-config';
@@ -10,6 +10,7 @@ interface ProfessionalMapProps {
   professionals: any[];
   onProfessionalClick: (professional: any) => void;
   onBoundsChange?: (bounds: google.maps.LatLngBounds | null) => void;
+  refitTrigger: number; // NEW: Prop to trigger refitting
 }
 
 const mapContainerStyle = {
@@ -17,9 +18,11 @@ const mapContainerStyle = {
   height: '450px',
 };
 
-const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onBoundsChange }: ProfessionalMapProps) => {
+const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onBoundsChange, refitTrigger }: ProfessionalMapProps) => {
   const { data: config } = useSiteConfig();
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null); // Use a ref for the map instance
+  const initialFitDone = useRef(false); // Track if initial fit has been done
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -39,9 +42,30 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
     return defaultCenter;
   }, [userLocation, professionals, defaultCenter]);
 
-  // Efeito para enquadrar todos os marcadores quando a lista de profissionais mudar
+  const onLoad = useCallback((mapInstance: google.maps.Map) => {
+    setMap(mapInstance);
+    mapRef.current = mapInstance;
+    initialFitDone.current = false; // Reset on map load
+  }, []);
+
+  const onUnmount = useCallback(() => {
+    setMap(null);
+    mapRef.current = null;
+  }, []);
+
+  const handleIdle = () => {
+    if (mapRef.current && onBoundsChange) {
+      onBoundsChange(mapRef.current.getBounds() || null);
+    }
+  };
+
+  // Effect to fit all markers when professionals list changes or refitTrigger is incremented
   useEffect(() => {
-    if (map && professionals.length > 0 && typeof google !== 'undefined') {
+    if (!mapRef.current || typeof google === 'undefined' || professionals.length === 0) return;
+
+    // Only fit bounds if it's the initial load or if refitTrigger has changed
+    // We use a ref to prevent re-fitting on every render if data is the same
+    if (!initialFitDone.current || refitTrigger > 0) { // refitTrigger > 0 ensures it runs after initial load
       const bounds = new google.maps.LatLngBounds();
       let hasValidPoints = false;
 
@@ -58,31 +82,18 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
       });
 
       if (hasValidPoints) {
-        map.fitBounds(bounds);
-        // Evita zoom excessivo se houver apenas um ponto
+        mapRef.current.fitBounds(bounds);
+        // Avoid excessive zoom if there's only one point
         if (professionals.length === 1 && !userLocation) {
-          const listener = google.maps.event.addListener(map, 'idle', () => {
-            map.setZoom(12);
+          const listener = google.maps.event.addListener(mapRef.current, 'idle', () => {
+            mapRef.current?.setZoom(12);
             google.maps.event.removeListener(listener);
           });
         }
+        initialFitDone.current = true; // Mark initial fit as done
       }
     }
-  }, [map, professionals, userLocation]);
-
-  const onLoad = useCallback((map: google.maps.Map) => {
-    setMap(map);
-  }, []);
-
-  const onUnmount = useCallback(() => {
-    setMap(null);
-  }, []);
-
-  const handleIdle = () => {
-    if (map && onBoundsChange) {
-      onBoundsChange(map.getBounds() || null);
-    }
-  };
+  }, [mapRef.current, professionals, userLocation, refitTrigger]); // Add refitTrigger to dependencies
 
   if (loadError) {
     return (

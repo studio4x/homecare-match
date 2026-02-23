@@ -489,6 +489,16 @@ const ProfilePage = () => {
       if (error) throw error;
       toast.success("Solicitação enviada!");
       fetchProfile();
+
+      // NOTIFICAÇÃO ADMIN: Envia e-mail e notificação no dashboard
+      await supabase.functions.invoke('notify-verification', {
+        body: {
+          userName: profile.full_name,
+          userEmail: user?.email,
+          userId: user?.id
+        }
+      }).catch(err => console.warn("Falha ao notificar admin sobre verificação:", err));
+
     } catch (err) {
       toast.error("Erro ao enviar solicitação.");
     } finally {

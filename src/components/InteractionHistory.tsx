@@ -216,9 +216,9 @@ const InteractionHistory = ({
     let defaultMessage = "";
 
     if (viewerRole === 'professional') {
-      defaultMessage = `Olá ${contactName}, sou ${myName} da HomeCare Match. Tenho interesse em sua vaga/necessidade.`;
+      defaultMessage = `Olá ${contactName}, sou ${myName} da plataforma HomeCare Match. Tenho interesse em sua vaga/necessidade.`;
     } else { // company or family
-      defaultMessage = `Olá ${contactName}, sou ${myName} da HomeCare Match. Tenho interesse em seu perfil para uma vaga/necessidade.`;
+      defaultMessage = `Olá ${contactName}, sou ${myName} da plataforma HomeCare Match. Tenho interesse em seu perfil para uma vaga/necessidade.`;
     }
 
     const encodedMessage = encodeURIComponent(defaultMessage);

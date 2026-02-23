@@ -31,11 +31,9 @@ import {
   RefreshCw,
   Mail,
   Award,
-  TrendingUp,
   Ticket,
   Gift,
-  Info,
-  PlayCircle // Added PlayCircle icon
+  PlayCircle
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -47,7 +45,7 @@ import OnboardingModal from "@/components/OnboardingModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch"; 
-import { Label } from "@/components/ui/label"; // Added Label import
+import { Label } from "@/components/ui/label";
 
 const OverviewPage = () => {
   const { user } = useAuth();
@@ -60,7 +58,7 @@ const OverviewPage = () => {
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
-  const [isSavingOnboardingPref, setIsSavingOnboardingPref] = useState(false); // New state for saving onboarding preference
+  const [isSavingOnboardingPref, setIsSavingOnboardingPref] = useState(false);
 
   // Busca detalhes do plano anual para o tooltip
   const { data: annualPlan } = useQuery({
@@ -86,13 +84,10 @@ const OverviewPage = () => {
 
       setProfile(data);
       
-      // Dispara onboarding se for profissional ou empresa e ainda não viu
-      // Apenas se o modal não estiver já aberto e o usuário não tiver desativado explicitamente
       if ((data.role === 'professional' || data.role === 'company' || data.role === 'family') && !data.has_seen_onboarding && !isOnboardingOpen) {
         setIsOnboardingOpen(true);
       }
 
-      // Busca estatísticas de indicação se for profissional
       if (data.role === 'professional') {
         const { data: stats } = await supabase.functions.invoke('referral-stats', {
           body: { referrerId: user.id }
@@ -184,7 +179,7 @@ const OverviewPage = () => {
   };
 
   const getProfileCompleteness = () => {
-    if (!profile) return { progress: 0, missingFields: [], iComplete: false };
+    if (!profile) return { progress: 0, missingFields: [], isComplete: false };
     
     const requiredFields: { [key: string]: string } = {
       avatar_url: "Foto",
@@ -253,8 +248,6 @@ const OverviewPage = () => {
     if (!user) return;
     setIsSavingOnboardingPref(true);
     try {
-      // If checked is true, it means the user wants to see the tutorial again, so has_seen_onboarding should be false.
-      // If checked is false, it means the user does NOT want to see the tutorial again, so has_seen_onboarding should be true.
       const newHasSeenOnboarding = !checked; 
       const { error } = await supabase
         .from("profiles")
@@ -347,7 +340,6 @@ const OverviewPage = () => {
   const isAdmin = profile?.is_admin || profile?.role === 'admin';
   const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
   
-  // PRIORIDADE: Se tiver coupon_days, consideramos como plano pago/bonificado para a UI
   const hasPaidPlan = (profile?.subscription_tier && profile?.subscription_tier !== 'free_trial') || profile?.coupon_days;
   const subStatus = getSubscriptionStatus();
 
@@ -357,6 +349,60 @@ const OverviewPage = () => {
     if (tier === 'free_trial') return 'Período de 30 dias Gratuitos';
     return tier;
   };
+
+  const QuickAccessCard = (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Acesso Rápido</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {isAdmin && (
+          <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 bg-primary/5 hover:bg-primary/10">
+            <Link to="/admin">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <Settings className="h-4 w-4" />
+              </div>
+              <span className="font-bold text-primary">Painel Administrativo</span>
+            </Link>
+          </Button>
+        )}
+        {isProfessional && (
+          <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 hover:bg-primary/5">
+            <Link to={`/profissional/${user?.id}`}>
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Eye className="h-4 w-4" />
+              </div>
+              Ver Perfil Público
+            </Link>
+          </Button>
+        )}
+        <Button variant="outline" asChild className="justify-start gap-3 h-12">
+          <Link to="/dashboard/perfil">
+            <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+            </div>
+            Gerenciar Perfil
+          </Link>
+        </Button>
+        <Button variant="outline" asChild className="justify-start gap-3 h-12">
+          <Link to="/dashboard/contatos">
+            <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+              <LayoutGrid className="h-4 w-4 text-primary" />
+            </div>
+            Histórico de Contatos
+          </Link>
+        </Button>
+        <Button variant="outline" asChild className="justify-start gap-3 h-12 border-amber-200 hover:bg-amber-50">
+          <Link to="/suporte">
+            <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+              <LifeBuoy className="h-4 w-4 text-amber-600" />
+            </div>
+            Central de Ajuda (FAQs)
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <TooltipProvider>
@@ -384,7 +430,7 @@ const OverviewPage = () => {
           </div>
           <p className="text-muted-foreground max-w-2xl mt-2">
             {isProfessional 
-              ? "Gerencie seu perfil profissional, acompanhe suas verificações e acesse conteúdos educativos para impulsionar sua carreira no Home Care."
+              ? "Gerencie seu perfil profissional, acompanhe suas verificações e acesse conteúdos educativos para impulsionar sua carreira no HomeCare Match."
               : "Encontre os melhores profissionais para sua escala de atendimento, gerencie seus contatos salvos e acompanhe suas interações recentes."
             }
           </p>
@@ -446,8 +492,9 @@ const OverviewPage = () => {
         )}
 
         <div className="grid gap-6 md:grid-cols-2">
+          {/* Coluna da Esquerda */}
           <div className="space-y-6">
-            {/* Gerenciar Assinatura */}
+            {/* Gerenciar Assinatura (Apenas Profissional) */}
             {isProfessional && (
               <Card className="border-amber-400/30 shadow-md">
                 <CardHeader className="pb-3">
@@ -641,9 +688,8 @@ const OverviewPage = () => {
                 </CardContent>
               </Card>
             )}
-          </div>
 
-          <div className="space-y-6">
+            {/* Busca de Profissionais (Movido para Esquerda para Não-Profissionais) */}
             {!isProfessional && (
               <Card className="h-fit">
                 <CardHeader>
@@ -658,57 +704,14 @@ const OverviewPage = () => {
               </Card>
             )}
 
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Acesso Rápido</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-2">
-                {isAdmin && (
-                  <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 bg-primary/5 hover:bg-primary/10">
-                    <Link to="/admin">
-                      <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                        <Settings className="h-4 w-4" />
-                      </div>
-                      <span className="font-bold text-primary">Painel Administrativo</span>
-                    </Link>
-                  </Button>
-                )}
-                {isProfessional && (
-                  <Button variant="outline" asChild className="justify-start gap-3 h-12 border-primary/20 hover:bg-primary/5">
-                    <Link to={`/profissional/${user?.id}`}>
-                      <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Eye className="h-4 w-4" />
-                      </div>
-                      Ver Perfil Público
-                    </Link>
-                  </Button>
-                )}
-                <Button variant="outline" asChild className="justify-start gap-3 h-12">
-                  <Link to="/dashboard/perfil">
-                    <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                      <ShieldCheck className="h-4 w-4 text-primary" />
-                    </div>
-                    Gerenciar Perfil
-                  </Link>
-                </Button>
-                <Button variant="outline" asChild className="justify-start gap-3 h-12">
-                  <Link to="/dashboard/contatos">
-                    <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                      <LayoutGrid className="h-4 w-4 text-primary" />
-                    </div>
-                    Histórico de Contatos
-                  </Link>
-                </Button>
-                <Button variant="outline" asChild className="justify-start gap-3 h-12 border-amber-200 hover:bg-amber-50">
-                  <Link to="/suporte">
-                    <div className="h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-                      <LifeBuoy className="h-4 w-4 text-amber-600" />
-                    </div>
-                    Central de Ajuda (FAQs)
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+            {/* Acesso Rápido (Movido para Esquerda para Não-Profissionais) */}
+            {!isProfessional && QuickAccessCard}
+          </div>
+
+          {/* Coluna da Direita */}
+          <div className="space-y-6">
+            {/* Acesso Rápido (Mantido na Direita para Profissionais) */}
+            {isProfessional && QuickAccessCard}
 
             <Card>
               <CardHeader className="pb-3">
@@ -755,7 +758,6 @@ const OverviewPage = () => {
               </CardContent>
             </Card>
 
-            {/* New Card for Tutorial Settings */}
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -779,7 +781,7 @@ const OverviewPage = () => {
                     </p>
                   </div>
                   <Switch
-                    checked={!profile?.has_seen_onboarding} // If has_seen_onboarding is true, it means user chose NOT to see it again. So, checked should be false.
+                    checked={!profile?.has_seen_onboarding}
                     onCheckedChange={handleToggleOnboardingVisibility}
                     disabled={isSavingOnboardingPref}
                   />
@@ -794,12 +796,7 @@ const OverviewPage = () => {
           onOpenChange={setIsPlanModalOpen} 
         />
 
-        <OnboardingModal 
-          open={isOnboardingOpen} 
-          onOpenChange={setIsOnboardingOpen} 
-          role={profile?.role}
-          forceShow={true} // Always force show when opened from this button
-        />
+        <OnboardingModal open={isOnboardingOpen} onOpenChange={setIsOnboardingOpen} forceShow={true} role={profile?.role} />
       </div>
     </TooltipProvider>
   );

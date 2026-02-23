@@ -45,7 +45,8 @@ import {
   Footprints, // Replaced Walk with Footprints for mobility
   Brain, // Added Brain for cognitive state
   Syringe, // Added Syringe for special equipment
-  MessageSquare // Added MessageSquare for communication skills
+  MessageSquare, // Added MessageSquare for communication skills
+  Calendar // Added Calendar icon for age
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -693,7 +694,7 @@ const ProfilePage = () => {
                     <p className="text-[10px] text-muted-foreground">Pode ser apenas o primeiro nome ou iniciais para privacidade.</p>
                   </div>
                   <div className="grid gap-2">
-                    <Label>Idade *</Label>
+                    <Label className="flex items-center gap-2"><Calendar className="h-4 w-4 text-primary" /> Idade *</Label>
                     <Input type="number" value={profile.patient_age || ""} onChange={e => setProfile({...profile, patient_age: parseInt(e.target.value) || ""})} />
                   </div>
                 </div>

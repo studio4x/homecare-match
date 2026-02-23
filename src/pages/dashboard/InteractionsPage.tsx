@@ -23,7 +23,7 @@ const InteractionsPage = () => {
       try {
         const { data: prof } = await supabase
           .from('profiles')
-          .select('id, role')
+          .select('id, role, full_name') // Adicionado full_name aqui
           .eq('id', user.id)
           .single();
         
@@ -154,6 +154,7 @@ const InteractionsPage = () => {
         onPageChange={setCurrentPage}
         onClear={handleClear}
         viewerRole={profile?.role as any}
+        viewerFullName={profile?.full_name || "Usuário"}
       />
     </div>
   );

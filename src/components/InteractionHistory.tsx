@@ -80,6 +80,7 @@ interface InteractionHistoryProps {
   onPageChange: (page: number) => void;
   onClear: () => void;
   viewerRole: 'professional' | 'company' | 'family';
+  viewerFullName: string; // Nova prop para o nome completo do usuário logado
 }
 
 // Função auxiliar para mascarar o número de telefone (últimos 4 dígitos)
@@ -104,6 +105,7 @@ const InteractionHistory = ({
   onPageChange,
   onClear,
   viewerRole,
+  viewerFullName, // Usando a nova prop
 }: InteractionHistoryProps) => {
   const { user } = useAuth();
   const [contactModalOpen, setContactModalOpen] = useState(false);
@@ -164,7 +166,7 @@ const InteractionHistory = ({
       if (error) throw error;
 
       const targetId = activeInteraction.profile.id;
-      const myName = (await supabase.from('profiles').select('full_name').eq('id', user.id).single()).data?.full_name || "Um usuário";
+      const myName = viewerFullName; // Usando viewerFullName aqui
 
       await supabase.from('notifications').insert({
         user_id: targetId,
@@ -209,7 +211,7 @@ const InteractionHistory = ({
     // Record the click
     supabase.from('whatsapp_clicks').insert({ profile_id: contact.id, clicker_id: user.id, clicker_role: viewerRole });
 
-    const myName = user.user_metadata.full_name || "Um usuário";
+    const myName = viewerFullName; // Usando viewerFullName aqui
     const contactName = contact.full_name || "o profissional/recrutador";
     let defaultMessage = "";
 
@@ -416,7 +418,7 @@ const InteractionHistory = ({
         open={showProfileModal} 
         onOpenChange={setShowProfileModal} 
         profile={selectedProfileForView} 
-        viewerFullName={user?.user_metadata.full_name || "Usuário"}
+        viewerFullName={viewerFullName} // Passando viewerFullName para o modal de perfil
         viewerRole={viewerRole}
       />
     </>

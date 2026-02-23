@@ -14,7 +14,7 @@ const VerificationsPage = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, email, id_document_url, prof_registration_url")
+        .select("id, full_name, email, id_document_url, prof_registration_url, role") // Added role to select
         .eq("verification_sent", true)
         .eq("is_verified", false);
       
@@ -26,7 +26,33 @@ const VerificationsPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+
+    // Setup Realtime listener for profile updates
+    const channel = supabase
+      .channel('verifications-admin-updates')
+      .on(
+        'postgres_changes',
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'profiles',
+          filter: 'verification_sent=eq.true' // Only listen for profiles that have sent verification
+        },
+        (payload) => {
+          // Check if the updated profile is relevant (pending verification)
+          const updatedProfile = payload.new as any;
+          if (updatedProfile.verification_sent && !updatedProfile.is_verified) {
+            console.log("[VerificationsPage] Realtime update received, refetching data.");
+            fetchData(); // Refetch all data to ensure consistency
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []); // Empty dependency array to run once on mount and cleanup on unmount
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>;
 

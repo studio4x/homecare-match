@@ -166,9 +166,13 @@ const ProfilePage = () => {
         .eq('id', user.id)
         .maybeSingle();
       
-      if (error) throw error;
+      if (error) {
+        console.error("[ProfilePage] Error fetching profile:", error); // Added log
+        throw error;
+      }
 
       if (data) {
+        console.log("[ProfilePage] Fetched profile data:", data); // Added log
         setProfile({
           ...data,
           availability: data.availability || [],
@@ -185,7 +189,7 @@ const ProfilePage = () => {
         });
       }
     } catch (err) {
-      console.error("[ProfilePage] Erro ao carregar:", err);
+      console.error("[ProfilePage] Erro ao carregar seus dados:", err);
       toast.error("Erro ao carregar seus dados.");
     } finally {
       setLoading(false);

@@ -15,7 +15,7 @@ serve(async (req) => {
     const { userName, userEmail, userId } = await req.json()
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
-    // --- NOTIFICAÇÃO NO PAINEL ---
+    // --- NOTIFICAÇÃO NO PAINEL DO ADMIN ---
     await supabaseAdmin.from('admin_notifications').insert({
       title: "🛡️ Nova Solicitação de Verificação",
       content: `O profissional ${userName} enviou documentos para análise.`,
@@ -26,16 +26,17 @@ serve(async (req) => {
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASS');
-    const smtpPort = Deno.env.get('SMTP_PORT'); // Adicionado para configuração do transporter
+    const smtpPort = Deno.env.get('SMTP_PORT');
 
     if (smtpHost && smtpUser && smtpPass && smtpPort) {
       const transporter = nodemailer.createTransport({
         host: smtpHost,
-        port: parseInt(smtpPort), // Usar a porta configurada
-        secure: smtpPort === "465", // true for 465, false for other ports
+        port: parseInt(smtpPort),
+        secure: smtpPort === "465",
         auth: { user: smtpUser, pass: smtpPass },
       });
 
+      // --- E-MAIL PARA O ADMIN ---
       await transporter.sendMail({
         from: `"HomeCare Match" <${smtpUser}>`,
         to: "contato@homecarematch.com.br", // E-mail do admin
@@ -51,8 +52,27 @@ serve(async (req) => {
           </div>
         `,
       });
+
+      // --- NOVO: E-MAIL DE CONFIRMAÇÃO PARA O PROFISSIONAL ---
+      await transporter.sendMail({
+        from: `"HomeCare Match" <${smtpUser}>`,
+        to: userEmail, // E-mail do profissional
+        subject: `✅ Documentos Enviados para Verificação - HomeCare Match`,
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; color: #333;">
+            <h2 style="color: #28a745;">Olá, ${userName}!</h2>
+            <p>Confirmamos o recebimento dos seus documentos para verificação de perfil na plataforma HomeCare Match.</p>
+            <p>Nossa equipe está analisando suas informações e você receberá um retorno por e-mail em até <strong>24 horas úteis</strong>.</p>
+            <p>Você pode acompanhar o status da sua solicitação a qualquer momento em seu painel:</p>
+            <p><a href="${Deno.env.get('SITE_URL')}/dashboard/perfil" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Acompanhar Status</a></p>
+            <p>Agradecemos a sua paciência!</p>
+            <p>Atenciosamente,<br>Equipe HomeCare Match</p>
+          </div>
+        `,
+      });
+
     } else {
-      console.warn("[notify-verification] Variáveis SMTP não configuradas. E-mail para o admin não enviado.");
+      console.warn("[notify-verification] Variáveis SMTP não configuradas. E-mails não enviados.");
     }
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })

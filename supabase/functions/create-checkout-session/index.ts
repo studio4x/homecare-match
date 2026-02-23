@@ -39,20 +39,22 @@ serve(async (req) => {
     let stripeId = "";
     let metadata = { userId: user.id };
     let checkoutMode = "subscription";
-    let successUrl = `${req.headers.get('origin')}/dashboard?success=true`;
+    let successUrl = `${req.headers.get('origin')}/dashboard?success=true`; // Default success URL
 
     if (courseSlug) {
-      const { data: course } = await supabaseAdmin.from('academy_courses').select('*').eq('slug', courseSlug).maybeSingle();
+      const { data: course } = await supabaseAdmin.from('academy_courses').select('title, stripe_price_id_test, stripe_price_id_live').eq('slug', courseSlug).maybeSingle();
       stripeId = config?.stripe_mode === 'live' ? course.stripe_price_id_live : course.stripe_price_id_test;
       metadata.courseSlug = courseSlug;
+      metadata.courseTitle = course.title; // Pass course title for conversion page
       checkoutMode = "payment";
-      successUrl = `${req.headers.get('origin')}/cursos/${courseSlug}?success=true`;
+      successUrl = `${req.headers.get('origin')}/conversion/course?courseSlug=${courseSlug}&courseTitle=${encodeURIComponent(course.title)}`; // New conversion page for courses
     } else if (planId) {
-      const { data: plan } = await supabaseAdmin.from('plans').select('*').eq('id', planId).maybeSingle();
+      const { data: plan } = await supabaseAdmin.from('plans').select('name, stripe_price_id_test, stripe_price_id_live').eq('id', planId).maybeSingle();
       stripeId = config?.stripe_mode === 'live' ? plan.stripe_price_id_live : plan.stripe_price_id_test;
       metadata.planId = planId;
+      metadata.planName = plan.name; // Pass plan name for conversion page
       checkoutMode = "subscription";
-      successUrl = `${req.headers.get('origin')}/dashboard?success=true`;
+      successUrl = `${req.headers.get('origin')}/conversion/subscription?planId=${planId}&planName=${encodeURIComponent(plan.name)}`; // New conversion page for subscriptions
     }
     
     if (!stripeId) throw new Error("ID da Stripe não configurado para este item.");

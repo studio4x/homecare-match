@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useSiteConfig } from "@/hooks/use-site-config";
+import { useLocation } from "react-router-dom"; // Import useLocation
 
 // Utilitário para evitar duplicatas
 const ensureScript = (id: string, create: () => HTMLScriptElement) => {
@@ -84,10 +85,12 @@ const injectFBPixel = (pixelId: string) => {
 
 const MarketingScripts = () => {
   const { data: config } = useSiteConfig();
+  const location = useLocation(); // Get current location
 
   useEffect(() => {
     if (!config) return;
 
+    // Inject base scripts
     if (config.ga_enabled && config.ga_measurement_id) {
       injectGA(config.ga_measurement_id);
     }
@@ -97,7 +100,66 @@ const MarketingScripts = () => {
     if (config.fb_pixel_enabled && config.fb_pixel_id) {
       injectFBPixel(config.fb_pixel_id);
     }
-  }, [config]);
+
+    // Handle conversion events based on URL
+    const path = location.pathname;
+    const queryParams = new URLSearchParams(location.search);
+
+    if (path === "/conversion/course") {
+      const courseSlug = queryParams.get("courseSlug");
+      const courseTitle = queryParams.get("courseTitle");
+      // Example: Trigger a purchase event for GA
+      if (window.gtag && config.ga_enabled && config.ga_measurement_id) {
+        window.gtag('event', 'purchase', {
+          transaction_id: `course-${courseSlug}-${Date.now()}`,
+          value: 1.0, // You might need to fetch actual course price
+          currency: 'BRL',
+          items: [{
+            item_id: courseSlug,
+            item_name: courseTitle,
+            price: 1.0,
+            quantity: 1
+          }]
+        });
+      }
+      // Example: Trigger a purchase event for FB Pixel
+      if (window.fbq && config.fb_pixel_enabled && config.fb_pixel_id) {
+        window.fbq('track', 'Purchase', {
+          value: 1.0, // You might need to fetch actual course price
+          currency: 'BRL'
+        });
+      }
+      // Clear query params after tracking to avoid re-firing on refresh
+      window.history.replaceState({}, document.title, path);
+    } else if (path === "/conversion/subscription") {
+      const planId = queryParams.get("planId");
+      const planName = queryParams.get("planName");
+      // Example: Trigger a purchase event for GA
+      if (window.gtag && config.ga_enabled && config.ga_measurement_id) {
+        window.gtag('event', 'purchase', {
+          transaction_id: `subscription-${planId}-${Date.now()}`,
+          value: 1.0, // You might need to fetch actual plan price
+          currency: 'BRL',
+          items: [{
+            item_id: planId,
+            item_name: planName,
+            price: 1.0,
+            quantity: 1
+          }]
+        });
+      }
+      // Example: Trigger a purchase event for FB Pixel
+      if (window.fbq && config.fb_pixel_enabled && config.fb_pixel_id) {
+        window.fbq('track', 'Purchase', {
+          value: 1.0, // You might need to fetch actual plan price
+          currency: 'BRL'
+        });
+      }
+      // Clear query params after tracking to avoid re-firing on refresh
+      window.history.replaceState({}, document.title, path);
+    }
+
+  }, [config, location.pathname, location.search]);
 
   return null;
 };

@@ -26,6 +26,8 @@ import Support from "./pages/Support";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiePolicy from "./pages/CookiePolicy";
 import Funcionalidades from "./pages/Funcionalidades";
+import ConversionCourse from "./pages/ConversionCourse"; // New import
+import ConversionSubscription from "./pages/ConversionSubscription"; // New import
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -43,6 +45,7 @@ import NoticesPage from "./pages/dashboard/NoticesPage";
 import AdminLayout from "./components/layout/AdminLayout";
 import VerificationsPage from "./pages/admin/VerificationsPage";
 import UsersPage from "./pages/admin/UsersPage";
+import CreateUserPage from "./pages/admin/CreateUserPage";
 import PlansPage from "./pages/admin/PlansPage";
 import ReferralsAdminPage from "./pages/admin/ReferralsPage";
 import CoursesAdminPage from "./pages/admin/CoursesPage";
@@ -58,7 +61,6 @@ import VideosPage from "./pages/admin/VideosPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import PushNotificationsPage from "./pages/admin/PushNotificationsPage";
 import FeatureVideosPage from "./pages/admin/FeatureVideosPage";
-import CreateUserPage from "./pages/admin/CreateUserPage"; // New import
 
 const queryClient = new QueryClient();
 
@@ -90,6 +92,8 @@ const App = () => (
               <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
               <Route path="/politica-de-cookies" element={<CookiePolicy />} />
               <Route path="/funcionalidades" element={<Funcionalidades />} />
+              <Route path="/conversion/course" element={<ConversionCourse />} /> {/* New route */}
+              <Route path="/conversion/subscription" element={<ConversionSubscription />} /> {/* New route */}
 
               {/* Novo Painel do Usuário (Aninhado) */}
               <Route path="/dashboard" element={<UserLayout />}>
@@ -109,7 +113,7 @@ const App = () => (
                 <Route index element={<Navigate to="verificacoes" replace />} />
                 <Route path="verificacoes" element={<VerificationsPage />} />
                 <Route path="usuarios" element={<UsersPage />} />
-                <Route path="criar-usuario" element={<CreateUserPage />} /> {/* New route */}
+                <Route path="criar-usuario" element={<CreateUserPage />} />
                 <Route path="planos" element={<PlansPage />} />
                 <Route path="indicacoes" element={<ReferralsAdminPage />} />
                 <Route path="cursos" element={<CoursesAdminPage />} />

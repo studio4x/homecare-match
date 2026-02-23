@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const LIMIT_PER_24H = 5;
+const BIO_MAX_LENGTH = 700; // Definindo o limite máximo de caracteres para a biografia
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -60,6 +61,9 @@ serve(async (req) => {
     }
 
     const prompt = `Escreva uma biografia profissional e humanizada em terceira pessoa para um profissional de saúde. 
+    A biografia deve ter no máximo ${BIO_MAX_LENGTH} caracteres.
+    Utilize APENAS as informações fornecidas abaixo, sem inventar dados ou adicionar informações que não estejam explícitas.
+
     Nome: ${name}
     Especialidade: ${specialty}
     Formações: ${experience}
@@ -74,7 +78,6 @@ serve(async (req) => {
 
     console.log(`[generate-bio] Chamando API do Gemini (v1beta) com modelo: ${modelName}`);
 
-    // Alterado para v1beta para maior compatibilidade com modelos novos/preview
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`,
       {
@@ -91,7 +94,20 @@ serve(async (req) => {
       throw new Error(result.error?.message || "Erro na comunicação com a Google AI.");
     }
 
-    const bio = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    let bio = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    // Truncar a biografia no lado do servidor como fallback, se a IA exceder o limite
+    if (bio.length > BIO_MAX_LENGTH) {
+      bio = bio.substring(0, BIO_MAX_LENGTH);
+      // Tenta cortar em uma frase completa para não quebrar o texto no meio
+      const lastPeriod = bio.lastIndexOf('.');
+      if (lastPeriod > BIO_MAX_LENGTH - 100) { // Se o último ponto estiver razoavelmente perto do limite
+        bio = bio.substring(0, lastPeriod + 1);
+      } else {
+        // Se não, apenas corta e adiciona reticências
+        bio = bio.substring(0, BIO_MAX_LENGTH - 3) + "...";
+      }
+    }
 
     if (bio) {
       // Registrar uso bem-sucedido

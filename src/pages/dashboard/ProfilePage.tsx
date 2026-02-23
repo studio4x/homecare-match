@@ -572,7 +572,7 @@ const ProfilePage = () => {
                   <div className="grid gap-2"><Label>Experiências Profissionais *</Label><Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} /></div>
                   <div className="pt-2 flex flex-col gap-2">
                     <div className="flex items-center justify-between"><Label>Biografia para o Perfil *</Label><Button variant="outline" size="sm" className="h-8 gap-2 text-xs" onClick={handleGenerateBio} disabled={isGeneratingBio}>{isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />} Gerar com IA</Button></div>
-                    <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} />
+                    <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} maxLength={700} />
                   </div>
                 </CardContent>
               </Card>

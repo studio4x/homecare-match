@@ -189,6 +189,7 @@ const ProfilePage = () => {
           patient_special_equipment: data.patient_special_equipment || [],
           patient_communication_skills: data.patient_communication_skills || [],
         });
+        console.log("[ProfilePage] Profile state updated. verification_sent:", data.verification_sent); // NEW LOG
       }
     } catch (err) {
       console.error("[ProfilePage] Erro ao carregar seus dados:", err);

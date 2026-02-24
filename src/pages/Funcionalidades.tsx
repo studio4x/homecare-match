@@ -60,7 +60,7 @@ export const features = [
     },
     {
       title: "Selo de Verificação Profissional",
-      description: "Análise manual de documentos e registros (COREN/CREFITO) para garantir segurança.",
+      description: "Análise manual de documentos e registros profissionais para garantir segurança.",
       icon: ShieldCheck,
       profiles: ["professional"],
       color: "text-success",

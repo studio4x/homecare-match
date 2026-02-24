@@ -572,7 +572,7 @@ const ProfilePage = () => {
   const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
 
   const doc1Label = isCompany ? "Cartão CNPJ" : isFamily ? "RG ou CNH do Responsável" : "RG ou CNH";
-  const doc2Label = isCompany ? "RG ou CNH do Responsável" : "Registro (COREN/CREFITO)";
+  const doc2Label = isCompany ? "RG ou CNH do Responsável" : "Registro Profissional";
 
   const getBenefits = () => {
     if (isProfessional) return ["Visibilidade para empresas.", "Cursos exclusivos.", "Propostas no WhatsApp.", "Selo de verificação."];
@@ -636,7 +636,7 @@ const ProfilePage = () => {
                       <SelectContent>{specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div className="grid gap-2"><Label>Registro (COREN/CREFITO)</Label><Input value={profile.registration || ""} onChange={e => setProfile({...profile, registration: e.target.value})} /></div>
+                  <div className="grid gap-2"><Label>Registro Profissional</Label><Input value={profile.registration || ""} onChange={e => setProfile({...profile, registration: e.target.value})} /></div>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">

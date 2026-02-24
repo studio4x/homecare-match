@@ -49,7 +49,7 @@ import {
 import { toast } from "sonner";
 import CompanyPatientForm from "@/components/CompanyPatientForm";
 import AccessRestricted from "@/components/AccessRestricted";
-import { Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 
 interface Patient {
@@ -73,6 +73,7 @@ interface Patient {
 
 const CompanyPatientsPage = () => {
   const { user, loading: authLoading } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -100,6 +101,21 @@ const CompanyPatientsPage = () => {
       setLoading(false); // Stop loading if not a company user
     }
   }, [user, userRole, authLoading]);
+
+  useEffect(() => {
+    const patientIdToEdit = searchParams.get("edit");
+    if (!patientIdToEdit || patients.length === 0) return;
+
+    const targetPatient = patients.find((patient) => patient.id === patientIdToEdit);
+    if (!targetPatient) return;
+
+    setSelectedPatient(targetPatient);
+    setIsModalOpen(true);
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("edit");
+    setSearchParams(nextParams, { replace: true });
+  }, [patients, searchParams, setSearchParams]);
 
   const fetchPatients = async (silent = false) => {
     if (!user) return;

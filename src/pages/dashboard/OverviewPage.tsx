@@ -34,7 +34,8 @@ import {
   Ticket,
   Gift,
   PlayCircle,
-  Users 
+  Users,
+  Edit2
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -47,7 +48,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useQuery } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label";
-import PatientInfoCard from "@/components/PatientInfoCard";
 
 const OverviewPage = () => {
   const { user } = useAuth();
@@ -381,6 +381,13 @@ const OverviewPage = () => {
     if (tier === 'yearly') return 'Plano Anual';
     if (tier === 'free_trial') return 'Período de 30 dias Gratuitos';
     return tier;
+  };
+
+  const getPatientCode = (patient: any) => {
+    const rawCode = (patient?.patient_name ?? "").toString().trim();
+    if (!rawCode) return patient?.id?.slice(0, 6)?.toUpperCase() || "N/A";
+    if (/^\d+$/.test(rawCode)) return rawCode.padStart(3, "0");
+    return rawCode;
   };
 
   const QuickAccessCard = (
@@ -733,37 +740,41 @@ const OverviewPage = () => {
               </Card>
             )}
 
-            {(isCompany || isFamily) && companyPatients.length > 0 && (
+            {isCompany && companyPatients.length > 0 && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
-                    {isCompany ? 'Pacientes Recentes' : 'Informações do Familiar'}
+                    Pacientes Recentes
                   </h2>
-                  {isCompany && companyPatients.length > 2 && (
-                    <Button asChild variant="link" size="sm" className="text-primary h-auto p-0">
-                      <Link to="/dashboard/pacientes" className="gap-1">
-                        Ver todos ({companyPatients.length}) <ArrowRight className="h-3 w-3" />
-                      </Link>
-                    </Button>
-                  )}
                 </div>
-                
-                {/* Exibe apenas os 2 primeiros pacientes para não poluir o layout */}
-                <div className="space-y-4">
-                  {companyPatients.slice(0, 2).map((patient) => (
-                    <PatientInfoCard key={patient.id} patient={patient} viewerRole={profile.role} />
+
+                {/* Exibe até 4 pacientes em grid 2x2 no resumo do dashboard */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {companyPatients.slice(0, 4).map((patient) => (
+                    <Card key={patient.id} className="border-primary/10">
+                      <CardContent className="p-4 flex items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">ID do Paciente</p>
+                          <p className="text-xl font-bold text-foreground">{getPatientCode(patient)}</p>
+                        </div>
+                        <Button asChild size="sm" variant="outline" className="gap-1">
+                          <Link to={`/dashboard/pacientes?edit=${patient.id}`}>
+                            <Edit2 className="h-3.5 w-3.5" />
+                            Editar
+                          </Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
 
-                {isCompany && companyPatients.length > 2 && (
-                  <Button asChild variant="outline" className="w-full gap-2">
-                    <Link to="/dashboard/pacientes">
-                      Gerenciar todos os pacientes
-                      <ArrowRight className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                )}
+                <Button asChild variant="outline" className="w-full gap-2">
+                  <Link to="/dashboard/pacientes">
+                    Ver todos os pacientes ({companyPatients.length})
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
               </div>
             )}
 

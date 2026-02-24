@@ -184,6 +184,7 @@ const Empresas = () => {
                 url={landingVideoUrl} 
                 title="Apresentação para Empresas"
                 autoplay={false} // Desativar autoplay
+                deferLoad={true}
               />
             </div>
           </div>

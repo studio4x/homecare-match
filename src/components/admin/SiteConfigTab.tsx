@@ -343,7 +343,9 @@ const SiteConfigTab = () => {
     const filePath = `site-assets/${fileName}`;
 
     try {
-      const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, file, {
+        cacheControl: "31536000"
+      });
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);

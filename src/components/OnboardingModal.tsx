@@ -254,6 +254,8 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
                       src={videoUrl} 
                       className="w-full h-full object-contain"
                       controls
+                      preload="metadata"
+                      playsInline
                       autoPlay={false} // Desativar autoplay
                     />
                   ) : (

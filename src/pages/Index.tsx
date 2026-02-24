@@ -448,6 +448,7 @@ const Index = () => {
                 url={landingVideoUrl} 
                 title="Apresentação para Profissionais"
                 autoplay={false} // Desativar autoplay
+                deferLoad={true}
               />
             </div>
           </div>

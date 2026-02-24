@@ -160,6 +160,7 @@ const Familias = () => {
                 url={landingVideoUrl} 
                 title="Apresentação para Famílias"
                 autoplay={false} // Desativar autoplay
+                deferLoad={true}
               />
             </div>
           </div>

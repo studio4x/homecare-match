@@ -66,7 +66,9 @@ const VideosTab = () => {
     try {
       const { error: uploadError } = await supabase.storage
         .from(VIDEO_STORAGE_BUCKET)
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: "31536000"
+        });
 
       if (uploadError) throw uploadError;
 

@@ -419,7 +419,7 @@ const ProfilePage = () => {
         }
       }
 
-      const { error } = await supabase.from("profiles").update({
+      const updatePayload = {
         full_name: profile.full_name,
         phone: profile.phone,
         bio: profile.bio,
@@ -451,13 +451,33 @@ const ProfilePage = () => {
         patient_cognitive_state: profile.patient_cognitive_state,
         patient_special_equipment: profile.patient_special_equipment,
         patient_communication_skills: profile.patient_communication_skills,
-      }).eq("id", user.id);
+      };
+
+      let { error } = await supabase.from("profiles").update(updatePayload).eq("id", user.id);
+
+      // Compatibilidade: tenta criar os campos de família se o projeto ainda não tiver essa extensão aplicada.
+      if (error && isFamily) {
+        const errorText = `${error.message || ""} ${error.details || ""}`;
+        const missingFamilyField = /patient_(name|age|medical_conditions|mobility_level|cognitive_state|special_equipment|communication_skills)/i.test(errorText);
+
+        if (missingFamilyField) {
+          const { error: setupError } = await supabase.functions.invoke("setup-family-profile-fields");
+          if (!setupError) {
+            const retry = await supabase.from("profiles").update(updatePayload).eq("id", user.id);
+            error = retry.error;
+          } else {
+            console.error("[ProfilePage] Falha ao executar setup-family-profile-fields:", setupError);
+          }
+        }
+      }
 
       if (error) throw error;
       toast.success("Perfil salvo com sucesso!");
       fetchProfile();
     } catch (err: any) {
-      toast.error("Erro ao salvar perfil.");
+      console.error("[ProfilePage] Erro ao salvar perfil:", err);
+      const details = err?.message || err?.details || "Erro ao salvar perfil.";
+      toast.error(details);
     } finally {
       setIsSaving(false);
     }

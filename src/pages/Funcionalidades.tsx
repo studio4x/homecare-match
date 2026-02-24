@@ -131,6 +131,24 @@ export const features = [
       feature_key: "gestao-de-pagamentos-e-faturas"
     },
     {
+      title: "Destaque Premium na Busca",
+      description: "Assinantes anuais recebem selo de Destaque Premium e maior prioridade nos resultados.",
+      icon: Star,
+      profiles: ["professional"],
+      color: "text-amber-500",
+      bg: "bg-amber-50",
+      feature_key: "destaque-premium-na-busca"
+    },
+    {
+      title: "Controle de Visibilidade nas Buscas",
+      description: "Gerencie sua visibilidade para empresas e famílias de acordo com o status da sua assinatura.",
+      icon: CheckCircle2,
+      profiles: ["professional"],
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+      feature_key: "controle-de-visibilidade-nas-buscas"
+    },
+    {
       title: "Contato Direto via WhatsApp",
       description: "Inicie conversas sem intermediários e sem taxas de agenciamento.",
       icon: MessageSquare,
@@ -147,6 +165,15 @@ export const features = [
       color: "text-sky-600",
       bg: "bg-sky-50",
       feature_key: "cadastro-de-pacientes-para-empresas"
+    },
+    {
+      title: "Perfil Público de Recrutador",
+      description: "Exibe informações da empresa/família e os pacientes visíveis para facilitar o alinhamento com profissionais.",
+      icon: Users,
+      profiles: ["company", "family", "professional"],
+      color: "text-violet-600",
+      bg: "bg-violet-50",
+      feature_key: "perfil-publico-de-recrutador"
     },
     {
       title: "Gestão de Contatos",

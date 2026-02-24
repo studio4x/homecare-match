@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, MapPin, LifeBuoy, LayoutGrid } from "lucide-react";
+import { Mail, LifeBuoy, LayoutGrid, ShieldCheck } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import SuggestionDrawer from "../SuggestionDrawer";
 
@@ -131,13 +131,15 @@ const Footer = () => {
               <li className="md:hidden">
                 <SuggestionDrawer variant="footer" />
               </li>
+              <li>
+                <Link to="/validar" className="flex items-center gap-2 text-sm text-primary font-medium hover:underline">
+                  <ShieldCheck className="h-4 w-4" />
+                  Validar Selo Academy
+                </Link>
+              </li>
               <li className="flex items-center gap-2 text-sm text-muted-foreground break-all">
                 <Mail className="h-4 w-4 shrink-0" />
                 contato@homecarematch.com.br
-              </li>
-              <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4 shrink-0" />
-                São Paulo, SP
               </li>
             </ul>
           </div>

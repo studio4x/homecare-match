@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { v4 } from "https://deno.land/std@0.224.0/uuid/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,7 +108,9 @@ serve(async (req) => {
     const workloadMinutes = courseData?.duration_minutes || 0;
 
     // 4. Insert new certificate
-    const validationCode = v4.generate();
+    // Usando a API nativa crypto.randomUUID() disponível no Deno
+    const validationCode = crypto.randomUUID();
+    
     const { data: newCertificate, error: insertError } = await supabaseClient
       .from('certificates')
       .insert({

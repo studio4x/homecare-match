@@ -114,6 +114,9 @@ const ProfilePage = () => {
     "Dia Integral (Diurno)",
     "Plantão 12h (Noturno)",
     "Finais de Semana",
+    "1h de atendimento",
+    "2h de atendimento",
+    "3h de atendimento",
   ];
 
   const patientProfileOptions = [
@@ -732,6 +735,9 @@ const ProfilePage = () => {
                   <Separator />
                   <div className="space-y-3">
                     <Label className="text-xs uppercase">Disponibilidade *</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      Você pode selecionar mais de uma opção. Ex.: Dia Integral (Diurno) + 1h de atendimento.
+                    </p>
                     <div className="grid gap-2">{availabilityOptions.map(opt => (<div key={opt} className="flex items-center gap-2"><Checkbox id={opt} checked={profile.availability?.includes(opt)} onCheckedChange={() => handleCheckboxChange('availability', opt)} /><label htmlFor={opt} className="text-xs">{opt}</label></div>))}</div>
                   </div>
                   <Separator />
@@ -873,7 +879,7 @@ const ProfilePage = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Selecione os períodos em que o atendimento é necessário.</p>
+                  <p className="text-[10px] text-muted-foreground">Você pode selecionar mais de uma opção. Ex.: Dia Integral (Diurno) + 1h de atendimento.</p>
                 </div>
 
                 <Separator />

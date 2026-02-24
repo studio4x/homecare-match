@@ -500,6 +500,19 @@ const Perfil = () => {
                     </div>
                   </div>
                 </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
+                      <ShieldCheck className="h-3 w-3 text-success" />
+                      <span className="leading-none">Perfil Verificado</span>
+                    </div>
+                    <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
+                      <Star className="h-3 w-3 text-amber-500 fill-current" />
+                      <span className="leading-none">Destaque Premium</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

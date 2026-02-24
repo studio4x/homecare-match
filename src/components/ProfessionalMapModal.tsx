@@ -39,6 +39,7 @@ const ProfessionalMapModal = ({ professional, onClose, specialties }: Profession
             isVerified={professional.is_verified}
             subscriptionTier={professional.subscription_tier}
             distance={professional.distance}
+            completedCoursesCount={professional.completed_courses_count}
           />
         </div>
       </DialogContent>

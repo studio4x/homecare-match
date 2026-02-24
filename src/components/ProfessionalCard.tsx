@@ -10,12 +10,13 @@ interface ProfessionalCardProps {
   name: string;
   photo?: string;
   specialty: string;
-  registration: string;
+  registration?: string;
   location: string;
   experience: string;
   isVerified?: boolean;
   subscriptionTier?: string;
   distance?: number;
+  completedCoursesCount?: number;
 }
 
 const ProfessionalCard = ({
@@ -28,7 +29,8 @@ const ProfessionalCard = ({
   experience,
   isVerified = false,
   subscriptionTier = 'monthly',
-  distance
+  distance,
+  completedCoursesCount = 0
 }: ProfessionalCardProps) => {
   const initials = (name || "")
     .split(" ")
@@ -39,6 +41,9 @@ const ProfessionalCard = ({
     .toUpperCase() || "??";
 
   const isPremium = subscriptionTier === 'yearly';
+  const completedCoursesLabel = completedCoursesCount === 1
+    ? "1 curso concluído na plataforma"
+    : `${completedCoursesCount} cursos concluídos na plataforma`;
 
   return (
     <div className={cn(
@@ -72,7 +77,7 @@ const ProfessionalCard = ({
       <div className="flex-1 space-y-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Award className="h-4 w-4 text-primary shrink-0" />
-          <span className="line-clamp-1">{registration}</span>
+          <span className="line-clamp-1">{completedCoursesLabel}</span>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-4 w-4 text-primary shrink-0" />

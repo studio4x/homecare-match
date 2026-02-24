@@ -117,6 +117,24 @@ const Buscar = () => {
         console.error("[Buscar] Erro na consulta:", error);
         setAllProfessionals([]);
       } else if (data) {
+        const professionalIds = data.map((professional) => professional.id);
+        const completedCoursesMap: Record<string, number> = {};
+
+        if (professionalIds.length > 0) {
+          const { data: certificatesData, error: certificatesError } = await supabase
+            .from("certificates")
+            .select("user_id")
+            .in("user_id", professionalIds);
+
+          if (certificatesError) {
+            console.warn("[Buscar] Erro ao carregar contagem de cursos concluídos:", certificatesError);
+          } else {
+            certificatesData?.forEach((certificate) => {
+              completedCoursesMap[certificate.user_id] = (completedCoursesMap[certificate.user_id] || 0) + 1;
+            });
+          }
+        }
+
         const processed = data.map(p => {
           const dist = (userProfile.lat && userProfile.lng && p.lat && p.lng)
             ? calculateDistance(Number(userProfile.lat), Number(userProfile.lng), Number(p.lat), Number(p.lng))
@@ -127,7 +145,12 @@ const Buscar = () => {
           
           const score = (isPremium ? 10000 : 0) + (referrals * 100) - (dist * 2);
 
-          return { ...p, distance: dist, rankingScore: score };
+          return {
+            ...p,
+            distance: dist,
+            rankingScore: score,
+            completed_courses_count: completedCoursesMap[p.id] || 0
+          };
         });
 
         processed.sort((a, b) => b.rankingScore - a.rankingScore);
@@ -392,6 +415,7 @@ const Buscar = () => {
                 isVerified={p.is_verified}
                 subscriptionTier={p.subscription_tier}
                 distance={p.distance}
+                completedCoursesCount={p.completed_courses_count}
               />
             ))
           ) : config?.enable_professional_list !== false ? (

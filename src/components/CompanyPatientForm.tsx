@@ -91,6 +91,9 @@ const periodOptions = [
   "Plantão 12h (Diurno)",
   "Plantão 12h (Noturno)",
   "Plantão 24h",
+  "1h de atendimento",
+  "2h de atendimento",
+  "3h de atendimento",
 ];
 
 const formSchema = z.object({
@@ -501,6 +504,9 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
                   />
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground">
+                Você pode selecionar mais de uma opção. Ex.: Período Diurno + 1h de atendimento.
+              </p>
               <FormMessage />
             </FormItem>
           )}

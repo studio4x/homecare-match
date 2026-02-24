@@ -28,10 +28,11 @@ serve(async (req) => {
 
     console.log(`[public-profile-courses] Buscando conquistas para o usuário: ${userId}`);
 
-    // Buscamos diretamente na tabela de certificados, que é a prova real de conclusão
+    // Buscamos diretamente na tabela de certificados, incluindo o ID do certificado
     const { data: certs, error: certErr } = await supabaseAdmin
       .from("certificates")
       .select(`
+        id,
         course_slug,
         workload_minutes,
         course:academy_courses (
@@ -48,8 +49,9 @@ serve(async (req) => {
       throw certErr;
     }
 
-    // Formatamos o retorno para o componente de Perfil
+    // Formatamos o retorno incluindo o certificateId
     const results = (certs || []).map((c: any) => ({
+      id: c.id, // ID do certificado
       slug: c.course?.slug || c.course_slug,
       title: c.course?.title || "Curso não identificado",
       hero_asset_url: c.course?.hero_asset_url || null,

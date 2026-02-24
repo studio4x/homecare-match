@@ -31,7 +31,7 @@ import {
   MessageCircle,
   AlertTriangle,
   Eye,
-  X // Adicionado X aqui
+  X
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -45,7 +45,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ReportModal from "@/components/ReportModal";
-import CertificateModal from "@/components/CertificateModal"; // Import CertificateModal
+import CertificateModal from "@/components/CertificateModal";
 
 const Perfil = () => {
   const { id } = useParams();
@@ -62,21 +62,19 @@ const Perfil = () => {
   const [completedCourses, setCompletedCourses] = useState<Array<{ slug: string; title: string; hero_asset_url: string | null; workload_minutes: number; certificateId: string | null }>>([]);
   const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
 
-  const [showCertificateModal, setShowCertificateModal] = useState(false); // State for certificate modal
-  const [certificateToView, setCertificateToView] = useState<string | null>(null); // State for certificate ID to view
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
+  const [certificateToView, setCertificateToView] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
-      // Tenta buscar primeiro da View Segura (sempre disponível)
       const { data: discoveryData } = await supabase
         .from("professional_discovery")
         .select("*")
         .eq("id", id)
         .maybeSingle();
 
-      // Tenta buscar da tabela principal (só retorna telefone se houver interação)
       const { data: fullData } = await supabase
         .from("profiles")
         .select("phone, hourly_rate, availability, patient_profiles")
@@ -91,7 +89,7 @@ const Perfil = () => {
 
       setProfile({
         ...discoveryData,
-        ...fullData // Mescla os dados se disponíveis
+        ...fullData
       });
     } catch (err) {
       console.error(err);
@@ -151,7 +149,15 @@ const Perfil = () => {
           body: { userId: id }
         });
         if (!error && data?.courses) {
-          setCompletedCourses(data.courses);
+          // Mapeia o 'id' retornado pela função para 'certificateId'
+          const mapped = data.courses.map((c: any) => ({
+            slug: c.slug,
+            title: c.title,
+            hero_asset_url: c.hero_asset_url,
+            workload_minutes: c.workload_minutes,
+            certificateId: c.id // Aqui está a correção
+          }));
+          setCompletedCourses(mapped);
         }
       } catch {
         setCompletedCourses([]);

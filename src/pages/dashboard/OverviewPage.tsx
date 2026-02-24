@@ -390,6 +390,13 @@ const OverviewPage = () => {
     return rawCode;
   };
 
+  const familyAvailability = Array.isArray(profile?.availability) ? profile.availability : [];
+  const familyMedicalSummary = profile?.patient_medical_conditions
+    ? profile.patient_medical_conditions.length > 180
+      ? `${profile.patient_medical_conditions.slice(0, 180)}...`
+      : profile.patient_medical_conditions
+    : "Não informado";
+
   const QuickAccessCard = (
     <Card>
       <CardHeader className="pb-3">
@@ -471,7 +478,9 @@ const OverviewPage = () => {
           <p className="text-muted-foreground max-w-2xl mt-2">
             {isProfessional 
               ? "Gerencie seu perfil profissional, acompanhe suas verificações e acesse conteúdos educativos para impulsionar sua carreira no HomeCare Match."
-              : "Encontre os melhores profissionais para sua escala de atendimento, gerencie seus contatos salvos e acompanhe suas interações recentes."
+              : isCompany
+              ? "Encontre os melhores profissionais para sua escala de atendimento, gerencie seus contatos salvos e acompanhe suas interações recentes."
+              : "Encontre profissionais verificados para o seu familiar, acompanhe seus contatos e mantenha as informações do paciente sempre atualizadas."
             }
           </p>
         </div>
@@ -775,6 +784,90 @@ const OverviewPage = () => {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
+              </div>
+            )}
+
+            {isFamily && (
+              <div className="space-y-6">
+                <Card className="border-amber-300/40 bg-amber-50/30">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Home className="h-4 w-4 text-amber-600" />
+                      Resumo do Paciente
+                    </CardTitle>
+                    <CardDescription>Esses dados são usados para encontrar profissionais compatíveis.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-lg border bg-background/70 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Paciente</p>
+                        <p className="text-sm font-semibold mt-1">{profile?.patient_name || "Não informado"}</p>
+                      </div>
+                      <div className="rounded-lg border bg-background/70 p-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Idade</p>
+                        <p className="text-sm font-semibold mt-1">{profile?.patient_age || "Não informado"}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border bg-background/70 p-3">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Condição Médica</p>
+                      <p className="text-sm mt-1 leading-relaxed">{familyMedicalSummary}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Disponibilidade</p>
+                      {familyAvailability.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {familyAvailability.slice(0, 4).map((slot: string) => (
+                            <Badge key={slot} variant="outline" className="bg-background/80 text-[11px]">
+                              {slot}
+                            </Badge>
+                          ))}
+                          {familyAvailability.length > 4 && (
+                            <Badge variant="outline" className="bg-background/80 text-[11px]">
+                              +{familyAvailability.length - 4}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Nenhuma disponibilidade cadastrada.</p>
+                      )}
+                    </div>
+                    <Button asChild variant="outline" className="w-full gap-2">
+                      <Link to="/dashboard/perfil">
+                        Editar informações do paciente
+                        <Edit2 className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      Ações rápidas da família
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Button asChild className="w-full gap-2">
+                      <Link to="/buscar">
+                        Buscar profissionais agora
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="w-full gap-2">
+                      <Link to="/dashboard/contatos">
+                        Ver contatos salvos
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button asChild variant="outline" className="w-full gap-2">
+                      <Link to="/dashboard/suporte">
+                        Abrir suporte
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
               </div>
             )}
 

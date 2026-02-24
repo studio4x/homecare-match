@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,7 +53,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
     setIsGeneratingUrl(type);
     try {
       let path = pathOrUrl;
-      // Verifica se já é uma URL pública ou se precisa de signed URL
+      // Verifica se jÃ¡ Ã© uma URL pÃºblica ou se precisa de signed URL
       if (pathOrUrl.startsWith('http')) {
         window.open(pathOrUrl, '_blank');
         return;
@@ -61,7 +61,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
       // Se for um path de storage, cria signed URL
       const { data, error } = await supabase.storage
         .from('documents')
-        .createSignedUrl(path, 60); // URL válida por 60 segundos
+        .createSignedUrl(path, 60); // URL vÃ¡lida por 60 segundos
 
       if (error) throw error;
       window.open(data.signedUrl, '_blank');
@@ -145,15 +145,31 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'company': return <Badge variant="secondary" className="gap-1"><Building2 className="h-3 w-3" /> Empresa</Badge>;
-      case 'family': return <Badge variant="outline" className="gap-1"><Home className="h-3 w-3" /> Família</Badge>;
+      case 'family': return <Badge variant="outline" className="gap-1"><Home className="h-3 w-3" /> FamÃ­lia</Badge>;
       default: return <Badge variant="secondary" className="gap-1"><User className="h-3 w-3" /> Profissional</Badge>;
     }
   };
 
-  const getDocLabels = (role: string) => {
-    if (role === 'company') return { doc1: "Cartão CNPJ", doc2: "ID Responsável" };
-    if (role === 'family') return { doc1: "ID Responsável", doc2: null };
-    return { doc1: "RG/CNH", doc2: "Registro Prof." };
+  const getDocumentsForProfile = (profile: any) => {
+    if (profile.role === "company") {
+      return [
+        { label: "Cartão CNPJ", path: profile.id_document_url, key: `id-${profile.id}` },
+        { label: "ID Responsável", path: profile.prof_registration_url, key: `prof-${profile.id}` },
+      ].filter((doc) => !!doc.path);
+    }
+
+    if (profile.role === "family") {
+      return [
+        { label: "ID Responsável", path: profile.id_document_url, key: `id-${profile.id}` },
+        { label: "RG/CNH Paciente", path: profile.patient_document_url, key: `patient-id-${profile.id}` },
+        { label: "Comprovante Endereço", path: profile.patient_address_proof_url, key: `patient-address-${profile.id}` },
+      ].filter((doc) => !!doc.path);
+    }
+
+    return [
+      { label: "RG/CNH", path: profile.id_document_url, key: `id-${profile.id}` },
+      { label: "Registro Prof.", path: profile.prof_registration_url, key: `prof-${profile.id}` },
+    ].filter((doc) => !!doc.path);
   };
 
   return (
@@ -162,17 +178,17 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Usuário</TableHead>
+              <TableHead>UsuÃ¡rio</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Documentos</TableHead>
               {/* New column for CNPJ/ANS if it's a company */}
               <TableHead>Info Adicional</TableHead> 
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead className="text-right">AÃ§Ãµes</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pendingProfiles.length > 0 ? pendingProfiles.map(p => {
-              const labels = getDocLabels(p.role);
+              const documents = getDocumentsForProfile(p);
               const isCompany = p.role === 'company';
               return (
                 <TableRow key={p.id}>
@@ -183,30 +199,20 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
                   <TableCell>{getRoleBadge(p.role)}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-2">
-                      {p.id_document_url && (
+                      {documents.map((doc) => (
                         <Button 
+                          key={doc.key}
                           variant="outline" 
                           size="sm" 
                           className="h-7 text-xs gap-1.5"
-                          onClick={() => handleViewDocument(p.id_document_url, `id-${p.id}`)}
-                          disabled={isGeneratingUrl === `id-${p.id}`}
+                          onClick={() => handleViewDocument(doc.path, doc.key)}
+                          disabled={isGeneratingUrl === doc.key}
                         >
-                          {isGeneratingUrl === `id-${p.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-                          {labels.doc1}
+                          {isGeneratingUrl === doc.key ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
+                          {doc.label}
                         </Button>
-                      )}
-                      {p.prof_registration_url && labels.doc2 && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-7 text-xs gap-1.5"
-                          onClick={() => handleViewDocument(p.prof_registration_url, `prof-${p.id}`)}
-                          disabled={isGeneratingUrl === `prof-${p.id}`}
-                        >
-                          {isGeneratingUrl === `prof-${p.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ExternalLink className="h-3 w-3" />}
-                          {labels.doc2}
-                        </Button>
-                      )}
+                      ))}
+                      {documents.length === 0 && <span className="text-xs text-muted-foreground">Nenhum documento</span>}
                     </div>
                   </TableCell>
                   {/* New TableCell for additional info */}
@@ -217,6 +223,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
                         <p className="text-xs text-muted-foreground">ANS: <span className="font-medium text-foreground">{p.ans_registration || 'N/A'}</span></p>
                       </div>
                     )}
+                    {!isCompany && <span className="text-xs text-muted-foreground">-</span>}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
@@ -227,7 +234,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
             }) : (
               <TableRow>
                 <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                  Nenhuma solicitação pendente.
+                  Nenhuma solicitaÃ§Ã£o pendente.
                 </TableCell>
               </TableRow>
             )}
@@ -237,8 +244,8 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
 
       <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Reprovar Verificação</DialogTitle><DialogDescription>Informe o motivo para {selectedProfile?.full_name}.</DialogDescription></DialogHeader>
-          <div className="py-4"><Label>Motivo</Label><Textarea value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Ex: Documento ilegível." /></div>
+          <DialogHeader><DialogTitle>Reprovar VerificaÃ§Ã£o</DialogTitle><DialogDescription>Informe o motivo para {selectedProfile?.full_name}.</DialogDescription></DialogHeader>
+          <div className="py-4"><Label>Motivo</Label><Textarea value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Ex: Documento ilegÃ­vel." /></div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={handleReject} disabled={isProcessingVerification || !rejectionReason}>Confirmar</Button>
@@ -249,18 +256,18 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
       <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar Aprovação</DialogTitle>
+            <DialogTitle>Confirmar AprovaÃ§Ã£o</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja aprovar a documentação de <strong>{selectedProfile?.full_name}</strong>?
+              Tem certeza que deseja aprovar a documentaÃ§Ã£o de <strong>{selectedProfile?.full_name}</strong>?
               <br/><br/>
-              Isso concederá o selo de verificado ao perfil e enviará um e-mail de notificação.
+              Isso concederÃ¡ o selo de verificado ao perfil e enviarÃ¡ um e-mail de notificaÃ§Ã£o.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setApproveModalOpen(false)}>Cancelar</Button>
             <Button className="bg-success hover:bg-success/90" onClick={handleApprove} disabled={isProcessingVerification}>
               {isProcessingVerification ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Confirmar Aprovação
+              Confirmar AprovaÃ§Ã£o
             </Button>
           </DialogFooter>
         </DialogContent>

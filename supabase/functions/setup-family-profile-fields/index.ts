@@ -26,7 +26,9 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS patient_mobility_level TEXT[],
         ADD COLUMN IF NOT EXISTS patient_cognitive_state TEXT[],
         ADD COLUMN IF NOT EXISTS patient_special_equipment TEXT[],
-        ADD COLUMN IF NOT EXISTS patient_communication_skills TEXT[];
+        ADD COLUMN IF NOT EXISTS patient_communication_skills TEXT[],
+        ADD COLUMN IF NOT EXISTS patient_document_url TEXT,
+        ADD COLUMN IF NOT EXISTS patient_address_proof_url TEXT;
 
       NOTIFY pgrst, 'reload schema';
     `;

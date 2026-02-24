@@ -81,7 +81,7 @@ const ValidateCertificate = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Ex: HCM-XXXX-XXXX"
+                  placeholder="Digite o código do selo..."
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   className="pl-10 h-12 text-lg font-mono uppercase tracking-wider"

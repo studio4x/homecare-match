@@ -26,7 +26,7 @@ const mapContainerStyle = {
 };
 
 const ProfessionalMap = ({
-  userLocation,
+  userLocation: _userLocation,
   professionals,
   patientLocations = [],
   onProfessionalClick,
@@ -44,14 +44,10 @@ const ProfessionalMap = ({
 
     const validProfessionalPoints = professionals.filter((p) => p.lat && p.lng);
     const validPatientPoints = patientLocations.filter((p) => p.lat && p.lng);
-    const totalPointsCount = (userLocation ? 1 : 0) + validProfessionalPoints.length + validPatientPoints.length;
+    const totalPointsCount = validProfessionalPoints.length + validPatientPoints.length;
     if (totalPointsCount === 0) return;
 
     const bounds = new google.maps.LatLngBounds();
-
-    if (userLocation) {
-      bounds.extend(userLocation);
-    }
 
     validProfessionalPoints.forEach((p) => {
       bounds.extend({ lat: Number(p.lat), lng: Number(p.lng) });
@@ -70,7 +66,7 @@ const ProfessionalMap = ({
         google.maps.event.removeListener(listener);
       });
     }
-  }, [professionals, patientLocations, userLocation]);
+  }, [professionals, patientLocations]);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -83,7 +79,6 @@ const ProfessionalMap = ({
   }), []);
 
   const center = useMemo(() => {
-    if (userLocation) return userLocation;
     if (professionals.length > 0 && professionals[0].lat && professionals[0].lng) {
       return { lat: Number(professionals[0].lat), lng: Number(professionals[0].lng) };
     }
@@ -91,7 +86,7 @@ const ProfessionalMap = ({
       return { lat: Number(patientLocations[0].lat), lng: Number(patientLocations[0].lng) };
     }
     return defaultCenter;
-  }, [userLocation, professionals, patientLocations, defaultCenter]);
+  }, [professionals, patientLocations, defaultCenter]);
 
   const onLoad = useCallback((mapInstance: google.maps.Map) => {
     setMap(mapInstance);
@@ -161,7 +156,7 @@ const ProfessionalMap = ({
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
         center={center}
-        zoom={userLocation ? 12 : 4}
+        zoom={4}
         onLoad={onLoad}
         onUnmount={onUnmount}
         onIdle={handleIdle}
@@ -180,16 +175,6 @@ const ProfessionalMap = ({
           ]
         }}
       >
-        {userLocation && (
-          <MarkerF
-            position={userLocation}
-            icon={{
-              url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-            }}
-            title="Sua Localização"
-          />
-        )}
-
         {professionals.map((p) => {
           if (!p.lat || !p.lng) return null;
           
@@ -223,10 +208,6 @@ const ProfessionalMap = ({
       </GoogleMap>
       
       <div className="bg-card p-3 border-t flex items-center justify-center gap-6 text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
-          <span>Você</span>
-        </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-yellow-500" />
           <span>Premium</span>

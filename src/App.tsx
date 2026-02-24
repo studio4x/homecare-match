@@ -62,6 +62,7 @@ import VideosPage from "./pages/admin/VideosPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import PushNotificationsPage from "./pages/admin/PushNotificationsPage";
 import FeatureVideosPage from "./pages/admin/FeatureVideosPage";
+import ConciergeRequestsPage from "./pages/admin/ConciergeRequestsPage";
 
 const queryClient = new QueryClient();
 
@@ -132,6 +133,7 @@ const App = () => (
                 <Route path="metricas" element={<AnalyticsPage />} />
                 <Route path="auditoria" element={<AuditLogsPage />} />
                 <Route path="videos-funcionalidades" element={<FeatureVideosPage />} />
+                <Route path="concierge" element={<ConciergeRequestsPage />} />
               </Route>
 
               {/* 404 */}

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -11,6 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
 import ProfessionalMap from "@/components/ProfessionalMap";
@@ -50,6 +59,19 @@ const Buscar = () => {
     label: string;
     zip?: string;
   }>>([]);
+  const [conciergeModalOpen, setConciergeModalOpen] = useState(false);
+  const [isSubmittingConcierge, setIsSubmittingConcierge] = useState(false);
+  const [conciergeForm, setConciergeForm] = useState({
+    specialty: "",
+    city: "",
+    state: "",
+    neighborhood: "",
+    availability: "",
+    patient_profile: "",
+    max_hourly_rate: "",
+    urgency: "esta-semana",
+    details: "",
+  });
   
   const [filters, setFilters] = useState({
     specialty: getInitialSpecialtyFromUrl(),
@@ -383,21 +405,80 @@ const Buscar = () => {
     "Idosos", "Pediátrico", "Pós-cirúrgico", "Doenças Crônicas",
     "Cuidados Paliativos", "Reabilitação Neurológica",
   ];
+  const urgencyOptions = [
+    { value: "urgente-24h", label: "Urgente (até 24h)" },
+    { value: "esta-semana", label: "Ainda esta semana" },
+    { value: "sem-urgencia", label: "Sem urgência" },
+  ];
 
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
-  
-  const whatsappNumber = config?.whatsapp_number?.replace(/\D/g, '') || "5511999999999";
-  const roleLabel = userProfile?.role === 'company' ? 'Empresa' : 'Família';
-  const requestedSpecialtyLabel = filters.specialty ? (specialties.find(s => s.value === filters.specialty)?.label || filters.specialty) : '';
 
-  const conciergeMessage = [
-    'Olá!', '',
-    `Sou uma *${roleLabel}* e gostaria de ajuda da equipe de concierge do HomeCare Match para encontrar profissionais.`,
-    '',
-    filters.specialty ? `• Especialidade: ${requestedSpecialtyLabel}` : '',
-    filters.city ? `• Cidade: ${filters.city}` : '',
-    filters.state ? `• Estado: ${filters.state}` : '',
-  ].filter(Boolean).join('\n');
+  const openConciergeModal = () => {
+    setConciergeForm({
+      specialty: filters.specialty || "",
+      city: filters.city || userProfile?.city || "",
+      state: filters.state || userProfile?.state || "",
+      neighborhood: filters.neighborhood || userProfile?.neighborhood || "",
+      availability: filters.availability || "",
+      patient_profile: filters.patient_profile || "",
+      max_hourly_rate: filters.max_hourly_rate || "",
+      urgency: "esta-semana",
+      details: "",
+    });
+    setConciergeModalOpen(true);
+  };
+
+  const handleSubmitConciergeRequest = async () => {
+    if (!user || !userProfile) {
+      toast.error("Faça login para solicitar o concierge.");
+      return;
+    }
+
+    if (!conciergeForm.details.trim()) {
+      toast.error("Descreva a necessidade para nossa equipe de concierge.");
+      return;
+    }
+
+    setIsSubmittingConcierge(true);
+    try {
+      const { data: conciergeRequest, error } = await supabase.from("concierge_requests").insert({
+        user_id: user.id,
+        requester_role: userProfile.role,
+        requester_name: userProfile.full_name || null,
+        requester_email: user.email || null,
+        specialty: conciergeForm.specialty || null,
+        city: conciergeForm.city || null,
+        state: conciergeForm.state || null,
+        neighborhood: conciergeForm.neighborhood || null,
+        availability: conciergeForm.availability || null,
+        patient_profile: conciergeForm.patient_profile || null,
+        max_hourly_rate: conciergeForm.max_hourly_rate ? Number(conciergeForm.max_hourly_rate) : null,
+        urgency: conciergeForm.urgency || "esta-semana",
+        details: conciergeForm.details.trim(),
+      }).select("id").single();
+
+      if (error) throw error;
+
+      if (conciergeRequest?.id) {
+        const { error: notifyError } = await supabase.functions.invoke("notify-concierge", {
+          body: { requestId: conciergeRequest.id },
+        });
+
+        if (notifyError) {
+          console.error("[Buscar] Falha ao disparar notificação de concierge:", notifyError);
+          toast.warning("Solicitação enviada, mas houve falha no envio de e-mail para o admin.");
+        }
+      }
+
+      toast.success("Pedido enviado para a equipe de concierge.");
+      setConciergeModalOpen(false);
+    } catch (err: any) {
+      console.error("[Buscar] Erro ao enviar solicitação de concierge:", err);
+      toast.error(err?.message || "Não foi possível enviar sua solicitação agora.");
+    } finally {
+      setIsSubmittingConcierge(false);
+    }
+  };
 
   const hasLocation = userProfile?.lat && userProfile?.lng;
 
@@ -608,15 +689,13 @@ const Buscar = () => {
               Nossa equipe de <strong>Concierge</strong> pode realizar uma busca personalizada e manual para você, 
               selecionando os melhores profissionais que ainda estão em processo de verificação.
             </p>
-            <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform" asChild>
-              <a 
-                href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(conciergeMessage)}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-              >
-                Solicitar Busca Personalizada
-                <ArrowRight className="h-5 w-5" />
-              </a>
+            <Button
+              size="lg"
+              className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform"
+              onClick={openConciergeModal}
+            >
+              Solicitar Busca Personalizada
+              <ArrowRight className="h-5 w-5" />
             </Button>
             <p className="mt-6 text-sm text-muted-foreground">
               Serviço gratuito para {userProfile?.role === 'company' ? 'empresas parceiras' : 'famílias cadastradas'}.
@@ -630,6 +709,120 @@ const Buscar = () => {
         onClose={() => setSelectedProfessional(null)} 
         specialties={specialties}
       />
+
+      <Dialog open={conciergeModalOpen} onOpenChange={setConciergeModalOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Solicitar Busca com Concierge</DialogTitle>
+            <DialogDescription>
+              Preencha os dados abaixo para nossa equipe realizar uma busca personalizada.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Especialidade</Label>
+                <Select value={conciergeForm.specialty || "all"} onValueChange={(v) => setConciergeForm(prev => ({ ...prev, specialty: v === "all" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Não especificar</SelectItem>
+                    {specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Urgência</Label>
+                <Select value={conciergeForm.urgency} onValueChange={(v) => setConciergeForm(prev => ({ ...prev, urgency: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {urgencyOptions.map(option => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-2 md:col-span-2">
+                <Label>Cidade</Label>
+                <Input value={conciergeForm.city} onChange={(e) => setConciergeForm(prev => ({ ...prev, city: e.target.value }))} placeholder="Ex: São Paulo" />
+              </div>
+              <div className="grid gap-2">
+                <Label>UF</Label>
+                <Select value={conciergeForm.state || "all"} onValueChange={(v) => setConciergeForm(prev => ({ ...prev, state: v === "all" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Não especificar</SelectItem>
+                    {states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-2">
+                <Label>Bairro</Label>
+                <Input value={conciergeForm.neighborhood} onChange={(e) => setConciergeForm(prev => ({ ...prev, neighborhood: e.target.value }))} placeholder="Opcional" />
+              </div>
+              <div className="grid gap-2">
+                <Label>Disponibilidade</Label>
+                <Select value={conciergeForm.availability || "all"} onValueChange={(v) => setConciergeForm(prev => ({ ...prev, availability: v === "all" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Não especificar" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Não especificar</SelectItem>
+                    {availabilityOptions.map(option => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Público-alvo</Label>
+                <Select value={conciergeForm.patient_profile || "all"} onValueChange={(v) => setConciergeForm(prev => ({ ...prev, patient_profile: v === "all" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Não especificar" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Não especificar</SelectItem>
+                    {patientProfileOptions.map(option => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Valor/Hora máximo (R$)</Label>
+              <Input
+                type="number"
+                min="1"
+                placeholder="Ex: 120"
+                value={conciergeForm.max_hourly_rate}
+                onChange={(e) => setConciergeForm(prev => ({ ...prev, max_hourly_rate: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Descreva a necessidade *</Label>
+              <Textarea
+                rows={5}
+                placeholder="Ex: Preciso de profissional para início imediato, 5 dias por semana, atendimento domiciliar..."
+                value={conciergeForm.details}
+                onChange={(e) => setConciergeForm(prev => ({ ...prev, details: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConciergeModalOpen(false)} disabled={isSubmittingConcierge}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmitConciergeRequest} disabled={isSubmittingConcierge}>
+              {isSubmittingConcierge ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Enviar para Concierge
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

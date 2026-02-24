@@ -25,6 +25,7 @@ import AccessRestricted from "@/components/AccessRestricted";
 import { subDays } from "date-fns";
 import { calculateDistance } from "@/lib/geo-utils";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const getInitialSpecialtyFromUrl = () => {
   const value = new URLSearchParams(window.location.search).get("specialty");
@@ -42,6 +43,13 @@ const Buscar = () => {
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [searchTrigger, setSearchTrigger] = useState(0);
   const [mapRefitTrigger, setMapRefitTrigger] = useState(0); // NEW: Trigger for map refit
+  const [companyPatientLocations, setCompanyPatientLocations] = useState<Array<{
+    id: string;
+    lat: number;
+    lng: number;
+    label: string;
+    zip?: string;
+  }>>([]);
   
   const [filters, setFilters] = useState({
     specialty: getInitialSpecialtyFromUrl(),
@@ -74,6 +82,89 @@ const Buscar = () => {
     };
     fetchMyProfile();
   }, [user]);
+
+  useEffect(() => {
+    const geocodeZipWithCache = async (zipRaw?: string | null) => {
+      const zip = (zipRaw || "").replace(/\D/g, "");
+      if (zip.length !== 8) return null;
+
+      const cacheKey = `hcm:zip-geocode:${zip}`;
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          const lat = Number(parsed?.lat);
+          const lng = Number(parsed?.lng);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            return { lat, lng };
+          }
+        }
+      } catch {
+        // Ignore cache parse errors and continue with geocoding
+      }
+
+      const { data, error } = await supabase.functions.invoke("geocode-address", {
+        body: { address: `${zip}, Brasil` }
+      });
+
+      if (error || !data?.lat || !data?.lng) return null;
+
+      const coords = { lat: Number(data.lat), lng: Number(data.lng) };
+      localStorage.setItem(cacheKey, JSON.stringify(coords));
+      return coords;
+    };
+
+    const fetchCompanyPatientLocations = async () => {
+      if (!user || userProfile?.role !== "company" || !isMapExpanded) {
+        setCompanyPatientLocations([]);
+        return;
+      }
+
+      try {
+        const { data: patients, error } = await supabase
+          .from("company_patients")
+          .select("id, patient_name, patient_zip")
+          .eq("company_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        let rateLimited = false;
+        const points: Array<{ id: string; lat: number; lng: number; label: string; zip?: string }> = [];
+
+        for (const patient of patients || []) {
+          const zip = (patient.patient_zip || "").replace(/\D/g, "");
+          if (zip.length !== 8) continue;
+
+          const coords = await geocodeZipWithCache(zip);
+          if (!coords) {
+            rateLimited = true;
+            continue;
+          }
+
+          points.push({
+            id: patient.id,
+            lat: coords.lat,
+            lng: coords.lng,
+            label: patient.patient_name?.trim() || `Paciente ${patient.id.slice(0, 4).toUpperCase()}`,
+            zip,
+          });
+        }
+
+        setCompanyPatientLocations(points);
+        setMapRefitTrigger((prev) => prev + 1);
+
+        if (rateLimited && points.length === 0) {
+          toast.warning("Não foi possível localizar alguns CEPs de pacientes no momento.");
+        }
+      } catch (err) {
+        console.error("[Buscar] Erro ao carregar localizações dos pacientes:", err);
+        setCompanyPatientLocations([]);
+      }
+    };
+
+    fetchCompanyPatientLocations();
+  }, [user?.id, userProfile?.role, isMapExpanded]);
 
   useEffect(() => {
     const fetchProfessionals = async () => {
@@ -461,6 +552,7 @@ const Buscar = () => {
               <ProfessionalMap 
                 userLocation={hasLocation ? { lat: Number(userProfile.lat), lng: Number(userProfile.lng) } : null}
                 professionals={allProfessionals} // Pass allProfessionals to the map for initial fitting
+                patientLocations={companyPatientLocations}
                 onProfessionalClick={setSelectedProfessional}
                 onBoundsChange={setMapBounds}
                 refitTrigger={mapRefitTrigger} // Pass the new trigger

@@ -8,6 +8,13 @@ import { useSiteConfig } from '@/hooks/use-site-config';
 interface ProfessionalMapProps {
   userLocation: { lat: number; lng: number } | null;
   professionals: any[];
+  patientLocations?: Array<{
+    id: string;
+    lat: number;
+    lng: number;
+    label?: string;
+    zip?: string;
+  }>;
   onProfessionalClick: (professional: any) => void;
   onBoundsChange?: (bounds: google.maps.LatLngBounds | null) => void;
   refitTrigger: number; // NEW: Prop to trigger refitting
@@ -18,7 +25,14 @@ const mapContainerStyle = {
   height: '450px',
 };
 
-const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onBoundsChange, refitTrigger }: ProfessionalMapProps) => {
+const ProfessionalMap = ({
+  userLocation,
+  professionals,
+  patientLocations = [],
+  onProfessionalClick,
+  onBoundsChange,
+  refitTrigger
+}: ProfessionalMapProps) => {
   const { data: config } = useSiteConfig();
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const mapRef = useRef<google.maps.Map | null>(null); // Use a ref for the map instance
@@ -40,8 +54,11 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
     if (professionals.length > 0 && professionals[0].lat && professionals[0].lng) {
       return { lat: Number(professionals[0].lat), lng: Number(professionals[0].lng) };
     }
+    if (patientLocations.length > 0) {
+      return { lat: Number(patientLocations[0].lat), lng: Number(patientLocations[0].lng) };
+    }
     return defaultCenter;
-  }, [userLocation, professionals, defaultCenter]);
+  }, [userLocation, professionals, patientLocations, defaultCenter]);
 
   const onLoad = useCallback((mapInstance: google.maps.Map) => {
     setMap(mapInstance);
@@ -63,7 +80,12 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
 
   // Effect to fit all markers when professionals list changes or refitTrigger is incremented
   useEffect(() => {
-    if (!mapRef.current || typeof google === 'undefined' || professionals.length === 0) return;
+    if (!mapRef.current || typeof google === 'undefined') return;
+
+    const validProfessionalPoints = professionals.filter((p) => p.lat && p.lng);
+    const validPatientPoints = patientLocations.filter((p) => p.lat && p.lng);
+    const totalPointsCount = (userLocation ? 1 : 0) + validProfessionalPoints.length + validPatientPoints.length;
+    if (totalPointsCount === 0) return;
 
     // Only run if refitTrigger has changed or it's the initial fit
     if (refitTrigger !== prevRefitTrigger.current || !initialFitDone.current) {
@@ -75,17 +97,22 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
         hasValidPoints = true;
       }
 
-      professionals.forEach(p => {
+      validProfessionalPoints.forEach(p => {
         if (p.lat && p.lng) {
           bounds.extend({ lat: Number(p.lat), lng: Number(p.lng) });
           hasValidPoints = true;
         }
       });
 
+      validPatientPoints.forEach((patient) => {
+        bounds.extend({ lat: Number(patient.lat), lng: Number(patient.lng) });
+        hasValidPoints = true;
+      });
+
       if (hasValidPoints) {
         mapRef.current.fitBounds(bounds);
         // Avoid excessive zoom if there's only one point
-        if (professionals.length === 1 && !userLocation) {
+        if (totalPointsCount === 1) {
           const listener = google.maps.event.addListener(mapRef.current, 'idle', () => {
             mapRef.current?.setZoom(12);
             google.maps.event.removeListener(listener);
@@ -95,7 +122,7 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
       }
       prevRefitTrigger.current = refitTrigger; // Update the ref
     }
-  }, [mapRef.current, professionals, userLocation, refitTrigger]); // Keep all dependencies for correctness
+  }, [mapRef.current, professionals, patientLocations, userLocation, refitTrigger]); // Keep all dependencies for correctness
 
   if (loadError) {
     return (
@@ -181,6 +208,17 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
             />
           );
         })}
+
+        {patientLocations.map((patient) => (
+          <MarkerF
+            key={`patient-${patient.id}`}
+            position={{ lat: Number(patient.lat), lng: Number(patient.lng) }}
+            icon={{
+              url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+            }}
+            title={`${patient.label || "Paciente"}${patient.zip ? ` (CEP ${patient.zip})` : ""}`}
+          />
+        ))}
       </GoogleMap>
       
       <div className="bg-card p-3 border-t flex items-center justify-center gap-6 text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
@@ -196,6 +234,12 @@ const ProfessionalMap = ({ userLocation, professionals, onProfessionalClick, onB
           <div className="w-3 h-3 rounded-full bg-red-500" />
           <span>Profissional</span>
         </div>
+        {patientLocations.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <span>Paciente (CEP)</span>
+          </div>
+        )}
       </div>
     </div>
   );

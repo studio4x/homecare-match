@@ -140,6 +140,15 @@ export const features = [
       feature_key: "contato-direto-via-whatsapp"
     },
     {
+      title: "Cadastro de Pacientes para Empresas",
+      description: "Permite cadastrar e organizar pacientes atendidos para facilitar a contratação alinhada ao perfil de cuidado.",
+      icon: Users,
+      profiles: ["company"],
+      color: "text-sky-600",
+      bg: "bg-sky-50",
+      feature_key: "cadastro-de-pacientes-para-empresas"
+    },
+    {
       title: "Gestão de Contatos",
       description: "Histórico centralizado de todos os profissionais ou recrutadores contatados.",
       icon: LayoutGrid,

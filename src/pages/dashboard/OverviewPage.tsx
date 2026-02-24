@@ -34,7 +34,7 @@ import {
   Ticket,
   Gift,
   PlayCircle,
-  Users // Adicionado Users aqui
+  Users 
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -61,9 +61,8 @@ const OverviewPage = () => {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
   const [isSavingOnboardingPref, setIsSavingOnboardingPref] = useState(false);
-  const [companyPatients, setCompanyPatients] = useState<any[]>([]); // State for company patients
+  const [companyPatients, setCompanyPatients] = useState<any[]>([]);
 
-  // Busca detalhes do plano anual para o tooltip
   const { data: annualPlan } = useQuery({
     queryKey: ["annual-plan-details"],
     queryFn: async () => {
@@ -98,19 +97,18 @@ const OverviewPage = () => {
         if (stats) setReferralStats(stats);
       }
 
-      // Fetch company patients if role is 'company'
       if (data.role === 'company') {
         const { data: patientsData, error: patientsError } = await supabase
           .from('company_patients')
           .select('*')
           .eq('company_id', user.id)
-          .eq('is_visible', true) // Only fetch visible patients
+          .eq('is_visible', true)
           .order('created_at', { ascending: false });
         
         if (patientsError) throw patientsError;
         setCompanyPatients(patientsData || []);
       } else {
-        setCompanyPatients([]); // Clear patients if not a company
+        setCompanyPatients([]);
       }
 
       if (showToast) toast.success("Dados atualizados!");
@@ -370,8 +368,8 @@ const OverviewPage = () => {
   const completeness = getProfileCompleteness();
   const trial = getTrialInfo();
   const isProfessional = profile?.role === 'professional';
-  const isCompany = profile?.role === 'company'; // Check if user is a company
-  const isFamily = profile?.role === 'family'; // Check if user is a family
+  const isCompany = profile?.role === 'company';
+  const isFamily = profile?.role === 'family';
   const isAdmin = profile?.is_admin || profile?.role === 'admin';
   const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
   
@@ -527,9 +525,7 @@ const OverviewPage = () => {
         )}
 
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Coluna da Esquerda */}
           <div className="space-y-6">
-            {/* Gerenciar Assinatura (Apenas Profissional) */}
             {isProfessional && (
               <Card className="border-amber-400/30 shadow-md">
                 <CardHeader className="pb-3">
@@ -676,7 +672,6 @@ const OverviewPage = () => {
               </Card>
             )}
 
-            {/* Nível de Indicação (Apenas para Profissionais) */}
             {isProfessional && referralStats && (
               <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
                 <CardHeader className="pb-3">
@@ -724,7 +719,6 @@ const OverviewPage = () => {
               </Card>
             )}
 
-            {/* Busca de Profissionais (Movido para Esquerda para Não-Profissionais) */}
             {(!isProfessional && !isCompany && !isFamily) && (
               <Card className="h-fit">
                 <CardHeader>
@@ -739,36 +733,46 @@ const OverviewPage = () => {
               </Card>
             )}
 
-            {/* Patient Info Card for Company and Family */}
             {(isCompany || isFamily) && companyPatients.length > 0 && (
               <div className="space-y-6">
-                <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  {isCompany ? 'Pacientes da Empresa' : 'Informações do Familiar'}
-                </h2>
-                {companyPatients.map((patient) => (
-                  <PatientInfoCard key={patient.id} patient={patient} viewerRole={profile.role} />
-                ))}
-                {isCompany && (
-                  <Button asChild variant="link" size="sm" className="w-full mt-2 text-primary h-auto p-0">
-                    <Link to="/dashboard/pacientes" className="gap-1">
-                      Gerenciar todos os pacientes <ArrowRight className="h-3 w-3" />
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    {isCompany ? 'Pacientes Recentes' : 'Informações do Familiar'}
+                  </h2>
+                  {isCompany && companyPatients.length > 2 && (
+                    <Button asChild variant="link" size="sm" className="text-primary h-auto p-0">
+                      <Link to="/dashboard/pacientes" className="gap-1">
+                        Ver todos ({companyPatients.length}) <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+                
+                {/* Exibe apenas os 2 primeiros pacientes para não poluir o layout */}
+                <div className="space-y-4">
+                  {companyPatients.slice(0, 2).map((patient) => (
+                    <PatientInfoCard key={patient.id} patient={patient} viewerRole={profile.role} />
+                  ))}
+                </div>
+
+                {isCompany && companyPatients.length > 2 && (
+                  <Button asChild variant="outline" className="w-full gap-2">
+                    <Link to="/dashboard/pacientes">
+                      Gerenciar todos os pacientes
+                      <ArrowRight className="h-4 w-4" />
                     </Link>
                   </Button>
                 )}
               </div>
             )}
 
-            {/* Acesso Rápido (Movido para Esquerda para Não-Profissionais) */}
             {(!isProfessional && !isCompany && !isFamily) && QuickAccessCard}
           </div>
 
-          {/* Coluna da Direita */}
           <div className="space-y-6">
-            {/* Acesso Rápido (Mantido na Direita para Profissionais) */}
             {isProfessional && QuickAccessCard}
 
-            {/* Busca de Profissionais (Movido para Direita para Profissionais) */}
             {isProfessional && (
               <Card className="h-fit">
                 <CardHeader>

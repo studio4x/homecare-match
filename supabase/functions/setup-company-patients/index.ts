@@ -22,7 +22,7 @@ serve(async (req) => {
       CREATE TABLE IF NOT EXISTS public.company_patients (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         company_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-        patient_name TEXT, -- Changed from NOT NULL to optional
+        patient_name TEXT,
         patient_age INTEGER,
         patient_medical_conditions TEXT,
         patient_mobility_level TEXT[],
@@ -31,11 +31,23 @@ serve(async (req) => {
         patient_communication_skills TEXT[],
         is_visible BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        patient_zip TEXT, -- New field
+        patient_specialties TEXT[], -- New field
+        patient_period TEXT[], -- New field
+        patient_repass_value NUMERIC, -- New field
+        patient_days_per_week INTEGER -- New field
       );
 
       -- Ensure patient_name is NOT NULL if it was previously created as such
       ALTER TABLE public.company_patients ALTER COLUMN patient_name DROP NOT NULL;
+
+      -- Add new columns if they don't exist
+      ALTER TABLE public.company_patients ADD COLUMN IF NOT EXISTS patient_zip TEXT;
+      ALTER TABLE public.company_patients ADD COLUMN IF NOT EXISTS patient_specialties TEXT[];
+      ALTER TABLE public.company_patients ADD COLUMN IF NOT EXISTS patient_period TEXT[];
+      ALTER TABLE public.company_patients ADD COLUMN IF NOT EXISTS patient_repass_value NUMERIC;
+      ALTER TABLE public.company_patients ADD COLUMN IF NOT EXISTS patient_days_per_week INTEGER;
 
       ALTER TABLE public.company_patients ENABLE ROW LEVEL SECURITY;
 
@@ -58,7 +70,7 @@ serve(async (req) => {
             AND EXISTS (
               SELECT 1 FROM public.interactions i
               WHERE (i.sender_id = auth.uid() AND i.professional_id = company_patients.company_id)
-                 OR (i.professional_id = auth.uid() AND i.sender_id = company_patients.company_id)
+                 OR (i.professional_id = auth.uid() AND (SELECT role FROM public.profiles WHERE id = i.sender_id) = 'company' AND i.sender_id = company_patients.company_id)
             )
           );
         END IF;

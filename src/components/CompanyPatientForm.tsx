@@ -30,6 +30,10 @@ import {
   Eye,
   EyeOff,
   Calendar,
+  MapPin, // New import
+  DollarSign, // New import
+  Clock, // New import
+  Users // New import for specialties
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,7 +65,32 @@ const communicationSkillsOptions = [
   "Verbal",
   "Não-Verbal",
   "Com Dificuldade",
-  "Prancha de Comunicação",
+  "Prancha de Comunão",
+];
+
+const specialtiesOptions = [ // Re-using specialties from other parts of the app
+  { value: "assistente-social", label: "Assistente Social" },
+  { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
+  { value: "dentista", label: "Dentista" },
+  { value: "enfermeiro", label: "Enfermeiro(a)" },
+  { value: "farmaceutico", label: "Farmacêutico(a)" },
+  { value: "fisioterapeuta", label: "Fisioterapeuta" },
+  { value: "fonoaudiologo", label: "Fonoaudiólogo(a)" },
+  { value: "medico-clinico", label: "Médico(a) - Clínico Geral / Geriatra" },
+  { value: "nutricionista", label: "Nutricionista" },
+  { value: "psicologo", label: "Psicólogo(a)" },
+  { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
+  { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
+];
+
+const periodOptions = [
+  "Manhã (06h-12h)",
+  "Tarde (12h-18h)",
+  "Noite (18h-00h)",
+  "Madrugada (00h-06h)",
+  "Plantão 12h (Diurno)",
+  "Plantão 12h (Noturno)",
+  "Plantão 24h",
 ];
 
 const formSchema = z.object({
@@ -77,6 +106,17 @@ const formSchema = z.object({
   patient_special_equipment: z.array(z.string()).default([]),
   patient_communication_skills: z.array(z.string()).default([]),
   is_visible: z.boolean().default(true),
+  patient_zip: z.string().optional(), // New field
+  patient_specialties: z.array(z.string()).default([]), // New field
+  patient_period: z.array(z.string()).default([]), // New field
+  patient_repass_value: z.preprocess( // New field
+    (val) => (val === "" ? undefined : Number(val)),
+    z.number().min(0, "Valor deve ser positivo").optional()
+  ),
+  patient_days_per_week: z.preprocess( // New field
+    (val) => (val === "" ? undefined : Number(val)),
+    z.number().min(1, "Mínimo 1 dia").max(7, "Máximo 7 dias").optional()
+  ),
 });
 
 type PatientFormData = z.infer<typeof formSchema>;
@@ -103,6 +143,11 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
       patient_special_equipment: initialData?.patient_special_equipment || [],
       patient_communication_skills: initialData?.patient_communication_skills || [],
       is_visible: initialData?.is_visible ?? true,
+      patient_zip: initialData?.patient_zip || "", // New field
+      patient_specialties: initialData?.patient_specialties || [], // New field
+      patient_period: initialData?.patient_period || [], // New field
+      patient_repass_value: initialData?.patient_repass_value || undefined, // New field
+      patient_days_per_week: initialData?.patient_days_per_week || undefined, // New field
     },
   });
 
@@ -124,6 +169,11 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
         patient_special_equipment: data.patient_special_equipment,
         patient_communication_skills: data.patient_communication_skills,
         is_visible: data.is_visible,
+        patient_zip: data.patient_zip || null, // New field
+        patient_specialties: data.patient_specialties, // New field
+        patient_period: data.patient_period, // New field
+        patient_repass_value: data.patient_repass_value || null, // New field
+        patient_days_per_week: data.patient_days_per_week || null, // New field
       };
 
       if (data.id) {
@@ -164,6 +214,22 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
               </FormLabel>
               <FormControl>
                 <Input placeholder="Ex: Paciente-001, Maria Silva" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="patient_zip"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" /> CEP do Paciente
+              </FormLabel>
+              <FormControl>
+                <Input placeholder="Ex: 00000-000" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -357,6 +423,116 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
                   />
                 ))}
               </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="patient_specialties"
+          render={() => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" /> Especialidades Necessárias
+              </FormLabel>
+              <div className="grid grid-cols-2 gap-2">
+                {specialtiesOptions.map((option) => (
+                  <FormField
+                    key={option.value}
+                    control={form.control}
+                    name="patient_specialties"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value?.includes(option.value)}
+                            onCheckedChange={(checked) => {
+                              return checked
+                                ? field.onChange([...field.value, option.value])
+                                : field.onChange(
+                                    field.value?.filter((value) => value !== option.value)
+                                  );
+                            }}
+                          />
+                        </FormControl>
+                        <FormLabel className="font-normal">{option.label}</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="patient_period"
+          render={() => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" /> Período Necessário
+              </FormLabel>
+              <div className="grid grid-cols-2 gap-2">
+                {periodOptions.map((option) => (
+                  <FormField
+                    key={option}
+                    control={form.control}
+                    name="patient_period"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value?.includes(option)}
+                            onCheckedChange={(checked) => {
+                              return checked
+                                ? field.onChange([...field.value, option])
+                                : field.onChange(
+                                    field.value?.filter((value) => value !== option)
+                                  );
+                            }}
+                          />
+                        </FormControl>
+                        <FormLabel className="font-normal">{option}</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="patient_repass_value"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-primary" /> Valor de Repasse (opcional)
+              </FormLabel>
+              <FormControl>
+                <Input type="number" placeholder="Ex: 50.00" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="patient_days_per_week"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-primary" /> Quantidade de Dias na Semana
+              </FormLabel>
+              <FormControl>
+                <Input type="number" placeholder="Ex: 5" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

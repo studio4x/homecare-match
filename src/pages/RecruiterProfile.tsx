@@ -24,7 +24,9 @@ import {
   Syringe,
   MessageSquare,
   Calendar,
-  User // Added User import
+  User,
+  DollarSign, // New import
+  Clock // New import
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -130,7 +132,7 @@ const RecruiterProfile = () => {
           {Array.isArray(value) ? (
             <div className="flex flex-wrap gap-1 mt-1">
               {value.map((item, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs">{item}</Badge>
+                <Badge key={idx} variant="secondary" className="text-xs">{item.replace(/-/g, ' ')}</Badge>
               ))}
             </div>
           ) : (
@@ -225,6 +227,11 @@ const RecruiterProfile = () => {
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                           {renderPatientDetail("Idade", patient.patient_age, Calendar)}
+                          {renderPatientDetail("CEP", patient.patient_zip, MapPin)}
+                          {renderPatientDetail("Especialidades", patient.patient_specialties, Users)}
+                          {renderPatientDetail("Período", patient.patient_period, Clock)}
+                          {renderPatientDetail("Valor Repasse", patient.patient_repass_value ? `R$ ${patient.patient_repass_value.toFixed(2).replace('.', ',')}` : undefined, DollarSign)}
+                          {renderPatientDetail("Dias/Semana", patient.patient_days_per_week, Calendar)}
                           {renderPatientDetail("Condições Médicas", patient.patient_medical_conditions, HeartPulse)}
                           {renderPatientDetail("Mobilidade", patient.patient_mobility_level, Footprints)}
                           {renderPatientDetail("Estado Cognitivo", patient.patient_cognitive_state, Brain)}

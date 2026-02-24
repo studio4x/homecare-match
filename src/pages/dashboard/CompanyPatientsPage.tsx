@@ -42,6 +42,9 @@ import {
   Calendar,
   HeartPulse,
   ShieldAlert,
+  MapPin, // New import
+  DollarSign, // New import
+  Clock // New import
 } from "lucide-react";
 import { toast } from "sonner";
 import CompanyPatientForm from "@/components/CompanyPatientForm";
@@ -51,7 +54,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface Patient {
   id: string;
-  patient_name?: string; // Changed to optional
+  patient_name?: string;
   patient_age?: number;
   patient_medical_conditions?: string;
   patient_mobility_level?: string[];
@@ -61,6 +64,11 @@ interface Patient {
   is_visible: boolean;
   created_at: string;
   updated_at: string;
+  patient_zip?: string; // New field
+  patient_specialties?: string[]; // New field
+  patient_period?: string[]; // New field
+  patient_repass_value?: number; // New field
+  patient_days_per_week?: number; // New field
 }
 
 const CompanyPatientsPage = () => {
@@ -202,9 +210,10 @@ const CompanyPatientsPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID/Código do Paciente</TableHead> {/* Updated TableHead */}
+                  <TableHead>ID/Código do Paciente</TableHead>
                   <TableHead>Idade</TableHead>
-                  <TableHead>Condições Médicas</TableHead>
+                  <TableHead>Especialidades</TableHead> {/* New TableHead */}
+                  <TableHead>Período</TableHead> {/* New TableHead */}
                   <TableHead>Visibilidade</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -212,10 +221,21 @@ const CompanyPatientsPage = () => {
               <TableBody>
                 {patients.map((patient) => (
                   <TableRow key={patient.id}>
-                    <TableCell className="font-medium">{patient.patient_name || 'N/A'}</TableCell> {/* Display N/A if empty */}
+                    <TableCell className="font-medium">{patient.patient_name || 'N/A'}</TableCell>
                     <TableCell>{patient.patient_age || 'N/A'}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">
-                      {patient.patient_medical_conditions || 'N/A'}
+                    <TableCell className="max-w-[150px] truncate"> {/* New TableCell */}
+                      {patient.patient_specialties && patient.patient_specialties.length > 0 ? (
+                        patient.patient_specialties.map((s, idx) => (
+                          <Badge key={idx} variant="secondary" className="mr-1 mb-1 text-xs">{s.replace(/-/g, ' ')}</Badge>
+                        ))
+                      ) : 'N/A'}
+                    </TableCell>
+                    <TableCell className="max-w-[150px] truncate"> {/* New TableCell */}
+                      {patient.patient_period && patient.patient_period.length > 0 ? (
+                        patient.patient_period.map((p, idx) => (
+                          <Badge key={idx} variant="outline" className="mr-1 mb-1 text-xs">{p}</Badge>
+                        ))
+                      ) : 'N/A'}
                     </TableCell>
                     <TableCell>
                       {patient.is_visible ? (

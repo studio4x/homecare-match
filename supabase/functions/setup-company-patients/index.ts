@@ -22,7 +22,7 @@ serve(async (req) => {
       CREATE TABLE IF NOT EXISTS public.company_patients (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         company_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-        patient_name TEXT NOT NULL,
+        patient_name TEXT, -- Changed from NOT NULL to optional
         patient_age INTEGER,
         patient_medical_conditions TEXT,
         patient_mobility_level TEXT[],
@@ -33,6 +33,9 @@ serve(async (req) => {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      -- Ensure patient_name is NOT NULL if it was previously created as such
+      ALTER TABLE public.company_patients ALTER COLUMN patient_name DROP NOT NULL;
 
       ALTER TABLE public.company_patients ENABLE ROW LEVEL SECURITY;
 

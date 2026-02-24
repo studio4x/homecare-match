@@ -221,7 +221,7 @@ const RecruiterProfile = () => {
                       <div key={patient.id} className="border rounded-lg p-4 space-y-3 bg-secondary/10">
                         <div className="flex items-center gap-3">
                           <User className="h-5 w-5 text-primary" />
-                          <h4 className="font-bold text-lg">{patient.patient_name}</h4>
+                          <h4 className="font-bold text-lg">{patient.patient_name || 'ID/Código não informado'}</h4>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                           {renderPatientDetail("Idade", patient.patient_age, Calendar)}

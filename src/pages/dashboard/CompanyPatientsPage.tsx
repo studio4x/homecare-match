@@ -51,7 +51,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface Patient {
   id: string;
-  patient_name: string;
+  patient_name?: string; // Changed to optional
   patient_age?: number;
   patient_medical_conditions?: string;
   patient_mobility_level?: string[];
@@ -202,7 +202,7 @@ const CompanyPatientsPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome do Paciente</TableHead>
+                  <TableHead>ID/Código do Paciente</TableHead> {/* Updated TableHead */}
                   <TableHead>Idade</TableHead>
                   <TableHead>Condições Médicas</TableHead>
                   <TableHead>Visibilidade</TableHead>
@@ -212,7 +212,7 @@ const CompanyPatientsPage = () => {
               <TableBody>
                 {patients.map((patient) => (
                   <TableRow key={patient.id}>
-                    <TableCell className="font-medium">{patient.patient_name}</TableCell>
+                    <TableCell className="font-medium">{patient.patient_name || 'N/A'}</TableCell> {/* Display N/A if empty */}
                     <TableCell>{patient.patient_age || 'N/A'}</TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {patient.patient_medical_conditions || 'N/A'}
@@ -281,7 +281,7 @@ const CompanyPatientsPage = () => {
               Excluir Paciente
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem certeza que deseja excluir o paciente <strong>"{patientToDelete?.patient_name}"</strong>?
+              Você tem certeza que deseja excluir o paciente <strong>"{patientToDelete?.patient_name || 'selecionado'}"</strong>?
               Esta ação é irreversível e removerá todos os dados deste paciente.
             </AlertDialogDescription>
           </AlertDialogHeader>

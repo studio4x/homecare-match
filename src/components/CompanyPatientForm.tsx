@@ -66,7 +66,7 @@ const communicationSkillsOptions = [
 
 const formSchema = z.object({
   id: z.string().optional(), // For editing existing patients
-  patient_name: z.string().min(1, "Nome do paciente é obrigatório"),
+  patient_name: z.string().optional(), // Changed to optional
   patient_age: z.preprocess(
     (val) => (val === "" ? undefined : Number(val)),
     z.number().min(0, "Idade deve ser um número positivo").optional()
@@ -116,7 +116,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
     try {
       const payload = {
         company_id: user.id,
-        patient_name: data.patient_name,
+        patient_name: data.patient_name || null, // Ensure null if empty
         patient_age: data.patient_age || null,
         patient_medical_conditions: data.patient_medical_conditions || null,
         patient_mobility_level: data.patient_mobility_level,
@@ -160,10 +160,10 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <User className="h-4 w-4 text-primary" /> Nome do Paciente *
+                <User className="h-4 w-4 text-primary" /> ID/Código do Paciente* (opcional)
               </FormLabel>
               <FormControl>
-                <Input placeholder="Ex: João Silva" {...field} />
+                <Input placeholder="Ex: Paciente-001, Maria Silva" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

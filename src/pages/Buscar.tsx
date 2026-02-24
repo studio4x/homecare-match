@@ -95,8 +95,8 @@ const Buscar = () => {
 
       const trialLimitDate = subDays(new Date(), 30).toISOString();
 
-      // ALTERAÇÃO DE SEGURANÇA: Agora consultamos a VIEW 'professional_discovery'
-      // Esta view não contém campos sensíveis como telefone ou endereço exato.
+      // ALTERAÇÃO DE SEGURANÇA: consultamos a VIEW 'professional_discovery',
+      // que não contém campos sensíveis como telefone ou endereço exato.
       let query = supabase
         .from("professional_discovery")
         .select("*")
@@ -107,9 +107,6 @@ const Buscar = () => {
       if (filters.city) query = query.ilike("city", `%${filters.city}%`);
       if (filters.neighborhood) query = query.ilike("neighborhood", `%${filters.neighborhood}%`);
       if (filters.search) query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
-      
-      // Nota: Filtros de disponibilidade e valor por hora podem exigir campos extras na View se forem necessários aqui.
-      // Por enquanto, mantemos a lógica de ranking e distância.
 
       const { data, error } = await query;
       
@@ -117,7 +114,53 @@ const Buscar = () => {
         console.error("[Buscar] Erro na consulta:", error);
         setAllProfessionals([]);
       } else if (data) {
-        const professionalIds = data.map((professional) => professional.id);
+        let filteredProfessionals = [...data];
+        const hasProfileDrivenFilters = Boolean(
+          filters.availability || filters.patient_profile || filters.max_hourly_rate
+        );
+
+        if (hasProfileDrivenFilters) {
+          const professionalIds = filteredProfessionals.map((professional) => professional.id);
+          const needsProfileEnrichment = filteredProfessionals.some((professional: any) =>
+            typeof professional.availability === "undefined" ||
+            typeof professional.patient_profiles === "undefined" ||
+            typeof professional.hourly_rate === "undefined"
+          );
+
+          if (needsProfileEnrichment && professionalIds.length > 0) {
+            const { data: profileDetails, error: profileDetailsError } = await supabase
+              .from("profiles")
+              .select("id, availability, patient_profiles, hourly_rate")
+              .in("id", professionalIds);
+
+            if (profileDetailsError) {
+              console.warn("[Buscar] Não foi possível enriquecer filtros por disponibilidade/perfil/valor:", profileDetailsError);
+            } else if (profileDetails) {
+              const profileDetailsMap = new Map(profileDetails.map((row: any) => [row.id, row]));
+              filteredProfessionals = filteredProfessionals.map((professional: any) => ({
+                ...professional,
+                availability: professional.availability ?? profileDetailsMap.get(professional.id)?.availability ?? [],
+                patient_profiles: professional.patient_profiles ?? profileDetailsMap.get(professional.id)?.patient_profiles ?? [],
+                hourly_rate: professional.hourly_rate ?? profileDetailsMap.get(professional.id)?.hourly_rate ?? null,
+              }));
+            }
+          }
+
+          const maxHourlyRate = filters.max_hourly_rate ? Number(filters.max_hourly_rate) : null;
+          filteredProfessionals = filteredProfessionals.filter((professional: any) => {
+            const availability = Array.isArray(professional.availability) ? professional.availability : [];
+            const patientProfiles = Array.isArray(professional.patient_profiles) ? professional.patient_profiles : [];
+            const hourlyRate = Number(professional.hourly_rate);
+
+            const matchesAvailability = !filters.availability || availability.includes(filters.availability);
+            const matchesPatientProfile = !filters.patient_profile || patientProfiles.includes(filters.patient_profile);
+            const matchesHourlyRate = !maxHourlyRate || (Number.isFinite(hourlyRate) && hourlyRate <= maxHourlyRate);
+
+            return matchesAvailability && matchesPatientProfile && matchesHourlyRate;
+          });
+        }
+
+        const professionalIds = filteredProfessionals.map((professional) => professional.id);
         const completedCoursesMap: Record<string, number> = {};
 
         if (professionalIds.length > 0) {
@@ -135,7 +178,7 @@ const Buscar = () => {
           }
         }
 
-        const processed = data.map(p => {
+        const processed = filteredProfessionals.map(p => {
           const dist = (userProfile.lat && userProfile.lng && p.lat && p.lng)
             ? calculateDistance(Number(userProfile.lat), Number(userProfile.lng), Number(p.lat), Number(p.lng))
             : 9999;
@@ -242,6 +285,7 @@ const Buscar = () => {
   const availabilityOptions = [
     "Período da Manhã", "Período da Tarde", "Período da Noite",
     "Dia Integral (Diurno)", "Plantão 12h (Noturno)", "Finais de Semana",
+    "1h de atendimento", "2h de atendimento", "3h de atendimento",
   ];
 
   const patientProfileOptions = [
@@ -371,6 +415,40 @@ const Buscar = () => {
                 <div className="grid gap-2">
                   <Label>Bairro</Label>
                   <Input placeholder="Digite o bairro..." value={filters.neighborhood} onChange={(e) => setFilters({...filters, neighborhood: e.target.value})} />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Disponibilidade</Label>
+                  <Select value={filters.availability || "all"} onValueChange={(v) => setFilters({...filters, availability: v === "all" ? "" : v})}>
+                    <SelectTrigger><SelectValue placeholder="Todos os períodos" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os períodos</SelectItem>
+                      {availabilityOptions.map(option => (
+                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Público-alvo</Label>
+                  <Select value={filters.patient_profile || "all"} onValueChange={(v) => setFilters({...filters, patient_profile: v === "all" ? "" : v})}>
+                    <SelectTrigger><SelectValue placeholder="Todos os públicos" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os públicos</SelectItem>
+                      {patientProfileOptions.map(option => (
+                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Valor/Hora até (R$)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Ex: 120"
+                    value={filters.max_hourly_rate}
+                    onChange={(e) => setFilters({...filters, max_hourly_rate: e.target.value})}
+                  />
                 </div>
               </div>
             </div>

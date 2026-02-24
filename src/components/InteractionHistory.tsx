@@ -122,6 +122,8 @@ const InteractionHistory = ({
 
   const [showProfileModal, setShowProfileModal] = useState(false); // State for profile modal
   const [selectedProfileForView, setSelectedProfileForView] = useState<Interaction['profile'] | null>(null); // State for profile data in modal
+  const [modalCompanyPatients, setModalCompanyPatients] = useState<any[]>([]); // State for company patients in modal
+  const [loadingModalPatients, setLoadingModalPatients] = useState(false); // Loading state for modal patients
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -197,9 +199,31 @@ const InteractionHistory = ({
     setReviewModalOpen(true);
   };
 
-  const handleViewProfileClick = (profile: Interaction['profile']) => {
+  const handleViewProfileClick = async (profile: Interaction['profile']) => {
     setSelectedProfileForView(profile);
     setShowProfileModal(true);
+
+    if (profile.role === 'company') {
+      setLoadingModalPatients(true);
+      try {
+        const { data, error } = await supabase
+          .from('company_patients')
+          .select('*')
+          .eq('company_id', profile.id)
+          .eq('is_visible', true)
+          .order('patient_name', { ascending: true });
+        
+        if (error) throw error;
+        setModalCompanyPatients(data || []);
+      } catch (err) {
+        console.error("[InteractionHistory] Erro ao carregar pacientes da empresa para o modal:", err);
+        setModalCompanyPatients([]);
+      } finally {
+        setLoadingModalPatients(false);
+      }
+    } else {
+      setModalCompanyPatients([]);
+    }
   };
 
   const getInitials = (name: string) =>
@@ -420,6 +444,8 @@ const InteractionHistory = ({
         profile={selectedProfileForView} 
         viewerFullName={viewerFullName} // Passando viewerFullName para o modal de perfil
         viewerRole={viewerRole}
+        companyPatients={modalCompanyPatients} // Passando a lista de pacientes
+        loadingCompanyPatients={loadingModalPatients} // Passando o estado de carregamento
       />
     </>
   );

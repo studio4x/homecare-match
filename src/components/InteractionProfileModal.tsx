@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Building2, Home, Info, MessageCircle, ShieldCheck } from "lucide-react";
+import { MapPin, Building2, Home, Info, MessageCircle, ShieldCheck, Users, HeartPulse, Footprints, Brain, Syringe, MessageSquare, Calendar, User, DollarSign, Clock, Loader2 } from "lucide-react";
 import SafeHTML from './SafeHTML';
 import ReviewList from './ReviewList';
 import { cn } from '@/lib/utils';
@@ -55,15 +55,33 @@ interface ProfileData {
   ans_registration?: string;
 }
 
+interface PatientData {
+  id: string;
+  patient_name?: string;
+  patient_age?: number;
+  patient_medical_conditions?: string;
+  patient_mobility_level?: string[];
+  patient_cognitive_state?: string[];
+  patient_special_equipment?: string[];
+  patient_communication_skills?: string[];
+  patient_zip?: string;
+  patient_specialties?: string[];
+  patient_period?: string[];
+  patient_repass_value?: number;
+  patient_days_per_week?: number;
+}
+
 interface InteractionProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   profile: ProfileData | null;
   viewerFullName: string; // Name of the logged-in user (professional)
   viewerRole: 'professional' | 'company' | 'family'; // Role of the logged-in user
+  companyPatients: PatientData[]; // New prop for company patients
+  loadingCompanyPatients: boolean; // New prop for loading state
 }
 
-const InteractionProfileModal = ({ open, onOpenChange, profile, viewerFullName, viewerRole }: InteractionProfileModalProps) => {
+const InteractionProfileModal = ({ open, onOpenChange, profile, viewerFullName, viewerRole, companyPatients, loadingCompanyPatients }: InteractionProfileModalProps) => {
   if (!profile) return null;
 
   const initials = (profile.full_name || "")
@@ -103,6 +121,27 @@ const InteractionProfileModal = ({ open, onOpenChange, profile, viewerFullName, 
       // This case should ideally not happen if the button is only shown when phone exists
       console.error("Número de WhatsApp não disponível para iniciar conversa.");
     }
+  };
+
+  const renderPatientDetail = (label: string, value: string | number | string[] | undefined, Icon: any) => {
+    if (!value || (Array.isArray(value) && value.length === 0)) return null;
+    return (
+      <div className="flex items-center gap-3">
+        <Icon className="h-5 w-5 text-primary shrink-0" />
+        <div>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase">{label}</p>
+          {Array.isArray(value) ? (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {value.map((item, idx) => (
+                <Badge key={idx} variant="secondary" className="text-xs">{item.replace(/-/g, ' ')}</Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="font-semibold text-sm">{value}</p>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -172,6 +211,45 @@ const InteractionProfileModal = ({ open, onOpenChange, profile, viewerFullName, 
                 Registro ANS
               </h3>
               <p className="text-muted-foreground">{profile.ans_registration}</p>
+            </section>
+          )}
+
+          {isCompany && (
+            <section>
+              <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" /> Pacientes da Empresa
+              </h3>
+              {loadingCompanyPatients ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : companyPatients.length > 0 ? (
+                <div className="space-y-6">
+                  {companyPatients.map((patient) => (
+                    <div key={patient.id} className="border rounded-lg p-4 space-y-3 bg-secondary/10">
+                      <div className="flex items-center gap-3">
+                        <User className="h-5 w-5 text-primary" />
+                        <h4 className="font-bold text-lg">{patient.patient_name || 'ID/Código não informado'}</h4>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        {renderPatientDetail("Idade", patient.patient_age, Calendar)}
+                        {renderPatientDetail("CEP", patient.patient_zip, MapPin)}
+                        {renderPatientDetail("Especialidades", patient.patient_specialties, Users)}
+                        {renderPatientDetail("Período", patient.patient_period, Clock)}
+                        {renderPatientDetail("Valor Repasse", patient.patient_repass_value ? `R$ ${patient.patient_repass_value.toFixed(2).replace('.', ',')}` : undefined, DollarSign)}
+                        {renderPatientDetail("Dias/Semana", patient.patient_days_per_week, Calendar)}
+                        {renderPatientDetail("Condições Médicas", patient.patient_medical_conditions, HeartPulse)}
+                        {renderPatientDetail("Mobilidade", patient.patient_mobility_level, Footprints)}
+                        {renderPatientDetail("Estado Cognitivo", patient.patient_cognitive_state, Brain)}
+                        {renderPatientDetail("Equipamentos", patient.patient_special_equipment, Syringe)}
+                        {renderPatientDetail("Comunicação", patient.patient_communication_skills, MessageSquare)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">Nenhum paciente visível cadastrado por esta empresa.</p>
+              )}
             </section>
           )}
 

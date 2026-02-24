@@ -25,6 +25,7 @@ const ValidateCertificate = () => {
     setCertificate(null);
 
     try {
+      // Alterado para .ilike para ser insensível a maiúsculas/minúsculas
       const { data, error } = await supabase
         .from("certificates")
         .select(`
@@ -32,7 +33,7 @@ const ValidateCertificate = () => {
           course:academy_courses(title),
           user:profiles(full_name)
         `)
-        .eq("validation_code", code.trim().toUpperCase())
+        .ilike("validation_code", code.trim())
         .maybeSingle();
 
       if (error) throw error;

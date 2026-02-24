@@ -107,9 +107,10 @@ serve(async (req) => {
 
     const workloadMinutes = courseData?.duration_minutes || 0;
 
-    // 4. Insert new certificate
-    // Usando a API nativa crypto.randomUUID() disponível no Deno
-    const validationCode = crypto.randomUUID();
+    // 4. Insert new certificate with a readable code
+    // Gera um código no formato HCM-XXXX-XXXX usando caracteres aleatórios
+    const randomChars = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+    const validationCode = `HCM-${randomChars()}-${randomChars()}`;
     
     const { data: newCertificate, error: insertError } = await supabaseClient
       .from('certificates')

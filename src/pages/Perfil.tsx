@@ -21,7 +21,6 @@ import {
   Loader2,
   Lock,
   UserCheck,
-  X,
   Users,
   LayoutGrid,
   DollarSign,
@@ -30,7 +29,9 @@ import {
   Info,
   ShieldCheck,
   MessageCircle,
-  AlertTriangle
+  AlertTriangle,
+  Eye,
+  X // Adicionado X aqui
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ReportModal from "@/components/ReportModal";
+import CertificateModal from "@/components/CertificateModal"; // Import CertificateModal
 
 const Perfil = () => {
   const { id } = useParams();
@@ -57,8 +59,11 @@ const Perfil = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
   const [referralStats, setReferralStats] = useState<{ count: number; currentTier?: any; nextTier?: any } | null>(null);
-  const [completedCourses, setCompletedCourses] = useState<Array<{ slug: string; title: string; hero_asset_url: string | null; workload_minutes: number }>>([]);
+  const [completedCourses, setCompletedCourses] = useState<Array<{ slug: string; title: string; hero_asset_url: string | null; workload_minutes: number; certificateId: string | null }>>([]);
   const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
+
+  const [showCertificateModal, setShowCertificateModal] = useState(false); // State for certificate modal
+  const [certificateToView, setCertificateToView] = useState<string | null>(null); // State for certificate ID to view
 
   const fetchProfile = useCallback(async () => {
     if (!id) return;
@@ -362,11 +367,26 @@ const Perfil = () => {
                     ) : completedCourses.length > 0 ? (
                       <div className="space-y-3">
                         {completedCourses.map((c) => (
-                          <div key={c.slug} className="border rounded-lg p-3 bg-card">
-                            <h4 className="font-semibold">{c.title}</h4>
-                            <p className="text-xs text-muted-foreground">
-                              Carga horária: {formatMinutes(c.workload_minutes)}
-                            </p>
+                          <div key={c.slug} className="border rounded-lg p-3 bg-card flex items-center justify-between">
+                            <div>
+                              <h4 className="font-semibold">{c.title}</h4>
+                              <p className="text-xs text-muted-foreground">
+                                Carga horária: {formatMinutes(c.workload_minutes)}
+                              </p>
+                            </div>
+                            {c.certificateId && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="gap-2"
+                                onClick={() => {
+                                  setCertificateToView(c.certificateId);
+                                  setShowCertificateModal(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" /> Ver Selo
+                              </Button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -508,6 +528,12 @@ const Perfil = () => {
       </Dialog>
 
       <ReportModal open={showReportModal} onOpenChange={setShowReportModal} reportedId={profile.id} reportedName={profile.full_name} />
+      
+      <CertificateModal 
+        open={showCertificateModal} 
+        onOpenChange={setShowCertificateModal} 
+        certificateId={certificateToView} 
+      />
     </Layout>
   );
 };

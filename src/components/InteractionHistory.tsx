@@ -67,6 +67,15 @@ interface Interaction {
     professional_experiences?: string; // Added for professional profiles
     is_verified?: boolean; // Added for professional profiles
     ans_registration?: string; // Added for company profiles
+    // Family patient fields
+    patient_name?: string;
+    patient_age?: number;
+    patient_medical_conditions?: string;
+    patient_mobility_level?: string[];
+    patient_cognitive_state?: string[];
+    patient_special_equipment?: string[];
+    patient_communication_skills?: string[];
+    availability?: string[];
   };
 }
 

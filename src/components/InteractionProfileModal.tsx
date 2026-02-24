@@ -53,6 +53,15 @@ interface ProfileData {
   professional_experiences?: string;
   is_verified?: boolean;
   ans_registration?: string;
+  // Family patient fields
+  patient_name?: string;
+  patient_age?: number;
+  patient_medical_conditions?: string;
+  patient_mobility_level?: string[];
+  patient_cognitive_state?: string[];
+  patient_special_equipment?: string[];
+  patient_communication_skills?: string[];
+  availability?: string[];
 }
 
 interface PatientData {
@@ -94,6 +103,7 @@ const InteractionProfileModal = ({ open, onOpenChange, profile, viewerFullName, 
 
   const isProfessional = profile.role === 'professional';
   const isCompany = profile.role === 'company';
+  const isFamily = profile.role === 'family';
 
   const getRoleBadge = (role: string | undefined) => {
     if (!role) return null;
@@ -250,6 +260,29 @@ const InteractionProfileModal = ({ open, onOpenChange, profile, viewerFullName, 
               ) : (
                 <p className="text-muted-foreground text-sm">Nenhum paciente visível cadastrado por esta empresa.</p>
               )}
+            </section>
+          )}
+
+          {isFamily && (
+            <section>
+              <h3 className="text-lg font-semibold border-b pb-2 mb-4 flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" /> Informações do Paciente
+              </h3>
+              <div className="border rounded-lg p-4 space-y-3 bg-secondary/10">
+                <div className="flex items-center gap-3">
+                  <User className="h-5 w-5 text-primary" />
+                  <h4 className="font-bold text-lg">{profile.patient_name || 'Nome não informado'}</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  {renderPatientDetail("Idade", profile.patient_age, Calendar)}
+                  {renderPatientDetail("Condições Médicas", profile.patient_medical_conditions, HeartPulse)}
+                  {renderPatientDetail("Mobilidade", profile.patient_mobility_level, Footprints)}
+                  {renderPatientDetail("Estado Cognitivo", profile.patient_cognitive_state, Brain)}
+                  {renderPatientDetail("Equipamentos", profile.patient_special_equipment, Syringe)}
+                  {renderPatientDetail("Comunicação", profile.patient_communication_skills, MessageSquare)}
+                  {renderPatientDetail("Horário de Atendimento", profile.availability, Clock)}
+                </div>
+              </div>
             </section>
           )}
 

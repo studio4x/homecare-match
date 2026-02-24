@@ -45,7 +45,7 @@ const InteractionsPage = () => {
     else setIsRefreshing(true); // Set refreshing state for silent calls
 
     try {
-      const profileFields = 'id, full_name, avatar_url, specialty, role, phone, bio, city, state, neighborhood';
+      const profileFields = 'id, full_name, avatar_url, specialty, role, phone, bio, city, state, neighborhood, ans_registration, patient_name, patient_age, patient_medical_conditions, patient_mobility_level, patient_cognitive_state, patient_special_equipment, patient_communication_skills, availability';
       const isProf = userRole === 'professional';
       const targetRelation = isProf ? 'interactions_sender_id_fkey' : 'interactions_professional_id_fkey';
       const myColumn = isProf ? 'professional_id' : 'sender_id';

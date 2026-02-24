@@ -39,6 +39,39 @@ const ProfessionalMap = ({
   const initialFitDone = useRef(false); // Track if initial fit has been done
   const prevRefitTrigger = useRef(0); // Store previous refitTrigger value
 
+  const fitMapToVisiblePoints = useCallback((mapInstance: google.maps.Map) => {
+    if (typeof google === "undefined") return;
+
+    const validProfessionalPoints = professionals.filter((p) => p.lat && p.lng);
+    const validPatientPoints = patientLocations.filter((p) => p.lat && p.lng);
+    const totalPointsCount = (userLocation ? 1 : 0) + validProfessionalPoints.length + validPatientPoints.length;
+    if (totalPointsCount === 0) return;
+
+    const bounds = new google.maps.LatLngBounds();
+
+    if (userLocation) {
+      bounds.extend(userLocation);
+    }
+
+    validProfessionalPoints.forEach((p) => {
+      bounds.extend({ lat: Number(p.lat), lng: Number(p.lng) });
+    });
+
+    validPatientPoints.forEach((patient) => {
+      bounds.extend({ lat: Number(patient.lat), lng: Number(patient.lng) });
+    });
+
+    mapInstance.fitBounds(bounds);
+
+    // Se houver apenas um ponto, define zoom razoável.
+    if (totalPointsCount === 1) {
+      const listener = google.maps.event.addListener(mapInstance, "idle", () => {
+        mapInstance.setZoom(12);
+        google.maps.event.removeListener(listener);
+      });
+    }
+  }, [professionals, patientLocations, userLocation]);
+
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: config?.google_maps_api_key || "",
@@ -65,7 +98,9 @@ const ProfessionalMap = ({
     mapRef.current = mapInstance;
     initialFitDone.current = false; // Reset on map load
     prevRefitTrigger.current = 0; // Reset trigger on map load
-  }, []);
+    fitMapToVisiblePoints(mapInstance);
+    initialFitDone.current = true;
+  }, [fitMapToVisiblePoints]);
 
   const onUnmount = useCallback(() => {
     setMap(null);
@@ -80,49 +115,15 @@ const ProfessionalMap = ({
 
   // Effect to fit all markers when professionals list changes or refitTrigger is incremented
   useEffect(() => {
-    if (!mapRef.current || typeof google === 'undefined') return;
+    if (!map) return;
 
-    const validProfessionalPoints = professionals.filter((p) => p.lat && p.lng);
-    const validPatientPoints = patientLocations.filter((p) => p.lat && p.lng);
-    const totalPointsCount = (userLocation ? 1 : 0) + validProfessionalPoints.length + validPatientPoints.length;
-    if (totalPointsCount === 0) return;
-
-    // Only run if refitTrigger has changed or it's the initial fit
+    // Refit quando dados mudam (ou quando a página força refit via trigger).
     if (refitTrigger !== prevRefitTrigger.current || !initialFitDone.current) {
-      const bounds = new google.maps.LatLngBounds();
-      let hasValidPoints = false;
-
-      if (userLocation) {
-        bounds.extend(userLocation);
-        hasValidPoints = true;
-      }
-
-      validProfessionalPoints.forEach(p => {
-        if (p.lat && p.lng) {
-          bounds.extend({ lat: Number(p.lat), lng: Number(p.lng) });
-          hasValidPoints = true;
-        }
-      });
-
-      validPatientPoints.forEach((patient) => {
-        bounds.extend({ lat: Number(patient.lat), lng: Number(patient.lng) });
-        hasValidPoints = true;
-      });
-
-      if (hasValidPoints) {
-        mapRef.current.fitBounds(bounds);
-        // Avoid excessive zoom if there's only one point
-        if (totalPointsCount === 1) {
-          const listener = google.maps.event.addListener(mapRef.current, 'idle', () => {
-            mapRef.current?.setZoom(12);
-            google.maps.event.removeListener(listener);
-          });
-        }
-        initialFitDone.current = true;
-      }
-      prevRefitTrigger.current = refitTrigger; // Update the ref
+      fitMapToVisiblePoints(map);
+      initialFitDone.current = true;
+      prevRefitTrigger.current = refitTrigger;
     }
-  }, [mapRef.current, professionals, patientLocations, userLocation, refitTrigger]); // Keep all dependencies for correctness
+  }, [map, fitMapToVisiblePoints, refitTrigger]);
 
   if (loadError) {
     return (

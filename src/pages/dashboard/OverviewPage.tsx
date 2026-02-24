@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -33,7 +33,8 @@ import {
   Award,
   Ticket,
   Gift,
-  PlayCircle
+  PlayCircle,
+  Users // Adicionado Users aqui
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -46,6 +47,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useQuery } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label";
+import PatientInfoCard from "@/components/PatientInfoCard";
 
 const OverviewPage = () => {
   const { user } = useAuth();
@@ -59,6 +61,7 @@ const OverviewPage = () => {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
   const [isSavingOnboardingPref, setIsSavingOnboardingPref] = useState(false);
+  const [companyPatients, setCompanyPatients] = useState<any[]>([]); // State for company patients
 
   // Busca detalhes do plano anual para o tooltip
   const { data: annualPlan } = useQuery({
@@ -93,6 +96,21 @@ const OverviewPage = () => {
           body: { referrerId: user.id }
         });
         if (stats) setReferralStats(stats);
+      }
+
+      // Fetch company patients if role is 'company'
+      if (data.role === 'company') {
+        const { data: patientsData, error: patientsError } = await supabase
+          .from('company_patients')
+          .select('*')
+          .eq('company_id', user.id)
+          .eq('is_visible', true) // Only fetch visible patients
+          .order('created_at', { ascending: false });
+        
+        if (patientsError) throw patientsError;
+        setCompanyPatients(patientsData || []);
+      } else {
+        setCompanyPatients([]); // Clear patients if not a company
       }
 
       if (showToast) toast.success("Dados atualizados!");
@@ -195,8 +213,16 @@ const OverviewPage = () => {
       requiredFields.registration = "Registro";
       requiredFields.experience = "Formações";
       requiredFields.bio = "Biografia";
-    } else {
-      requiredFields.bio = "Descrição";
+    } else if (profile.role === 'company') {
+      requiredFields.company_name = "Razão Social";
+      requiredFields.cnpj = "CNPJ";
+      requiredFields.bio = "Descrição da Empresa";
+    } else if (profile.role === 'family') {
+      requiredFields.patient_name = "Nome do Paciente";
+      requiredFields.patient_age = "Idade do Paciente";
+      requiredFields.patient_medical_conditions = "Condição Médica";
+      requiredFields.bio = "Outras Observações";
+      requiredFields.availability = "Horário de Atendimento";
     }
     
     let completedCount = 0;
@@ -204,7 +230,14 @@ const OverviewPage = () => {
     const totalFields = Object.keys(requiredFields).length;
     
     for (const [key, label] of Object.entries(requiredFields)) {
-      if (profile[key] && String(profile[key]).trim() !== '') {
+      const value = profile[key];
+      if (Array.isArray(value)) {
+        if (value.length > 0) {
+          completedCount++;
+        } else {
+          missingFields.push(label);
+        }
+      } else if (value && String(value).trim() !== '') {
         completedCount++;
       } else {
         missingFields.push(label);
@@ -337,6 +370,8 @@ const OverviewPage = () => {
   const completeness = getProfileCompleteness();
   const trial = getTrialInfo();
   const isProfessional = profile?.role === 'professional';
+  const isCompany = profile?.role === 'company'; // Check if user is a company
+  const isFamily = profile?.role === 'family'; // Check if user is a family
   const isAdmin = profile?.is_admin || profile?.role === 'admin';
   const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
   
@@ -690,7 +725,7 @@ const OverviewPage = () => {
             )}
 
             {/* Busca de Profissionais (Movido para Esquerda para Não-Profissionais) */}
-            {!isProfessional && (
+            {(!isProfessional && !isCompany && !isFamily) && (
               <Card className="h-fit">
                 <CardHeader>
                   <CardTitle className="text-base">Busca de Profissionais</CardTitle>
@@ -704,14 +739,49 @@ const OverviewPage = () => {
               </Card>
             )}
 
+            {/* Patient Info Card for Company and Family */}
+            {(isCompany || isFamily) && companyPatients.length > 0 && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  {isCompany ? 'Pacientes da Empresa' : 'Informações do Familiar'}
+                </h2>
+                {companyPatients.map((patient) => (
+                  <PatientInfoCard key={patient.id} patient={patient} viewerRole={profile.role} />
+                ))}
+                {isCompany && (
+                  <Button asChild variant="link" size="sm" className="w-full mt-2 text-primary h-auto p-0">
+                    <Link to="/dashboard/pacientes" className="gap-1">
+                      Gerenciar todos os pacientes <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Acesso Rápido (Movido para Esquerda para Não-Profissionais) */}
-            {!isProfessional && QuickAccessCard}
+            {(!isProfessional && !isCompany && !isFamily) && QuickAccessCard}
           </div>
 
           {/* Coluna da Direita */}
           <div className="space-y-6">
             {/* Acesso Rápido (Mantido na Direita para Profissionais) */}
             {isProfessional && QuickAccessCard}
+
+            {/* Busca de Profissionais (Movido para Direita para Profissionais) */}
+            {isProfessional && (
+              <Card className="h-fit">
+                <CardHeader>
+                  <CardTitle className="text-base">Busca de Profissionais</CardTitle>
+                  <CardDescription>Encontre o profissional ideal para sua necessidade.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button asChild className="w-full gap-2">
+                    <Link to="/buscar">Ir para a Busca <ArrowRight className="h-4 w-4" /></Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader className="pb-3">
@@ -740,11 +810,11 @@ const OverviewPage = () => {
                     </Button>
                   </div>
                 ) : profile?.verification_sent ? (
-                  <div className="flex items-center gap-3 text-primary bg-primary/5 p-4 rounded-lg border border-primary/10">
-                    <Clock className="h-5 w-5 animate-pulse" />
+                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
+                    <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
                     <div>
-                      <p className="text-sm font-semibold">Em Análise</p>
-                      <p className="text-[10px] opacity-80">Aguardu o retorno por e-mail.</p>
+                      <p className="font-semibold text-primary">Documentos em Análise</p>
+                      <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
                     </div>
                   </div>
                 ) : (

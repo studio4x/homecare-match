@@ -672,7 +672,7 @@ const ProfilePage = () => {
                   <Label>CEP *</Label>
                   <div className="relative">
                     <Input value={profile.address_zip || ""} onChange={e => setProfile({...profile, address_zip: e.target.value})} onBlur={handleCepBlur} />
-                    {isLoadingCep && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                    {isLoadingCep && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
                   </div>
                 </div>
                 <div className="grid gap-2 md:col-span-2"><Label>Rua *</Label><Input value={profile.address_street || ""} onChange={e => setProfile({...profile, address_street: e.target.value})} /></div>
@@ -761,7 +761,7 @@ const ProfilePage = () => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2">
                     <Label className="flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Nome do Paciente *</Label>
-                    <Input value={profile.patient_name || ""} onChange={e => setProfile({...profile, patient_name: e.target.value})} />
+                    <Input placeholder="Ex: João Silva" value={profile.patient_name || ""} onChange={e => setProfile({...profile, patient_name: e.target.value})} />
                     <p className="text-[10px] text-muted-foreground">Pode ser apenas o primeiro nome ou iniciais para privacidade.</p>
                   </div>
                   <div className="grid gap-2">
@@ -926,8 +926,10 @@ const ProfilePage = () => {
               ) : profile.verification_sent ? (
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
                   <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
-                  <p className="font-semibold text-primary">Documentos em Análise</p>
-                  <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
+                  <div>
+                    <p className="font-semibold text-primary">Documentos em Análise</p>
+                    <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -966,7 +968,7 @@ const ProfilePage = () => {
           ) : (
             <>
               <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5" /> Confirmação Final</DialogTitle><DialogDescription className="pt-2">Digite a frase abaixo exatamente como aparece:</DialogDescription></DialogHeader>
-              <div className="py-6 space-y-4"><div className="text-center p-4 bg-muted rounded-lg border border-dashed border-muted-foreground/30"><span className="font-mono font-bold text-lg tracking-wider select-none">{CONFIRMATION_PHRASE}</span></div><div className="space-y-2"><Label htmlFor="delete-confirm-input">Digite a frase de confirmação</Label><Input id="delete-confirm-input" placeholder="Digite aqui..." value={deleteConfirmationText} onChange={(e) => setDeleteConfirmationText(e.target.value)} className="h-12 text-center font-medium" autoFocus /></div></div>
+              <div className="py-6 space-y-4"><div className="text-center p-4 bg-muted rounded-lg border border-dashed border-muted-foreground/30"><span className="font-mono font-bold text-lg tracking-wider select-none">{CONFIRMATION_PHRASE}</span></div><div className="space-y-2"><Label htmlFor="delete-confirm-input">Digite a frase de confirmação</Label><Input id="delete-confirm-input" placeholder="EXCLUIR MINHA CONTA" value={deleteConfirmationText} onChange={(e) => setDeleteConfirmationText(e.target.value)} className="h-12 text-center font-medium" autoFocus /></div></div>
               <DialogFooter className="gap-2 sm:gap-0"><Button variant="ghost" onClick={() => setDeleteStep(1)} disabled={isDeletingAccount}>Voltar</Button><Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeletingAccount || deleteConfirmationText !== CONFIRMATION_PHRASE} className="gap-2">{isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Excluir Conta Permanentemente</Button></DialogFooter>
             </>
           )}

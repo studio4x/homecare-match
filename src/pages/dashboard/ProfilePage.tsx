@@ -99,22 +99,22 @@ const ProfilePage = () => {
     { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
     { value: "dentista", label: "Dentista" },
     { value: "enfermeiro", label: "Enfermeiro(a)" },
-    { value: "farmaceutico", label: "FarmacÃªutico(a)" },
+    { value: "farmaceutico", label: "Farmacêutico(a)" },
     { value: "fisioterapeuta", label: "Fisioterapeuta" },
-    { value: "fonoaudiologo", label: "FonoaudiÃ³logo(a)" },
-    { value: "medico-clinico", label: "MÃ©dico(a) - ClÃ­nico Geral / Geriatra" },
+    { value: "fonoaudiologo", label: "Fonoaudiólogo(a)" },
+    { value: "medico-clinico", label: "Médico(a) - Clínico Geral / Geriatra" },
     { value: "nutricionista", label: "Nutricionista" },
-    { value: "psicologo", label: "PsicÃ³logo(a)" },
-    { value: "tecnico-enfermagem", label: "TÃ©cnico(a) de Enfermagem" },
+    { value: "psicologo", label: "Psicólogo(a)" },
+    { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
     { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
   ];
 
   const availabilityOptions = [
-    "PerÃ­odo da ManhÃ£",
-    "PerÃ­odo da Tarde",
-    "PerÃ­odo da Noite",
+    "Período da Manhã",
+    "Período da Tarde",
+    "Período da Noite",
     "Dia Integral (Diurno)",
-    "PlantÃ£o 12h (Noturno)",
+    "Plantão 12h (Noturno)",
     "Finais de Semana",
     "1h de atendimento",
     "2h de atendimento",
@@ -123,31 +123,31 @@ const ProfilePage = () => {
 
   const patientProfileOptions = [
     "Idosos",
-    "PediÃ¡trico",
-    "PÃ³s-cirÃºrgico",
-    "DoenÃ§as CrÃ´nicas",
+    "Pediátrico",
+    "Pós-cirúrgico",
+    "Doenças Crônicas",
     "Cuidados Paliativos",
-    "ReabilitaÃ§Ã£o NeurolÃ³gica",
+    "Reabilitação Neurológica",
   ];
 
   // New options for patient-specific fields
   const mobilityLevelOptions = [
     "Acamado",
     "Cadeira de Rodas",
-    "Anda com AuxÃ­lio",
-    "Totalmente MÃ³vel",
+    "Anda com Auxílio",
+    "Totalmente Móvel",
   ];
 
   const cognitiveStateOptions = [
     "Alerta e Orientado",
     "Comprometimento Leve",
-    "DemÃªncia",
-    "ConfusÃ£o/AgitaÃ§Ã£o",
+    "Demência",
+    "Confusão/Agitação",
   ];
 
   const specialEquipmentOptions = [
-    "OxigÃªnio",
-    "Sonda de AlimentaÃ§Ã£o",
+    "Oxigênio",
+    "Sonda de Alimentação",
     "Cateter",
     "Ventilador",
     "Ostomia",
@@ -155,9 +155,9 @@ const ProfilePage = () => {
 
   const communicationSkillsOptions = [
     "Verbal",
-    "NÃ£o-Verbal",
+    "Não-Verbal",
     "Com Dificuldade",
-    "Prancha de ComunicaÃ§Ã£o",
+    "Prancha de Comunicação",
   ];
 
   useEffect(() => {
@@ -219,7 +219,7 @@ const ProfilePage = () => {
     if (!p?.address_street || !p?.city || !p?.state || !p?.address_zip) return;
 
     if (!siteConfig?.google_maps_api_key) {
-      toast.error("Chave da API do Google Maps nÃ£o configurada. Acesse o Painel Admin > ConfiguraÃ§Ãµes.");
+      toast.error("Chave da API do Google Maps não configurada. Acesse o Painel Admin > Configurações.");
       return;
     }
 
@@ -236,10 +236,10 @@ const ProfilePage = () => {
 
       if (coords) {
         setProfile(prev => ({ ...prev, lat: coords.lat, lng: coords.lng }));
-        toast.success("LocalizaÃ§Ã£o detectada automaticamente!");
+        toast.success("Localização detectada automaticamente!");
       }
     } catch (err) {
-      console.warn("[AutoGeocode] Falha silenciosa na detecÃ§Ã£o automÃ¡tica.");
+      console.warn("[AutoGeocode] Falha silenciosa na detecção automática.");
     } finally {
       setIsGeocoding(false);
     }
@@ -300,7 +300,7 @@ const ProfilePage = () => {
 
       let { error: updateError } = await supabase.from("profiles").update(updateData).eq("id", user.id);
 
-      // Compatibilidade: tenta provisionar os novos campos da famÃ­lia caso nÃ£o existam no schema.
+      // Compatibilidade: tenta provisionar os novos campos da família caso não existam no schema.
       if (updateError) {
         const errorText = `${updateError.message || ""} ${updateError.details || ""}`;
         const missingFamilyDocField = /patient_(document_url|address_proof_url)/i.test(errorText);
@@ -329,7 +329,7 @@ const ProfilePage = () => {
 
   const handleGenerateBio = async () => {
     if (!profile?.full_name || !profile?.specialty || !profile?.experience) {
-      toast.error("Preencha nome, especialidade e formaÃ§Ãµes primeiro.");
+      toast.error("Preencha nome, especialidade e formações primeiro.");
       return;
     }
     setIsGeneratingBio(true);
@@ -345,7 +345,7 @@ const ProfilePage = () => {
         }
       });
 
-      if (error) throw new Error("Falha na comunicaÃ§Ã£o com o servidor de IA.");
+      if (error) throw new Error("Falha na comunicação com o servidor de IA.");
 
       if (data?.bio) {
         setProfile(prev => ({ ...prev, bio: data.bio }));
@@ -367,48 +367,48 @@ const ProfilePage = () => {
     const cleanPhone = profile.phone?.replace(/\D/g, "") || "";
 
     if (!profile.avatar_url) {
-      toast.error("A foto de perfil Ã© obrigatÃ³ria.");
+      toast.error("A foto de perfil é obrigatória.");
       return;
     }
     if (!profile.full_name?.trim()) {
-      toast.error("O nome completo Ã© obrigatÃ³rio.");
+      toast.error("O nome completo é obrigatório.");
       return;
     }
     if (cleanPhone.length < 10) {
-      toast.error("Um nÃºmero de WhatsApp vÃ¡lido Ã© obrigatÃ³rio.");
+      toast.error("Um número de WhatsApp válido é obrigatório.");
       return;
     }
     if (isProfessional && !profile.specialty) {
-      toast.error("A especialidade Ã© obrigatÃ³ria.");
+      toast.error("A especialidade é obrigatória.");
       return;
     }
 
     if (!profile.address_zip || !profile.address_street || !profile.neighborhood || !profile.city || !profile.state) {
-      toast.error("Todos os campos de endereÃ§o sÃ£o obrigatÃ³rios.");
+      toast.error("Todos os campos de endereço são obrigatórios.");
       return;
     }
 
     if (!profile.bio?.trim()) {
-      toast.error("A biografia/descriÃ§Ã£o Ã© obrigatÃ³ria.");
+      toast.error("A biografia/descrição é obrigatória.");
       return;
     }
 
     // New validation for family profile fields
     if (isFamily) {
       if (!profile.patient_name?.trim()) {
-        toast.error("O nome do paciente Ã© obrigatÃ³rio.");
+        toast.error("O nome do paciente é obrigatório.");
         return;
       }
       if (!profile.patient_age) {
-        toast.error("A idade do paciente Ã© obrigatÃ³ria.");
+        toast.error("A idade do paciente é obrigatória.");
         return;
       }
       if (!profile.patient_medical_conditions?.trim()) {
-        toast.error("A condiÃ§Ã£o mÃ©dica do paciente Ã© obrigatÃ³ria.");
+        toast.error("A condição médica do paciente é obrigatória.");
         return;
       }
       if (profile.availability?.length === 0) {
-        toast.error("O horÃ¡rio de atendimento Ã© obrigatÃ³rio.");
+        toast.error("O horário de atendimento é obrigatório.");
         return;
       }
     }
@@ -420,7 +420,7 @@ const ProfilePage = () => {
 
       if (!finalLat || !finalLng) {
         if (!siteConfig?.google_maps_api_key) {
-          toast.error("Chave da API do Google Maps nÃ£o configurada. Acesse o Painel Admin > ConfiguraÃ§Ãµes.");
+          toast.error("Chave da API do Google Maps não configurada. Acesse o Painel Admin > Configurações.");
           setIsSaving(false);
           return;
         }
@@ -437,7 +437,7 @@ const ProfilePage = () => {
           finalLat = coords.lat;
           finalLng = coords.lng;
         } else {
-          toast.error("NÃ£o foi possÃ­vel obter coordenadas para o endereÃ§o. Verifique o endereÃ§o ou a chave da API de mapas.");
+          toast.error("Não foi possível obter coordenadas para o endereço. Verifique o endereço ou a chave da API de mapas.");
           setIsSaving(false);
           return;
         }
@@ -479,7 +479,7 @@ const ProfilePage = () => {
 
       let { error } = await supabase.from("profiles").update(updatePayload).eq("id", user.id);
 
-      // Compatibilidade: tenta criar os campos de famÃ­lia se o projeto ainda nÃ£o tiver essa extensÃ£o aplicada.
+      // Compatibilidade: tenta criar os campos de família se o projeto ainda não tiver essa extensão aplicada.
       if (error && isFamily) {
         const errorText = `${error.message || ""} ${error.details || ""}`;
         const missingFamilyField = /patient_(name|age|medical_conditions|mobility_level|cognitive_state|special_equipment|communication_skills)/i.test(errorText);
@@ -518,7 +518,7 @@ const ProfilePage = () => {
     try {
       const { error } = await supabase.functions.invoke('delete-user');
       if (error) throw error;
-      toast.success("Sua conta foi excluÃ­da permanentemente.");
+      toast.success("Sua conta foi excluída permanentemente.");
       await signOut();
     } catch (err) {
       toast.error("Erro ao excluir conta.");
@@ -528,7 +528,7 @@ const ProfilePage = () => {
   };
 
   const handleRequestVerification = async () => {
-    console.log("[handleRequestVerification] Iniciando solicitaÃ§Ã£o de verificaÃ§Ã£o para user:", user?.id);
+    console.log("[handleRequestVerification] Iniciando solicitação de verificação para user:", user?.id);
     const isFamily = profile?.role === 'family';
     const isCompany = profile?.role === 'company';
 
@@ -538,12 +538,12 @@ const ProfilePage = () => {
       return;
     }
     if (isCompany && (!profile?.cnpj || !profile?.id_document_url)) {
-      toast.error("Envie o CNPJ e o documento de identidade do responsÃ¡vel antes de solicitar anÃ¡lise.");
+      toast.error("Envie o CNPJ e o documento de identidade do responsável antes de solicitar análise.");
       console.log("[handleRequestVerification] Erro: CNPJ ou documento de identidade ausente para empresa.");
       return;
     }
     if (!isFamily && !isCompany && (!profile?.id_document_url || !profile?.prof_registration_url)) {
-      toast.error("Envie os dois documentos antes de solicitar anÃ¡lise.");
+      toast.error("Envie os dois documentos antes de solicitar análise.");
       console.log("[handleRequestVerification] Erro: Um ou ambos os documentos ausentes para profissional.");
       return;
     }
@@ -555,26 +555,26 @@ const ProfilePage = () => {
       if (error) throw error;
       
       console.log("[handleRequestVerification] Profile.verification_sent atualizado com sucesso no banco.");
-      toast.success("SolicitaÃ§Ã£o enviada!");
+      toast.success("Solicitação enviada!");
       
       // Call fetchProfile to re-fetch the latest data from the database
       await fetchProfile(); // <--- ADDED THIS LINE
 
-      // NOTIFICAÃ‡ÃƒO ADMIN: Envia e-mail e notificaÃ§Ã£o no dashboard
+      // NOTIFICAÇÃO ADMIN: Envia e-mail e notificação no dashboard
       await supabase.functions.invoke('notify-verification', {
         body: {
           userName: profile.full_name,
           userEmail: user?.email,
           userId: user?.id
         }
-      }).catch(err => console.warn("Falha ao notificar admin sobre verificaÃ§Ã£o:", err));
+      }).catch(err => console.warn("Falha ao notificar admin sobre verificação:", err));
 
     } catch (err) {
-      console.error("[handleRequestVerification] Erro ao enviar solicitaÃ§Ã£o:", err);
-      toast.error("Erro ao enviar solicitaÃ§Ã£o.");
+      console.error("[handleRequestVerification] Erro ao enviar solicitação:", err);
+      toast.error("Erro ao enviar solicitação.");
     } finally {
       setIsSaving(false);
-      console.log("[handleRequestVerification] Finalizando processo de solicitaÃ§Ã£o.");
+      console.log("[handleRequestVerification] Finalizando processo de solicitação.");
     }
   };
 
@@ -595,7 +595,7 @@ const ProfilePage = () => {
         })
         .eq("id", user.id);
       if (error) throw error;
-      toast.success("Agora vocÃª pode reenviar seus documentos na seÃ§Ã£o Meus Dados.");
+      toast.success("Agora você pode reenviar seus documentos na seção Meus Dados.");
       setProfile((prev: any) => ({ 
         ...prev, 
         rejection_reason: null, 
@@ -619,15 +619,15 @@ const ProfilePage = () => {
   const isFamily = profile.role === 'family';
   const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
 
-  const doc1Label = isCompany ? "CartÃ£o CNPJ" : isFamily ? "RG ou CNH do ResponsÃ¡vel" : "RG ou CNH";
-  const doc2Label = isCompany ? "RG ou CNH do ResponsÃ¡vel" : "Registro Profissional";
+  const doc1Label = isCompany ? "Cartão CNPJ" : isFamily ? "RG ou CNH do Responsável" : "RG ou CNH";
+  const doc2Label = isCompany ? "RG ou CNH do Responsável" : "Registro Profissional";
   const familyDoc2Label = "RG ou CNH do Paciente";
-  const familyDoc3Label = "Comprovante de EndereÃ§o (Paciente)";
+  const familyDoc3Label = "Comprovante de Endereço (Paciente)";
 
   const getBenefits = () => {
-    if (isProfessional) return ["Visibilidade para empresas.", "Cursos exclusivos.", "Propostas no WhatsApp.", "Selo de verificaÃ§Ã£o."];
-    if (isCompany) return ["Acesso a profissionais.", "Filtros avanÃ§ados.", "HistÃ³rico centralizado.", "Suporte prioritÃ¡rio."];
-    return ["Cuidadores verificados.", "Contato direto.", "SeguranÃ§a documental.", "Suporte humanizado."];
+    if (isProfessional) return ["Visibilidade para empresas.", "Cursos exclusivos.", "Propostas no WhatsApp.", "Selo de verificação."];
+    if (isCompany) return ["Acesso a profissionais.", "Filtros avançados.", "Histórico centralizado.", "Suporte prioritário."];
+    return ["Cuidadores verificados.", "Contato direto.", "Segurança documental.", "Suporte humanizado."];
   };
 
   const CONFIRMATION_PHRASE = "EXCLUIR MINHA CONTA";
@@ -643,8 +643,8 @@ const ProfilePage = () => {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>InformaÃ§Ãµes BÃ¡sicas</CardTitle>
-              <CardDescription>Dados essenciais para identificaÃ§Ã£o na plataforma.</CardDescription>
+              <CardTitle>Informações Básicas</CardTitle>
+              <CardDescription>Dados essenciais para identificação na plataforma.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
@@ -660,13 +660,13 @@ const ProfilePage = () => {
                 </div>
                 <div className="space-y-1">
                   <h4 className="font-medium">Foto de Perfil *</h4>
-                  <p className="text-xs text-muted-foreground">Recomendado: Quadrada, mÃ¡x. 2MB.</p>
+                  <p className="text-xs text-muted-foreground">Recomendado: Quadrada, máx. 2MB.</p>
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label>{isFamily ? "Nome Completo do ResponsÃ¡vel *" : "Nome Completo *"}</Label>
+                  <Label>{isFamily ? "Nome Completo do Responsável *" : "Nome Completo *"}</Label>
                   <Input value={profile.full_name || ""} onChange={e => setProfile({...profile, full_name: e.target.value})} />
                 </div>
                 <div className="grid gap-2"><Label>WhatsApp *</Label><Input value={profile.phone || ""} onChange={handlePhoneChange} placeholder="(11) 99999-9999" /></div>
@@ -693,7 +693,7 @@ const ProfilePage = () => {
                   {isCompany && ( // Render only if it's a company profile
                     <>
                       <div className="grid gap-2">
-                        <Label>RazÃ£o Social</Label>
+                        <Label>Razão Social</Label>
                         <Input value={profile.company_name || ""} onChange={e => setProfile({...profile, company_name: e.target.value})} />
                       </div>
                       <div className="grid gap-2"><Label>CNPJ</Label><Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} /></div>
@@ -707,8 +707,8 @@ const ProfilePage = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>EndereÃ§o e LocalizaÃ§Ã£o *</CardTitle>
-              <CardDescription>Sua localizaÃ§Ã£o Ã© usada para te conectar a oportunidades prÃ³ximas.</CardDescription>
+              <CardTitle>Endereço e Localização *</CardTitle>
+              <CardDescription>Sua localização é usada para te conectar a oportunidades próximas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {!siteConfig?.google_maps_api_key && (
@@ -716,7 +716,7 @@ const ProfilePage = () => {
                   <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
                   <div className="text-sm">
                     <p className="font-bold">Chave da API do Google Maps ausente!</p>
-                    <p className="text-xs">A geolocalizaÃ§Ã£o automÃ¡tica nÃ£o funcionarÃ¡. Configure a chave em <Link to="/admin/configuracoes" className="underline">Painel Admin {'>'} ConfiguraÃ§Ãµes</Link>.</p>
+                    <p className="text-xs">A geolocalização automática não funcionará. Configure a chave em <Link to="/admin/configuracoes" className="underline">Painel Admin {'>'} Configurações</Link>.</p>
                   </div>
                 </div>
               )}
@@ -736,14 +736,14 @@ const ProfilePage = () => {
                 <div className="grid gap-2"><Label>Estado (UF) *</Label><Input value={profile.state || ""} onChange={e => setProfile({...profile, state: e.target.value})} maxLength={2} /></div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2"><Label>NÃºmero</Label><Input value={profile.address_number || ""} onChange={e => setProfile({...profile, address_number: e.target.value})} onBlur={() => handleValidateLocation()} /></div>
+                <div className="grid gap-2"><Label>Número</Label><Input value={profile.address_number || ""} onChange={e => setProfile({...profile, address_number: e.target.value})} onBlur={() => handleValidateLocation()} /></div>
                 <div className="grid gap-2"><Label>Complemento</Label><Input value={profile.address_complement || ""} onChange={e => setProfile({...profile, address_complement: e.target.value})} /></div>
               </div>
 
               <div className="pt-4 border-t space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="flex items-center gap-2"><Navigation className="h-4 w-4 text-primary" /> Coordenadas GeogrÃ¡ficas</Label>
+                    <Label className="flex items-center gap-2"><Navigation className="h-4 w-4 text-primary" /> Coordenadas Geográficas</Label>
                     <p className="text-[10px] text-muted-foreground">Detectadas automaticamente.</p>
                   </div>
                   <Button variant="outline" size="sm" className="gap-2 h-8 text-xs" onClick={() => handleValidateLocation()} disabled={isGeocoding}>
@@ -762,12 +762,12 @@ const ProfilePage = () => {
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>CurrÃ­culo e Biografia *</CardTitle>
-                  <CardDescription>Destaque suas competÃªncias e trajetÃ³ria.</CardDescription>
+                  <CardTitle>Currículo e Biografia *</CardTitle>
+                  <CardDescription>Destaque suas competências e trajetória.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-2"><Label>FormaÃ§Ãµes *</Label><Textarea value={profile.experience || ""} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} /></div>
-                  <div className="grid gap-2"><Label>ExperiÃªncias Profissionais *</Label><Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} /></div>
+                  <div className="grid gap-2"><Label>Formações *</Label><Textarea value={profile.experience || ""} onChange={e => setProfile({...profile, experience: e.target.value})} rows={3} /></div>
+                  <div className="grid gap-2"><Label>Experiências Profissionais *</Label><Textarea value={profile.professional_experiences || ""} onChange={e => setProfile({...profile, professional_experiences: e.target.value})} rows={3} /></div>
                   <div className="pt-2 flex flex-col gap-2">
                     <div className="flex items-center justify-between"><Label>Biografia para o Perfil *</Label><Button variant="outline" size="sm" className="h-8 gap-2 text-xs" onClick={handleGenerateBio} disabled={isGeneratingBio}>{isGeneratingBio ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />} Gerar com IA</Button></div>
                     <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={5} maxLength={700} />
@@ -778,7 +778,7 @@ const ProfilePage = () => {
               <Card>
                 <CardHeader>
                   <CardTitle>Detalhes do Atendimento *</CardTitle>
-                  <CardDescription>Defina suas preferÃªncias e valores.</CardDescription>
+                  <CardDescription>Defina suas preferências e valores.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid gap-2"><Label>Valor/Hora (R$) *</Label><Input type="number" value={profile.hourly_rate || ""} onChange={e => setProfile({...profile, hourly_rate: e.target.value})} /></div>
@@ -786,13 +786,13 @@ const ProfilePage = () => {
                   <div className="space-y-3">
                     <Label className="text-xs uppercase">Disponibilidade *</Label>
                     <p className="text-[10px] text-muted-foreground">
-                      VocÃª pode selecionar mais de uma opÃ§Ã£o. Ex.: Dia Integral (Diurno) + 1h de atendimento.
+                      Você pode selecionar mais de uma opção. Ex.: Dia Integral (Diurno) + 1h de atendimento.
                     </p>
                     <div className="grid gap-2">{availabilityOptions.map(opt => (<div key={opt} className="flex items-center gap-2"><Checkbox id={opt} checked={profile.availability?.includes(opt)} onCheckedChange={() => handleCheckboxChange('availability', opt)} /><label htmlFor={opt} className="text-xs">{opt}</label></div>))}</div>
                   </div>
                   <Separator />
                   <div className="space-y-3">
-                    <Label className="text-xs uppercase">PÃºblico-alvo *</Label>
+                    <Label className="text-xs uppercase">Público-alvo *</Label>
                     <div className="grid gap-2">{patientProfileOptions.map(opt => (<div key={opt} className="flex items-center gap-2"><Checkbox id={opt} checked={profile.patient_profiles?.includes(opt)} onCheckedChange={() => handleCheckboxChange('patient_profiles', opt)} /><label htmlFor={opt} className="text-xs">{opt}</label></div>))}</div>
                   </div>
                 </CardContent>
@@ -810,14 +810,14 @@ const ProfilePage = () => {
           {isFamily && (
             <Card>
               <CardHeader>
-                <CardTitle>InformaÃ§Ãµes do Paciente *</CardTitle>
+                <CardTitle>Informações do Paciente *</CardTitle>
                 <CardDescription>Detalhes sobre a pessoa que precisa de atendimento.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2">
                     <Label className="flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Nome do Paciente *</Label>
-                    <Input placeholder="Ex: JoÃ£o Silva" value={profile.patient_name || ""} onChange={e => setProfile({...profile, patient_name: e.target.value})} />
+                    <Input placeholder="Ex: João Silva" value={profile.patient_name || ""} onChange={e => setProfile({...profile, patient_name: e.target.value})} />
                     <p className="text-[10px] text-muted-foreground">Pode ser apenas o primeiro nome ou iniciais para privacidade.</p>
                   </div>
                   <div className="grid gap-2">
@@ -827,20 +827,20 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label className="flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary" /> CondiÃ§Ã£o MÃ©dica/HistÃ³rico de DoenÃ§as *</Label>
+                  <Label className="flex items-center gap-2"><HeartPulse className="h-4 w-4 text-primary" /> Condição Médica/Histórico de Doenças *</Label>
                   <Textarea 
                     value={profile.patient_medical_conditions || ""} 
                     onChange={e => setProfile({...profile, patient_medical_conditions: e.target.value})} 
                     rows={3} 
-                    placeholder="Ex: AVC com sequelas motoras, Alzheimer em estÃ¡gio inicial, Diabetes tipo 2."
+                    placeholder="Ex: AVC com sequelas motoras, Alzheimer em estágio inicial, Diabetes tipo 2."
                   />
-                  <p className="text-[10px] text-muted-foreground">Descreva o diagnÃ³stico principal e outras condiÃ§Ãµes relevantes.</p>
+                  <p className="text-[10px] text-muted-foreground">Descreva o diagnóstico principal e outras condições relevantes.</p>
                 </div>
 
                 <Separator />
 
                 <div className="space-y-3">
-                  <Label className="text-xs uppercase flex items-center gap-2"><Footprints className="h-4 w-4 text-primary" /> NÃ­vel de Mobilidade</Label>
+                  <Label className="text-xs uppercase flex items-center gap-2"><Footprints className="h-4 w-4 text-primary" /> Nível de Mobilidade</Label>
                   <div className="grid gap-2 md:grid-cols-2">
                     {mobilityLevelOptions.map(opt => (
                       <div key={opt} className="flex items-center gap-2">
@@ -853,7 +853,7 @@ const ProfilePage = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Selecione as opÃ§Ãµes que melhor descrevem a capacidade de movimentaÃ§Ã£o do paciente.</p>
+                  <p className="text-[10px] text-muted-foreground">Selecione as opções que melhor descrevem a capacidade de movimentação do paciente.</p>
                 </div>
 
                 <Separator />
@@ -872,7 +872,7 @@ const ProfilePage = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Indique o nÃ­vel de clareza mental e orientaÃ§Ã£o do paciente.</p>
+                  <p className="text-[10px] text-muted-foreground">Indique o nível de clareza mental e orientação do paciente.</p>
                 </div>
 
                 <Separator />
@@ -891,13 +891,13 @@ const ProfilePage = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Marque os equipamentos que o profissional precisarÃ¡ manusear.</p>
+                  <p className="text-[10px] text-muted-foreground">Marque os equipamentos que o profissional precisará manusear.</p>
                 </div>
 
                 <Separator />
 
                 <div className="space-y-3">
-                  <Label className="text-xs uppercase flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" /> Habilidades de ComunicaÃ§Ã£o</Label>
+                  <Label className="text-xs uppercase flex items-center gap-2"><MessageSquare className="h-4 w-4 text-primary" /> Habilidades de Comunicação</Label>
                   <div className="grid gap-2 md:grid-cols-2">
                     {communicationSkillsOptions.map(opt => (
                       <div key={opt} className="flex items-center gap-2">
@@ -916,7 +916,7 @@ const ProfilePage = () => {
                 <Separator />
 
                 <div className="space-y-3">
-                  <Label className="text-xs uppercase">HorÃ¡rio de Atendimento *</Label>
+                  <Label className="text-xs uppercase">Horário de Atendimento *</Label>
                   <div className="grid gap-2 md:grid-cols-2">
                     {availabilityOptions.map(opt => (
                       <div key={opt} className="flex items-center gap-2">
@@ -929,15 +929,15 @@ const ProfilePage = () => {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">VocÃª pode selecionar mais de uma opÃ§Ã£o. Ex.: Dia Integral (Diurno) + 1h de atendimento.</p>
+                  <p className="text-[10px] text-muted-foreground">Você pode selecionar mais de uma opção. Ex.: Dia Integral (Diurno) + 1h de atendimento.</p>
                 </div>
 
                 <Separator />
 
                 <div className="grid gap-2">
-                  <Label>Outras observaÃ§Ãµes sobre o paciente *</Label>
+                  <Label>Outras observações sobre o paciente *</Label>
                   <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} />
-                  <p className="text-[10px] text-muted-foreground">InformaÃ§Ãµes adicionais que o profissional precisa saber (ex: preferÃªncias, rotina, temperamento).</p>
+                  <p className="text-[10px] text-muted-foreground">Informações adicionais que o profissional precisa saber (ex: preferências, rotina, temperamento).</p>
                 </div>
               </CardContent>
             </Card>
@@ -945,22 +945,22 @@ const ProfilePage = () => {
 
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => fetchProfile()}>Descartar</Button>
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar AlteraÃ§Ãµes</Button>
+            <Button onClick={handleSave} disabled={isSaving} className="gap-2">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar Alterações</Button>
           </div>
         </div>
 
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> VerificaÃ§Ã£o</CardTitle>
-              <CardDescription className="text-[10px]">O selo de verificaÃ§Ã£o comprova a autenticidade dos seus documentos.</CardDescription>
+              <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação</CardTitle>
+              <CardDescription className="text-[10px]">O selo de verificação comprova a autenticidade dos seus documentos.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-secondary/30 p-3 rounded-lg flex gap-3 items-start border border-border/50">
                 <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="text-sm font-semibold">Upload Seguro</p>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">Seus documentos sÃ£o armazenados em um servidor privado com criptografia.</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">Seus documentos são armazenados em um servidor privado com criptografia.</p>
                 </div>
               </div>
 
@@ -983,8 +983,8 @@ const ProfilePage = () => {
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
                   <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
                   <div>
-                    <p className="font-semibold text-primary">Documentos em AnÃ¡lise</p>
-                    <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em atÃ© 24 horas Ãºteis.</p>
+                    <p className="font-semibold text-primary">Documentos em Análise</p>
+                    <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
                   </div>
                 </div>
               ) : (
@@ -993,40 +993,40 @@ const ProfilePage = () => {
                   <div className="space-y-1">
                     <Label className="text-[10px] uppercase">{doc1Label}</Label>
                     {isCompany && <Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} placeholder="CNPJ da Empresa" className="mb-2" />}
-                    <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} />
+                    <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "? Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} />
                   </div>
                   {!isFamily && (
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase">{doc2Label}</Label>
-                      <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>{profile.prof_registration_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} />
+                      <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>{profile.prof_registration_url ? "? Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} />
                     </div>
                   )}
                   {isFamily && (
                     <>
                       <div className="space-y-1">
                         <Label className="text-[10px] uppercase">{familyDoc2Label}</Label>
-                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientDocRef.current?.click()} disabled={!!isUploading}>{profile.patient_document_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_doc" ref={patientDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_doc')} />
+                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientDocRef.current?.click()} disabled={!!isUploading}>{profile.patient_document_url ? "? Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_doc" ref={patientDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_doc')} />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] uppercase">{familyDoc3Label}</Label>
-                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientAddressProofRef.current?.click()} disabled={!!isUploading}>{profile.patient_address_proof_url ? "✓ Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_address_proof" ref={patientAddressProofRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_address_proof')} />
+                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientAddressProofRef.current?.click()} disabled={!!isUploading}>{profile.patient_address_proof_url ? "? Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_address_proof" ref={patientAddressProofRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_address_proof')} />
                       </div>
                     </>
                   )}
-                  <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && (!profile.id_document_url || !profile.patient_document_url || !profile.patient_address_proof_url)) || (isCompany && (!profile.cnpj || !profile.id_document_url)) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar AnÃ¡lise</Button>
+                  <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && (!profile.id_document_url || !profile.patient_document_url || !profile.patient_address_proof_url)) || (isCompany && (!profile.cnpj || !profile.id_document_url)) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /> SeguranÃ§a</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /> Segurança</CardTitle></CardHeader>
             <CardContent><ChangePasswordDialog /></CardContent>
           </Card>
 
           <Collapsible open={isDangerZoneOpen} onOpenChange={setIsDangerZoneOpen} className="border border-destructive/20 rounded-xl bg-card overflow-hidden">
             <CollapsibleTrigger asChild><Button variant="ghost" className="w-full flex items-center justify-between p-6 h-auto hover:bg-destructive/5 group"><div className="flex items-center gap-2 text-destructive"><Trash2 className="h-4 w-4" /><span className="font-semibold text-base">Zona de Perigo</span></div>{isDangerZoneOpen ? <ChevronUp className="h-4 w-4 text-destructive" /> : <ChevronDown className="h-4 w-4 text-destructive" />}</Button></CollapsibleTrigger>
-            <CollapsibleContent className="px-6 pb-6 space-y-4 animate-accordion-down"><p className="text-[10px] text-muted-foreground">AÃ§Ãµes irreversÃ­veis relacionadas Ã  exclusÃ£o definitiva da sua conta.</p><Button variant="destructive" size="sm" className="w-full justify-start gap-2 h-10" onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}><Trash2 className="h-4 w-4" /> Excluir minha conta permanentemente</Button></CollapsibleContent>
+            <CollapsibleContent className="px-6 pb-6 space-y-4 animate-accordion-down"><p className="text-[10px] text-muted-foreground">Ações irreversíveis relacionadas à exclusão definitiva da sua conta.</p><Button variant="destructive" size="sm" className="w-full justify-start gap-2 h-10" onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}><Trash2 className="h-4 w-4" /> Excluir minha conta permanentemente</Button></CollapsibleContent>
           </Collapsible>
         </div>
       </div>
@@ -1035,14 +1035,14 @@ const ProfilePage = () => {
         <DialogContent className="sm:max-w-[500px]">
           {deleteStep === 1 ? (
             <>
-              <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Sentiremos sua falta!</DialogTitle><DialogDescription className="pt-2 text-base">VocÃª tem certeza que deseja excluir sua conta?</DialogDescription></DialogHeader>
+              <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><ShieldAlert className="h-5 w-5" /> Sentiremos sua falta!</DialogTitle><DialogDescription className="pt-2 text-base">Você tem certeza que deseja excluir sua conta?</DialogDescription></DialogHeader>
               <div className="py-4 space-y-3">{getBenefits().map((benefit, i) => (<div key={i} className="flex items-start gap-3 bg-secondary/20 p-3 rounded-lg border border-border/50"><div className="h-5 w-5 rounded-full bg-success/10 flex items-center justify-center shrink-0 mt-0.5"><Check className="h-3 w-3 text-success" /></div><span className="text-sm text-foreground/80">{benefit}</span></div>))}</div>
-              <DialogFooter className="mt-6 gap-2 sm:gap-0"><Button variant="ghost" onClick={() => setDeleteAccountModalOpen(false)}>Manter Minha Conta</Button><Button variant="destructive" onClick={() => setDeleteStep(2)}>Prosseguir com a ExclusÃ£o</Button></DialogFooter>
+              <DialogFooter className="mt-6 gap-2 sm:gap-0"><Button variant="ghost" onClick={() => setDeleteAccountModalOpen(false)}>Manter Minha Conta</Button><Button variant="destructive" onClick={() => setDeleteStep(2)}>Prosseguir com a Exclusão</Button></DialogFooter>
             </>
           ) : (
             <>
-              <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5" /> ConfirmaÃ§Ã£o Final</DialogTitle><DialogDescription className="pt-2">Digite a frase abaixo exatamente como aparece:</DialogDescription></DialogHeader>
-              <div className="py-6 space-y-4"><div className="text-center p-4 bg-muted rounded-lg border border-dashed border-muted-foreground/30"><span className="font-mono font-bold text-lg tracking-wider select-none">{CONFIRMATION_PHRASE}</span></div><div className="space-y-2"><Label htmlFor="delete-confirm-input">Digite a frase de confirmaÃ§Ã£o</Label><Input id="delete-confirm-input" placeholder="EXCLUIR MINHA CONTA" value={deleteConfirmationText} onChange={(e) => setDeleteConfirmationText(e.target.value)} className="h-12 text-center font-medium" autoFocus /></div></div>
+              <DialogHeader><DialogTitle className="flex items-center gap-2 text-destructive"><AlertTriangle className="h-5 w-5" /> Confirmação Final</DialogTitle><DialogDescription className="pt-2">Digite a frase abaixo exatamente como aparece:</DialogDescription></DialogHeader>
+              <div className="py-6 space-y-4"><div className="text-center p-4 bg-muted rounded-lg border border-dashed border-muted-foreground/30"><span className="font-mono font-bold text-lg tracking-wider select-none">{CONFIRMATION_PHRASE}</span></div><div className="space-y-2"><Label htmlFor="delete-confirm-input">Digite a frase de confirmação</Label><Input id="delete-confirm-input" placeholder="EXCLUIR MINHA CONTA" value={deleteConfirmationText} onChange={(e) => setDeleteConfirmationText(e.target.value)} className="h-12 text-center font-medium" autoFocus /></div></div>
               <DialogFooter className="gap-2 sm:gap-0"><Button variant="ghost" onClick={() => setDeleteStep(1)} disabled={isDeletingAccount}>Voltar</Button><Button variant="destructive" onClick={handleDeleteAccount} disabled={isDeletingAccount || deleteConfirmationText !== CONFIRMATION_PHRASE} className="gap-2">{isDeletingAccount ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Excluir Conta Permanentemente</Button></DialogFooter>
             </>
           )}
@@ -1055,4 +1055,5 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
+
 

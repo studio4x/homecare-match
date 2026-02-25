@@ -160,6 +160,33 @@ const ProfilePage = () => {
     "Prancha de Comunicação",
   ];
 
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const isMissingFamilyFieldError = (err: any) => {
+    const text = `${err?.message || ""} ${err?.details || ""} ${err?.hint || ""}`;
+    return /patient_(name|age|medical_conditions|mobility_level|cognitive_state|special_equipment|communication_skills|document_url|address_proof_url)/i.test(text);
+  };
+
+  const retryProfileUpdateAfterFamilySetup = async (updateData: Record<string, any>) => {
+    const setup = await supabase.functions.invoke("setup-family-profile-fields");
+    if (setup.error) {
+      console.error("[ProfilePage] Falha ao executar setup-family-profile-fields:", setup.error);
+      return { error: setup.error };
+    }
+
+    // Dá tempo para o PostgREST recarregar o schema antes de reexecutar o update.
+    const delays = [600, 1200, 2000];
+    for (const delay of delays) {
+      await wait(delay);
+      const retry = await supabase.from("profiles").update(updateData).eq("id", user?.id);
+      if (!retry.error || !isMissingFamilyFieldError(retry.error)) {
+        return retry;
+      }
+    }
+
+    return await supabase.from("profiles").update(updateData).eq("id", user?.id);
+  };
+
   useEffect(() => {
     fetchProfile();
   }, [user]);
@@ -301,19 +328,9 @@ const ProfilePage = () => {
       let { error: updateError } = await supabase.from("profiles").update(updateData).eq("id", user.id);
 
       // Compatibilidade: tenta provisionar os novos campos da família caso não existam no schema.
-      if (updateError) {
-        const errorText = `${updateError.message || ""} ${updateError.details || ""}`;
-        const missingFamilyDocField = /patient_(document_url|address_proof_url)/i.test(errorText);
-
-        if (missingFamilyDocField) {
-          const { error: setupError } = await supabase.functions.invoke("setup-family-profile-fields");
-          if (!setupError) {
-            const retry = await supabase.from("profiles").update(updateData).eq("id", user.id);
-            updateError = retry.error;
-          } else {
-            console.error("[ProfilePage] Falha ao executar setup-family-profile-fields:", setupError);
-          }
-        }
+      if (updateError && isMissingFamilyFieldError(updateError)) {
+        const retry = await retryProfileUpdateAfterFamilySetup(updateData);
+        updateError = retry.error;
       }
 
       if (updateError) throw updateError;
@@ -480,19 +497,9 @@ const ProfilePage = () => {
       let { error } = await supabase.from("profiles").update(updatePayload).eq("id", user.id);
 
       // Compatibilidade: tenta criar os campos de família se o projeto ainda não tiver essa extensão aplicada.
-      if (error && isFamily) {
-        const errorText = `${error.message || ""} ${error.details || ""}`;
-        const missingFamilyField = /patient_(name|age|medical_conditions|mobility_level|cognitive_state|special_equipment|communication_skills)/i.test(errorText);
-
-        if (missingFamilyField) {
-          const { error: setupError } = await supabase.functions.invoke("setup-family-profile-fields");
-          if (!setupError) {
-            const retry = await supabase.from("profiles").update(updatePayload).eq("id", user.id);
-            error = retry.error;
-          } else {
-            console.error("[ProfilePage] Falha ao executar setup-family-profile-fields:", setupError);
-          }
-        }
+      if (error && isFamily && isMissingFamilyFieldError(error)) {
+        const retry = await retryProfileUpdateAfterFamilySetup(updatePayload);
+        error = retry.error;
       }
 
       if (error) throw error;
@@ -993,23 +1000,23 @@ const ProfilePage = () => {
                   <div className="space-y-1">
                     <Label className="text-[10px] uppercase">{doc1Label}</Label>
                     {isCompany && <Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} placeholder="CNPJ da Empresa" className="mb-2" />}
-                    <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "? Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} />
+                    <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} />
                   </div>
                   {!isFamily && (
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase">{doc2Label}</Label>
-                      <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>{profile.prof_registration_url ? "? Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} />
+                      <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>{profile.prof_registration_url ? "Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} />
                     </div>
                   )}
                   {isFamily && (
                     <>
                       <div className="space-y-1">
                         <Label className="text-[10px] uppercase">{familyDoc2Label}</Label>
-                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientDocRef.current?.click()} disabled={!!isUploading}>{profile.patient_document_url ? "? Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_doc" ref={patientDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_doc')} />
+                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientDocRef.current?.click()} disabled={!!isUploading}>{profile.patient_document_url ? "Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_doc" ref={patientDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_doc')} />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] uppercase">{familyDoc3Label}</Label>
-                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientAddressProofRef.current?.click()} disabled={!!isUploading}>{profile.patient_address_proof_url ? "? Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_address_proof" ref={patientAddressProofRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_address_proof')} />
+                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientAddressProofRef.current?.click()} disabled={!!isUploading}>{profile.patient_address_proof_url ? "Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_address_proof" ref={patientAddressProofRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_address_proof')} />
                       </div>
                     </>
                   )}

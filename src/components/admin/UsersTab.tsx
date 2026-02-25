@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -132,7 +132,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
         .eq("id", profileId);
       
       if (error) throw error;
-      toast.success(currentStatus ? "Selo de verificado removido." : "Usuário verificado com sucesso!");
+      toast.success(currentStatus ? "Docs verificados removidos." : "Docs marcados como verificados.");
       refetchData();
     } catch (err) {
       toast.error("Erro ao atualizar status de verificação.");
@@ -257,11 +257,11 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
             <TableRow>
               <TableHead className="w-[80px]">Foto</TableHead>
               <TableHead>Nome</TableHead>
-              <TableHead>E-mail</TableHead>
+              <TableHead>E-mail (Conta)</TableHead>
               <TableHead>Função</TableHead>
               <TableHead>Plano / Status</TableHead>
-              <TableHead>Verificado</TableHead>
-              <TableHead>E-mail</TableHead>
+              <TableHead>Docs Verificados</TableHead>
+              <TableHead>E-mail Verificado</TableHead>
               <TableHead>Busca</TableHead>
               <TableHead>Registro ANS</TableHead> {/* New TableHead */}
               <TableHead className="text-right">Ações</TableHead>

@@ -70,6 +70,10 @@ import { getCoordinates } from "@/lib/geo-utils";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { Link } from "react-router-dom";
 
+type UploadType = "avatar" | "id_doc" | "prof_doc" | "patient_doc" | "patient_address_proof";
+type VerificationUploadType = Exclude<UploadType, "avatar">;
+type VerificationFieldKey = "id_document_url" | "prof_registration_url" | "patient_document_url" | "patient_address_proof_url";
+
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { data: siteConfig } = useSiteConfig();
@@ -93,6 +97,7 @@ const ProfilePage = () => {
   const profDocRef = useRef<HTMLInputElement>(null);
   const patientDocRef = useRef<HTMLInputElement>(null);
   const patientAddressProofRef = useRef<HTMLInputElement>(null);
+  const [uploadedDocNames, setUploadedDocNames] = useState<Partial<Record<VerificationUploadType, string>>>({});
 
   const specialties = [
     { value: "assistente-social", label: "Assistente Social" },
@@ -172,7 +177,38 @@ const ProfilePage = () => {
     "patient_address_proof_url",
   ];
 
+  const verificationUploadTypeToField: Record<VerificationUploadType, VerificationFieldKey> = {
+    id_doc: "id_document_url",
+    prof_doc: "prof_registration_url",
+    patient_doc: "patient_document_url",
+    patient_address_proof: "patient_address_proof_url",
+  };
+
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const sanitizeFileName = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return "documento";
+    return trimmed
+      .replace(/\s+/g, "_")
+      .replace(/[^a-zA-Z0-9._-]/g, "")
+      .slice(0, 120);
+  };
+
+  const extractFileNameFromStorageValue = (storageValue?: string | null) => {
+    if (!storageValue || typeof storageValue !== "string") return "";
+    const cleanValue = storageValue.split("?")[0];
+    const segments = cleanValue.split("/");
+    const lastSegment = segments[segments.length - 1] || "";
+    if (!lastSegment) return "";
+
+    try {
+      const decoded = decodeURIComponent(lastSegment);
+      return decoded.replace(/^\d{10,}-/, "");
+    } catch {
+      return lastSegment;
+    }
+  };
 
   const getMissingProfileColumn = (err: any) => {
     const text = `${err?.message || ""} ${err?.details || ""} ${err?.hint || ""}`;
@@ -264,6 +300,12 @@ const ProfilePage = () => {
           patient_document_url: data.patient_document_url || "",
           patient_address_proof_url: data.patient_address_proof_url || "",
         });
+        setUploadedDocNames({
+          id_doc: extractFileNameFromStorageValue(data.id_document_url),
+          prof_doc: extractFileNameFromStorageValue(data.prof_registration_url),
+          patient_doc: extractFileNameFromStorageValue(data.patient_document_url),
+          patient_address_proof: extractFileNameFromStorageValue(data.patient_address_proof_url),
+        });
         console.log("[ProfilePage] Profile state updated. verification_sent:", data.verification_sent); // NEW LOG
       }
     } catch (err) {
@@ -340,14 +382,18 @@ const ProfilePage = () => {
     }
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'id_doc' | 'prof_doc' | 'patient_doc' | 'patient_address_proof') => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, type: UploadType) => {
+    const input = event.target;
     const file = event.target.files?.[0];
     if (!file || !user) return;
     setIsUploading(type);
     
     const fileExt = file.name.split('.').pop();
     const bucket = type === 'avatar' ? 'avatars' : 'documents';
-    const filePath = `${user.id}/${Math.random()}.${fileExt}`;
+    const safeFileName = sanitizeFileName(file.name);
+    const filePath = type === "avatar"
+      ? `${user.id}/${Math.random()}.${fileExt}`
+      : `${user.id}/${Date.now()}-${safeFileName}`;
     
     try {
       const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
@@ -376,6 +422,9 @@ const ProfilePage = () => {
 
       if (updateError) throw updateError;
       setProfile(prev => ({ ...prev, ...updateData }));
+      if (type !== "avatar") {
+        setUploadedDocNames(prev => ({ ...prev, [type]: file.name }));
+      }
       toast.success("Arquivo carregado!");
     } catch (err: any) {
       console.error(err);
@@ -387,6 +436,50 @@ const ProfilePage = () => {
       } else {
         toast.error("Erro ao enviar arquivo.");
       }
+    } finally {
+      setIsUploading(null);
+      input.value = "";
+    }
+  };
+
+  const getDocumentButtonLabel = (type: VerificationUploadType, storagePath?: string | null) => {
+    const explicitName = uploadedDocNames[type];
+    if (explicitName) return explicitName;
+
+    const nameFromStorage = extractFileNameFromStorageValue(storagePath);
+    return nameFromStorage || "Selecionar arquivo";
+  };
+
+  const handleRemoveUploadedDocument = async (type: VerificationUploadType) => {
+    if (!user || !profile) return;
+    const field = verificationUploadTypeToField[type];
+    const currentPath = profile[field];
+    setIsUploading(type);
+
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ [field]: null })
+        .eq("id", user.id);
+      if (error) throw error;
+
+      if (typeof currentPath === "string" && currentPath && !/^https?:\/\//i.test(currentPath)) {
+        const { error: storageDeleteError } = await supabase.storage.from("documents").remove([currentPath]);
+        if (storageDeleteError) {
+          console.warn("[ProfilePage] Não foi possível remover arquivo antigo do storage:", storageDeleteError);
+        }
+      }
+
+      setProfile((prev: any) => ({ ...prev, [field]: null }));
+      setUploadedDocNames((prev) => {
+        const next = { ...prev };
+        delete next[type];
+        return next;
+      });
+      toast.success("Documento removido. Você pode selecionar outro arquivo.");
+    } catch (err) {
+      console.error("[ProfilePage] Erro ao remover documento:", err);
+      toast.error("Erro ao remover documento.");
     } finally {
       setIsUploading(null);
     }
@@ -667,6 +760,7 @@ const ProfilePage = () => {
         cnpj: null, // Clear CNPJ for company
         ans_registration: null // Clear ANS registration for company
       }));
+      setUploadedDocNames({});
     } catch (err) {
       toast.error("Erro ao reiniciar processo.");
     }
@@ -1053,23 +1147,67 @@ const ProfilePage = () => {
                   <div className="space-y-1">
                     <Label className="text-[10px] uppercase">{doc1Label}</Label>
                     {isCompany && <Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} placeholder="CNPJ da Empresa" className="mb-2" />}
-                    <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>{profile.id_document_url ? "Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} />
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>
+                        {isUploading === "id_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        {getDocumentButtonLabel("id_doc", profile.id_document_url)}
+                      </Button>
+                      {profile.id_document_url && (
+                        <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("id_doc")} disabled={!!isUploading}>
+                          Excluir
+                        </Button>
+                      )}
+                    </div>
+                    <input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} />
                   </div>
                   {!isFamily && (
                     <div className="space-y-1">
                       <Label className="text-[10px] uppercase">{doc2Label}</Label>
-                      <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>{profile.prof_registration_url ? "Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} />
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>
+                          {isUploading === "prof_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                          {getDocumentButtonLabel("prof_doc", profile.prof_registration_url)}
+                        </Button>
+                        {profile.prof_registration_url && (
+                          <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("prof_doc")} disabled={!!isUploading}>
+                            Excluir
+                          </Button>
+                        )}
+                      </div>
+                      <input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} />
                     </div>
                   )}
                   {isFamily && (
                     <>
                       <div className="space-y-1">
                         <Label className="text-[10px] uppercase">{familyDoc2Label}</Label>
-                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientDocRef.current?.click()} disabled={!!isUploading}>{profile.patient_document_url ? "Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_doc" ref={patientDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_doc')} />
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => patientDocRef.current?.click()} disabled={!!isUploading}>
+                            {isUploading === "patient_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            {getDocumentButtonLabel("patient_doc", profile.patient_document_url)}
+                          </Button>
+                          {profile.patient_document_url && (
+                            <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("patient_doc")} disabled={!!isUploading}>
+                              Excluir
+                            </Button>
+                          )}
+                        </div>
+                        <input type="file" id="patient_doc" ref={patientDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_doc')} />
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] uppercase">{familyDoc3Label}</Label>
-                        <Button variant="outline" size="sm" className="w-full justify-start text-xs h-9 truncate" onClick={() => patientAddressProofRef.current?.click()} disabled={!!isUploading}>{profile.patient_address_proof_url ? "Documento enviado" : "Selecionar arquivo"}</Button><input type="file" id="patient_address_proof" ref={patientAddressProofRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_address_proof')} />
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => patientAddressProofRef.current?.click()} disabled={!!isUploading}>
+                            {isUploading === "patient_address_proof" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            {getDocumentButtonLabel("patient_address_proof", profile.patient_address_proof_url)}
+                          </Button>
+                          {profile.patient_address_proof_url && (
+                            <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("patient_address_proof")} disabled={!!isUploading}>
+                              Excluir
+                            </Button>
+                          )}
+                        </div>
+                        <input type="file" id="patient_address_proof" ref={patientAddressProofRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_address_proof')} />
                       </div>
                     </>
                   )}

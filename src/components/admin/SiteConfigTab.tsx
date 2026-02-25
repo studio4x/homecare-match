@@ -309,12 +309,19 @@ const SiteConfigTab = () => {
   const handleSyncFamilyProfileFields = async () => { // New handler
     setIsSyncingFamilyProfileFields(true);
     try {
-      const { error } = await supabase.functions.invoke('setup-family-profile-fields');
+      const { data, error } = await supabase.functions.invoke('setup-family-profile-fields');
       if (error) throw error;
+
+      const missingColumns = Array.isArray((data as any)?.missing_columns) ? (data as any).missing_columns as string[] : [];
+      if (missingColumns.length > 0) {
+        throw new Error(`Colunas ainda ausentes: ${missingColumns.join(", ")}`);
+      }
+
       toast.success("Campos de perfil da família sincronizados!");
       queryClient.invalidateQueries({ queryKey: ["site-config"] }); // Invalidate to refresh profile data
     } catch (error: any) {
-      toast.error("Erro ao sincronizar campos do perfil da família.");
+      const details = error?.message || error?.details || "Erro ao sincronizar campos do perfil da família.";
+      toast.error(details);
     } finally {
       setIsSyncingFamilyProfileFields(false);
     }

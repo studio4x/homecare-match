@@ -160,11 +160,42 @@ const ProfilePage = () => {
     "Prancha de Comunicação",
   ];
 
+  const familyProfileColumns = [
+    "patient_name",
+    "patient_age",
+    "patient_medical_conditions",
+    "patient_mobility_level",
+    "patient_cognitive_state",
+    "patient_special_equipment",
+    "patient_communication_skills",
+    "patient_document_url",
+    "patient_address_proof_url",
+  ];
+
   const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-  const isMissingFamilyFieldError = (err: any) => {
+  const getMissingProfileColumn = (err: any) => {
     const text = `${err?.message || ""} ${err?.details || ""} ${err?.hint || ""}`;
-    return /patient_(name|age|medical_conditions|mobility_level|cognitive_state|special_equipment|communication_skills|document_url|address_proof_url)/i.test(text);
+    const quotedColumn = text.match(/Could not find the '([^']+)' column of 'profiles'/i);
+    if (quotedColumn?.[1]) return quotedColumn[1];
+
+    return familyProfileColumns.find((column) => {
+      const pattern = new RegExp(`\\b${column}\\b`, "i");
+      return pattern.test(text);
+    }) || null;
+  };
+
+  const isMissingFamilyFieldError = (err: any) => {
+    const missingColumn = getMissingProfileColumn(err);
+    if (missingColumn && missingColumn.startsWith("patient_")) return true;
+    return err?.code === "PGRST204" && !!missingColumn;
+  };
+
+  const showFamilySchemaOutdatedToast = (missingColumn?: string | null) => {
+    const missingFieldLabel = missingColumn ? `Coluna ausente: ${missingColumn}. ` : "";
+    toast.error("Estrutura do banco desatualizada para perfil da família.", {
+      description: `${missingFieldLabel}Peça para um admin abrir Painel Admin > Configurações > Manutenção e clicar em "Campos de Perfil da Família".`,
+    });
   };
 
   const retryProfileUpdateAfterFamilySetup = async (updateData: Record<string, any>) => {
@@ -172,6 +203,11 @@ const ProfilePage = () => {
     if (setup.error) {
       console.error("[ProfilePage] Falha ao executar setup-family-profile-fields:", setup.error);
       return { error: setup.error };
+    }
+
+    const setupData = setup.data as any;
+    if (Array.isArray(setupData?.missing_columns) && setupData.missing_columns.length > 0) {
+      return { error: { code: "FAMILY_SCHEMA_NOT_READY", message: "Campos de perfil da família não foram criados.", details: setupData.missing_columns.join(", ") } };
     }
 
     // Dá tempo para o PostgREST recarregar o schema antes de reexecutar o update.
@@ -184,7 +220,12 @@ const ProfilePage = () => {
       }
     }
 
-    return await supabase.from("profiles").update(updateData).eq("id", user?.id);
+    const finalRetry = await supabase.from("profiles").update(updateData).eq("id", user?.id);
+    if (finalRetry.error && isMissingFamilyFieldError(finalRetry.error)) {
+      return { error: { code: "FAMILY_SCHEMA_NOT_READY", message: "Campos de perfil da família ainda ausentes após sincronização.", details: getMissingProfileColumn(finalRetry.error) } };
+    }
+
+    return finalRetry;
   };
 
   useEffect(() => {
@@ -336,9 +377,16 @@ const ProfilePage = () => {
       if (updateError) throw updateError;
       setProfile(prev => ({ ...prev, ...updateData }));
       toast.success("Arquivo carregado!");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Erro ao enviar arquivo.");
+      const missingColumn = getMissingProfileColumn(err);
+      if (missingColumn?.startsWith("patient_")) {
+        showFamilySchemaOutdatedToast(missingColumn);
+      } else if (err?.code === "FAMILY_SCHEMA_NOT_READY") {
+        showFamilySchemaOutdatedToast(err?.details || null);
+      } else {
+        toast.error("Erro ao enviar arquivo.");
+      }
     } finally {
       setIsUploading(null);
     }
@@ -507,8 +555,13 @@ const ProfilePage = () => {
       fetchProfile();
     } catch (err: any) {
       console.error("[ProfilePage] Erro ao salvar perfil:", err);
-      const details = err?.message || err?.details || "Erro ao salvar perfil.";
-      toast.error(details);
+      const missingColumn = getMissingProfileColumn(err);
+      if (missingColumn?.startsWith("patient_")) {
+        showFamilySchemaOutdatedToast(missingColumn);
+      } else {
+        const details = err?.message || err?.details || "Erro ao salvar perfil.";
+        toast.error(details);
+      }
     } finally {
       setIsSaving(false);
     }

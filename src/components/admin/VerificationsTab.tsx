@@ -53,7 +53,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
     setIsGeneratingUrl(type);
     try {
       let path = pathOrUrl;
-      // Verifica se jÃ¡ Ã© uma URL pÃºblica ou se precisa de signed URL
+      // Verifica se já é uma URL pública ou se precisa de signed URL
       if (pathOrUrl.startsWith('http')) {
         window.open(pathOrUrl, '_blank');
         return;
@@ -61,7 +61,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
       // Se for um path de storage, cria signed URL
       const { data, error } = await supabase.storage
         .from('documents')
-        .createSignedUrl(path, 60); // URL vÃ¡lida por 60 segundos
+        .createSignedUrl(path, 60); // URL válida por 60 segundos
 
       if (error) throw error;
       window.open(data.signedUrl, '_blank');
@@ -145,7 +145,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'company': return <Badge variant="secondary" className="gap-1"><Building2 className="h-3 w-3" /> Empresa</Badge>;
-      case 'family': return <Badge variant="outline" className="gap-1"><Home className="h-3 w-3" /> FamÃ­lia</Badge>;
+      case 'family': return <Badge variant="outline" className="gap-1"><Home className="h-3 w-3" /> Família</Badge>;
       default: return <Badge variant="secondary" className="gap-1"><User className="h-3 w-3" /> Profissional</Badge>;
     }
   };
@@ -178,12 +178,12 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>UsuÃ¡rio</TableHead>
+              <TableHead>Usuário</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Documentos</TableHead>
               {/* New column for CNPJ/ANS if it's a company */}
               <TableHead>Info Adicional</TableHead> 
-              <TableHead className="text-right">AÃ§Ãµes</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -234,7 +234,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
             }) : (
               <TableRow>
                 <TableCell colSpan={5} className="h-32 text-center text-muted-foreground">
-                  Nenhuma solicitaÃ§Ã£o pendente.
+                  Nenhuma solicitação pendente.
                 </TableCell>
               </TableRow>
             )}
@@ -244,8 +244,8 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
 
       <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Reprovar VerificaÃ§Ã£o</DialogTitle><DialogDescription>Informe o motivo para {selectedProfile?.full_name}.</DialogDescription></DialogHeader>
-          <div className="py-4"><Label>Motivo</Label><Textarea value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Ex: Documento ilegÃ­vel." /></div>
+          <DialogHeader><DialogTitle>Reprovar Verificação</DialogTitle><DialogDescription>Informe o motivo para {selectedProfile?.full_name}.</DialogDescription></DialogHeader>
+          <div className="py-4"><Label>Motivo</Label><Textarea value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Ex: Documento ilegível." /></div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>Cancelar</Button>
             <Button variant="destructive" onClick={handleReject} disabled={isProcessingVerification || !rejectionReason}>Confirmar</Button>
@@ -256,18 +256,18 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
       <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmar AprovaÃ§Ã£o</DialogTitle>
+            <DialogTitle>Confirmar Aprovação</DialogTitle>
             <DialogDescription>
-              Tem certeza que deseja aprovar a documentaÃ§Ã£o de <strong>{selectedProfile?.full_name}</strong>?
+              Tem certeza que deseja aprovar a documentação de <strong>{selectedProfile?.full_name}</strong>?
               <br/><br/>
-              Isso concederÃ¡ o selo de verificado ao perfil e enviarÃ¡ um e-mail de notificaÃ§Ã£o.
+              Isso concederá o selo de verificado ao perfil e enviará um e-mail de notificação.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setApproveModalOpen(false)}>Cancelar</Button>
             <Button className="bg-success hover:bg-success/90" onClick={handleApprove} disabled={isProcessingVerification}>
               {isProcessingVerification ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Confirmar AprovaÃ§Ã£o
+              Confirmar Aprovação
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -82,6 +82,22 @@ const Perfil = () => {
         .maybeSingle();
 
       if (!discoveryData) {
+        const { data: isAdmin } = await supabase.rpc("check_is_admin");
+
+        if (isAdmin) {
+          const { data: adminData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", id)
+            .maybeSingle();
+
+          if (adminData?.role === "professional") {
+            setProfile(adminData);
+            toast.info("Perfil fora da busca pública (e-mail não confirmado ou oculto).");
+            return;
+          }
+        }
+
         toast.error("Perfil não encontrado.");
         setLoading(false);
         return;

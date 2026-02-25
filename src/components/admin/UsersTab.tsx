@@ -62,6 +62,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
   const [isUpdatingPlan, setIsUpdatingPlan] = useState<string | null>(null);
   const [isUpdatingVerified, setIsUpdatingVerified] = useState<string | null>(null);
+  const [isUpdatingEmailConfirmed, setIsUpdatingEmailConfirmed] = useState<string | null>(null);
   const [isImpersonating, setIsImpersonating] = useState<string | null>(null);
 
   const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
@@ -76,7 +77,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   };
 
   const getProfileLink = (u: any) => {
-    if (u.role === 'professional') return `/profissional/${u.id}`;
+    if (u.role === 'professional' && u.email_confirmed) return `/profissional/${u.id}`;
     if (u.role === 'company' || u.role === 'family') return `/recruiter/${u.id}`;
     return null;
   };
@@ -137,6 +138,24 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       toast.error("Erro ao atualizar status de verificação.");
     } finally {
       setIsUpdatingVerified(null);
+    }
+  };
+
+  const handleToggleEmailConfirmed = async (profileId: string, currentStatus: boolean) => {
+    setIsUpdatingEmailConfirmed(profileId);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ email_confirmed: !currentStatus })
+        .eq("id", profileId);
+
+      if (error) throw error;
+      toast.success(!currentStatus ? "E-mail marcado como confirmado." : "Confirmação de e-mail removida.");
+      refetchData();
+    } catch (err) {
+      toast.error("Erro ao atualizar confirmação de e-mail.");
+    } finally {
+      setIsUpdatingEmailConfirmed(null);
     }
   };
 
@@ -218,6 +237,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const checkVisibility = (u: any) => {
     if (u.role !== 'professional') return false;
     if (!u.full_name) return false;
+    if (!u.email_confirmed) return false;
     
     const isPaid = ['monthly', 'yearly'].includes(u.subscription_tier);
     const trialLimitDate = subDays(new Date(), 30);
@@ -241,6 +261,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
               <TableHead>Função</TableHead>
               <TableHead>Plano / Status</TableHead>
               <TableHead>Verificado</TableHead>
+              <TableHead>E-mail</TableHead>
               <TableHead>Busca</TableHead>
               <TableHead>Registro ANS</TableHead> {/* New TableHead */}
               <TableHead className="text-right">Ações</TableHead>
@@ -350,10 +371,27 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="flex items-center justify-center">
+                      {isUpdatingEmailConfirmed === u.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <Switch
+                          checked={!!u.email_confirmed}
+                          onCheckedChange={() => handleToggleEmailConfirmed(u.id, !!u.email_confirmed)}
+                          className="data-[state=checked]:bg-success"
+                        />
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
                     {u.role === 'professional' ? (
                       isVisible ? (
                         <Badge className="bg-success/10 text-success border-success/20 gap-1 text-[9px] h-5">
                           <Eye className="h-3 w-3" /> Visível
+                        </Badge>
+                      ) : !u.email_confirmed ? (
+                        <Badge variant="destructive" className="gap-1 text-[9px] h-5">
+                          <EyeOff className="h-3 w-3" /> E-mail não confirmado
                         </Badge>
                       ) : (
                         <Badge variant="secondary" className="gap-1 text-[9px] h-5 opacity-60">

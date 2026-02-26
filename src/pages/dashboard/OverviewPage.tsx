@@ -54,7 +54,6 @@ const OverviewPage = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isSyncingBilling, setIsSyncingBilling] = useState(false);
   const [isManagingBilling, setIsManagingBilling] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
@@ -142,39 +141,6 @@ const OverviewPage = () => {
       };
     }
   }, [searchParams]);
-
-  const handleSyncBilling = async () => {
-    setIsSyncingBilling(true);
-    const toastId = toast.loading("Consultando pagamentos...");
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-user-subscription');
-      
-      if (error) {
-        let errorMessage = "Erro ao sincronizar pagamentos.";
-        try {
-          const body = await error.context?.json();
-          if (body?.error) errorMessage = body.error;
-        } catch {}
-        throw new Error(errorMessage);
-      }
-      
-      if (data?.success) {
-        toast.success(data.message, { id: toastId });
-        if (data.profile) {
-          setProfile(data.profile);
-        } else {
-          await fetchProfile();
-        }
-      } else {
-        toast.info(data.message || "Nenhuma alteração encontrada.", { id: toastId });
-      }
-    } catch (err: any) {
-      console.error("[Sync Error]", err);
-      toast.error(err.message || "Erro ao sincronizar pagamentos.", { id: toastId });
-    } finally {
-      setIsSyncingBilling(false);
-    }
-  };
 
   const handleManageBilling = async () => {
     setIsManagingBilling(true);
@@ -655,18 +621,6 @@ const OverviewPage = () => {
                           <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                             {subStatus?.dateLabel || "Data"}
                           </p>
-                          {!profile.coupon_days && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-6 text-[10px] gap-1 text-primary hover:bg-primary/10"
-                              onClick={handleSyncBilling}
-                              disabled={isSyncingBilling}
-                            >
-                              {isSyncingBilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                              Sincronizar Agora
-                            </Button>
-                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-primary" />
@@ -679,7 +633,7 @@ const OverviewPage = () => {
                         </div>
                         {!profile.subscription_end_at && (
                           <p className="text-[10px] text-muted-foreground mt-1 italic">
-                            Clique em sincronizar se você já realizou o pagamento.
+                            Aguardando confirmação automática do pagamento.
                           </p>
                         )}
                         {profile.cancel_at_period_end && !profile.coupon_days && (

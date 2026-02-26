@@ -28,15 +28,16 @@ const resolveItemLabel = (
   const courseSlug = String(tx?.course_slug || "").trim();
   const description = String(tx?.description || "").trim();
 
+  if (description) return description;
+
   if (courseSlug) {
-    return `Curso: ${coursesBySlug[courseSlug] || description || courseSlug}`;
+    return `Curso: ${coursesBySlug[courseSlug] || courseSlug}`;
   }
 
   if (planId) {
-    return `Plano: ${plansById[planId] || description || planId}`;
+    return `Plano: ${plansById[planId] || planId}`;
   }
 
-  if (description) return description;
   return "Pagamento HomeCare Match";
 };
 
@@ -124,8 +125,11 @@ serve(async (req) => {
       return {
         id: tx.id || tx.payment_id,
         payment_id: tx.payment_id || null,
+        user_id: tx.user_id || null,
+        transaction_type: tx.transaction_type || "unknown",
         client_name: profile?.full_name || profile?.email || "Cliente nao identificado",
         item_name: resolveItemLabel(tx, plansById, coursesBySlug),
+        description: String(tx?.description || "").trim() || null,
         date: resolvePaymentDate(tx),
         status: statusToDisplay(tx.status),
         raw_status: normalizeStatus(tx.status) || null,

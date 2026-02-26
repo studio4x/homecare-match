@@ -41,6 +41,35 @@ interface PaymentRecord {
   type: 'subscription' | 'one_time';
 }
 
+type InvokeFunctionError = {
+  context?: Response;
+};
+
+const readFunctionErrorMessage = async (
+  funcError: InvokeFunctionError | null,
+  fallback: string,
+) => {
+  const response = funcError?.context;
+  if (!response) return fallback;
+
+  try {
+    const body = await response.clone().json();
+    if (typeof body?.error === "string" && body.error.trim()) return body.error;
+    if (typeof body?.message === "string" && body.message.trim()) return body.message;
+  } catch {
+    // Response body is not JSON.
+  }
+
+  try {
+    const text = await response.clone().text();
+    if (text.trim()) return text;
+  } catch {
+    // Response body could not be read as plain text.
+  }
+
+  return fallback;
+};
+
 const PaymentsPage = () => {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,18 +89,16 @@ const PaymentsPage = () => {
       const { data, error: funcError } = await supabase.functions.invoke('get-payment-history');
       
       if (funcError) {
-        let msg = "Erro ao consultar histórico.";
-        try {
-          const body = await funcError.context?.json();
-          if (body?.error) msg = body.error;
-        } catch {}
+        const msg = await readFunctionErrorMessage(funcError, "Erro ao consultar histórico.");
         throw new Error(msg);
       }
       
       setPayments(data?.payments || []);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[PaymentsPage] Erro:", err);
-      const errorMessage = err.message || "Não foi possível carregar seu histórico de pagamentos.";
+      const errorMessage = err instanceof Error && err.message
+        ? err.message
+        : "Não foi possível carregar seu histórico de pagamentos.";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {

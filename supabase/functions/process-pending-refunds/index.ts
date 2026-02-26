@@ -67,6 +67,7 @@ const asObject = (value: unknown) => {
   return value as Record<string, any>;
 };
 
+// Pending refund retry supports both individual charges and installment groups.
 const getInstallmentIdFromPayload = (rawPayload: Record<string, any>) => {
   const cancellation = asObject(rawPayload?.cancellation);
   const payment = asObject(rawPayload?.payment);
@@ -275,7 +276,8 @@ serve(async (req) => {
         await supabaseAdmin
           .from("profiles")
           .update({
-            subscription_tier: "free_trial",
+            subscription_tier: null,
+            coupon_days: null,
             subscription_end_at: nowIso,
             cancel_at_period_end: true,
             updated_at: nowIso,

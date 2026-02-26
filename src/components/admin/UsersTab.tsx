@@ -85,7 +85,9 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     return 30;
   };
 
-  const getTierLabel = (tier: string) => {
+  const getTierLabel = (tier?: string | null) => {
+    if (!tier) return "Nenhum plano definido";
+
     switch (tier.toLowerCase()) {
       case 'monthly': return 'Plano Mensal';
       case 'yearly': return 'Plano Anual';
@@ -119,23 +121,22 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   };
 
   const handleUpdatePlan = async (profileId: string, newPlan: string) => {
+    if (newPlan === "no_plan") return;
+
+    if (newPlan === "free_trial") {
+      toast.error("O plano de 30 dias gratuitos só pode ser ativado no cadastro inicial.");
+      return;
+    }
+
     setIsUpdatingPlan(profileId);
     try {
       const now = new Date();
       const updateData: any = { subscription_tier: newPlan };
 
-      if (newPlan === 'free_trial') {
-        updateData.trial_started_at = now.toISOString();
-        updateData.subscription_end_at = null;
-        updateData.coupon_days = null; // Remove cupom se voltar pro trial
-        updateData.cancel_at_period_end = false;
-      } else {
-        const durationDays = getPlanDurationDays(newPlan);
-        updateData.subscription_end_at = addDays(now, durationDays).toISOString();
-        updateData.trial_started_at = null;
-        updateData.coupon_days = null;
-        updateData.cancel_at_period_end = false;
-      }
+      const durationDays = getPlanDurationDays(newPlan);
+      updateData.subscription_end_at = addDays(now, durationDays).toISOString();
+      updateData.coupon_days = null;
+      updateData.cancel_at_period_end = false;
 
       const { error } = await supabase
         .from("profiles")
@@ -351,7 +352,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                     <div className="space-y-1">
                       {isUpdatingPlan === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                         <Select 
-                          defaultValue={u.subscription_tier || 'monthly'} 
+                          value={u.subscription_tier || "no_plan"}
                           onValueChange={(value) => handleUpdatePlan(u.id, value)}
                           disabled={u.role !== 'professional'}
                         >
@@ -359,11 +360,11 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                             <SelectValue>
                               {u.coupon_days && u.subscription_tier === 'monthly' 
                                 ? "Plano Mensal (Via Cupom)" 
-                                : getTierLabel(u.subscription_tier || 'monthly')}
+                                : getTierLabel(u.subscription_tier)}
                             </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="free_trial">Teste Grátis (Sistema)</SelectItem>
+                            <SelectItem value="no_plan" disabled>Nenhum plano definido</SelectItem>
                             {plans.filter(p => p.id !== 'free_trial').map(plan => (
                               <SelectItem key={plan.id} value={plan.id}>
                                 {u.coupon_days && plan.id === 'monthly' ? "Plano Mensal (Via Cupom)" : getTierLabel(plan.id)}

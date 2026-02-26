@@ -249,7 +249,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-none p-0 shadow-2xl sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-[700px] [&>button.absolute.right-4.top-4]:hidden">
+        <DialogContent className="flex h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-none p-0 shadow-2xl sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-[760px] [&>button.absolute.right-4.top-4]:hidden">
           <DialogHeader className="shrink-0 bg-primary p-4 text-primary-foreground sm:p-8">
             <div className="mb-2 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">

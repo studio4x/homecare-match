@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -301,7 +301,8 @@ serve(async (req) => {
       const { data: canceledProfile, error: canceledProfileError } = await supabaseAdmin
         .from("profiles")
         .update({
-          subscription_tier: "free_trial",
+          subscription_tier: null,
+          coupon_days: null,
           subscription_end_at: canceledAt,
           cancel_at_period_end: true,
           updated_at: new Date().toISOString(),

@@ -216,7 +216,7 @@ const OverviewPage = () => {
   };
 
   const getTrialInfo = () => {
-    if (profile?.subscription_tier !== 'free_trial' || !profile?.trial_started_at) return null;
+    if (profile?.subscription_tier !== 'free_trial' || !profile?.trial_started_at || profile?.cancel_at_period_end) return null;
     const start = parseISO(profile.trial_started_at);
     const startDate = isValid(start) ? start : new Date(profile.trial_started_at);
     const endDate = addDays(startDate, 30);
@@ -372,12 +372,21 @@ const OverviewPage = () => {
   const subStatus = getSubscriptionStatus();
   const renewalAlert = getRenewalAlert();
 
-  const getPlanLabel = (tier: string) => {
+  const getPlanLabel = (tier?: string | null) => {
+    if (!tier) return 'Nenhum plano definido';
     if (tier === 'monthly') return 'Plano Mensal';
     if (tier === 'yearly') return 'Plano Anual';
     if (tier === 'free_trial') return 'Período de 30 dias Gratuitos';
     return tier;
   };
+
+  const subscriptionEndDate = profile?.subscription_end_at ? parseISO(profile.subscription_end_at) : null;
+  const isExpiredSubscriptionEnd = !!subscriptionEndDate && isValid(subscriptionEndDate) && subscriptionEndDate < new Date();
+  const showNoPlanLabel =
+    !!profile?.cancel_at_period_end &&
+    isExpiredSubscriptionEnd &&
+    !['monthly', 'yearly'].includes(String(profile?.subscription_tier || '').toLowerCase());
+  const displayedPlanLabel = showNoPlanLabel ? 'Nenhum plano definido' : getPlanLabel(profile?.subscription_tier);
 
   const getPatientCode = (patient: any) => {
     const rawCode = (patient?.patient_name ?? "").toString().trim();
@@ -562,7 +571,7 @@ const OverviewPage = () => {
                 <CardContent>
                   <div className="flex items-center justify-between mb-4">
                     <Badge variant="outline" className="capitalize text-base px-3 py-1">
-                      {getPlanLabel(profile?.subscription_tier)}
+                      {displayedPlanLabel}
                     </Badge>
                     {subStatus && (
                       <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium", subStatus.bg, subStatus.color)}>
@@ -665,7 +674,7 @@ const OverviewPage = () => {
                         </Button>
                       )}
                     </div>
-                  ) : trial && (
+                  ) : trial ? (
                     <div className="space-y-3">
                       <div className="flex justify-between text-xs mb-1">
                         <span className="text-muted-foreground">Período de Teste</span>
@@ -683,6 +692,19 @@ const OverviewPage = () => {
                         size="sm" 
                         className="w-full mt-2" 
                         variant={trial.isExpired ? "default" : "outline"}
+                        onClick={() => setIsPlanSelectionOpen(true)}
+                      >
+                        Assinar Agora
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Você não possui um plano ativo no momento.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="w-full"
                         onClick={() => setIsPlanSelectionOpen(true)}
                       >
                         Assinar Agora

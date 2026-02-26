@@ -330,7 +330,8 @@ serve(async (req) => {
     const { error: updateProfileError } = await supabaseAdmin
       .from("profiles")
       .update({
-        subscription_tier: "free_trial",
+        subscription_tier: null,
+        coupon_days: null,
         subscription_end_at: nowIso,
         cancel_at_period_end: true,
         updated_at: nowIso,

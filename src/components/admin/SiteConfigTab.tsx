@@ -353,9 +353,18 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-company-patients');
       if (error) throw error;
+      const { error: verifyError } = await supabase
+        .from("company_patients")
+        .select("id,hiring_status")
+        .limit(1);
+      if (verifyError) throw verifyError;
       toast.success("Sistema de pacientes da empresa sincronizado!");
     } catch (error: any) {
-      toast.error("Erro ao sincronizar sistema de pacientes da empresa.");
+      const message =
+        error?.message?.includes("hiring_status")
+          ? "A coluna hiring_status ainda não ficou disponível. Aguarde alguns segundos e clique novamente."
+          : "Erro ao sincronizar sistema de pacientes da empresa.";
+      toast.error(message);
     } finally {
       setIsSyncingCompanyPatients(false);
     }
@@ -810,7 +819,9 @@ const SiteConfigTab = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-amber-900">Sistema de Pacientes da Empresa</p>
-              <p className="text-xs text-amber-800/70">Cria a tabela para empresas gerenciarem múltiplos pacientes.</p>
+              <p className="text-xs text-amber-800/70">
+                Cria a tabela e garante a coluna de status de contratação (hiring_status).
+              </p>
             </div>
             <Button variant="outline" onClick={handleSyncCompanyPatients} disabled={isSyncingCompanyPatients}>
               {isSyncingCompanyPatients ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}

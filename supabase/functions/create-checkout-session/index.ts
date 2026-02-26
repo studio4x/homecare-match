@@ -61,6 +61,12 @@ const getProfileCpfCnpj = (profile: any) => {
   return normalizeCpfCnpj(profile?.cnpj) || normalizeCpfCnpj(profile?.cpf);
 };
 
+const normalizePostalCode = (value?: string | null) => {
+  if (!value) return undefined;
+  const onlyDigits = String(value).replace(/\D/g, "");
+  return onlyDigits.length === 8 ? onlyDigits : undefined;
+};
+
 const parseMonetaryValue = (raw: unknown): number => {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (typeof raw !== "string") return 0;
@@ -258,10 +264,25 @@ serve(async (req) => {
       throw new Error("Para continuar com o pagamento, preencha CPF/CNPJ em Meus Dados.");
     }
 
+    const streetAddress = String(profile?.address_street || "").trim();
+    const neighborhood = String(profile?.neighborhood || "").trim();
+    const postalCode = normalizePostalCode(profile?.address_zip);
+
+    if (!streetAddress || !neighborhood || !postalCode) {
+      throw new Error(
+        "Para continuar com o pagamento, preencha endereço completo (rua, bairro e CEP) em Meus Dados.",
+      );
+    }
+
     const customerPayload: Record<string, any> = {
       name: profile?.full_name || user.email || "Cliente HomeCare Match",
       email: user.email,
       cpfCnpj,
+      address: streetAddress,
+      addressNumber: String(profile?.address_number || "S/N").trim() || "S/N",
+      complement: String(profile?.address_complement || "").trim() || undefined,
+      province: neighborhood,
+      postalCode,
     };
 
     const phone = normalizePhone(profile?.phone);

@@ -467,32 +467,22 @@ const Buscar = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4">
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Buscar Profissionais</h1>
-            <p className="mt-2 text-muted-foreground flex items-center gap-2">
+      <div className="container mx-auto px-4 pb-4">
+        <div className="mobile-fade-up mb-6 rounded-[2rem] border border-border/70 bg-gradient-to-br from-primary/10 via-card to-success/10 p-5 shadow-xl md:mb-8 md:p-6">
+          <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground md:text-3xl">Buscar Profissionais</h1>
+              <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
               {userProfile?.role === 'company' ? <Building2 className="h-4 w-4" /> : <Home className="h-4 w-4" />}
               {userProfile?.role === 'company' ? 'Painel de Recrutamento para Empresa' : 'Painel de Recrutamento para Família'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground mr-4">
-              <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
-                <Star className="h-3 w-3 text-amber-500 fill-current" />
-                <span className="leading-none">Destaque Premium</span>
-              </div>
-              <div className="flex items-center gap-1 rounded-full border px-2 py-1 bg-card">
-                <ShieldCheck className="h-3 w-3 text-success" />
-                <span className="leading-none">Perfil Verificado</span>
-              </div>
+              </p>
             </div>
+
             <Button 
               variant="outline" 
               size="sm" 
               className={cn(
-                "h-9 gap-2 transition-all",
+                "h-10 w-full gap-2 border-border/70 bg-background/80 transition-all md:w-auto",
                 isMapExpanded ? "bg-primary text-primary-foreground hover:bg-primary/90" : "hover:bg-secondary"
               )}
               onClick={() => setIsMapExpanded(!isMapExpanded)}
@@ -501,6 +491,17 @@ const Buscar = () => {
               {isMapExpanded ? "Recolher Mapa" : "Ver no Mapa"}
               {isMapExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1 rounded-full border border-border/80 bg-background/80 px-2 py-1">
+              <Star className="h-3 w-3 fill-current text-amber-500" />
+              <span className="leading-none">Destaque Premium</span>
+            </div>
+            <div className="flex items-center gap-1 rounded-full border border-border/80 bg-background/80 px-2 py-1">
+              <ShieldCheck className="h-3 w-3 text-success" />
+              <span className="leading-none">Perfil Verificado</span>
+            </div>
           </div>
         </div>
 
@@ -523,7 +524,7 @@ const Buscar = () => {
           </div>
         )}
 
-        <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-card">
+        <div className="mobile-fade-up mb-8 rounded-3xl border border-border/80 bg-card/95 p-4 shadow-xl md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-end">
             <div className="flex-1">
               <Label htmlFor="search" className="sr-only">Buscar</Label>
@@ -538,17 +539,17 @@ const Buscar = () => {
                 />
               </div>
             </div>
-            <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="gap-2">
+            <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="h-11 w-full gap-2 sm:w-auto">
               <Filter className="h-4 w-4" /> Filtros
             </Button>
-            <Button className="gap-2" onClick={() => setSearchTrigger(prev => prev + 1)}>
+            <Button className="h-11 w-full gap-2 sm:w-auto" onClick={() => setSearchTrigger(prev => prev + 1)}>
               <Search className="h-4 w-4" /> Buscar
             </Button>
           </div>
 
           {showFilters && (
             <div className="mt-6 animate-fade-in border-t border-border pt-6">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="mobile-stagger grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div className="grid gap-2">
                   <Label>Especialidade</Label>
                   <Select value={filters.specialty} onValueChange={(v) => setFilters({...filters, specialty: v})}>
@@ -611,7 +612,7 @@ const Buscar = () => {
         </div>
 
         {isMapExpanded && (
-          <div className="mb-8 animate-slide-up">
+          <div className="mobile-fade-up mb-8 animate-slide-up">
             {!isLoadingConfig && config?.google_maps_api_key ? (
               <ProfessionalMap 
                 userLocation={hasLocation ? { lat: Number(userProfile.lat), lng: Number(userProfile.lng) } : null}
@@ -632,7 +633,7 @@ const Buscar = () => {
           </div>
         )}
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="mobile-stagger grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4">
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
           ) : displayedProfessionals.length > 0 ? (
@@ -662,7 +663,7 @@ const Buscar = () => {
         </div>
 
         {!loading && (
-          <div className="mt-16 py-12 text-center animate-fade-in bg-primary/5 border border-primary/10 rounded-3xl p-8">
+          <div className="mobile-fade-up mt-12 animate-fade-in rounded-3xl border border-primary/10 bg-primary/5 p-6 py-10 text-center md:mt-16 md:p-8 md:py-12">
             <div className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
               <Headset className="h-10 w-10 text-primary" />
               <Sparkles className="absolute -top-1 -right-1 h-6 w-6 text-yellow-500 fill-yellow-500" />
@@ -674,7 +675,7 @@ const Buscar = () => {
             </p>
             <Button
               size="lg"
-              className="gap-2 h-14 px-8 text-lg shadow-lg hover:scale-105 transition-transform"
+              className="h-12 w-full gap-2 px-6 text-base shadow-lg transition-transform hover:scale-[1.02] sm:h-14 sm:w-auto sm:px-8 sm:text-lg"
               onClick={openConciergeModal}
             >
               Solicitar Busca Personalizada

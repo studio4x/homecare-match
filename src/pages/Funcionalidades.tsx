@@ -393,19 +393,24 @@ const Funcionalidades = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground md:text-5xl">
+      <div className="container mx-auto px-4 py-8 md:py-12">
+        <div className="mobile-fade-up mx-auto mb-12 max-w-4xl rounded-[2rem] border border-border/70 bg-gradient-to-br from-primary/10 via-card to-success/10 px-5 py-8 text-center shadow-xl md:mb-16 md:px-8 md:py-10">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-5xl">
             Funcionalidades da Plataforma
           </h1>
-          <p className="mt-4 text-lg text-muted-foreground">
+          <p className="mt-4 text-base text-muted-foreground md:text-lg">
             Conheça todas as ferramentas que criamos para conectar o ecossistema de Home Care com eficiência e segurança.
           </p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs">
+            <span className="rounded-full border border-border bg-background/80 px-3 py-1 text-muted-foreground">Mobile-first</span>
+            <span className="rounded-full border border-border bg-background/80 px-3 py-1 text-muted-foreground">Busca inteligente</span>
+            <span className="rounded-full border border-border bg-background/80 px-3 py-1 text-muted-foreground">Suporte em tempo real</span>
+          </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mobile-stagger grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3">
           {features.map((f, i) => (
-            <Card key={i} className="group hover:shadow-lg transition-all duration-300 border-primary/5 overflow-hidden">
+            <Card key={i} className="group overflow-hidden border-primary/10 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg">
               <CardHeader className={cn("pb-4", f.bg)}>
                 <div className="flex items-center justify-between mb-2">
                   <div className={cn("p-2 rounded-lg bg-white shadow-sm", f.color)}>
@@ -438,7 +443,7 @@ const Funcionalidades = () => {
           ))}
         </div>
 
-        <div className="mt-20 bg-primary/5 rounded-3xl p-8 md:p-12 border border-primary/10">
+        <div className="mobile-fade-up mt-16 rounded-3xl border border-primary/10 bg-primary/5 p-5 md:mt-20 md:p-12">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <h2 className="text-3xl font-bold">{cta.title}</h2>
@@ -447,7 +452,7 @@ const Funcionalidades = () => {
               </p>
               {cta.buttons}
             </div>
-            <div className="grid gap-4">
+            <div className="mobile-stagger grid gap-4">
               {cta.items.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm border animate-fade-in">
                   <div className="h-10 w-10 rounded-full bg-success/10 flex items-center justify-center text-success">

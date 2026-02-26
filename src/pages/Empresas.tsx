@@ -133,14 +133,14 @@ const Empresas = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="gradient-hero relative overflow-hidden py-20 lg:py-28">
+      <section className="gradient-hero relative overflow-hidden px-2 py-14 md:px-0 md:py-20 lg:py-28">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -left-40 -top-40 h-80 w-80 rounded-full bg-success/5" />
           <div className="absolute -bottom-40 -right-40 h-80 w-80 rounded-full bg-primary/5" />
         </div>
 
         <div className="container relative mx-auto px-4">
-          <div className="mx-auto max-w-3xl text-center">
+          <div className="mobile-fade-up mx-auto max-w-3xl rounded-[2rem] border border-border/70 bg-card/75 px-4 py-8 text-center shadow-xl backdrop-blur-sm md:border-0 md:bg-transparent md:px-0 md:py-0 md:shadow-none">
             <div className="animate-fade-in mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm">
               <Building2 className="h-4 w-4 text-success" />
               <span className="text-sm font-medium text-muted-foreground">
@@ -161,13 +161,13 @@ const Empresas = () => {
             </p>
 
             <div className="animate-slide-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.2s" }}>
-              <Button size="lg" asChild className="gap-2 bg-success hover:bg-success/90">
+              <Button size="lg" asChild className="w-full gap-2 bg-success hover:bg-success/90 sm:w-auto">
                 <Link to="/cadastro-empresa">
                   Cadastre-se Gratuitamente
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild>
+              <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
                 <Link to="/">Sou Profissional</Link>
               </Button>
             </div>
@@ -192,7 +192,7 @@ const Empresas = () => {
       )}
 
       {/* Features Section */}
-      <section className="py-20">
+      <section className="py-14 md:py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">
@@ -204,7 +204,7 @@ const Empresas = () => {
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mobile-stagger grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {features.map((feature, index) => (
               <FeatureCard
                 key={index}
@@ -231,7 +231,7 @@ const Empresas = () => {
                 uma contratação assertiva.
               </p>
 
-              <ul className="mt-8 space-y-4">
+              <ul className="mobile-stagger mt-8 space-y-4">
                 {benefits.map((benefit, index) => (
                   <li key={index} className="flex items-center gap-3">
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-success/10">
@@ -245,7 +245,7 @@ const Empresas = () => {
 
             <div className="relative">
               {showLocationCard ? (
-                <div className="rounded-2xl border border-border bg-card p-8 shadow-lg animate-scale-in">
+                <div className="mobile-fade-up rounded-2xl border border-border bg-card p-8 shadow-lg animate-scale-in">
                   <div className="mb-6 flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
                       <MapPin className="h-6 w-6 text-success" />
@@ -280,7 +280,7 @@ const Empresas = () => {
                   </Button>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 flex flex-col items-center text-center justify-center min-h-[300px]">
+                <div className="mobile-fade-up rounded-2xl border border-dashed border-border bg-card/50 p-8 flex flex-col items-center text-center justify-center min-h-[300px]">
                   <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
                   <h3 className="font-semibold text-muted-foreground">Base em Expansão</h3>
                   <p className="text-sm text-muted-foreground/70 mt-2">
@@ -297,7 +297,7 @@ const Empresas = () => {
       </section>
 
       {/* How it Works */}
-      <section className="py-20">
+      <section className="py-14 md:py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">Como Funciona</h2>
@@ -306,7 +306,7 @@ const Empresas = () => {
             </p>
           </div>
 
-          <div className="mx-auto grid max-w-4xl gap-8 md:grid-cols-3">
+          <div className="mobile-stagger mx-auto grid max-w-4xl gap-4 md:gap-8 md:grid-cols-3">
             {[
               {
                 step: "01",
@@ -327,7 +327,7 @@ const Empresas = () => {
                   "Entre em contato diretamente e feche a contratação.",
               },
             ].map((item, index) => (
-              <div key={index} className="relative text-center">
+              <div key={index} className="relative rounded-3xl border border-border/70 bg-card/80 p-5 text-center shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
                 <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-success text-2xl font-bold text-success-foreground">
                   {item.step}
                 </div>
@@ -342,7 +342,7 @@ const Empresas = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-success py-20">
+      <section className="bg-success py-16 md:py-20">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-success-foreground">
             Encontre o profissional ideal para sua equipe
@@ -354,7 +354,7 @@ const Empresas = () => {
           <Button
             size="lg"
             variant="secondary"
-            className="mt-8 gap-2"
+            className="mt-8 w-full gap-2 sm:w-auto"
             asChild
           >
             <Link to="/cadastro-empresa">
@@ -366,7 +366,7 @@ const Empresas = () => {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 bg-secondary/10">
+      <section className="bg-secondary/10 py-14 md:py-20">
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="mb-12 text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
@@ -378,12 +378,12 @@ const Empresas = () => {
             </p>
           </div>
 
-          <Accordion type="single" collapsible className="w-full space-y-4">
+          <Accordion type="single" collapsible className="mobile-stagger w-full space-y-4">
             {faqs.map((faq, index) => (
               <AccordionItem 
                 key={index} 
                 value={`item-${index}`} 
-                className="border rounded-xl px-6 bg-card shadow-sm border-success/5"
+                className="rounded-xl border border-success/5 bg-card px-4 shadow-sm md:px-6"
               >
                 <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
                   {faq.question}

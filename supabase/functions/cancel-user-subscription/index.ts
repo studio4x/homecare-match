@@ -10,6 +10,7 @@ const corsHeaders = {
 const CANCELLATION_WINDOW_DAYS = 7;
 const PAID_STATUSES = new Set(["RECEIVED", "CONFIRMED", "PAID", "SUCCEEDED"]);
 const ALREADY_CANCELED_STATUSES = new Set(["REFUNDED", "CANCELED", "CANCELLED", "VOID", "DELETED"]);
+const ACTIVE_PLAN_TIERS = new Set(["monthly", "yearly"]);
 
 const asaasEnvFromConfig = (config: any) => {
   if (config?.asaas_environment === "production") return "production";
@@ -50,6 +51,24 @@ const isInsufficientBalanceError = (message?: string | null) => {
   return normalized.includes("saldo insuficiente");
 };
 
+const normalizePlanId = (value?: string | null) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "annual") return "yearly";
+  return normalized;
+};
+
+const isNonRemovableInstallmentError = (message?: string | null) => {
+  const normalized = String(message || "").toLowerCase();
+  const normalizedAscii = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return (
+    normalizedAscii.includes("parcelamento") &&
+    normalizedAscii.includes("nao pode ser removido")
+  ) || (
+    normalizedAscii.includes("installment") &&
+    normalizedAscii.includes("cannot be removed")
+  );
+};
+
 const normalizeStatus = (value?: string | null) => String(value || "").trim().toUpperCase();
 
 const parseDate = (value?: string | null) => {
@@ -83,18 +102,69 @@ serve(async (req) => {
 
     if (userError || !user) throw new Error("Usuario nao autenticado.");
 
-    const { data: tx, error: txError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("subscription_tier")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) throw profileError;
+
+    const activeTier = normalizePlanId(profile?.subscription_tier);
+    const hasActivePaidTier = ACTIVE_PLAN_TIERS.has(activeTier);
+    if (!hasActivePaidTier) {
+      throw new Error("Nenhuma assinatura ativa foi encontrada para cancelamento.");
+    }
+
+    const { data: planTransactions, error: txError } = await supabaseAdmin
       .from("payment_transactions")
       .select("*")
       .eq("user_id", user.id)
       .eq("transaction_type", "plan")
       .order("payment_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(200);
 
     if (txError && !txError.message?.includes("payment_transactions")) throw txError;
-    if (!tx) throw new Error("Nenhuma assinatura encontrada para cancelamento.");
+    const transactions = Array.isArray(planTransactions) ? planTransactions : [];
+    if (transactions.length === 0) throw new Error("Nenhuma assinatura encontrada para cancelamento.");
+
+    const paidTransactions = transactions.filter((candidate: any) => {
+      const status = normalizeStatus(candidate?.status);
+      return PAID_STATUSES.has(status) && !ALREADY_CANCELED_STATUSES.has(status);
+    });
+
+    const paidFromActiveTier = paidTransactions.filter(
+      (candidate: any) => normalizePlanId(candidate?.plan_id) === activeTier,
+    );
+
+    const tx = (paidFromActiveTier[0] || null) as any;
+
+    if (!tx) {
+      const canceledFromActiveTier = transactions.find((candidate: any) => {
+        const status = normalizeStatus(candidate?.status);
+        return (
+          normalizePlanId(candidate?.plan_id) === activeTier &&
+          ALREADY_CANCELED_STATUSES.has(status)
+        );
+      });
+
+      if (canceledFromActiveTier) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            alreadyCanceled: true,
+            message: "Esta assinatura ativa ja esta cancelada.",
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          },
+        );
+      }
+
+      throw new Error("Nao foi encontrada uma assinatura ativa com pagamento confirmado para cancelamento.");
+    }
 
     const txStatus = normalizeStatus(tx.status);
     if (ALREADY_CANCELED_STATUSES.has(txStatus)) {
@@ -176,6 +246,7 @@ serve(async (req) => {
     const asaasOperations: string[] = [];
     let refundPending = false;
     let refundErrorMessage: string | null = null;
+    let installmentRemovalSkipped = false;
 
     if (subscriptionId) {
       await requestAsaas("DELETE", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
@@ -183,8 +254,22 @@ serve(async (req) => {
     }
 
     if (installmentId) {
-      await requestAsaas("DELETE", `/installments/${encodeURIComponent(installmentId)}`);
-      asaasOperations.push("delete-installment");
+      try {
+        await requestAsaas("DELETE", `/installments/${encodeURIComponent(installmentId)}`);
+        asaasOperations.push("delete-installment");
+      } catch (installmentError) {
+        const message =
+          installmentError instanceof Error
+            ? installmentError.message
+            : "Falha ao cancelar parcelamento no Asaas.";
+
+        if (!isNonRemovableInstallmentError(message)) {
+          throw installmentError;
+        }
+
+        installmentRemovalSkipped = true;
+        asaasOperations.push("skip-delete-installment-non-removable");
+      }
     }
 
     if (PAID_STATUSES.has(paymentStatus)) {
@@ -220,6 +305,7 @@ serve(async (req) => {
       cancellation_window_days: CANCELLATION_WINDOW_DAYS,
       refund_pending: refundPending,
       refund_error: refundErrorMessage,
+      installment_removal_skipped: installmentRemovalSkipped,
     };
 
     const { error: updateProfileError } = await supabaseAdmin
@@ -287,6 +373,7 @@ serve(async (req) => {
           ? "Assinatura cancelada com sucesso. O estorno esta pendente no Asaas."
           : "Assinatura cancelada com sucesso.",
         refundPending,
+        installmentRemovalSkipped,
         cancellationDeadline: deadline.toISOString(),
       }),
       {
@@ -301,3 +388,4 @@ serve(async (req) => {
     });
   }
 });
+

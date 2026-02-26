@@ -47,17 +47,23 @@ const ProfessionalCard = ({
 
   return (
     <div className={cn(
-      "group flex flex-col rounded-2xl border bg-card p-6 shadow-card transition-all duration-300 hover:shadow-card-hover",
+      "group relative flex flex-col overflow-hidden rounded-3xl border bg-card/95 p-4 shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover sm:p-6",
       isPremium ? "border-amber-400/50 ring-1 ring-amber-400/20" : "border-border"
     )}>
+      <div className={cn(
+        "absolute inset-x-0 top-0 h-1",
+        isPremium
+          ? "bg-gradient-to-r from-amber-300 via-amber-500 to-amber-300"
+          : "bg-gradient-to-r from-primary/10 via-primary/25 to-success/15"
+      )} />
       <div className="mb-4 flex items-start gap-4">
         <div className="relative">
           <Avatar className={cn(
-            "h-16 w-16 ring-2 transition-all group-hover:ring-offset-2",
+            "h-14 w-14 ring-2 transition-all group-hover:ring-offset-2 sm:h-16 sm:w-16",
             isPremium ? "ring-gold" : "ring-border"
           )}>
             <AvatarImage src={photo} alt={name} />
-            <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
+            <AvatarFallback className="bg-primary/10 text-base font-semibold text-primary sm:text-lg">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -98,7 +104,7 @@ const ProfessionalCard = ({
         )}
       </div>
 
-      <Button variant={isPremium ? "default" : "outline"} className={cn("mt-6 w-full", isPremium && "bg-gold hover:opacity-90 border-none")} asChild>
+      <Button variant={isPremium ? "default" : "outline"} className={cn("mt-5 h-11 w-full", isPremium && "border-none bg-gold hover:opacity-90")} asChild>
         <Link to={`/profissional/${id}`}>Ver Perfil Completo</Link>
       </Button>
     </div>

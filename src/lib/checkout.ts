@@ -12,6 +12,27 @@ type CheckoutResponse = {
   checkoutId?: string;
 };
 
+const CHECKOUT_TRACKING_STORAGE_KEY = "hcm_last_checkout_context";
+
+const persistCheckoutTrackingContext = (
+  payload: CheckoutPayload,
+  response: CheckoutResponse,
+) => {
+  if (typeof window === "undefined" || !response.checkoutId) return;
+
+  try {
+    const trackingPayload = {
+      checkoutId: response.checkoutId,
+      planId: payload.planId || null,
+      courseSlug: payload.courseSlug || null,
+      startedAt: new Date().toISOString(),
+    };
+    window.sessionStorage.setItem(CHECKOUT_TRACKING_STORAGE_KEY, JSON.stringify(trackingPayload));
+  } catch (error) {
+    console.warn("[Checkout] Nao foi possivel salvar contexto de rastreamento:", error);
+  }
+};
+
 const parseCheckoutInvokeError = async (
   error: any,
   fallbackMessage = "Erro ao iniciar checkout.",
@@ -71,7 +92,11 @@ export const createCheckoutSession = async (payload: CheckoutPayload): Promise<C
     });
 
   let { data, error } = await invokeCheckout();
-  if (!error) return data || {};
+  if (!error) {
+    const safeData = (data || {}) as CheckoutResponse;
+    persistCheckoutTrackingContext(payload, safeData);
+    return safeData;
+  }
 
   let parsedError = await parseCheckoutInvokeError(error);
   const shouldRefreshSession =
@@ -82,7 +107,11 @@ export const createCheckoutSession = async (payload: CheckoutPayload): Promise<C
 
     if (!refreshError && refreshed?.session) {
       ({ data, error } = await invokeCheckout());
-      if (!error) return data || {};
+      if (!error) {
+        const safeData = (data || {}) as CheckoutResponse;
+        persistCheckoutTrackingContext(payload, safeData);
+        return safeData;
+      }
       parsedError = await parseCheckoutInvokeError(error);
     }
   }

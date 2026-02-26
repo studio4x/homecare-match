@@ -34,11 +34,17 @@ const PricingCard = ({
   return (
     <div
       className={cn(
-        "relative flex h-full flex-col rounded-2xl border bg-card p-6 shadow-card transition-all duration-300 hover:shadow-card-hover",
+        "relative flex h-full flex-col overflow-hidden rounded-3xl border bg-card/95 p-5 shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover sm:p-6",
         popular && "border-primary shadow-card-hover ring-2 ring-primary/20",
         isDisabled && "opacity-80 grayscale-[0.5]"
       )}
     >
+      <div className={cn(
+        "absolute inset-x-0 top-0 h-1",
+        popular
+          ? "bg-gradient-to-r from-primary via-primary/70 to-success/40"
+          : "bg-gradient-to-r from-primary/10 via-primary/30 to-success/20"
+      )} />
       {popular && (
         <div className="mb-2 flex justify-center">
           <span className="rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground">
@@ -75,7 +81,7 @@ const PricingCard = ({
 
       <Button
         className={cn(
-          "w-full", 
+          "h-11 w-full",
           popular && !isDisabled ? "" : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
           isDisabled && "bg-muted text-muted-foreground cursor-default hover:bg-muted"
         )}

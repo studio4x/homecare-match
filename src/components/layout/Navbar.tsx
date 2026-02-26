@@ -2,13 +2,19 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { 
-  Menu, 
-  X, 
-  LogOut, 
-  User as UserIcon, 
-  LayoutDashboard, 
-  Settings 
+import {
+  Menu,
+  X,
+  LogOut,
+  User as UserIcon,
+  LayoutDashboard,
+  Settings,
+  Home,
+  Building2,
+  Users,
+  LayoutGrid,
+  Search,
+  ChevronRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -24,62 +30,112 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Fallback logo
-const DEFAULT_LOGO = "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
+const DEFAULT_LOGO =
+  "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
 
 const Navbar = () => {
   const location = useLocation();
   const { session, user, signOut } = useAuth();
   const { data: config } = useSiteConfig();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [profile, setProfile] = useState<{ avatar_url: string | null; full_name: string | null; role: string | null; is_admin: boolean | null } | null>(null);
+  const [profile, setProfile] = useState<{
+    avatar_url: string | null;
+    full_name: string | null;
+    role: string | null;
+    is_admin: boolean | null;
+  } | null>(null);
 
   const isActive = (path: string) => location.pathname === path;
 
   useEffect(() => {
-    if (user) {
-      const fetchProfile = async () => {
-        const { data } = await supabase
-          .from("profiles")
-          .select("avatar_url, full_name, role, is_admin")
-          .eq("id", user.id)
-          .single();
-        
-        if (data) setProfile(data);
-      };
-      fetchProfile();
-    } else {
+    if (!user) {
       setProfile(null);
+      return;
     }
+
+    const fetchProfile = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("avatar_url, full_name, role, is_admin")
+        .eq("id", user.id)
+        .single();
+
+      if (data) setProfile(data);
+    };
+
+    fetchProfile();
   }, [user]);
 
-  const initials = profile?.full_name 
-    ? profile.full_name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  const initials = profile?.full_name
+    ? profile.full_name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
     : "??";
 
-  const isAdmin = profile?.is_admin || profile?.role === 'admin';
-  const canSeeSearch = !session || (session && profile && profile.role !== 'professional' && !isAdmin);
+  const isAdmin = profile?.is_admin || profile?.role === "admin";
+  const canSeeSearch = !session || (session && profile && profile.role !== "professional" && !isAdmin);
 
   const logoUrl = config?.logo_url || DEFAULT_LOGO;
   const logoHeight = config?.logo_height_px || 48;
-
   const dashboardPath = isAdmin ? "/admin" : "/dashboard";
 
+  const mobileMenuLinks = [
+    {
+      to: "/",
+      label: "Profissionais",
+      description: "Conheca a versao para profissionais",
+      icon: Home,
+    },
+    {
+      to: "/empresas",
+      label: "Empresas",
+      description: "Fluxo dedicado para recrutadores",
+      icon: Building2,
+    },
+    {
+      to: "/familias",
+      label: "Familias",
+      description: "Busca para cuidado domiciliar",
+      icon: Users,
+    },
+    {
+      to: "/funcionalidades",
+      label: "Funcionalidades",
+      description: "Veja os principais recursos",
+      icon: LayoutGrid,
+    },
+    ...(canSeeSearch
+      ? [
+          {
+            to: "/buscar",
+            label: "Buscar Profissionais",
+            description: "Encontre profissionais verificados",
+            icon: Search,
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <nav className="sticky top-0 z-50 border-b border-border/70 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <img 
-              src={logoUrl} 
-              alt="HomeCare Match" 
-              style={{ height: `${logoHeight}px`, width: 'auto' }} 
-              className="object-contain"
+            <img
+              src={logoUrl}
+              alt="HomeCare Match"
+              style={{ height: `${logoHeight}px`, width: "auto" }}
+              className="max-h-10 object-contain md:max-h-none"
             />
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden items-center gap-6 md:flex">
             <Link
               to="/"
@@ -103,7 +159,7 @@ const Navbar = () => {
                 isActive("/familias") ? "text-primary" : "text-muted-foreground"
               }`}
             >
-              Para Famílias
+              Para Familias
             </Link>
             <Link
               to="/funcionalidades"
@@ -125,47 +181,49 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Desktop CTA / User Menu */}
           <div className="hidden items-center gap-3 md:flex">
             {session ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-3 transition-opacity hover:opacity-80 outline-none group">
+                  <button className="group flex items-center gap-3 transition-opacity hover:opacity-80 outline-none">
                     <div className="flex flex-col items-end">
-                      <span className="text-xs font-medium text-foreground leading-none group-hover:text-primary transition-colors">Minha Conta</span>
+                      <span className="text-xs font-medium leading-none text-foreground transition-colors group-hover:text-primary">
+                        Minha Conta
+                      </span>
                       <span className="text-[10px] text-muted-foreground">{isAdmin ? "Painel Admin" : "Dashboard"}</span>
                     </div>
-                    <Avatar className="h-9 w-9 border border-border shadow-sm group-hover:border-primary/50 transition-colors">
+                    <Avatar className="h-9 w-9 border border-border shadow-sm transition-colors group-hover:border-primary/50">
                       <AvatarImage src={profile?.avatar_url || ""} />
-                      <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">
-                        {initials}
-                      </AvatarFallback>
+                      <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">{initials}</AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{profile?.full_name || "Usuário"}</p>
+                      <p className="text-sm font-medium leading-none">{profile?.full_name || "Usuario"}</p>
                       <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to={dashboardPath} className="cursor-pointer flex items-center gap-2">
+                    <Link to={dashboardPath} className="flex cursor-pointer items-center gap-2">
                       <LayoutDashboard className="h-4 w-4" />
                       <span>Meu Painel</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to={isAdmin ? "/admin/configuracoes" : "/dashboard/perfil"} className="cursor-pointer flex items-center gap-2">
+                    <Link
+                      to={isAdmin ? "/admin/configuracoes" : "/dashboard/perfil"}
+                      className="flex cursor-pointer items-center gap-2"
+                    >
                       {isAdmin ? <Settings className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
-                      <span>{isAdmin ? "Configurações" : "Meu Perfil"}</span>
+                      <span>{isAdmin ? "Configuracoes" : "Meu Perfil"}</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    className="text-destructive focus:text-destructive cursor-pointer flex items-center gap-2"
+                  <DropdownMenuItem
+                    className="flex cursor-pointer items-center gap-2 text-destructive focus:text-destructive"
                     onClick={() => signOut()}
                   >
                     <LogOut className="h-4 w-4" />
@@ -185,114 +243,119 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? (
-              <X className="h-6 w-6 text-foreground" />
+          <div className="flex items-center gap-2 md:hidden">
+            {session ? (
+              <Link
+                to={dashboardPath}
+                aria-label="Abrir painel"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors hover:border-primary/40"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={profile?.avatar_url || ""} />
+                  <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">{initials}</AvatarFallback>
+                </Avatar>
+              </Link>
             ) : (
-              <Menu className="h-6 w-6 text-foreground" />
+              <Button size="sm" variant="outline" asChild>
+                <Link to="/login">Entrar</Link>
+              </Button>
             )}
-          </button>
-        </div>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="animate-fade-in border-t border-border py-4 md:hidden">
-            <div className="flex flex-col gap-4">
-              <Link
-                to="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`text-sm font-medium ${
-                  isActive("/") ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                Para Profissionais
-              </Link>
-              <Link
-                to="/empresas"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`text-sm font-medium ${
-                  isActive("/empresas") ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                Para Empresas
-              </Link>
-              <Link
-                to="/familias"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`text-sm font-medium ${
-                  isActive("/familias") ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                Para Famílias
-              </Link>
-              <Link
-                to="/funcionalidades"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`text-sm font-medium ${
-                  isActive("/funcionalidades") ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                Funcionalidades
-              </Link>
-              {canSeeSearch && (
-                <Link
-                  to="/buscar"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`text-sm font-medium ${
-                    isActive("/buscar") ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  Buscar Profissionais
-                </Link>
-              )}
-              <div className="flex flex-col gap-2 pt-2 border-t border-border mt-2">
+            <button
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background shadow-sm"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Abrir menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5 text-foreground" /> : <Menu className="h-5 w-5 text-foreground" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[70] md:hidden">
+          <button
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Fechar menu"
+          />
+
+          <div className="absolute inset-x-2 bottom-2 top-20 overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
+            <div className="flex h-full flex-col">
+              <div className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-background to-success/10 p-4">
                 {session ? (
-                  <>
-                    <Button variant="outline" asChild className="justify-start gap-3 h-12">
-                      <Link to={dashboardPath} onClick={() => setMobileMenuOpen(false)}>
-                        <Avatar className="h-7 w-7">
-                          <AvatarImage src={profile?.avatar_url || ""} />
-                          <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
-                        </Avatar>
-                        {isAdmin ? "Painel Admin" : "Meu Perfil"}
-                      </Link>
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="justify-start gap-3 h-12 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        signOut();
-                      }}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sair da Conta
-                    </Button>
-                  </>
+                  <Link
+                    to={dashboardPath}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-background/90 p-3"
+                  >
+                    <Avatar className="h-10 w-10 border border-border">
+                      <AvatarImage src={profile?.avatar_url || ""} />
+                      <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">{initials}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{profile?.full_name || "Minha Conta"}</p>
+                      <p className="truncate text-xs text-muted-foreground">{isAdmin ? "Painel administrativo" : "Abrir meu painel"}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Link>
                 ) : (
-                  <>
-                    <Button asChild className="bg-success hover:bg-success/90 text-white">
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button asChild variant="outline" className="h-11">
                       <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
                         Entrar
                       </Link>
                     </Button>
-                    <Button asChild>
+                    <Button asChild className="h-11">
                       <Link to="/login#auth-sign-up" onClick={() => setMobileMenuOpen(false)}>
-                        Assinar Agora
+                        Assinar
                       </Link>
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
+
+              <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                {mobileMenuLinks.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-2xl border p-3 transition-colors ${
+                      isActive(item.to) ? "border-primary/40 bg-primary/10" : "border-border bg-background hover:border-primary/20"
+                    }`}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+                      <item.icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{item.label}</p>
+                      <p className="truncate text-xs text-muted-foreground">{item.description}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                ))}
+              </div>
+
+              {session && (
+                <div className="border-t border-border p-4">
+                  <Button
+                    variant="ghost"
+                    className="h-11 w-full justify-start gap-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut();
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sair da conta
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </nav>
   );
 };

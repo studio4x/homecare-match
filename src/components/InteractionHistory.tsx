@@ -241,8 +241,18 @@ const InteractionHistory = ({
   const handleWhatsAppClick = async (contact: Interaction['profile']) => {
     if (!user) return;
 
-    // Record the click
-    supabase.from('whatsapp_clicks').insert({ profile_id: contact.id, clicker_id: user.id, clicker_role: viewerRole });
+    // Record click before opening WhatsApp to reduce analytics loss on navigation.
+    try {
+      const { error } = await supabase
+        .from('whatsapp_clicks')
+        .insert({ profile_id: contact.id, clicker_id: user.id, clicker_role: viewerRole });
+
+      if (error) {
+        console.warn("[InteractionHistory] Falha ao registrar clique no WhatsApp:", error);
+      }
+    } catch (error) {
+      console.warn("[InteractionHistory] Erro ao registrar clique no WhatsApp:", error);
+    }
 
     const myName = viewerFullName; // Usando viewerFullName aqui
     const contactName = contact.full_name || "o profissional/recrutador";

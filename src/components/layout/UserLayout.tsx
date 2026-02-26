@@ -1,18 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { 
-  LayoutDashboard, 
-  User, 
-  MessageSquare, 
-  BookOpen, 
-  Award, 
-  LogOut, 
-  Menu, 
+import {
+  LayoutDashboard,
+  User,
+  MessageSquare,
+  BookOpen,
+  Award,
+  LogOut,
+  Menu,
   X,
   Loader2,
   Search,
@@ -20,7 +20,7 @@ import {
   CreditCard,
   Mail,
   Bell,
-  Users // Added Users icon for company patients
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -34,10 +34,14 @@ import ImpersonationBar from "../ImpersonationBar";
 import ScrollToTopButton from "../ScrollToTopButton";
 import UserNotificationWidget from "../UserNotificationWidget";
 import PushManager from "../PushManager";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const UserLayout = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isMobile = useIsMobile();
+
   const [role, setRole] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -49,27 +53,26 @@ const UserLayout = () => {
       if (!user) return;
       try {
         const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
           .maybeSingle();
-        
+
         if (error) throw error;
 
-        // Se o usuário está logado mas o perfil não existe, ele foi excluído
         if (!data) {
-          console.warn("[UserLayout] Perfil não encontrado. Forçando logout...");
+          console.warn("[UserLayout] Perfil nao encontrado. Forcando logout...");
           await signOut();
-          navigate('/login', { replace: true });
+          navigate("/login", { replace: true });
           return;
         }
 
-        if (data.is_admin || data.role === 'admin') {
+        if (data.is_admin || data.role === "admin") {
           setIsForbiddenAdmin(true);
-          navigate('/admin', { replace: true });
+          navigate("/admin", { replace: true });
           return;
         }
-        
+
         setRole(data.role);
         setProfile(data);
       } catch (err) {
@@ -78,8 +81,9 @@ const UserLayout = () => {
         setLoading(false);
       }
     };
+
     fetchProfile();
-  }, [user, navigate]);
+  }, [user, navigate, signOut]);
 
   if (authLoading || loading || isForbiddenAdmin) {
     return (
@@ -92,11 +96,11 @@ const UserLayout = () => {
     );
   }
 
-  const isProfessional = role === 'professional';
-  const isCompany = role === 'company'; // Check if user is a company
+  const isProfessional = role === "professional";
+  const isCompany = role === "company";
 
   const navItems = [
-    { href: "/dashboard", label: "Início", icon: LayoutDashboard, end: true },
+    { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, end: true },
     { href: "/dashboard/perfil", label: "Meus Dados", icon: User },
     { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
     { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell },
@@ -105,56 +109,103 @@ const UserLayout = () => {
   if (isProfessional) {
     navItems.push(
       { href: "/dashboard/cursos", label: "Cursos", icon: BookOpen },
-      { href: "/dashboard/indicacoes", label: "Indicações", icon: Award },
+      { href: "/dashboard/indicacoes", label: "Indicacoes", icon: Award },
       { href: "/dashboard/pagamentos", label: "Pagamentos", icon: CreditCard }
     );
-  } else if (isCompany) { // Add new nav item for companies
+  } else if (isCompany) {
     navItems.push(
       { href: "/dashboard/pacientes", label: "Meus Pacientes", icon: Users },
       { href: "/buscar", label: "Buscar Profissionais", icon: Search }
     );
-  } else { // For families
+  } else {
     navItems.push({ href: "/buscar", label: "Buscar Profissionais", icon: Search });
   }
 
   navItems.push({ href: "/dashboard/suporte", label: "Suporte", icon: LifeBuoy });
 
-  const initials = profile?.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
+  const initials =
+    profile?.full_name
+      ?.split(" ")
+      .map((n: any) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "??";
+
+  const isPathActive = (href: string, end?: boolean) => {
+    if (end) return location.pathname === href;
+    return location.pathname === href || location.pathname.startsWith(`${href}/`);
+  };
+
+  const currentPageTitle = navItems.find((item) => isPathActive(item.href, item.end))?.label || "Meu Painel";
+
+  const mobileQuickItems = isProfessional
+    ? [
+        { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, end: true },
+        { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
+        { href: "/dashboard/cursos", label: "Cursos", icon: BookOpen },
+        { href: "/dashboard/perfil", label: "Perfil", icon: User },
+      ]
+    : isCompany
+    ? [
+        { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, end: true },
+        { href: "/dashboard/pacientes", label: "Pacientes", icon: Users },
+        { href: "/buscar", label: "Buscar", icon: Search },
+        { href: "/dashboard/perfil", label: "Perfil", icon: User },
+      ]
+    : [
+        { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, end: true },
+        { href: "/buscar", label: "Buscar", icon: Search },
+        { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
+        { href: "/dashboard/perfil", label: "Perfil", icon: User },
+      ];
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <FaviconUpdater />
       <ScrollToTop />
       <Navbar />
       <ImpersonationBar />
       <MarketingScripts />
       <PushManager />
-      
+
       <div className="flex flex-1 bg-secondary/10">
         {sidebarOpen && (
-          <div 
-            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
+          <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
-        <aside className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-200 ease-in-out lg:translate-x-0 lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:block",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}>
-          <div className="flex flex-col h-full">
-            <div className="p-6 border-b hidden lg:block">
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-50 w-72 border-r border-border bg-card transition-transform duration-200 ease-in-out lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-64 lg:translate-x-0",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between border-b p-4 lg:hidden">
+              <div>
+                <p className="text-sm font-semibold">Menu do Painel</p>
+                <p className="text-[10px] text-muted-foreground">Acesse todas as secoes</p>
+              </div>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border"
+                aria-label="Fechar menu"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="hidden border-b p-6 lg:block">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 shrink-0">
                   <AvatarImage src={profile?.avatar_url} />
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold">{initials}</AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 font-bold text-primary">{initials}</AvatarFallback>
                 </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{profile?.full_name || "Usuário"}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                    {role === 'professional' ? "Profissional" : role === 'company' ? "Empresa" : "Família"}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{profile?.full_name || "Usuario"}</p>
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {role === "professional" ? "Profissional" : role === "company" ? "Empresa" : "Familia"}
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate mt-0.5 flex items-center gap-1">
+                  <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
                     <Mail className="h-2.5 w-2.5 shrink-0" />
                     {user?.email}
                   </p>
@@ -162,19 +213,21 @@ const UserLayout = () => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-1">
+            <div className="flex-1 space-y-1 overflow-y-auto p-4">
               {navItems.map((item) => (
                 <NavLink
                   key={item.href}
                   to={item.href}
                   end={item.end}
                   onClick={() => setSidebarOpen(false)}
-                  className={({ isActive }) => cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                    isActive 
-                      ? "bg-primary text-primary-foreground shadow-sm" 
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  )}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    )
+                  }
                 >
                   <item.icon className="h-4 w-4" />
                   {item.label}
@@ -182,8 +235,12 @@ const UserLayout = () => {
               ))}
             </div>
 
-            <div className="p-4 border-t">
-              <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive" onClick={() => signOut()}>
+            <div className="border-t p-4">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
+                onClick={() => signOut()}
+              >
                 <LogOut className="h-4 w-4" />
                 Sair da Conta
               </Button>
@@ -191,22 +248,72 @@ const UserLayout = () => {
           </div>
         </aside>
 
-        <main className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center gap-4 px-4 border-b bg-card lg:hidden sticky top-0 z-30">
-            <button onClick={() => setSidebarOpen(true)}>
-              <Menu className="h-6 w-6 text-muted-foreground" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <span className="font-semibold text-sm block truncate">Meu Painel</span>
-              <span className="text-[10px] text-muted-foreground block truncate">{user?.email}</span>
+        <main className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-30 border-b border-border/70 bg-card/95 backdrop-blur-xl lg:hidden">
+            <div className="flex h-14 items-center gap-3 px-4">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background"
+                aria-label="Abrir menu"
+              >
+                <Menu className="h-5 w-5 text-muted-foreground" />
+              </button>
+              <div className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{currentPageTitle}</span>
+                <span className="block truncate text-[10px] text-muted-foreground">{profile?.full_name || user?.email}</span>
+              </div>
+              <Avatar className="h-8 w-8 border border-border">
+                <AvatarImage src={profile?.avatar_url} />
+                <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">{initials}</AvatarFallback>
+              </Avatar>
             </div>
           </header>
-          
-          <div className="flex-1 p-4 md:p-8 max-w-6xl mx-auto w-full">
+
+          <div
+            className={cn(
+              "mx-auto w-full max-w-6xl flex-1 p-3 pt-4 md:p-8",
+              isMobile ? "pb-28" : "pb-8"
+            )}
+          >
             <Outlet />
           </div>
         </main>
       </div>
+
+      {isMobile && (
+        <div
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3"
+          style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+        >
+          <nav className="pointer-events-auto mx-auto flex max-w-md items-center justify-between rounded-2xl border border-border/80 bg-card/95 p-1.5 shadow-xl backdrop-blur-xl">
+            {mobileQuickItems.map((item) => {
+              const active = isPathActive(item.href, item.end);
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={`flex h-14 flex-1 flex-col items-center justify-center rounded-xl text-[11px] font-semibold transition-all ${
+                    active
+                      ? "bg-primary text-primary-foreground shadow"
+                      : "text-muted-foreground hover:bg-secondary"
+                  }`}
+                >
+                  <item.icon className="mb-1 h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="flex h-14 flex-1 flex-col items-center justify-center rounded-xl text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-secondary"
+              aria-label="Mais opcoes"
+            >
+              <Menu className="mb-1 h-4 w-4" />
+              <span>Mais</span>
+            </button>
+          </nav>
+        </div>
+      )}
 
       <UserNotificationWidget />
       <Footer />

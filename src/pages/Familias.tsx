@@ -99,14 +99,14 @@ const Familias = () => {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="gradient-hero relative overflow-hidden py-20 lg:py-28">
+      <section className="gradient-hero relative overflow-hidden px-2 py-14 md:px-0 md:py-20 lg:py-28">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -right-40 -top-40 h-80 w-80 rounded-full bg-primary/5" />
           <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent/5" />
         </div>
 
         <div className="container relative mx-auto px-4">
-          <div className="mx-auto max-w-3xl text-center">
+          <div className="mobile-fade-up mx-auto max-w-3xl rounded-[2rem] border border-border/70 bg-card/75 px-4 py-8 text-center shadow-xl backdrop-blur-sm md:border-0 md:bg-transparent md:px-0 md:py-0 md:shadow-none">
             <div className="animate-fade-in mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm">
               <Heart className="h-4 w-4 text-rose-500" />
               <span className="text-sm font-medium text-muted-foreground">
@@ -136,14 +136,14 @@ const Familias = () => {
               <Button
                 size="lg"
                 asChild
-                className="gap-2 bg-rose-500 hover:bg-rose-600 border-none"
+                className="w-full gap-2 border-none bg-rose-500 hover:bg-rose-600 sm:w-auto"
               >
                 <Link to="/cadastro-empresa">
                   Cadastrar Minha Família
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild>
+              <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
                 <Link to="/buscar">Ver Profissionais</Link>
               </Button>
             </div>
@@ -168,7 +168,7 @@ const Familias = () => {
       )}
 
       {/* Features Section */}
-      <section className="py-20">
+      <section className="py-14 md:py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">
@@ -180,7 +180,7 @@ const Familias = () => {
             </p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mobile-stagger grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {features.map((feature, index) => (
               <FeatureCard
                 key={index}
@@ -194,7 +194,7 @@ const Familias = () => {
       </section>
 
       {/* How it Works */}
-      <section className="bg-secondary/30 py-20">
+      <section className="bg-secondary/30 py-14 md:py-20">
         <div className="container mx-auto px-4">
           <div className="mx-auto grid max-w-5xl gap-12 lg:grid-cols-2 lg:items-center">
             <div>
@@ -207,7 +207,7 @@ const Familias = () => {
                 a melhor pessoa.
               </p>
 
-              <div className="mt-8 space-y-6">
+              <div className="mobile-stagger mt-8 space-y-4 md:space-y-6">
                 {[
                   {
                     step: "1",
@@ -230,7 +230,7 @@ const Familias = () => {
                     desc: "Chame no WhatsApp e combine valores e horários diretamente com o profissional.",
                   },
                 ].map((item, index) => (
-                  <div key={index} className="flex gap-4">
+                  <div key={index} className="flex gap-4 rounded-2xl border border-border/70 bg-card/70 p-4">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600 font-bold">
                       {item.step}
                     </div>
@@ -270,7 +270,7 @@ const Familias = () => {
                   </div>
                 )}
 
-                <div className="grid gap-3">
+                <div className="mobile-stagger grid gap-3">
                   {isLoadingStats
                     ? Array.from({ length: 6 }).map((_, i) => (
                         <Skeleton key={i} className="h-10 w-full" />
@@ -279,7 +279,7 @@ const Familias = () => {
                         <Button
                           key={s.value}
                           variant="outline"
-                          className="w-full justify-between"
+                          className="h-11 w-full justify-between"
                           disabled={!canUseSpecialtySearch}
                           asChild={canUseSpecialtySearch}
                         >
@@ -299,7 +299,7 @@ const Familias = () => {
                 </div>
 
                 <Button
-                  className="mt-6 w-full gap-2 bg-rose-500 hover:bg-rose-600 border-none"
+                  className="mt-6 h-11 w-full gap-2 border-none bg-rose-500 hover:bg-rose-600"
                   asChild
                 >
                   <Link to="/buscar">Buscar Agora</Link>
@@ -311,7 +311,7 @@ const Familias = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-rose-500 py-20">
+      <section className="bg-rose-500 py-16 md:py-20">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-white">
             Encontre quem vai cuidar de quem você ama
@@ -323,7 +323,7 @@ const Familias = () => {
             <Button
               size="lg"
               variant="secondary"
-              className="gap-2 min-w-[200px]"
+              className="min-w-[200px] w-full gap-2 sm:w-auto"
               asChild
             >
               <Link to="/cadastro-empresa">Criar Conta Grátis</Link>
@@ -333,7 +333,7 @@ const Familias = () => {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 bg-secondary/10">
+      <section className="bg-secondary/10 py-14 md:py-20">
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="mb-12 text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-100">
@@ -345,12 +345,12 @@ const Familias = () => {
             </p>
           </div>
 
-          <Accordion type="single" collapsible className="w-full space-y-4">
+          <Accordion type="single" collapsible className="mobile-stagger w-full space-y-4">
             {faqs.map((faq, index) => (
               <AccordionItem 
                 key={index} 
                 value={`item-\${index}`} 
-                className="border rounded-xl px-6 bg-card shadow-sm border-rose-100"
+                className="rounded-xl border border-rose-100 bg-card px-4 shadow-sm md:px-6"
               >
                 <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
                   {faq.question}

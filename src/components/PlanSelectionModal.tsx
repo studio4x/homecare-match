@@ -66,9 +66,16 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
 
       if (error) {
         let errorMessage = "Erro ao iniciar checkout.";
-        if (error.context?.json) {
-          const body = await error.context.json();
-          errorMessage = body.error || errorMessage;
+        if (error.context) {
+          try {
+            const body = await error.context.json();
+            errorMessage = body?.error || body?.message || errorMessage;
+          } catch {
+            try {
+              const text = await error.context.text();
+              if (text) errorMessage = text;
+            } catch {}
+          }
         } else if (error.message) {
           errorMessage = error.message;
         }

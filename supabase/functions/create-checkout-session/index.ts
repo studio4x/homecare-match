@@ -75,6 +75,54 @@ const parseAsaasErrorMessage = (payload: any, fallback: string) => {
   return fallback;
 };
 
+const isAsaasCustomerNotFound = (payload: any) => {
+  const msg = String(payload?.message || "").toLowerCase();
+  if (msg.includes("customer") && msg.includes("not found")) return true;
+  if (msg.includes("cliente") && (msg.includes("nao encontrado") || msg.includes("não encontrado"))) return true;
+
+  if (Array.isArray(payload?.errors)) {
+    return payload.errors.some((err: any) => {
+      const code = String(err?.code || "").toLowerCase();
+      const desc = String(err?.description || "").toLowerCase();
+      return (
+        code.includes("customer") && code.includes("not") && code.includes("found")
+      ) || (
+        desc.includes("customer") && desc.includes("not found")
+      ) || (
+        desc.includes("cliente") && (desc.includes("nao encontrado") || desc.includes("não encontrado"))
+      );
+    });
+  }
+
+  return false;
+};
+
+const getInstallmentLimitByAmount = (amount: number, requestedMax: number, minInstallmentValue = 5) => {
+  if (!Number.isFinite(amount) || amount <= 0) return 1;
+  const requested = Math.max(1, Math.min(Number(requestedMax || 1), 12));
+  if (requested <= 1) return 1;
+
+  const minValue = Math.max(1, Number(minInstallmentValue || 5));
+  const byAmount = Math.floor(amount / minValue);
+  return Math.max(1, Math.min(requested, byAmount));
+};
+
+const getPlanCheckoutAmount = (plan: any, parsedPrice: number) => {
+  const planId = String(plan?.id || "").toLowerCase();
+  if (planId !== "yearly") return parsedPrice;
+  if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) return parsedPrice;
+
+  // Compatibilidade: plano anual pode exibir valor mensal no card (ex.: 39,90).
+  // No checkout cobramos o valor anual total.
+  const period = String(plan?.period || "").toLowerCase();
+  const looksMonthlyDisplay = period.includes("mês") || period.includes("mes");
+  if (looksMonthlyDisplay && parsedPrice < 1000) {
+    return Number((parsedPrice * 12).toFixed(2));
+  }
+
+  return parsedPrice;
+};
+
 const getPlanDurationDays = (plan: any) => {
   if (PLAN_DURATION_DAYS[plan?.id]) return PLAN_DURATION_DAYS[plan.id];
 
@@ -105,7 +153,12 @@ serve(async (req) => {
 
     if (userError || !user) throw new Error("Usuario nao autenticado.");
 
-    const origin = req.headers.get("origin") || Deno.env.get("PUBLIC_APP_URL") || "";
+    const origin = req.headers.get("origin");
+    const appBaseUrl =
+      origin ||
+      Deno.env.get("PUBLIC_APP_URL") ||
+      Deno.env.get("SITE_URL") ||
+      "https://www.homecarematch.com.br";
     const body = await req.json();
     const planId = body?.planId as string | undefined;
     const courseSlug = body?.courseSlug as string | undefined;
@@ -143,7 +196,7 @@ serve(async (req) => {
     let itemDescription = "";
     let itemAmount = 0;
     let maxInstallments = Number(config?.asaas_default_installment_max ?? 12);
-    let successUrl = `${origin}/dashboard?success=true`;
+    let successUrl = `${appBaseUrl}/dashboard?success=true`;
     let checkoutContext: { planId?: string; courseSlug?: string; durationDays?: number } = {};
 
     if (courseSlug) {
@@ -161,7 +214,7 @@ serve(async (req) => {
       itemAmount = Number(course.price);
       maxInstallments = Number(course.asaas_installment_max || maxInstallments || 1);
       checkoutContext = { courseSlug };
-      successUrl = `${origin}/conversion/course?courseSlug=${courseSlug}&courseTitle=${encodeURIComponent(
+      successUrl = `${appBaseUrl}/conversion/course?courseSlug=${courseSlug}&courseTitle=${encodeURIComponent(
         course.title || courseSlug,
       )}`;
     } else if (planId) {
@@ -173,7 +226,7 @@ serve(async (req) => {
 
       if (planError || !plan) throw new Error("Plano nao encontrado.");
 
-      itemAmount = parseMonetaryValue(plan.price);
+      itemAmount = getPlanCheckoutAmount(plan, parseMonetaryValue(plan.price));
       if (!itemAmount || itemAmount <= 0) {
         throw new Error("Preco do plano invalido para pagamento.");
       }
@@ -182,7 +235,7 @@ serve(async (req) => {
       itemDescription = plan.description || `Assinatura do plano ${plan.name || plan.id}`;
       maxInstallments = Number(plan.asaas_installment_max || maxInstallments || 1);
       checkoutContext = { planId, durationDays: getPlanDurationDays(plan) };
-      successUrl = `${origin}/conversion/subscription?planId=${planId}&planName=${encodeURIComponent(
+      successUrl = `${appBaseUrl}/conversion/subscription?planId=${planId}&planName=${encodeURIComponent(
         plan.name || planId,
       )}`;
     }
@@ -226,8 +279,14 @@ serve(async (req) => {
     if (config?.asaas_allow_pix !== false) billingTypes.push("PIX");
     if (billingTypes.length === 0) billingTypes.push("CREDIT_CARD");
 
+    const maxInstallmentsAllowed = getInstallmentLimitByAmount(
+      itemAmount,
+      maxInstallments,
+      Number(config?.asaas_min_installment_value ?? 5),
+    );
+
     const chargeTypes: string[] = ["DETACHED"];
-    if (maxInstallments > 1 && billingTypes.includes("CREDIT_CARD")) {
+    if (maxInstallmentsAllowed > 1 && billingTypes.includes("CREDIT_CARD")) {
       chargeTypes.push("INSTALLMENT");
     }
 
@@ -237,8 +296,8 @@ serve(async (req) => {
       minutesToExpire: Number(config?.asaas_checkout_expiration_minutes ?? 60),
       callback: {
         successUrl,
-        cancelUrl: `${origin}/dashboard?canceled=true`,
-        expiredUrl: `${origin}/dashboard?canceled=true`,
+        cancelUrl: `${appBaseUrl}/dashboard?canceled=true`,
+        expiredUrl: `${appBaseUrl}/dashboard?canceled=true`,
       },
       items: [
         {
@@ -253,20 +312,48 @@ serve(async (req) => {
 
     if (chargeTypes.includes("INSTALLMENT")) {
       checkoutPayload.installment = {
-        maxInstallmentCount: Math.max(2, Math.min(Number(maxInstallments), 12)),
+        maxInstallmentCount: Math.max(2, Math.min(Number(maxInstallmentsAllowed), 12)),
       };
     }
 
-    const checkoutRes = await fetch(`${asaasApiBaseUrl}/checkouts`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        access_token: asaasApiKey,
-      },
-      body: JSON.stringify(checkoutPayload),
-    });
+    const createCheckout = async () => {
+      const response = await fetch(`${asaasApiBaseUrl}/checkouts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: asaasApiKey,
+        },
+        body: JSON.stringify(checkoutPayload),
+      });
 
-    const checkoutJson = await checkoutRes.json().catch(() => ({}));
+      const json = await response.json().catch(() => ({}));
+      return { response, json };
+    };
+
+    let { response: checkoutRes, json: checkoutJson } = await createCheckout();
+
+    if ((!checkoutRes.ok || !checkoutJson?.id) && isAsaasCustomerNotFound(checkoutJson)) {
+      const customerRes = await fetch(`${asaasApiBaseUrl}/customers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: asaasApiKey,
+        },
+        body: JSON.stringify(customerPayload),
+      });
+
+      const customerJson = await customerRes.json().catch(() => ({}));
+      if (!customerRes.ok || !customerJson?.id) {
+        throw new Error(parseAsaasErrorMessage(customerJson, "Nao foi possivel criar cliente na Asaas."));
+      }
+
+      asaasCustomerId = customerJson.id;
+      checkoutPayload.customer = asaasCustomerId;
+      await supabaseAdmin.from("profiles").update({ asaas_customer_id: asaasCustomerId }).eq("id", user.id);
+
+      ({ response: checkoutRes, json: checkoutJson } = await createCheckout());
+    }
+
     if (!checkoutRes.ok || !checkoutJson?.id) {
       throw new Error(parseAsaasErrorMessage(checkoutJson, "Nao foi possivel iniciar checkout na Asaas."));
     }

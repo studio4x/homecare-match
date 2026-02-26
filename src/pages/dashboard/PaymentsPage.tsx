@@ -191,6 +191,10 @@ const PaymentsPage = () => {
         return <Badge className="bg-success hover:bg-success">Pago</Badge>;
       case "open":
         return <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">Pendente</Badge>;
+      case "refund_pending":
+        return <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">Estorno pendente</Badge>;
+      case "refunded":
+        return <Badge variant="outline" className="text-sky-700 border-sky-200 bg-sky-50">Estornado</Badge>;
       case "void":
       case "canceled":
         return <Badge variant="secondary">Cancelado</Badge>;

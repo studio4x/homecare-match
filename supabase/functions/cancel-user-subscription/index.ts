@@ -45,6 +45,11 @@ const parseAsaasErrorMessage = (payload: any, fallback: string) => {
   return fallback;
 };
 
+const isInsufficientBalanceError = (message?: string | null) => {
+  const normalized = String(message || "").toLowerCase();
+  return normalized.includes("saldo insuficiente");
+};
+
 const normalizeStatus = (value?: string | null) => String(value || "").trim().toUpperCase();
 
 const parseDate = (value?: string | null) => {
@@ -156,7 +161,10 @@ serve(async (req) => {
 
       const json = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(parseAsaasErrorMessage(json, "Falha ao cancelar no Asaas."));
+        const error = new Error(parseAsaasErrorMessage(json, "Falha ao cancelar no Asaas."));
+        (error as any).asaasPayload = json;
+        (error as any).status = response.status;
+        throw error;
       }
       return json;
     };
@@ -166,6 +174,8 @@ serve(async (req) => {
     const subscriptionId = paymentDetails?.subscription || null;
     const installmentId = paymentDetails?.installment || null;
     const asaasOperations: string[] = [];
+    let refundPending = false;
+    let refundErrorMessage: string | null = null;
 
     if (subscriptionId) {
       await requestAsaas("DELETE", `/subscriptions/${encodeURIComponent(subscriptionId)}`);
@@ -178,10 +188,23 @@ serve(async (req) => {
     }
 
     if (PAID_STATUSES.has(paymentStatus)) {
-      await requestAsaas("POST", `/payments/${encodeURIComponent(tx.payment_id)}/refund`, {
-        description: "Cancelamento solicitado pelo usuario dentro do prazo de 7 dias.",
-      });
-      asaasOperations.push("refund-payment");
+      try {
+        await requestAsaas("POST", `/payments/${encodeURIComponent(tx.payment_id)}/refund`, {
+          description: "Cancelamento solicitado pelo usuario dentro do prazo de 7 dias.",
+        });
+        asaasOperations.push("refund-payment");
+      } catch (refundError) {
+        const parsedMessage =
+          refundError instanceof Error ? refundError.message : "Falha ao estornar pagamento no Asaas.";
+
+        if (!isInsufficientBalanceError(parsedMessage)) {
+          throw refundError;
+        }
+
+        refundPending = true;
+        refundErrorMessage = parsedMessage;
+        asaasOperations.push("refund-pending-insufficient-balance");
+      }
     } else {
       await requestAsaas("DELETE", `/payments/${encodeURIComponent(tx.payment_id)}`);
       asaasOperations.push("delete-payment");
@@ -195,6 +218,8 @@ serve(async (req) => {
       asaas_operations: asaasOperations,
       payment_status_at_cancellation: paymentStatus,
       cancellation_window_days: CANCELLATION_WINDOW_DAYS,
+      refund_pending: refundPending,
+      refund_error: refundErrorMessage,
     };
 
     const { error: updateProfileError } = await supabaseAdmin
@@ -212,9 +237,9 @@ serve(async (req) => {
     const { error: updateTxError } = await supabaseAdmin
       .from("payment_transactions")
       .update({
-        status: PAID_STATUSES.has(paymentStatus) ? "REFUNDED" : "CANCELED",
+        status: refundPending ? "REFUND_PENDING" : PAID_STATUSES.has(paymentStatus) ? "REFUNDED" : "CANCELED",
         subscription_end_at: nowIso,
-        last_event: "USER_CANCELED_WITHIN_7_DAYS",
+        last_event: refundPending ? "USER_CANCELED_REFUND_PENDING" : "USER_CANCELED_WITHIN_7_DAYS",
         raw_payload: {
           ...(tx.raw_payload || {}),
           cancellation: cancellationPayload,
@@ -230,20 +255,39 @@ serve(async (req) => {
       .from("asaas_checkout_sessions")
       .update({
         status: "CANCELED",
-        payment_status: PAID_STATUSES.has(paymentStatus) ? "REFUNDED" : "CANCELED",
+        payment_status: refundPending ? "REFUND_PENDING" : PAID_STATUSES.has(paymentStatus) ? "REFUNDED" : "CANCELED",
         updated_at: nowIso,
         raw_response: {
           source: "cancel-user-subscription",
           canceled_at: nowIso,
           asaas_operations: asaasOperations,
+          refund_pending: refundPending,
+          refund_error: refundErrorMessage,
         },
       })
       .eq("payment_id", tx.payment_id);
 
+    if (refundPending) {
+      try {
+        await supabaseAdmin.from("admin_notifications").insert({
+          title: "Estorno pendente no Asaas",
+          content: `Assinatura cancelada por usuario ${user.id}, mas estorno pendente por saldo insuficiente.`,
+          link: "/admin/usuarios",
+          type: "warning",
+        });
+      } catch {
+        // not critical
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Assinatura cancelada com sucesso.",
+        message: refundPending
+          ? "Assinatura cancelada. O estorno no Asaas esta pendente por saldo insuficiente."
+          : "Assinatura cancelada com sucesso.",
+        refundPending,
+        refundError: refundErrorMessage,
         cancellationDeadline: deadline.toISOString(),
       }),
       {

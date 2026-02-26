@@ -63,6 +63,7 @@ import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import PushNotificationsPage from "./pages/admin/PushNotificationsPage";
 import FeatureVideosPage from "./pages/admin/FeatureVideosPage";
 import ConciergeRequestsPage from "./pages/admin/ConciergeRequestsPage";
+import PaymentsAdminPage from "./pages/admin/PaymentsAdminPage";
 
 const queryClient = new QueryClient();
 
@@ -118,6 +119,7 @@ const App = () => (
                 <Route path="usuarios" element={<UsersPage />} />
                 <Route path="criar-usuario" element={<CreateUserPage />} />
                 <Route path="planos" element={<PlansPage />} />
+                <Route path="pagamentos" element={<PaymentsAdminPage />} />
                 <Route path="indicacoes" element={<ReferralsAdminPage />} />
                 <Route path="cursos" element={<CoursesAdminPage />} />
                 <Route path="videos" element={<VideosPage />} />

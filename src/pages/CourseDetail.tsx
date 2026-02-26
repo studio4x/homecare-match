@@ -39,12 +39,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import PlanSelectionModal from "@/components/PlanSelectionModal";
 import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import LandingVideoPlayer
 import { createCheckoutSession } from "@/lib/checkout";
-import CoursePaymentMethodDialog from "@/components/CoursePaymentMethodDialog";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 
 const PRIVATE_BUCKET = "academy-private";
@@ -84,7 +82,6 @@ const CourseDetail = () => {
   const [certificateId, setCertificateId] = useState<string | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
   const [videoEnded, setVideoEnded] = useState(false);
@@ -93,7 +90,6 @@ const CourseDetail = () => {
   const [videoLoading, setVideoLoading] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [viewInside, setViewInside] = useState(false);
-  const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
 
   const isAdmin = userProfile?.is_admin || userProfile?.role === 'admin';
 
@@ -241,6 +237,25 @@ const CourseDetail = () => {
 
   const isYearlyPlan = userProfile?.subscription_tier === 'yearly' || isAdmin;
 
+  const handlePlanCheckout = async (planId: "yearly" | "monthly") => {
+    setEnrollmentLoading(true);
+    const toastId = toast.loading("Iniciando checkout...");
+    try {
+      const data = await createCheckoutSession({ planId });
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      throw new Error("URL de checkout nao retornada pelo servidor.");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao iniciar pagamento.");
+      toast.dismiss(toastId);
+    } finally {
+      setEnrollmentLoading(false);
+    }
+  };
+
   const handleEnroll = async () => {
     if (!session) {
       toast.info("Faça login para se inscrever.");
@@ -255,12 +270,12 @@ const CourseDetail = () => {
       toast.error("Acesso restrito!", {
         description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
       });
-      setIsPlanModalOpen(true);
+      await handlePlanCheckout("yearly");
       return;
     }
 
     if (course.price && course.price > 0 && !isAdmin) {
-      setPaymentMethodOpen(true);
+      await handleCoursePayment();
       return;
     }
 
@@ -280,12 +295,12 @@ const CourseDetail = () => {
     }
   };
 
-  const handleCoursePayment = async (method: "credit_card" | "pix") => {
+  const handleCoursePayment = async () => {
     if (!slug) return;
     setEnrollmentLoading(true);
     const toastId = toast.loading("Iniciando checkout...");
     try {
-      const data = await createCheckoutSession({ courseSlug: slug, paymentMethod: method });
+      const data = await createCheckoutSession({ courseSlug: slug });
       if (data?.url) {
         window.location.href = data.url;
         return;
@@ -297,7 +312,6 @@ const CourseDetail = () => {
       toast.dismiss(toastId);
     } finally {
       setEnrollmentLoading(false);
-      setPaymentMethodOpen(false);
     }
   };
 
@@ -367,7 +381,7 @@ const CourseDetail = () => {
       toast.error("Acesso restrito!", {
         description: "Sua assinatura atual não permite o acesso a este conteúdo gratuito."
       });
-      setIsPlanModalOpen(true);
+      handlePlanCheckout("yearly");
       return;
     }
 
@@ -795,21 +809,6 @@ const CourseDetail = () => {
           )}
         </DialogContent>
       </Dialog>
-
-      <PlanSelectionModal
-        open={isPlanModalOpen}
-        onOpenChange={setIsPlanModalOpen}
-        showCoupon={false}
-      />
-
-      <CoursePaymentMethodDialog
-        open={paymentMethodOpen}
-        onOpenChange={setPaymentMethodOpen}
-        courseTitle={course?.title}
-        priceLabel={course?.price ? `R$ ${Number(course.price).toFixed(2).replace(".", ",")}` : undefined}
-        loading={enrollmentLoading}
-        onSelect={handleCoursePayment}
-      />
     </Layout>
   );
 };

@@ -16,6 +16,7 @@ import {
   BarChart, 
   FileCheck,
   CreditCard,
+  ReceiptText,
   Menu,
   X,
   MessageSquare,
@@ -139,6 +140,7 @@ const AdminLayout = () => {
     { href: "/admin/usuarios", label: "Usuários", icon: Users },
     { href: "/admin/criar-usuario", label: "Criar Usuário", icon: UserPlus }, // New nav item
     { href: "/admin/planos", label: "Planos", icon: CreditCard },
+    { href: "/admin/pagamentos", label: "Pagamentos", icon: ReceiptText },
     { href: "/admin/cupons", label: "Cupons", icon: Ticket },
     { href: "/admin/indicacoes", label: "Indicações", icon: Award },
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },

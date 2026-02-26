@@ -383,6 +383,9 @@ verify_jwt = false
 [functions.get-payment-history]
 verify_jwt = false
 
+[functions.get-admin-payment-history]
+verify_jwt = false
+
 [functions.sync-user-subscription]
 verify_jwt = false
 

@@ -10,21 +10,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Check, Loader2, Star, Zap, Ticket, ArrowRight } from "lucide-react";
+import { Check, Loader2, Zap, Ticket } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { createCheckoutSession } from "@/lib/checkout";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface PlanSelectionModalProps {
   open: boolean;
@@ -38,8 +30,6 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-  const [installmentPlan, setInstallmentPlan] = useState<any | null>(null);
-  const [installmentCount, setInstallmentCount] = useState(1);
 
   const { data: profile } = useQuery({
     queryKey: ["user-profile-tier-modal", user?.id],
@@ -67,13 +57,6 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
   });
 
   const handleSubscribe = async (plan: any) => {
-    if (plan?.id === "yearly") {
-      const maxInstallments = Math.max(1, Math.min(Number(plan?.asaas_installment_max || 12), 12));
-      setInstallmentCount(maxInstallments);
-      setInstallmentPlan(plan);
-      return;
-    }
-
     setLoadingPlan(plan.id);
     const toastId = toast.loading("Iniciando checkout...");
 
@@ -93,34 +76,6 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
       toast.error(cleanMessage || "Falha ao iniciar pagamento.");
     } finally {
       setLoadingPlan(null);
-    }
-  };
-
-  const handleConfirmInstallments = async () => {
-    if (!installmentPlan) return;
-    setLoadingPlan(installmentPlan.id);
-    const toastId = toast.loading("Iniciando checkout...");
-
-    try {
-      const data = await createCheckoutSession({
-        planId: installmentPlan.id,
-        installmentCount,
-      });
-
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-
-      throw new Error("URL de checkout nao retornada pelo servidor.");
-    } catch (err: any) {
-      console.error("[Checkout Error]", err);
-      toast.dismiss(toastId);
-      const cleanMessage = err.message?.replace("Edge Function returned a non-2xx status code", "").trim();
-      toast.error(cleanMessage || "Falha ao iniciar pagamento.");
-    } finally {
-      setLoadingPlan(null);
-      setInstallmentPlan(null);
     }
   };
 
@@ -304,56 +259,6 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
           </p>
         </div>
       </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!installmentPlan} onOpenChange={(open) => !open && setInstallmentPlan(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Escolha o parcelamento</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="rounded-lg border bg-secondary/30 p-3 text-sm">
-              <p className="font-semibold">{installmentPlan?.name || "Plano Anual"}</p>
-              <p className="text-xs text-muted-foreground">
-                Valor total: {installmentPlan?.price || "R$ 0,00"}
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label>Numero de parcelas</Label>
-              <Select value={String(installmentCount)} onValueChange={(v) => setInstallmentCount(Number(v))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from(
-                    { length: Math.max(1, Math.min(Number(installmentPlan?.asaas_installment_max || 12), 12)) },
-                    (_, idx) => idx + 1,
-                  ).map((value) => (
-                    <SelectItem key={value} value={String(value)}>
-                      {value}x
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setInstallmentPlan(null)}
-                disabled={!!loadingPlan}
-              >
-                Voltar
-              </Button>
-              <Button className="flex-1" onClick={handleConfirmInstallments} disabled={!!loadingPlan}>
-                {loadingPlan === installmentPlan?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continuar"}
-              </Button>
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              O pagamento parcelado aparece no Asaas como parcelas mensais.
-            </p>
-          </div>
-        </DialogContent>
       </Dialog>
     </>
   );

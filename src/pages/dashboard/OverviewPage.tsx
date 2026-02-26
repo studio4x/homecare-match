@@ -42,7 +42,6 @@ import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import PlanSelectionModal from "@/components/PlanSelectionModal";
 import OnboardingModal from "@/components/OnboardingModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
@@ -57,7 +56,6 @@ const OverviewPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSyncingBilling, setIsSyncingBilling] = useState(false);
   const [isManagingBilling, setIsManagingBilling] = useState(false);
-  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
   const [isSavingOnboardingPref, setIsSavingOnboardingPref] = useState(false);
@@ -543,7 +541,7 @@ const OverviewPage = () => {
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <Button 
-                      onClick={() => setIsPlanModalOpen(true)} 
+                      onClick={() => (window.location.href = "/#planos")}
                       className="gap-2 bg-destructive hover:bg-destructive/90 text-white shadow-lg"
                     >
                       <CreditCard className="h-4 w-4" />
@@ -727,7 +725,7 @@ const OverviewPage = () => {
                         size="sm" 
                         className="w-full mt-2" 
                         variant={trial.isExpired ? "default" : "outline"}
-                        onClick={() => setIsPlanModalOpen(true)}
+                        onClick={() => (window.location.href = "/#planos")}
                       >
                         Assinar Agora
                       </Button>
@@ -1003,11 +1001,6 @@ const OverviewPage = () => {
             </Card>
           </div>
         </div>
-
-        <PlanSelectionModal 
-          open={isPlanModalOpen} 
-          onOpenChange={setIsPlanModalOpen} 
-        />
 
         <OnboardingModal open={isOnboardingOpen} onOpenChange={setIsOnboardingOpen} forceShow={true} role={profile?.role} />
       </div>

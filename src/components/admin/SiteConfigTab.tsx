@@ -83,6 +83,7 @@ const SiteConfigTab = () => {
   const [isSyncingFeatureVideos, setIsSyncingFeatureVideos] = useState(false);
   const [isSyncingFamilyProfileFields, setIsSyncingFamilyProfileFields] = useState(false); // New state for family profile fields
   const [isSyncingCompanyPatients, setIsSyncingCompanyPatients] = useState(false); // New state for company patients
+  const [isSyncingAsaasDescriptions, setIsSyncingAsaasDescriptions] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
   const logoRef = useRef<HTMLInputElement>(null);
@@ -367,6 +368,28 @@ const SiteConfigTab = () => {
       toast.error(message);
     } finally {
       setIsSyncingCompanyPatients(false);
+    }
+  };
+
+  const handleSyncAsaasDescriptions = async () => {
+    setIsSyncingAsaasDescriptions(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-asaas-descriptions', {
+        body: { limit: 80, days: 90 },
+      });
+      if (error) throw error;
+
+      const updated = Number((data as any)?.updated || 0);
+      const errors = Array.isArray((data as any)?.errors) ? (data as any)?.errors : [];
+      if (errors.length > 0) {
+        toast.error(`Sincronização concluída com ${errors.length} erros. Atualizados: ${updated}.`);
+      } else {
+        toast.success(`Descrições sincronizadas no Asaas! Atualizados: ${updated}.`);
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao sincronizar descrições no Asaas.");
+    } finally {
+      setIsSyncingAsaasDescriptions(false);
     }
   };
 
@@ -825,6 +848,18 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncCompanyPatients} disabled={isSyncingCompanyPatients}>
               {isSyncingCompanyPatients ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-emerald-200 rounded-lg bg-emerald-50/50">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-emerald-900">Sincronizar descrições no Asaas</p>
+              <p className="text-xs text-emerald-800/70">
+                Corrige descrições vazias das cobranças de planos e cursos (últimos 90 dias).
+              </p>
+            </div>
+            <Button variant="outline" onClick={handleSyncAsaasDescriptions} disabled={isSyncingAsaasDescriptions}>
+              {isSyncingAsaasDescriptions ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             </Button>
           </div>
 

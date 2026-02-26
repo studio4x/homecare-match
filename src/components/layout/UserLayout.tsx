@@ -34,6 +34,7 @@ import ImpersonationBar from "../ImpersonationBar";
 import ScrollToTopButton from "../ScrollToTopButton";
 import UserNotificationWidget from "../UserNotificationWidget";
 import PushManager from "../PushManager";
+import SuggestionDrawer from "../SuggestionDrawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const UserLayout = () => {
@@ -174,6 +175,7 @@ const UserLayout = () => {
       <ImpersonationBar />
       <MarketingScripts />
       <PushManager />
+      <SuggestionDrawer autoPromptEnabled showTrigger={false} />
 
       <div className="flex flex-1 bg-secondary/10">
         {sidebarOpen && (

@@ -68,7 +68,7 @@ const Layout = ({ children }: LayoutProps) => {
       <Navbar />
       <ImpersonationBar />
       <MarketingScripts />
-      <SuggestionDrawer />
+      <SuggestionDrawer autoPromptEnabled />
       <CookieConsent />
       <PushManager />
 

@@ -23,12 +23,6 @@ const Footer = () => {
     <footer className="border-t border-border bg-card">
       <div className="container mx-auto px-4 py-10 md:py-12">
         <div className="space-y-8 md:hidden">
-          <div className="rounded-3xl border border-border/70 bg-gradient-to-br from-card via-card to-secondary/40 p-5 shadow-sm">
-            <p className="text-center text-sm leading-relaxed text-muted-foreground">
-              Conectando profissionais de saude as melhores oportunidades em Home Care.
-            </p>
-          </div>
-
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Acesso rapido</p>
             <div className="grid grid-cols-2 gap-2">
@@ -77,9 +71,6 @@ const Footer = () => {
                 className="object-contain"
               />
             </Link>
-            <p className="text-sm text-muted-foreground">
-              Conectando profissionais de saude as melhores oportunidades em Home Care.
-            </p>
           </div>
 
           <div className="space-y-4">

@@ -51,6 +51,19 @@ const truncateText = (value: unknown, maxLength: number, fallback: string) => {
   return text.length > maxLength ? text.slice(0, maxLength).trim() : text;
 };
 
+const isAsaasGenericDescription = (value?: string | null) => {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return true;
+
+  return (
+    text.includes("sem descricao informada") ||
+    text.includes("sem descri") ||
+    text.includes("description not informed") ||
+    text.includes("description not provided") ||
+    text === "-"
+  );
+};
+
 const resolveAsaasChargeDescription = async (
   supabaseAdmin: any,
   courseSlug?: string | null,
@@ -234,8 +247,12 @@ serve(async (req) => {
 
     let resolvedPaymentDescription = String(payment?.description || "").trim();
 
-    if (paymentId && !resolvedPaymentDescription) {
-      resolvedPaymentDescription = await resolveAsaasChargeDescription(supabaseAdmin, courseSlug, planId);
+    if (paymentId && (courseSlug || planId)) {
+      const desiredPaymentDescription = await resolveAsaasChargeDescription(supabaseAdmin, courseSlug, planId);
+      const shouldForceCourseDescription =
+        Boolean(courseSlug) && resolvedPaymentDescription !== desiredPaymentDescription;
+      const shouldUpdateAsaasDescription =
+        isAsaasGenericDescription(resolvedPaymentDescription) || shouldForceCourseDescription;
 
       const { data: config } = await supabaseAdmin
         .from("site_config")
@@ -246,7 +263,7 @@ serve(async (req) => {
       const asaasEnv = asaasEnvFromConfig(config) as "sandbox" | "production";
       const asaasApiKey = getAsaasApiKey(asaasEnv);
 
-      if (asaasApiKey) {
+      if (shouldUpdateAsaasDescription && asaasApiKey) {
         try {
           const updateRes = await fetch(
             `${getAsaasApiBaseUrl(asaasEnv)}/payments/${encodeURIComponent(String(paymentId))}`,
@@ -257,7 +274,7 @@ serve(async (req) => {
                 access_token: asaasApiKey,
               },
               body: JSON.stringify({
-                description: resolvedPaymentDescription,
+                description: desiredPaymentDescription,
               }),
             },
           );
@@ -265,10 +282,15 @@ serve(async (req) => {
           const updateJson = await updateRes.json().catch(() => ({}));
           if (updateRes.ok && typeof updateJson?.description === "string" && updateJson.description.trim()) {
             resolvedPaymentDescription = updateJson.description.trim();
+          } else {
+            resolvedPaymentDescription = desiredPaymentDescription;
           }
         } catch {
           // best effort: keep local fallback when Asaas update is not allowed for current payment state
+          resolvedPaymentDescription = desiredPaymentDescription;
         }
+      } else if (!resolvedPaymentDescription || isAsaasGenericDescription(resolvedPaymentDescription)) {
+        resolvedPaymentDescription = desiredPaymentDescription;
       }
     }
 

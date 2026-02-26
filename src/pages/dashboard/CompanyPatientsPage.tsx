@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -20,6 +20,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,12 +46,7 @@ import {
   Users,
   Eye,
   EyeOff,
-  Calendar,
-  HeartPulse,
-  ShieldAlert,
-  MapPin, // New import
-  DollarSign, // New import
-  Clock // New import
+  ShieldAlert
 } from "lucide-react";
 import { toast } from "sonner";
 import CompanyPatientForm from "@/components/CompanyPatientForm";
@@ -69,7 +71,25 @@ interface Patient {
   patient_period?: string[]; // New field
   patient_repass_value?: number; // New field
   patient_days_per_week?: number; // New field
+  hiring_status?: string;
 }
+
+type HiringStatus = "needs_professional" | "hiring_in_progress" | "hired";
+
+const HIRING_STATUS_OPTIONS: { value: HiringStatus; label: string }[] = [
+  { value: "needs_professional", label: "Precisa de profissional" },
+  { value: "hiring_in_progress", label: "Contratacao em andamento" },
+  { value: "hired", label: "Profissional contratado" },
+];
+
+const normalizeHiringStatus = (value?: string | null): HiringStatus => {
+  if (value === "hiring_in_progress" || value === "hired") return value;
+  return "needs_professional";
+};
+
+const getHiringStatusLabel = (status: HiringStatus) => {
+  return HIRING_STATUS_OPTIONS.find((option) => option.value === status)?.label || "Precisa de profissional";
+};
 
 const CompanyPatientsPage = () => {
   const { user, loading: authLoading } = useAuth();
@@ -82,6 +102,7 @@ const CompanyPatientsPage = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [statusUpdatingPatientId, setStatusUpdatingPatientId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -130,7 +151,10 @@ const CompanyPatientsPage = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setPatients(data || []);
+      setPatients((data || []).map((patient) => ({
+        ...patient,
+        hiring_status: normalizeHiringStatus(patient.hiring_status),
+      })));
     } catch (err: any) {
       console.error("[CompanyPatientsPage] Erro ao carregar pacientes:", err);
       toast.error("Erro ao carregar pacientes. Tente sincronizar o banco de dados nas configurações.");
@@ -174,6 +198,85 @@ const CompanyPatientsPage = () => {
       toast.error("Erro ao excluir paciente.");
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const getHiringStatusBadge = (status: HiringStatus) => {
+    if (status === "hiring_in_progress") {
+      return (
+        <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">
+          Contratacao em andamento
+        </Badge>
+      );
+    }
+
+    if (status === "hired") {
+      return (
+        <Badge variant="outline" className="text-success border-success/30 bg-success/10">
+          Profissional contratado
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">
+        Precisa de profissional
+      </Badge>
+    );
+  };
+
+  const handleHiringStatusChange = async (patient: Patient, nextValue: string) => {
+    if (!user) return;
+    const nextStatus = normalizeHiringStatus(nextValue);
+    const currentStatus = normalizeHiringStatus(patient.hiring_status);
+    if (nextStatus === currentStatus) return;
+
+    setStatusUpdatingPatientId(patient.id);
+    try {
+      const updatePayload: Record<string, any> = {
+        hiring_status: nextStatus,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (nextStatus === "hired") {
+        updatePayload.is_visible = false;
+      }
+
+      const { error } = await supabase
+        .from("company_patients")
+        .update(updatePayload)
+        .eq("id", patient.id)
+        .eq("company_id", user.id);
+
+      if (error) throw error;
+
+      const statusLabel = getHiringStatusLabel(nextStatus);
+      toast.success(`Status atualizado para "${statusLabel}".`);
+
+      if (nextStatus === "hired") {
+        toast.info("Paciente ocultado automaticamente para profissionais.");
+        const shouldRemove = window.confirm(
+          "A contratacao foi concluida. Deseja remover este paciente agora?",
+        );
+
+        if (shouldRemove) {
+          const { error: deleteError } = await supabase
+            .from("company_patients")
+            .delete()
+            .eq("id", patient.id)
+            .eq("company_id", user.id);
+
+          if (deleteError) throw deleteError;
+          toast.success("Paciente removido com sucesso.");
+        }
+      }
+
+      await fetchPatients(true);
+    } catch (err) {
+      console.error("[CompanyPatientsPage] Erro ao atualizar status de contratacao:", err);
+      toast.error("Erro ao atualizar status de contratacao.");
+    } finally {
+      setStatusUpdatingPatientId(null);
     }
   };
 
@@ -230,6 +333,7 @@ const CompanyPatientsPage = () => {
                   <TableHead>Idade</TableHead>
                   <TableHead>Especialidades</TableHead> {/* New TableHead */}
                   <TableHead>Período</TableHead> {/* New TableHead */}
+                  <TableHead>Status da Contratacao</TableHead>
                   <TableHead>Visibilidade</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -252,6 +356,27 @@ const CompanyPatientsPage = () => {
                           <Badge key={idx} variant="outline" className="mr-1 mb-1 text-xs">{p}</Badge>
                         ))
                       ) : 'N/A'}
+                    </TableCell>
+                    <TableCell className="min-w-[260px]">
+                      <div className="space-y-2">
+                        {getHiringStatusBadge(normalizeHiringStatus(patient.hiring_status))}
+                        <Select
+                          value={normalizeHiringStatus(patient.hiring_status)}
+                          onValueChange={(value) => handleHiringStatusChange(patient, value)}
+                          disabled={statusUpdatingPatientId === patient.id}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue placeholder="Defina o status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {HIRING_STATUS_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {patient.is_visible ? (

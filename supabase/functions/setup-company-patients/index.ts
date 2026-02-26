@@ -36,7 +36,8 @@ serve(async (req) => {
         patient_specialties TEXT[], -- New field
         patient_period TEXT[], -- New field
         patient_repass_value NUMERIC, -- New field
-        patient_days_per_week INTEGER -- New field
+        patient_days_per_week INTEGER, -- New field
+        hiring_status TEXT DEFAULT 'needs_professional'
       );
 
       -- Ensure patient_name is NOT NULL if it was previously created as such
@@ -48,6 +49,27 @@ serve(async (req) => {
       ALTER TABLE public.company_patients ADD COLUMN IF NOT EXISTS patient_period TEXT[];
       ALTER TABLE public.company_patients ADD COLUMN IF NOT EXISTS patient_repass_value NUMERIC;
       ALTER TABLE public.company_patients ADD COLUMN IF NOT EXISTS patient_days_per_week INTEGER;
+      ALTER TABLE public.company_patients ADD COLUMN IF NOT EXISTS hiring_status TEXT;
+      ALTER TABLE public.company_patients ALTER COLUMN hiring_status SET DEFAULT 'needs_professional';
+
+      UPDATE public.company_patients
+      SET hiring_status = 'needs_professional'
+      WHERE hiring_status IS NULL
+         OR hiring_status NOT IN ('needs_professional', 'hiring_in_progress', 'hired');
+
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'company_patients_hiring_status_check'
+        ) THEN
+          ALTER TABLE public.company_patients
+          ADD CONSTRAINT company_patients_hiring_status_check
+          CHECK (hiring_status IN ('needs_professional', 'hiring_in_progress', 'hired'));
+        END IF;
+      END
+      $$;
 
       ALTER TABLE public.company_patients ENABLE ROW LEVEL SECURITY;
 

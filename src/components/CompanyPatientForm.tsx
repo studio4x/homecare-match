@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -10,6 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -42,20 +49,20 @@ import { useAuth } from "@/components/auth/AuthProvider";
 const mobilityLevelOptions = [
   "Acamado",
   "Cadeira de Rodas",
-  "Anda com Auxílio",
-  "Totalmente Móvel",
+  "Anda com AuxÃ­lio",
+  "Totalmente MÃ³vel",
 ];
 
 const cognitiveStateOptions = [
   "Alerta e Orientado",
   "Comprometimento Leve",
-  "Demência",
-  "Confusão/Agitação",
+  "DemÃªncia",
+  "ConfusÃ£o/AgitaÃ§Ã£o",
 ];
 
 const specialEquipmentOptions = [
-  "Oxigênio",
-  "Sonda de Alimentação",
+  "OxigÃªnio",
+  "Sonda de AlimentaÃ§Ã£o",
   "Cateter",
   "Ventilador",
   "Ostomia",
@@ -63,9 +70,9 @@ const specialEquipmentOptions = [
 
 const communicationSkillsOptions = [
   "Verbal",
-  "Não-Verbal",
+  "NÃ£o-Verbal",
   "Com Dificuldade",
-  "Prancha de Comunão",
+  "Prancha de ComunÃ£o",
 ];
 
 const specialtiesOptions = [ // Re-using specialties from other parts of the app
@@ -73,35 +80,41 @@ const specialtiesOptions = [ // Re-using specialties from other parts of the app
   { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
   { value: "dentista", label: "Dentista" },
   { value: "enfermeiro", label: "Enfermeiro(a)" },
-  { value: "farmaceutico", label: "Farmacêutico(a)" },
+  { value: "farmaceutico", label: "FarmacÃªutico(a)" },
   { value: "fisioterapeuta", label: "Fisioterapeuta" },
-  { value: "fonoaudiologo", label: "Fonoaudiólogo(a)" },
-  { value: "medico-clinico", label: "Médico(a) - Clínico Geral / Geriatra" },
+  { value: "fonoaudiologo", label: "FonoaudiÃ³logo(a)" },
+  { value: "medico-clinico", label: "MÃ©dico(a) - ClÃ­nico Geral / Geriatra" },
   { value: "nutricionista", label: "Nutricionista" },
-  { value: "psicologo", label: "Psicólogo(a)" },
-  { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
+  { value: "psicologo", label: "PsicÃ³logo(a)" },
+  { value: "tecnico-enfermagem", label: "TÃ©cnico(a) de Enfermagem" },
   { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
 ];
 
 const periodOptions = [
-  "Manhã (06h-12h)",
+  "ManhÃ£ (06h-12h)",
   "Tarde (12h-18h)",
   "Noite (18h-00h)",
   "Madrugada (00h-06h)",
-  "Plantão 12h (Diurno)",
-  "Plantão 12h (Noturno)",
-  "Plantão 24h",
+  "PlantÃ£o 12h (Diurno)",
+  "PlantÃ£o 12h (Noturno)",
+  "PlantÃ£o 24h",
   "1h de atendimento",
   "2h de atendimento",
   "3h de atendimento",
 ];
+
+const hiringStatusOptions = [
+  { value: "needs_professional", label: "Precisa de profissional" },
+  { value: "hiring_in_progress", label: "Contratacao em andamento" },
+  { value: "hired", label: "Profissional contratado" },
+] as const;
 
 const formSchema = z.object({
   id: z.string().optional(), // For editing existing patients
   patient_name: z.string().optional(), // Changed to optional
   patient_age: z.preprocess(
     (val) => (val === "" ? undefined : Number(val)),
-    z.number().min(0, "Idade deve ser um número positivo").optional()
+    z.number().min(0, "Idade deve ser um nÃºmero positivo").optional()
   ),
   patient_medical_conditions: z.string().optional(),
   patient_mobility_level: z.array(z.string()).default([]),
@@ -118,8 +131,9 @@ const formSchema = z.object({
   ),
   patient_days_per_week: z.preprocess( // New field
     (val) => (val === "" ? undefined : Number(val)),
-    z.number().min(1, "Mínimo 1 dia").max(7, "Máximo 7 dias").optional()
+    z.number().min(1, "MÃ­nimo 1 dia").max(7, "MÃ¡ximo 7 dias").optional()
   ),
+  hiring_status: z.enum(["needs_professional", "hiring_in_progress", "hired"]).default("needs_professional"),
 });
 
 type PatientFormData = z.infer<typeof formSchema>;
@@ -151,12 +165,21 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
       patient_period: initialData?.patient_period || [], // New field
       patient_repass_value: initialData?.patient_repass_value || undefined, // New field
       patient_days_per_week: initialData?.patient_days_per_week || undefined, // New field
+      hiring_status: initialData?.hiring_status || "needs_professional",
     },
   });
 
+  const hiringStatus = form.watch("hiring_status");
+
+  useEffect(() => {
+    if (hiringStatus === "hired" && form.getValues("is_visible")) {
+      form.setValue("is_visible", false, { shouldDirty: true });
+    }
+  }, [hiringStatus, form]);
+
   const onSubmit = async (data: PatientFormData) => {
     if (!user) {
-      toast.error("Você precisa estar logado para gerenciar pacientes.");
+      toast.error("VocÃª precisa estar logado para gerenciar pacientes.");
       return;
     }
 
@@ -171,12 +194,13 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
         patient_cognitive_state: data.patient_cognitive_state,
         patient_special_equipment: data.patient_special_equipment,
         patient_communication_skills: data.patient_communication_skills,
-        is_visible: data.is_visible,
+        is_visible: data.hiring_status === "hired" ? false : data.is_visible,
         patient_zip: data.patient_zip || null, // New field
         patient_specialties: data.patient_specialties, // New field
         patient_period: data.patient_period, // New field
         patient_repass_value: data.patient_repass_value || null, // New field
         patient_days_per_week: data.patient_days_per_week || null, // New field
+        hiring_status: data.hiring_status,
       };
 
       if (data.id) {
@@ -194,6 +218,9 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           .insert(payload);
         if (error) throw error;
         toast.success("Paciente adicionado com sucesso!");
+      }
+      if (data.hiring_status === "hired") {
+        toast.info("Paciente ocultado automaticamente para profissionais, pois a contratacao foi concluida.");
       }
       onSuccess();
     } catch (error: any) {
@@ -213,7 +240,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <User className="h-4 w-4 text-primary" /> ID/Código do Paciente* (opcional)
+                <User className="h-4 w-4 text-primary" /> ID/CÃ³digo do Paciente* (opcional)
               </FormLabel>
               <FormControl>
                 <Input placeholder="Ex: Paciente-001, Maria Silva" {...field} />
@@ -261,11 +288,11 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <HeartPulse className="h-4 w-4 text-primary" /> Condições Médicas / Histórico
+                <HeartPulse className="h-4 w-4 text-primary" /> CondiÃ§Ãµes MÃ©dicas / HistÃ³rico
               </FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Ex: AVC com sequelas motoras, Alzheimer em estágio inicial, Diabetes tipo 2."
+                  placeholder="Ex: AVC com sequelas motoras, Alzheimer em estÃ¡gio inicial, Diabetes tipo 2."
                   rows={3}
                   {...field}
                 />
@@ -281,7 +308,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={() => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <Footprints className="h-4 w-4 text-primary" /> Nível de Mobilidade
+                <Footprints className="h-4 w-4 text-primary" /> NÃ­vel de Mobilidade
               </FormLabel>
               <div className="grid grid-cols-2 gap-2">
                 {mobilityLevelOptions.map((option) => (
@@ -398,7 +425,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={() => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-primary" /> Habilidades de Comunicação
+                <MessageSquare className="h-4 w-4 text-primary" /> Habilidades de ComunicaÃ§Ã£o
               </FormLabel>
               <div className="grid grid-cols-2 gap-2">
                 {communicationSkillsOptions.map((option) => (
@@ -437,7 +464,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={() => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" /> Especialidades Necessárias
+                <Users className="h-4 w-4 text-primary" /> Especialidades NecessÃ¡rias
               </FormLabel>
               <div className="grid grid-cols-2 gap-2">
                 {specialtiesOptions.map((option) => (
@@ -476,7 +503,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={() => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" /> Período Necessário
+                <Clock className="h-4 w-4 text-primary" /> PerÃ­odo NecessÃ¡rio
               </FormLabel>
               <div className="grid grid-cols-2 gap-2">
                 {periodOptions.map((option) => (
@@ -505,7 +532,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                Você pode selecionar mais de uma opção. Ex.: Período Diurno + 1h de atendimento.
+                VocÃª pode selecionar mais de uma opÃ§Ã£o. Ex.: PerÃ­odo Diurno + 1h de atendimento.
               </p>
               <FormMessage />
             </FormItem>
@@ -546,17 +573,52 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
 
         <FormField
           control={form.control}
+          name="hiring_status"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" /> Status da Contratacao
+              </FormLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {hiringStatusOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Ao marcar como contratado, a visibilidade sera desativada automaticamente.
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="is_visible"
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">Visível para Profissionais</FormLabel>
+                <FormLabel className="text-base">Visivel para Profissionais</FormLabel>
                 <p className="text-xs text-muted-foreground">
-                  Se ativado, este paciente aparecerá no perfil público da sua empresa.
+                  {hiringStatus === "hired"
+                    ? "Paciente contratado: a visibilidade fica desativada automaticamente."
+                    : "Se ativado, este paciente aparecera no perfil publico da sua empresa."}
                 </p>
               </div>
               <FormControl>
-                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={hiringStatus === "hired"}
+                />
               </FormControl>
             </FormItem>
           )}
@@ -577,3 +639,4 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
 };
 
 export default CompanyPatientForm;
+

@@ -24,11 +24,11 @@ import Layout from "@/components/layout/Layout";
 import ProfessionalCard from "@/components/ProfessionalCard";
 import ProfessionalMap from "@/components/ProfessionalMap";
 import ProfessionalMapModal from "@/components/ProfessionalMapModal";
-import { Search, Filter, ShieldAlert, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck, Loader2, MapPin, AlertCircle, Map as MapIcon, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Filter, Building2, Home, DollarSign, Sparkles, Headset, ArrowRight, Users, Star, ShieldCheck, Loader2, MapPin, AlertCircle, Map as MapIcon, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import AccessRestricted from "@/components/AccessRestricted";
 import { subDays } from "date-fns";
@@ -360,24 +360,7 @@ const Buscar = () => {
   }
 
   if (userProfile?.role === 'professional') {
-    return (
-      <Layout>
-        <div className="container mx-auto px-4 py-20 text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-            <ShieldAlert className="h-10 w-10 text-primary" />
-          </div>
-          <h2 className="text-2xl font-bold">Acesso Restrito</h2>
-          <p className="mx-auto mt-4 max-w-md text-muted-foreground">
-            A busca de profissionais é uma ferramenta exclusiva para <strong>Empresas de Home Care</strong> e <strong>Famílias</strong> em busca de atendimento.
-          </p>
-          <div className="mt-8 flex justify-center gap-4">
-            <Button asChild variant="outline">
-              <Link to="/dashboard">Ir para Meu Painel</Link>
-            </Button>
-          </div>
-        </div>
-      </Layout>
-    );
+    return <Navigate to="/dashboard" replace />;
   }
 
   const specialties = [

@@ -926,20 +926,6 @@ const OverviewPage = () => {
           <div className="space-y-6">
             {isProfessional && QuickAccessCard}
 
-            {isProfessional && (
-              <Card className="h-fit">
-                <CardHeader>
-                  <CardTitle className="text-base">Busca de Profissionais</CardTitle>
-                  <CardDescription>Encontre o profissional ideal para sua necessidade.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button asChild className="w-full gap-2">
-                    <Link to="/buscar">Ir para a Busca <ArrowRight className="h-4 w-4" /></Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>

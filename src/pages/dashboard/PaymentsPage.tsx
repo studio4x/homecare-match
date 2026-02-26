@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,6 +22,8 @@ import {
   AlertCircle,
   RefreshCw,
   XCircle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { differenceInCalendarDays, format, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -55,6 +57,22 @@ interface RenewalAlert {
   description: string;
 }
 
+interface InstallmentInfo {
+  total: number;
+}
+
+interface InstallmentGroup {
+  id: string;
+  totalInstallments: number;
+  items: PaymentRecord[];
+  currency: string;
+  totalAmount: number;
+}
+
+type PaymentDisplayRow =
+  | { kind: "payment"; payment: PaymentRecord }
+  | { kind: "group"; group: InstallmentGroup };
+
 type InvokeFunctionError = {
   context?: Response;
 };
@@ -86,6 +104,17 @@ const readFunctionErrorMessage = async (
   return fallback;
 };
 
+const extractInstallmentInfo = (description: string): InstallmentInfo | null => {
+  const match = description.match(/parcela\s+(\d+)\s+de\s+(\d+)/i);
+  if (!match) return null;
+
+  const current = Number(match[1]);
+  const total = Number(match[2]);
+  if (!Number.isFinite(current) || !Number.isFinite(total) || total <= 1) return null;
+
+  return { total };
+};
+
 const PaymentsPage = () => {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,6 +122,7 @@ const PaymentsPage = () => {
   const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [subscriptionSnapshot, setSubscriptionSnapshot] = useState<SubscriptionSnapshot | null>(null);
+  const [expandedInstallmentGroups, setExpandedInstallmentGroups] = useState<Record<string, boolean>>({});
 
   const fetchHistory = async (silent = false) => {
     if (!silent) {
@@ -177,6 +207,83 @@ const PaymentsPage = () => {
           : `Seu plano anual vence em ${daysRemaining} dia(s). A renovacao e manual e pode ser feita com parcelamento em ate 12x.`,
     };
   }, [subscriptionSnapshot]);
+
+  const displayRows = useMemo<PaymentDisplayRow[]>(() => {
+    const groupedItemsById = new Map<string, string>();
+    const groupsBySignature = new Map<string, InstallmentGroup[]>();
+
+    payments.forEach((payment) => {
+      if (payment.type !== "subscription") return;
+
+      const installmentInfo = extractInstallmentInfo(payment.description);
+      if (!installmentInfo) return;
+
+      const signature = [
+        installmentInfo.total,
+        payment.currency.toLowerCase(),
+        Number(payment.amount || 0).toFixed(2),
+      ].join("|");
+
+      const existingGroups = groupsBySignature.get(signature) || [];
+      let targetGroup = existingGroups.find((group) => group.items.length < group.totalInstallments);
+
+      if (!targetGroup) {
+        targetGroup = {
+          id: `installments-${signature}-${existingGroups.length + 1}`,
+          totalInstallments: installmentInfo.total,
+          items: [],
+          currency: payment.currency,
+          totalAmount: 0,
+        };
+        existingGroups.push(targetGroup);
+        groupsBySignature.set(signature, existingGroups);
+      }
+
+      targetGroup.items.push(payment);
+      targetGroup.totalAmount += Number(payment.amount || 0);
+      groupedItemsById.set(payment.id, targetGroup.id);
+    });
+
+    groupsBySignature.forEach((groups) => {
+      groups.forEach((group) => {
+        group.items.sort((a, b) => b.date - a.date);
+      });
+    });
+
+    const groupsForRendering = new Map<string, InstallmentGroup>();
+    groupsBySignature.forEach((groups) => {
+      groups.forEach((group) => {
+        if (group.items.length > 1) {
+          groupsForRendering.set(group.id, group);
+        } else {
+          group.items.forEach((item) => groupedItemsById.delete(item.id));
+        }
+      });
+    });
+
+    const emittedGroups = new Set<string>();
+    const rows: PaymentDisplayRow[] = [];
+
+    payments.forEach((payment) => {
+      const groupId = groupedItemsById.get(payment.id);
+      if (!groupId) {
+        rows.push({ kind: "payment", payment });
+        return;
+      }
+
+      if (!emittedGroups.has(groupId)) {
+        const group = groupsForRendering.get(groupId);
+        if (group) {
+          rows.push({ kind: "group", group });
+          emittedGroups.add(groupId);
+        } else {
+          rows.push({ kind: "payment", payment });
+        }
+      }
+    });
+
+    return rows;
+  }, [payments]);
 
   const cancellationState = useMemo<CancellationState>(() => {
     const latestPaidSubscription = [...payments]
@@ -264,6 +371,28 @@ const PaymentsPage = () => {
     }
   };
 
+  const getInstallmentGroupStatusBadge = (group: InstallmentGroup) => {
+    const hasPending = group.items.some((item) => item.status.toLowerCase() === "open");
+    if (hasPending) {
+      return (
+        <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+          Pendente
+        </Badge>
+      );
+    }
+
+    const isPaid = group.items.every((item) => {
+      const status = item.status.toLowerCase();
+      return status === "paid" || status === "succeeded";
+    });
+
+    if (isPaid) {
+      return <Badge className="bg-success hover:bg-success">Pago</Badge>;
+    }
+
+    return <Badge variant="outline">Parcial</Badge>;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -335,39 +464,135 @@ const PaymentsPage = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {payments.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="whitespace-nowrap">
-                          <div className="flex items-center gap-2 text-xs">
-                            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                            {format(p.date, "dd/MM/yyyy", { locale: ptBR })}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-0.5">
-                            <p className="text-sm font-medium leading-none">{p.description}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                              {p.type === "subscription" ? "Assinatura" : "Pagamento Unico"}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-semibold">
-                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: p.currency.toUpperCase() }).format(p.amount)}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(p.status)}</TableCell>
-                        <TableCell className="text-right">
-                          {p.pdf_url ? (
-                            <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-primary">
-                              <a href={p.pdf_url} target="_blank" rel="noopener noreferrer" title="Baixar PDF">
-                                <Download className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground italic">Recibo Digital</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {displayRows.map((row) => {
+                      if (row.kind === "payment") {
+                        const p = row.payment;
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="whitespace-nowrap">
+                              <div className="flex items-center gap-2 text-xs">
+                                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                {format(p.date, "dd/MM/yyyy", { locale: ptBR })}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-0.5">
+                                <p className="text-sm font-medium leading-none">{p.description}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                  {p.type === "subscription" ? "Assinatura" : "Pagamento Unico"}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              {new Intl.NumberFormat("pt-BR", {
+                                style: "currency",
+                                currency: p.currency.toUpperCase(),
+                              }).format(p.amount)}
+                            </TableCell>
+                            <TableCell>{getStatusBadge(p.status)}</TableCell>
+                            <TableCell className="text-right">
+                              {p.pdf_url ? (
+                                <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-primary">
+                                  <a href={p.pdf_url} target="_blank" rel="noopener noreferrer" title="Baixar PDF">
+                                    <Download className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground italic">Recibo Digital</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
+                      const group = row.group;
+                      const isExpanded = !!expandedInstallmentGroups[group.id];
+                      const latestDate = group.items[0]?.date ?? Date.now();
+                      const paidInstallments = group.items.filter((item) => {
+                        const status = item.status.toLowerCase();
+                        return status === "paid" || status === "succeeded";
+                      }).length;
+
+                      return (
+                        <Fragment key={group.id}>
+                          <TableRow className="bg-secondary/20">
+                            <TableCell className="whitespace-nowrap">
+                              <div className="flex items-center gap-2 text-xs">
+                                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                {format(latestDate, "dd/MM/yyyy", { locale: ptBR })}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <button
+                                  type="button"
+                                  className="flex items-center gap-2 text-sm font-semibold text-left text-primary hover:underline"
+                                  onClick={() =>
+                                    setExpandedInstallmentGroups((prev) => ({ ...prev, [group.id]: !prev[group.id] }))
+                                  }
+                                >
+                                  {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                  Parcelamento Plano Anual ({group.items.length}/{group.totalInstallments})
+                                </button>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                  {paidInstallments} parcela(s) paga(s) de {group.totalInstallments}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              {new Intl.NumberFormat("pt-BR", {
+                                style: "currency",
+                                currency: group.currency.toUpperCase(),
+                              }).format(group.totalAmount)}
+                            </TableCell>
+                            <TableCell>{getInstallmentGroupStatusBadge(group)}</TableCell>
+                            <TableCell className="text-right">
+                              <span className="text-[10px] text-muted-foreground italic">
+                                {isExpanded ? "Ocultar parcelas" : "Ver parcelas"}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+
+                          {isExpanded &&
+                            group.items.map((p) => (
+                              <TableRow key={`installment-${group.id}-${p.id}`} className="bg-muted/20">
+                                <TableCell className="whitespace-nowrap pl-8">
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                    {format(p.date, "dd/MM/yyyy", { locale: ptBR })}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-0.5">
+                                    <p className="text-sm font-medium leading-none">{p.description}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                      Assinatura
+                                    </p>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-semibold">
+                                  {new Intl.NumberFormat("pt-BR", {
+                                    style: "currency",
+                                    currency: p.currency.toUpperCase(),
+                                  }).format(p.amount)}
+                                </TableCell>
+                                <TableCell>{getStatusBadge(p.status)}</TableCell>
+                                <TableCell className="text-right">
+                                  {p.pdf_url ? (
+                                    <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-primary">
+                                      <a href={p.pdf_url} target="_blank" rel="noopener noreferrer" title="Baixar PDF">
+                                        <Download className="h-4 w-4" />
+                                      </a>
+                                    </Button>
+                                  ) : (
+                                    <span className="text-[10px] text-muted-foreground italic">Recibo Digital</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -408,15 +633,6 @@ const PaymentsPage = () => {
         </CardContent>
       </Card>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
-        <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-blue-900">Precisa gerenciar sua assinatura?</p>
-          <p className="text-xs text-blue-800 leading-relaxed">
-            Para alterar forma de pagamento ou trocar de plano, use o botao <strong>Gerenciar Assinatura</strong> na pagina inicial do seu painel.
-          </p>
-        </div>
-      </div>
     </div>
   );
 };

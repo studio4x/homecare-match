@@ -721,7 +721,7 @@ const Index = () => {
                 );
               })}
             </CarouselContent>
-            <div className="mt-6 flex items-center justify-center gap-4">
+            <div className="mt-6 flex items-center justify-center gap-4 md:hidden">
               <CarouselPrevious className="relative" />
               <CarouselNext className="relative" />
             </div>

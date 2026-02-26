@@ -67,6 +67,24 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
 
   const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
 
+  const getPlanDurationDays = (planId: string) => {
+    if (planId === "free_trial") return 30;
+    if (planId === "monthly") return 30;
+    if (planId === "yearly") return 365;
+
+    const selectedPlan = plans.find((p) => p.id === planId);
+    const period = String(selectedPlan?.period || "").toLowerCase();
+    if (!period) return 30;
+
+    const numberMatch = period.match(/\d+/);
+    const amount = numberMatch ? Number(numberMatch[0]) : 1;
+
+    if (period.includes("dia")) return Math.max(1, amount);
+    if (period.includes("ano")) return Math.max(1, amount) * 365;
+    if (period.includes("mes") || period.includes("mês")) return Math.max(1, amount) * 30;
+    return 30;
+  };
+
   const getTierLabel = (tier: string) => {
     switch (tier.toLowerCase()) {
       case 'monthly': return 'Plano Mensal';
@@ -103,11 +121,22 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const handleUpdatePlan = async (profileId: string, newPlan: string) => {
     setIsUpdatingPlan(profileId);
     try {
+      const now = new Date();
       const updateData: any = { subscription_tier: newPlan };
+
       if (newPlan === 'free_trial') {
-        updateData.trial_started_at = new Date().toISOString();
+        updateData.trial_started_at = now.toISOString();
+        updateData.subscription_end_at = null;
         updateData.coupon_days = null; // Remove cupom se voltar pro trial
+        updateData.cancel_at_period_end = false;
+      } else {
+        const durationDays = getPlanDurationDays(newPlan);
+        updateData.subscription_end_at = addDays(now, durationDays).toISOString();
+        updateData.trial_started_at = null;
+        updateData.coupon_days = null;
+        updateData.cancel_at_period_end = false;
       }
+
       const { error } = await supabase
         .from("profiles")
         .update(updateData)
@@ -214,15 +243,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   };
 
   const getDaysRemaining = (u: any) => {
-    // Caso 1: Plano pago ou Cupom (tem subscription_end_at)
-    if (u.subscription_end_at) {
-      const endDate = parseISO(u.subscription_end_at);
-      if (isValid(endDate)) {
-        return differenceInDays(endDate, new Date());
-      }
-    }
-    
-    // Caso 2: Teste grátis do sistema
+    // Caso 1: Teste grátis do sistema (usa trial_started_at)
     if (u.subscription_tier === 'free_trial' && u.trial_started_at) {
       const startDate = parseISO(u.trial_started_at);
       if (isValid(startDate)) {
@@ -230,7 +251,15 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
         return differenceInDays(endDate, new Date());
       }
     }
-    
+
+    // Caso 2: Plano pago ou Cupom (tem subscription_end_at)
+    if (u.subscription_end_at) {
+      const endDate = parseISO(u.subscription_end_at);
+      if (isValid(endDate)) {
+        return differenceInDays(endDate, new Date());
+      }
+    }
+
     return null;
   };
 

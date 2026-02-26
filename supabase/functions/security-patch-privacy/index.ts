@@ -60,7 +60,8 @@ serve(async (req) => {
       SELECT 
         id, full_name, avatar_url, specialty, city, state, neighborhood, 
         experience, professional_experiences, bio, is_verified, 
-        subscription_tier, role, lat, lng, referral_count, updated_at, trial_started_at
+        subscription_tier, subscription_end_at, cancel_at_period_end,
+        role, lat, lng, referral_count, updated_at, trial_started_at
       FROM public.profiles
       WHERE role = 'professional' 
         AND full_name IS NOT NULL 

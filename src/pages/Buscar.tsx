@@ -207,13 +207,16 @@ const Buscar = () => {
       }
 
       const trialLimitDate = subDays(new Date(), 30).toISOString();
+      const nowIso = new Date().toISOString();
 
       // ALTERAÇÃO DE SEGURANÇA: consultamos a VIEW 'professional_discovery',
       // que não contém campos sensíveis como telefone ou endereço exato.
       let query = supabase
         .from("professional_discovery")
         .select("*")
-        .or(`subscription_tier.in.(monthly,yearly),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate})`);
+        .or(
+          `and(subscription_tier.in.(monthly,yearly),or(subscription_end_at.is.null,subscription_end_at.gte.${nowIso})),and(subscription_tier.eq.free_trial,trial_started_at.gte.${trialLimitDate},or(cancel_at_period_end.is.false,cancel_at_period_end.is.null))`,
+        );
 
       if (filters.specialty) query = query.eq("specialty", filters.specialty);
       if (filters.state) query = query.eq("state", filters.state);

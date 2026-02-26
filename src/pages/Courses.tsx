@@ -35,6 +35,7 @@ import {
 import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { createCheckoutSession } from "@/lib/checkout";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
+import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 
 type CourseLevel = "iniciante" | "basico" | "intermediario" | "avancado";
 
@@ -88,6 +89,7 @@ const Courses = () => {
   const [enrollments, setEnrollments] = useState<EnrollmentData>({ enrolledSlugs: [], progress: {} });
   const [loading, setLoading] = useState(true);
   const [loadingEnroll, setLoadingEnroll] = useState(false);
+  const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<"yearly" | "monthly" | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [userRole, setUserRole] = useState<string>("guest");
   const [roleLoading, setRoleLoading] = useState<boolean>(true);
@@ -221,7 +223,8 @@ const Courses = () => {
   const isCompleted = (slug: string) => completedSlugs.includes(slug);
   const isYearlyPlan = userProfile?.subscription_tier === 'yearly' || isAdmin;
 
-  const handlePlanCheckout = async (planId: "yearly" | "monthly") => {
+  const startPlanCheckout = async (planId: "yearly" | "monthly") => {
+    setSelectedPlanForCheckout(null);
     setLoadingEnroll(true);
     const toastId = toast.loading("Iniciando checkout...");
     try {
@@ -240,6 +243,10 @@ const Courses = () => {
     }
   };
 
+  const handlePlanCheckout = (planId: "yearly" | "monthly") => {
+    setSelectedPlanForCheckout(planId);
+  };
+
   const enroll = async (course: Course) => {
     if (!user) {
       toast.error("Entre na sua conta para se inscrever.");
@@ -253,7 +260,7 @@ const Courses = () => {
       toast.error("Acesso restrito!", {
         description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
       });
-      await handlePlanCheckout("yearly");
+      handlePlanCheckout("yearly");
       return;
     }
 
@@ -531,6 +538,15 @@ const Courses = () => {
           </div>
         )}
       </div>
+
+      <SubscriptionCouponModal
+        open={selectedPlanForCheckout !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPlanForCheckout(null);
+        }}
+        planId={selectedPlanForCheckout}
+        onProceedToCheckout={startPlanCheckout}
+      />
     </Layout>
   );
 };

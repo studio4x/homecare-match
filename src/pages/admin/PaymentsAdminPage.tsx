@@ -34,6 +34,8 @@ type AdminPaymentRecord = {
   payment_id: string | null;
   user_id: string | null;
   transaction_type: string;
+  plan_id: string | null;
+  asaas_checkout_id: string | null;
   client_name: string;
   item_name: string;
   description: string | null;
@@ -46,6 +48,7 @@ type AdminPaymentRecord = {
 };
 
 type InstallmentInfo = {
+  current: number;
   total: number;
 };
 
@@ -62,6 +65,8 @@ type InstallmentGroup = {
 type PaymentDisplayRow =
   | { kind: "payment"; payment: AdminPaymentRecord }
   | { kind: "group"; group: InstallmentGroup };
+
+type PaymentTypeFilter = "all" | "subscription" | "course";
 
 type InvokeFunctionError = {
   context?: Response;
@@ -105,21 +110,23 @@ const dateToMs = (value?: string | null) => {
 };
 
 const extractInstallmentInfo = (description: string) => {
-  const match = description.match(/parcela\s+(\d+)\s+de\s+(\d+)/i);
+  const match = description.match(/parcela\s+(\d+)\s+de\s*(\d+)/i);
   if (!match) return null;
 
+  const current = Number(match[1]);
   const total = Number(match[2]);
-  if (!Number.isFinite(total) || total <= 1) return null;
-  return { total } as InstallmentInfo;
+  if (!Number.isFinite(current) || !Number.isFinite(total) || current <= 0 || total <= 1) return null;
+  return { current, total } as InstallmentInfo;
 };
 
 const stripInstallmentInfo = (text: string) => {
   const stripped = text
-    .replace(/\s*[-|/]\s*parcela\s+\d+\s+de\s+\d+/i, "")
-    .replace(/parcela\s+\d+\s+de\s+\d+\s*[-|/]\s*/i, "")
+    .replace(/parcela\s+\d+\s+de\s*\d+\.?/gi, "")
+    .replace(/parcelamento\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*[-–—:]?\s*/gi, "")
+    .replace(/\s*[-–—:]\s*$/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
-  return stripped || "Assinatura parcelada";
+  return stripped || "Plano Anual";
 };
 
 const getStatusBadge = (status: string) => {
@@ -173,9 +180,17 @@ const getInstallmentGroupStatusBadge = (group: InstallmentGroup) => {
   return <Badge variant="outline">Parcial</Badge>;
 };
 
+const matchesPaymentType = (payment: AdminPaymentRecord, filter: PaymentTypeFilter) => {
+  if (filter === "all") return true;
+  if (filter === "subscription") return payment.transaction_type === "plan";
+  if (filter === "course") return payment.transaction_type === "course";
+  return true;
+};
+
 const PaymentsAdminPage = () => {
   const [payments, setPayments] = useState<AdminPaymentRecord[]>([]);
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<PaymentTypeFilter>("all");
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [expandedInstallmentGroups, setExpandedInstallmentGroups] = useState<Record<string, boolean>>({});
@@ -210,77 +225,90 @@ const PaymentsAdminPage = () => {
 
   const filteredPayments = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return payments;
-
     return payments.filter((payment) => {
+      if (!matchesPaymentType(payment, typeFilter)) return false;
+      if (!term) return true;
       const client = String(payment.client_name || "").toLowerCase();
       const item = String(payment.item_name || "").toLowerCase();
       const rawStatus = String(payment.raw_status || "").toLowerCase();
       return client.includes(term) || item.includes(term) || rawStatus.includes(term);
     });
-  }, [payments, search]);
+  }, [payments, search, typeFilter]);
 
   const displayRows = useMemo<PaymentDisplayRow[]>(() => {
     const groupedItemsById = new Map<string, string>();
-    const groupsBySignature = new Map<string, InstallmentGroup[]>();
+    const installmentCandidateIds = new Set<string>();
+    const groupsByKey = new Map<
+      string,
+      InstallmentGroup & { itemsByInstallment: Map<number, AdminPaymentRecord> }
+    >();
 
     filteredPayments.forEach((payment) => {
-      const itemDescription = String(payment.item_name || "");
-      const installmentInfo = extractInstallmentInfo(itemDescription);
+      if (payment.transaction_type !== "plan") return;
+
+      const descriptionSource = String(payment.item_name || payment.description || "");
+      const installmentInfo = extractInstallmentInfo(descriptionSource);
       if (!installmentInfo) return;
 
-      const baseItemName = stripInstallmentInfo(itemDescription);
-      const signature = [
-        payment.user_id || payment.client_name,
-        installmentInfo.total,
-        payment.currency.toLowerCase(),
-        Number(payment.amount || 0).toFixed(2),
-        baseItemName.toLowerCase(),
-      ].join("|");
+      installmentCandidateIds.add(payment.id);
+      const baseItemName = stripInstallmentInfo(descriptionSource);
+      const key =
+        payment.asaas_checkout_id && String(payment.asaas_checkout_id).trim()
+          ? `checkout:${payment.asaas_checkout_id}`
+          : [
+              "fallback",
+              payment.user_id || payment.client_name,
+              payment.plan_id || "",
+              installmentInfo.total,
+              payment.currency.toLowerCase(),
+              baseItemName.toLowerCase(),
+              Number(payment.amount || 0).toFixed(2),
+            ].join("|");
 
-      const existingGroups = groupsBySignature.get(signature) || [];
-      let targetGroup = existingGroups.find((group) => group.items.length < group.totalInstallments);
-
-      if (!targetGroup) {
-        targetGroup = {
-          id: `installments-${signature}-${existingGroups.length + 1}`,
+      let group = groupsByKey.get(key);
+      if (!group) {
+        group = {
+          id: `installments-${key}`,
           totalInstallments: installmentInfo.total,
           items: [],
           currency: payment.currency,
           totalAmount: 0,
           clientName: payment.client_name,
           itemName: baseItemName,
+          itemsByInstallment: new Map<number, AdminPaymentRecord>(),
         };
-        existingGroups.push(targetGroup);
-        groupsBySignature.set(signature, existingGroups);
+        groupsByKey.set(key, group);
       }
 
-      targetGroup.items.push(payment);
-      targetGroup.totalAmount += Number(payment.amount || 0);
-      groupedItemsById.set(payment.id, targetGroup.id);
+      const existingInstallment = group.itemsByInstallment.get(installmentInfo.current);
+      if (!existingInstallment || dateToMs(payment.date) > dateToMs(existingInstallment.date)) {
+        group.itemsByInstallment.set(installmentInfo.current, payment);
+      }
     });
 
-    groupsBySignature.forEach((groups) => {
-      groups.forEach((group) => {
-        group.items.sort((a, b) => dateToMs(b.date) - dateToMs(a.date));
-      });
+    groupsByKey.forEach((group) => {
+      group.items = Array.from(group.itemsByInstallment.values()).sort((a, b) => dateToMs(b.date) - dateToMs(a.date));
+      group.totalAmount = group.items.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+      group.items.forEach((item) => groupedItemsById.set(item.id, group.id));
     });
 
-    const groupsForRendering = new Map<string, InstallmentGroup>();
-    groupsBySignature.forEach((groups) => {
-      groups.forEach((group) => {
-        if (group.items.length > 1) {
-          groupsForRendering.set(group.id, group);
-        } else {
-          group.items.forEach((item) => groupedItemsById.delete(item.id));
-        }
-      });
+    const groupsForRendering = new Map<string, InstallmentGroup & { itemsByInstallment: Map<number, AdminPaymentRecord> }>();
+    groupsByKey.forEach((group) => {
+      if (group.items.length > 1) {
+        groupsForRendering.set(group.id, group);
+      } else {
+        group.items.forEach((item) => groupedItemsById.delete(item.id));
+      }
     });
 
     const emittedGroups = new Set<string>();
     const rows: PaymentDisplayRow[] = [];
 
     filteredPayments.forEach((payment) => {
+      if (installmentCandidateIds.has(payment.id) && !groupedItemsById.has(payment.id)) {
+        return;
+      }
+
       const groupId = groupedItemsById.get(payment.id);
       if (!groupId) {
         rows.push({ kind: "payment", payment });
@@ -316,14 +344,39 @@ const PaymentsAdminPage = () => {
       <Card>
         <CardContent className="p-4 sm:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-            <div className="relative w-full sm:max-w-md">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por cliente, item ou status..."
-                className="pl-9"
-              />
+            <div className="w-full sm:max-w-xl space-y-2">
+              <div className="relative">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar por cliente, item ou status..."
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={typeFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTypeFilter("all")}
+                >
+                  Todos
+                </Button>
+                <Button
+                  variant={typeFilter === "subscription" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTypeFilter("subscription")}
+                >
+                  Assinaturas
+                </Button>
+                <Button
+                  variant={typeFilter === "course" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setTypeFilter("course")}
+                >
+                  Cursos
+                </Button>
+              </div>
             </div>
             <Button
               variant="outline"

@@ -37,6 +37,7 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 import { createCheckoutSession } from "@/lib/checkout";
+import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -44,6 +45,7 @@ const Index = () => {
   const navigate = useNavigate();
   const location = useLocation(); // Importando useLocation
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<"monthly" | "yearly" | null>(null);
 
   // Busca o perfil do usuário para saber o plano atual e o papel
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
@@ -77,15 +79,11 @@ const Index = () => {
 
   const userTier = profile?.subscription_tier || null;
 
-  const handleSubscribe = async (planId: string) => {
+  const handlePlanCheckout = async (planId: "monthly" | "yearly") => {
+    setSelectedPlanForCheckout(null);
     if (!session) {
-      toast.info("Por favor, crie uma conta ou faça login para continuar.");
+      toast.info("Por favor, crie uma conta ou faca login para continuar.");
       navigate("/login#auth-sign-up");
-      return;
-    }
-
-    if (planId === 'free' || planId === 'free_trial') {
-      navigate("/dashboard");
       return;
     }
 
@@ -100,7 +98,7 @@ const Index = () => {
         toast.success("Redirecionando para pagamento...");
         window.location.href = data.url;
       } else {
-        throw new Error("URL de checkout não retornada pelo servidor.");
+        throw new Error("URL de checkout nao retornada pelo servidor.");
       }
     } catch (err: any) {
       toast.dismiss(toastId);
@@ -109,6 +107,26 @@ const Index = () => {
     } finally {
       setLoadingPlan(null);
     }
+  };
+
+  const handleSubscribe = async (planId: string) => {
+    if (!session) {
+      toast.info("Por favor, crie uma conta ou faca login para continuar.");
+      navigate("/login#auth-sign-up");
+      return;
+    }
+
+    if (planId === "free" || planId === "free_trial") {
+      navigate("/dashboard");
+      return;
+    }
+
+    if (planId === "monthly" || planId === "yearly") {
+      setSelectedPlanForCheckout(planId);
+      return;
+    }
+
+    toast.error("Plano invalido para checkout.");
   };
 
   const features = [
@@ -710,6 +728,15 @@ const Index = () => {
           </Carousel>
         </div>
       </section>
+
+      <SubscriptionCouponModal
+        open={selectedPlanForCheckout !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPlanForCheckout(null);
+        }}
+        planId={selectedPlanForCheckout}
+        onProceedToCheckout={handlePlanCheckout}
+      />
 
     </Layout>
   );

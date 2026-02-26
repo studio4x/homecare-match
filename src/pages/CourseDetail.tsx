@@ -44,6 +44,7 @@ import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utilit
 import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import LandingVideoPlayer
 import { createCheckoutSession } from "@/lib/checkout";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
+import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -82,6 +83,7 @@ const CourseDetail = () => {
   const [certificateId, setCertificateId] = useState<string | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<"yearly" | "monthly" | null>(null);
   
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
   const [videoEnded, setVideoEnded] = useState(false);
@@ -237,7 +239,8 @@ const CourseDetail = () => {
 
   const isYearlyPlan = userProfile?.subscription_tier === 'yearly' || isAdmin;
 
-  const handlePlanCheckout = async (planId: "yearly" | "monthly") => {
+  const startPlanCheckout = async (planId: "yearly" | "monthly") => {
+    setSelectedPlanForCheckout(null);
     setEnrollmentLoading(true);
     const toastId = toast.loading("Iniciando checkout...");
     try {
@@ -256,6 +259,10 @@ const CourseDetail = () => {
     }
   };
 
+  const handlePlanCheckout = (planId: "yearly" | "monthly") => {
+    setSelectedPlanForCheckout(planId);
+  };
+
   const handleEnroll = async () => {
     if (!session) {
       toast.info("Faça login para se inscrever.");
@@ -270,7 +277,7 @@ const CourseDetail = () => {
       toast.error("Acesso restrito!", {
         description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
       });
-      await handlePlanCheckout("yearly");
+      handlePlanCheckout("yearly");
       return;
     }
 
@@ -809,6 +816,15 @@ const CourseDetail = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <SubscriptionCouponModal
+        open={selectedPlanForCheckout !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedPlanForCheckout(null);
+        }}
+        planId={selectedPlanForCheckout}
+        onProceedToCheckout={startPlanCheckout}
+      />
     </Layout>
   );
 };

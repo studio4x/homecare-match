@@ -84,7 +84,7 @@ serve(async (req) => {
     const { data: transactions, error: txError } = await supabaseAdmin
       .from("payment_transactions")
       .select(
-        "id,payment_id,user_id,transaction_type,plan_id,course_slug,status,amount,currency,description,invoice_url,payment_date,confirmed_at,created_at",
+        "id,payment_id,user_id,transaction_type,plan_id,course_slug,status,amount,currency,description,invoice_url,payment_date,confirmed_at,created_at,asaas_checkout_id",
       )
       .order("payment_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
@@ -127,6 +127,8 @@ serve(async (req) => {
         payment_id: tx.payment_id || null,
         user_id: tx.user_id || null,
         transaction_type: tx.transaction_type || "unknown",
+        plan_id: tx.plan_id || null,
+        asaas_checkout_id: tx.asaas_checkout_id || null,
         client_name: profile?.full_name || profile?.email || "Cliente nao identificado",
         item_name: resolveItemLabel(tx, plansById, coursesBySlug),
         description: String(tx?.description || "").trim() || null,

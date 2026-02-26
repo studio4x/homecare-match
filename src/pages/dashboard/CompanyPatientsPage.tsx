@@ -41,6 +41,8 @@ import {
   Loader2,
   Plus,
   Edit2,
+  Pencil,
+  Check,
   Trash2,
   RefreshCw,
   Users,
@@ -104,6 +106,8 @@ const CompanyPatientsPage = () => {
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [statusUpdatingPatientId, setStatusUpdatingPatientId] = useState<string | null>(null);
+  const [editingStatusPatientId, setEditingStatusPatientId] = useState<string | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<HiringStatus>("needs_professional");
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
@@ -202,35 +206,11 @@ const CompanyPatientsPage = () => {
     }
   };
 
-  const getHiringStatusBadge = (status: HiringStatus) => {
-    if (status === "hiring_in_progress") {
-      return (
-        <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">
-          Contratação em andamento
-        </Badge>
-      );
-    }
-
-    if (status === "hired") {
-      return (
-        <Badge variant="outline" className="text-success border-success/30 bg-success/10">
-          Profissional contratado
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge variant="outline" className="text-primary border-primary/20 bg-primary/5">
-        Precisa de profissional
-      </Badge>
-    );
-  };
-
-  const handleHiringStatusChange = async (patient: Patient, nextValue: string) => {
+  const handleHiringStatusChange = async (patient: Patient, nextValue: string): Promise<boolean> => {
     if (!user) return;
     const nextStatus = normalizeHiringStatus(nextValue);
     const currentStatus = normalizeHiringStatus(patient.hiring_status);
-    if (nextStatus === currentStatus) return;
+    if (nextStatus === currentStatus) return true;
 
     setStatusUpdatingPatientId(patient.id);
     try {
@@ -276,9 +256,11 @@ const CompanyPatientsPage = () => {
       }
 
       await fetchPatients(true);
+      return true;
     } catch (err) {
       console.error("[CompanyPatientsPage] Erro ao atualizar status de contratação:", err);
       toast.error(err instanceof Error ? err.message : "Erro ao atualizar status de contratação.");
+      return false;
     } finally {
       setStatusUpdatingPatientId(null);
     }
@@ -362,25 +344,57 @@ const CompanyPatientsPage = () => {
                       ) : 'N/A'}
                     </TableCell>
                     <TableCell className="min-w-[260px]">
-                      <div className="space-y-2">
-                        {getHiringStatusBadge(normalizeHiringStatus(patient.hiring_status))}
-                        <Select
-                          value={normalizeHiringStatus(patient.hiring_status)}
-                          onValueChange={(value) => handleHiringStatusChange(patient, value)}
-                          disabled={statusUpdatingPatientId === patient.id}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue placeholder="Defina o status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {HIRING_STATUS_OPTIONS.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {editingStatusPatientId === patient.id ? (
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={pendingStatus}
+                            onValueChange={(value) => setPendingStatus(normalizeHiringStatus(value))}
+                            disabled={statusUpdatingPatientId === patient.id}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Defina o status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {HIRING_STATUS_OPTIONS.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={async () => {
+                              const success = await handleHiringStatusChange(patient, pendingStatus);
+                              if (success) setEditingStatusPatientId(null);
+                            }}
+                            disabled={statusUpdatingPatientId === patient.id}
+                          >
+                            {statusUpdatingPatientId === patient.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">
+                            {getHiringStatusLabel(normalizeHiringStatus(patient.hiring_status))}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setPendingStatus(normalizeHiringStatus(patient.hiring_status));
+                              setEditingStatusPatientId(patient.id);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       {patient.is_visible ? (

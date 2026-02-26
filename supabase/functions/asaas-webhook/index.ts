@@ -173,7 +173,15 @@ serve(async (req) => {
     const payment = payload?.payment || payload?.data?.payment || payload?.data || null;
 
   const paymentId = payment?.id || null;
-  const checkoutId = payment?.checkout || payment?.checkoutSession || payload?.checkout?.id || payload?.checkoutId || null;
+  const checkoutId =
+    payment?.checkout ||
+    payment?.checkoutSession ||
+    payment?.paymentLink ||
+    payload?.checkout?.id ||
+    payload?.checkoutId ||
+    payload?.paymentLink?.id ||
+    payload?.paymentLink ||
+    null;
   const paymentStatus = normalizeStatus(payment?.status);
   const subscriptionId = payment?.subscription || getPayloadSubscriptionId(payload);
   const externalReference = String(
@@ -289,6 +297,18 @@ serve(async (req) => {
     if (!userId && session?.user_id) userId = session.user_id;
     if (!planId && session?.plan_id) planId = session.plan_id;
     if (!courseSlug && session?.course_slug) courseSlug = session.course_slug;
+
+    if (userId && payment?.customer) {
+      try {
+        await supabaseAdmin
+          .from("profiles")
+          .update({ asaas_customer_id: payment.customer })
+          .eq("id", userId)
+          .is("asaas_customer_id", null);
+      } catch {
+        // ignore
+      }
+    }
 
     let resolvedPaymentDescription = String(payment?.description || "").trim();
 

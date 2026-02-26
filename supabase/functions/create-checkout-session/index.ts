@@ -250,6 +250,7 @@ serve(async (req) => {
 
     const asaasApiBaseUrl = getAsaasApiBaseUrl(asaasEnv);
     const asaasCheckoutBaseUrl = getAsaasCheckoutBaseUrl(asaasEnv, config?.asaas_checkout_base_url);
+    const usePaymentLinks = true;
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
@@ -343,46 +344,48 @@ serve(async (req) => {
 
     let asaasCustomerId = profile?.asaas_customer_id || null;
 
-    if (asaasCustomerId) {
-      const updateCustomerRes = await fetch(`${asaasApiBaseUrl}/customers/${encodeURIComponent(asaasCustomerId)}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          access_token: asaasApiKey,
-        },
-        body: JSON.stringify(customerPayload),
-      });
+    if (!usePaymentLinks) {
+      if (asaasCustomerId) {
+        const updateCustomerRes = await fetch(`${asaasApiBaseUrl}/customers/${encodeURIComponent(asaasCustomerId)}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            access_token: asaasApiKey,
+          },
+          body: JSON.stringify(customerPayload),
+        });
 
-      const updateCustomerJson = await updateCustomerRes.json().catch(() => ({}));
+        const updateCustomerJson = await updateCustomerRes.json().catch(() => ({}));
 
-      if (!updateCustomerRes.ok) {
-        if (updateCustomerRes.status === 404 || isAsaasInvalidCustomerReference(updateCustomerJson)) {
-          asaasCustomerId = null;
-        } else {
-          throw new Error(
-            parseAsaasErrorMessage(updateCustomerJson, "Nao foi possivel atualizar CPF/CNPJ do cliente na Asaas."),
-          );
+        if (!updateCustomerRes.ok) {
+          if (updateCustomerRes.status === 404 || isAsaasInvalidCustomerReference(updateCustomerJson)) {
+            asaasCustomerId = null;
+          } else {
+            throw new Error(
+              parseAsaasErrorMessage(updateCustomerJson, "Nao foi possivel atualizar CPF/CNPJ do cliente na Asaas."),
+            );
+          }
         }
       }
-    }
 
-    if (!asaasCustomerId) {
-      const customerRes = await fetch(`${asaasApiBaseUrl}/customers`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          access_token: asaasApiKey,
-        },
-        body: JSON.stringify(customerPayload),
-      });
+      if (!asaasCustomerId) {
+        const customerRes = await fetch(`${asaasApiBaseUrl}/customers`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            access_token: asaasApiKey,
+          },
+          body: JSON.stringify(customerPayload),
+        });
 
-      const customerJson = await customerRes.json().catch(() => ({}));
-      if (!customerRes.ok || !customerJson?.id) {
-        throw new Error(parseAsaasErrorMessage(customerJson, "Nao foi possivel criar cliente na Asaas."));
+        const customerJson = await customerRes.json().catch(() => ({}));
+        if (!customerRes.ok || !customerJson?.id) {
+          throw new Error(parseAsaasErrorMessage(customerJson, "Nao foi possivel criar cliente na Asaas."));
+        }
+
+        asaasCustomerId = customerJson.id;
+        await supabaseAdmin.from("profiles").update({ asaas_customer_id: asaasCustomerId }).eq("id", user.id);
       }
-
-      asaasCustomerId = customerJson.id;
-      await supabaseAdmin.from("profiles").update({ asaas_customer_id: asaasCustomerId }).eq("id", user.id);
     }
 
     const isRecurringCheckout = checkoutContext.recurring === true;
@@ -416,9 +419,112 @@ serve(async (req) => {
         ? `plan:${checkoutContext.planId}`
         : undefined;
 
+    const resolveBillingType = () => {
+      if (allowCreditCard && allowPix) return "UNDEFINED";
+      if (allowCreditCard) return "CREDIT_CARD";
+      if (allowPix) return "PIX";
+      return null;
+    };
+
+    const billingType = resolveBillingType();
+    if (!billingType) {
+      throw new Error("Nenhum metodo de pagamento habilitado para esta compra.");
+    }
+
     const chargeTypes: string[] = isRecurringCheckout ? ["RECURRENT"] : ["DETACHED"];
-    if (!isRecurringCheckout && maxInstallmentsAllowed > 1 && billingTypes.includes("CREDIT_CARD")) {
+    if (!isRecurringCheckout && maxInstallmentsAllowed > 1 && billingType === "CREDIT_CARD") {
       chargeTypes.push("INSTALLMENT");
+    }
+
+    if (usePaymentLinks) {
+      const paymentLinkPayload: Record<string, any> = {
+        name: truncateText(itemName, 60, "Compra HomeCare Match"),
+        description: checkoutDescription,
+        value: Number(itemAmount.toFixed(2)),
+        billingType,
+        chargeType: chargeTypes.includes("RECURRENT")
+          ? "RECURRENT"
+          : chargeTypes.includes("INSTALLMENT")
+            ? "INSTALLMENT"
+            : "DETACHED",
+        callback: {
+          successUrl,
+          autoRedirect: true,
+        },
+        externalReference,
+      };
+
+      if (paymentLinkPayload.chargeType === "INSTALLMENT") {
+        paymentLinkPayload.maxInstallmentCount = Math.max(2, Math.min(Number(maxInstallmentsAllowed), 12));
+      }
+
+      if (paymentLinkPayload.chargeType === "RECURRENT") {
+        paymentLinkPayload.subscriptionCycle = "MONTHLY";
+      }
+
+      const linkRes = await fetch(`${asaasApiBaseUrl}/paymentLinks`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: asaasApiKey,
+        },
+        body: JSON.stringify(paymentLinkPayload),
+      });
+
+      const linkJson = await linkRes.json().catch(() => ({}));
+      if (!linkRes.ok || !linkJson?.id) {
+        throw new Error(parseAsaasErrorMessage(linkJson, "Nao foi possivel iniciar checkout na Asaas."));
+      }
+
+      const checkoutId = linkJson.id as string;
+      const checkoutUrl =
+        linkJson.url || `${asaasCheckoutBaseUrl}/c/${encodeURIComponent(String(checkoutId))}`;
+
+      const sessionPayload: Record<string, any> = {
+        checkout_id: checkoutId,
+        user_id: user.id,
+        plan_id: checkoutContext.planId || null,
+        course_slug: checkoutContext.courseSlug || null,
+        amount: Number(itemAmount.toFixed(2)),
+        provider: "asaas",
+        status: "CHECKOUT_CREATED",
+        checkout_url: checkoutUrl,
+        asaas_customer_id: asaasCustomerId,
+        raw_response: {
+          ...linkJson,
+          checkout_context: {
+            recurring: isRecurringCheckout,
+            plan_id: checkoutContext.planId || null,
+            course_slug: checkoutContext.courseSlug || null,
+            mode: "payment_link",
+          },
+        },
+      };
+
+      if (checkoutContext.durationDays) {
+        sessionPayload.plan_duration_days = checkoutContext.durationDays;
+      }
+
+      const { error: saveSessionError } = await supabaseAdmin.from("asaas_checkout_sessions").insert(sessionPayload);
+
+      if (saveSessionError) {
+        throw new Error(
+          saveSessionError?.message?.includes("asaas_checkout_sessions")
+            ? "Estrutura de pagamentos Asaas nao sincronizada no banco."
+            : `Erro ao salvar sessao de checkout: ${saveSessionError.message}`,
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          url: checkoutUrl,
+          checkoutId,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
     }
 
     const checkoutPayload: Record<string, any> = {

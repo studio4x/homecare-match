@@ -45,10 +45,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
-import {
-  isMissingHiringStatusColumnError,
-  syncCompanyPatientsSchema,
-} from "@/lib/companyPatientsSchema";
+import { persistWithCompanyPatientsSchemaRetry } from "@/lib/companyPatientsSchema";
 
 const mobilityLevelOptions = [
   "Acamado",
@@ -225,20 +222,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
         toast.success("Paciente adicionado com sucesso!");
       };
 
-      try {
-        await persistPatient();
-      } catch (saveError: any) {
-        if (!isMissingHiringStatusColumnError(saveError)) throw saveError;
-
-        const synced = await syncCompanyPatientsSchema();
-        if (!synced) {
-          throw new Error(
-            "A estrutura de pacientes ainda não foi sincronizada. Abra Painel Admin > Configurações > Manutenção e clique em 'Pacientes da Empresa'.",
-          );
-        }
-
-        await persistPatient();
-      }
+      await persistWithCompanyPatientsSchemaRetry(persistPatient);
 
       if (data.hiring_status === "hired") {
         toast.info("Paciente ocultado automaticamente para profissionais, pois a contratação foi concluída.");

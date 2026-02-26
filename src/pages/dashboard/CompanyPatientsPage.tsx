@@ -53,10 +53,7 @@ import CompanyPatientForm from "@/components/CompanyPatientForm";
 import AccessRestricted from "@/components/AccessRestricted";
 import { useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import {
-  isMissingHiringStatusColumnError,
-  syncCompanyPatientsSchema,
-} from "@/lib/companyPatientsSchema";
+import { persistWithCompanyPatientsSchemaRetry } from "@/lib/companyPatientsSchema";
 
 interface Patient {
   id: string;
@@ -255,21 +252,7 @@ const CompanyPatientsPage = () => {
         if (error) throw error;
       };
 
-      try {
-        await persistStatus();
-      } catch (statusError: any) {
-        if (!isMissingHiringStatusColumnError(statusError)) throw statusError;
-
-        const synced = await syncCompanyPatientsSchema();
-        if (!synced) {
-          throw new Error(
-            "A estrutura de pacientes ainda não foi sincronizada. Abra Painel Admin > Configurações > Manutenção e clique em 'Pacientes da Empresa'.",
-          );
-        }
-
-        toast.info("Estrutura atualizada. Reaplicando alteração de status...");
-        await persistStatus();
-      }
+      await persistWithCompanyPatientsSchemaRetry(persistStatus);
 
       const statusLabel = getHiringStatusLabel(nextStatus);
       toast.success(`Status atualizado para "${statusLabel}".`);

@@ -30,6 +30,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [showMobileCouponForm, setShowMobileCouponForm] = useState(false);
   const [activePlanIndex, setActivePlanIndex] = useState(0);
   const mobileCarouselRef = useRef<HTMLDivElement | null>(null);
 
@@ -66,6 +67,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
 
   useEffect(() => {
     setActivePlanIndex(0);
+    setShowMobileCouponForm(false);
     if (!open) return;
 
     const element = mobileCarouselRef.current;
@@ -271,29 +273,65 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
 
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:space-y-8 sm:p-8">
             {showCoupon && (
-              <div className="rounded-2xl border border-dashed border-primary/20 bg-secondary/30 p-4">
-                <div className="mb-3 flex items-center gap-2">
-                  <Ticket className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-bold uppercase tracking-wider">Possui um cupom de lancamento?</span>
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Digite o codigo aqui..."
-                    className="bg-white font-mono uppercase"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    disabled={isApplyingCoupon}
-                  />
+              <>
+                <div className="sm:hidden">
                   <Button
-                    onClick={handleApplyCoupon}
-                    disabled={isApplyingCoupon || !couponCode.trim()}
-                    className="gap-2"
+                    type="button"
+                    variant="outline"
+                    className="h-11 w-full justify-between border-dashed border-primary/30 bg-secondary/20"
+                    onClick={() => setShowMobileCouponForm((prev) => !prev)}
                   >
-                    {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Aplicar
+                    <span className="text-xs font-semibold uppercase tracking-wider">
+                      Possui cupom?
+                    </span>
+                    <Ticket className="h-4 w-4 text-primary" />
                   </Button>
+
+                  {showMobileCouponForm && (
+                    <div className="mt-3 space-y-3 rounded-2xl border border-dashed border-primary/20 bg-secondary/30 p-4">
+                      <Input
+                        placeholder="Digite o codigo aqui..."
+                        className="bg-white font-mono uppercase"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        disabled={isApplyingCoupon}
+                      />
+                      <Button
+                        onClick={handleApplyCoupon}
+                        disabled={isApplyingCoupon || !couponCode.trim()}
+                        className="h-10 w-full gap-2"
+                      >
+                        {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        Aplicar cupom
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>
+
+                <div className="hidden rounded-2xl border border-dashed border-primary/20 bg-secondary/30 p-4 sm:block">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Ticket className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-bold uppercase tracking-wider">Possui um cupom de lancamento?</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Digite o codigo aqui..."
+                      className="bg-white font-mono uppercase"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      disabled={isApplyingCoupon}
+                    />
+                    <Button
+                      onClick={handleApplyCoupon}
+                      disabled={isApplyingCoupon || !couponCode.trim()}
+                      className="gap-2"
+                    >
+                      {isApplyingCoupon ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      Aplicar
+                    </Button>
+                  </div>
+                </div>
+              </>
             )}
 
             {isLoading ? (

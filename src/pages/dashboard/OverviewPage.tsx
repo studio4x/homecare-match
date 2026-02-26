@@ -531,6 +531,33 @@ const OverviewPage = () => {
           </Card>
         )}
 
+        {isProfessional && showNoPlanLabel && (
+          <Card className="border-destructive/50 bg-destructive/5">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                  <EyeOff className="h-6 w-6 text-destructive" />
+                </div>
+                <div className="space-y-3 flex-1">
+                  <h3 className="font-bold text-destructive text-lg">Seu perfil não está visível nas buscas</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Seu perfil está oculto porque não existe um plano ativo no momento. Assine um plano para voltar a aparecer para empresas e famílias.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      onClick={() => setIsPlanSelectionOpen(true)}
+                      className="gap-2 bg-destructive hover:bg-destructive/90 text-white shadow-lg"
+                    >
+                      <CreditCard className="h-4 w-4" />
+                      Assinar Agora
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {!completeness.isComplete && (
           <Card className="border-primary/20 bg-primary/5">
             <CardContent className="pt-6">

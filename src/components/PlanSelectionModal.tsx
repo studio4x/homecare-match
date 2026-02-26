@@ -186,9 +186,6 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
 
   const renderPlanCard = (plan: any) => {
     const features = [...(plan.features || [])];
-    if (plan.id === "yearly" && !features.some((f: string) => f.toLowerCase().includes("academy"))) {
-      features.push("Acesso gratuito aos cursos da Academy");
-    }
 
     const btnConfig = getPlanButtonConfig(plan.id);
 

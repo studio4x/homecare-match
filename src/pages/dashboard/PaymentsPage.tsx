@@ -373,7 +373,8 @@ const PaymentsPage = () => {
   };
 
   const getInstallmentGroupStatusBadge = (group: InstallmentGroup) => {
-    const hasPending = group.items.some((item) => item.status.toLowerCase() === "open");
+    const statuses = group.items.map((item) => item.status.toLowerCase());
+    const hasPending = statuses.some((status) => status === "open");
     if (hasPending) {
       return (
         <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
@@ -382,13 +383,27 @@ const PaymentsPage = () => {
       );
     }
 
-    const isPaid = group.items.every((item) => {
-      const status = item.status.toLowerCase();
-      return status === "paid" || status === "succeeded";
-    });
+    const hasRefundPending = statuses.some((status) => status === "refund_pending");
+    if (hasRefundPending) {
+      return (
+        <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+          Estorno pendente
+        </Badge>
+      );
+    }
+
+    const isPaid = statuses.every((status) => status === "paid" || status === "succeeded");
 
     if (isPaid) {
       return <Badge className="bg-success hover:bg-success">Pago</Badge>;
+    }
+
+    const allRefundedOrCanceled = statuses.every((status) =>
+      ["refunded", "canceled", "void", "deleted"].includes(status),
+    );
+
+    if (allRefundedOrCanceled) {
+      return <Badge variant="outline" className="text-sky-700 border-sky-200 bg-sky-50">Estornado</Badge>;
     }
 
     return <Badge variant="outline">Parcial</Badge>;

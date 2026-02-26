@@ -36,7 +36,9 @@ const statusToDisplay = (status?: string) => {
   const value = String(status || "").toUpperCase();
   if (["RECEIVED", "CONFIRMED"].includes(value)) return "paid";
   if (["PENDING", "AWAITING_RISK_ANALYSIS"].includes(value)) return "open";
-  if (["OVERDUE", "REFUNDED", "CHARGEBACK_REQUESTED", "CHARGEBACK_DISPUTE"].includes(value)) return "canceled";
+  if (["REFUND_PENDING"].includes(value)) return "refund_pending";
+  if (["REFUNDED"].includes(value)) return "refunded";
+  if (["OVERDUE", "VOID", "CANCELED", "CANCELLED", "DELETED", "CHARGEBACK_REQUESTED", "CHARGEBACK_DISPUTE"].includes(value)) return "canceled";
   return value.toLowerCase() || "unknown";
 };
 

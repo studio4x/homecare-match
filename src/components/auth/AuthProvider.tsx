@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 interface AuthContextType {
   session: Session | null;
@@ -26,21 +26,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Busca sessão inicial
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    let isMounted = true;
+
+    const ensureFreshSession = async (currentSession: Session | null) => {
+      if (!currentSession) return null;
+
+      const nowInSeconds = Math.floor(Date.now() / 1000);
+      const expiresAt = currentSession.expires_at ?? 0;
+      const isExpiringSoon = expiresAt > 0 && expiresAt - nowInSeconds < 60;
+
+      if (!isExpiringSoon) return currentSession;
+
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) return currentSession;
+      return data.session ?? currentSession;
+    };
+
+    const bootstrapAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      const freshSession = await ensureFreshSession(data.session);
+
+      if (!isMounted) return;
+      setSession(freshSession);
+      setUser(freshSession?.user ?? null);
+      setLoading(false);
+    };
+
+    bootstrapAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+      const freshSession = await ensureFreshSession(nextSession);
+      if (!isMounted) return;
+
+      setSession(freshSession);
+      setUser(freshSession?.user ?? null);
       setLoading(false);
     });
 
-    // Escuta mudanças de auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {

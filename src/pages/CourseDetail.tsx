@@ -43,6 +43,7 @@ import PlanSelectionModal from "@/components/PlanSelectionModal";
 import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import LandingVideoPlayer
+import { createCheckoutSession } from "@/lib/checkout";
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -239,15 +240,13 @@ const CourseDetail = () => {
     if (course.price && course.price > 0 && !isAdmin) {
       const toastId = toast.loading("Iniciando checkout...");
       try {
-        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-          body: { courseSlug: slug }
-        });
-
-        if (error) throw error;
+        const data = await createCheckoutSession({ courseSlug: slug });
         if (data?.url) {
           window.location.href = data.url;
           return;
         }
+
+        throw new Error("URL de checkout nao retornada pelo servidor.");
       } catch (err: any) {
         toast.error(err.message || "Erro ao iniciar pagamento.");
         toast.dismiss(toastId);

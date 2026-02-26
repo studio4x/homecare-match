@@ -16,6 +16,7 @@ import { Check, Loader2, Star, Zap, Ticket, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { createCheckoutSession } from "@/lib/checkout";
 
 interface PlanSelectionModalProps {
   open: boolean;
@@ -60,31 +61,14 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
     const toastId = toast.loading("Iniciando checkout...");
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { planId }
-      });
-
-      if (error) {
-        let errorMessage = "Erro ao iniciar checkout.";
-        if (error.context) {
-          try {
-            const body = await error.context.json();
-            errorMessage = body?.error || body?.message || errorMessage;
-          } catch {
-            try {
-              const text = await error.context.text();
-              if (text) errorMessage = text;
-            } catch {}
-          }
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        throw new Error(errorMessage);
-      }
+      const data = await createCheckoutSession({ planId });
 
       if (data?.url) {
         window.location.href = data.url;
+        return;
       }
+
+      throw new Error("URL de checkout nao retornada pelo servidor.");
     } catch (err: any) {
       console.error("[Checkout Error]", err);
       toast.dismiss(toastId);

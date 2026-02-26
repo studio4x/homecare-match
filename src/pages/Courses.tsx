@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import PlanSelectionModal from "@/components/PlanSelectionModal";
 import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
+import { createCheckoutSession } from "@/lib/checkout";
 
 type CourseLevel = "iniciante" | "basico" | "intermediario" | "avancado";
 
@@ -237,15 +238,13 @@ const Courses = () => {
     if (!isFree && !isAdmin) {
       const toastId = toast.loading("Iniciando checkout...");
       try {
-        const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-          body: { courseSlug: course.slug }
-        });
-
-        if (error) throw error;
+        const data = await createCheckoutSession({ courseSlug: course.slug });
         if (data?.url) {
           window.location.href = data.url;
           return;
         }
+
+        throw new Error("URL de checkout nao retornada pelo servidor.");
       } catch (err: any) {
         toast.error(err.message || "Erro ao iniciar pagamento.");
         toast.dismiss(toastId);

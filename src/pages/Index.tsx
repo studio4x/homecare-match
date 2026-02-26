@@ -36,6 +36,7 @@ import { useState, useEffect } from "react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
+import { createCheckoutSession } from "@/lib/checkout";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -92,27 +93,7 @@ const Index = () => {
     setLoadingPlan(planId);
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { planId }
-      });
-
-      if (error) {
-        let errorMessage = "Erro ao iniciar checkout.";
-        if (error.context) {
-          try {
-            const body = await error.context.json();
-            errorMessage = body?.error || body?.message || errorMessage;
-          } catch {
-            try {
-              const text = await error.context.text();
-              if (text) errorMessage = text;
-            } catch {}
-          }
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        throw new Error(errorMessage);
-      }
+      const data = await createCheckoutSession({ planId });
 
       if (data?.url) {
         toast.dismiss(toastId);

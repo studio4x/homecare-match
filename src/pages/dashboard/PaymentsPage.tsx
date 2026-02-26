@@ -137,7 +137,7 @@ const PaymentsPage = () => {
       const { data, error: funcError } = await supabase.functions.invoke("get-payment-history");
 
       if (funcError) {
-        const msg = await readFunctionErrorMessage(funcError, "Erro ao consultar historico.");
+        const msg = await readFunctionErrorMessage(funcError, "Erro ao consultar histórico.");
         throw new Error(msg);
       }
 
@@ -167,7 +167,7 @@ const PaymentsPage = () => {
       const errorMessage =
         err instanceof Error && err.message
           ? err.message
-          : "Nao foi possivel carregar seu historico de pagamentos.";
+          : "Não foi possível carregar seu histórico de pagamentos.";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -192,11 +192,11 @@ const PaymentsPage = () => {
 
     if (subscriptionSnapshot.tier === "monthly") {
       return {
-        title: daysRemaining === 0 ? "Renovacao automatica hoje" : "Renovacao automatica proxima",
+        title: daysRemaining === 0 ? "Renovação automática hoje" : "Renovação automática próxima",
         description:
           daysRemaining === 0
-            ? "Seu plano mensal renova automaticamente hoje. Verifique seu cartao para evitar interrupcao."
-            : `Seu plano mensal renova automaticamente em ${daysRemaining} dia(s). Verifique seu cartao para evitar interrupcao.`,
+            ? "Seu plano mensal renova automaticamente hoje. Verifique seu cartão para evitar interrupção."
+            : `Seu plano mensal renova automaticamente em ${daysRemaining} dia(s). Verifique seu cartão para evitar interrupção.`,
       };
     }
 
@@ -204,8 +204,8 @@ const PaymentsPage = () => {
       title: daysRemaining === 0 ? "Plano anual vence hoje" : "Plano anual perto do vencimento",
       description:
         daysRemaining === 0
-          ? "Seu plano anual vence hoje. A renovacao e manual e pode ser feita com parcelamento em ate 12x."
-          : `Seu plano anual vence em ${daysRemaining} dia(s). A renovacao e manual e pode ser feita com parcelamento em ate 12x.`,
+          ? "Seu plano anual vence hoje. A renovação é manual e pode ser feita com parcelamento em até 12x."
+          : `Seu plano anual vence em ${daysRemaining} dia(s). A renovação é manual e pode ser feita com parcelamento em até 12x.`,
     };
   }, [subscriptionSnapshot]);
 
@@ -316,7 +316,7 @@ const PaymentsPage = () => {
     return {
       canCancel: true,
       deadline,
-      message: `Cancelamento disponivel ate ${format(deadline, "dd/MM/yyyy", { locale: ptBR })}.`,
+      message: `Cancelamento disponível até ${format(deadline, "dd/MM/yyyy", { locale: ptBR })}.`,
     };
   }, [payments]);
 
@@ -324,7 +324,7 @@ const PaymentsPage = () => {
     if (!cancellationState.canCancel || isCancelling) return;
 
     const confirmed = window.confirm(
-      "Deseja cancelar sua assinatura? Essa acao e irreversivel e sera aplicada tambem no Asaas.",
+      "Deseja cancelar sua assinatura? Essa ação é irreversível e será aplicada também no Asaas.",
     );
     if (!confirmed) return;
 
@@ -335,7 +335,7 @@ const PaymentsPage = () => {
       const { data, error: funcError } = await supabase.functions.invoke("cancel-user-subscription");
 
       if (funcError) {
-        const message = await readFunctionErrorMessage(funcError, "Nao foi possivel cancelar a assinatura.");
+        const message = await readFunctionErrorMessage(funcError, "Não foi possível cancelar a assinatura.");
         throw new Error(message);
       }
 
@@ -399,7 +399,7 @@ const PaymentsPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-primary" /> Historico de Pagamentos
+            <Receipt className="h-6 w-6 text-primary" /> Histórico de Pagamentos
           </h1>
           <p className="text-muted-foreground">Consulte suas faturas e recibos de assinaturas e cursos.</p>
         </div>
@@ -458,7 +458,7 @@ const PaymentsPage = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-36">Data/Hora</TableHead>
-                      <TableHead>Descricao</TableHead>
+                      <TableHead>Descrição</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Fatura</TableHead>
@@ -486,7 +486,7 @@ const PaymentsPage = () => {
                               <div className="space-y-0.5">
                                 <p className="text-sm font-medium leading-none">{p.description}</p>
                                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                  {p.type === "subscription" ? "Assinatura" : "Pagamento Unico"}
+                                  {p.type === "subscription" ? "Assinatura" : "Pagamento Único"}
                                 </p>
                               </div>
                             </TableCell>
@@ -618,7 +618,7 @@ const PaymentsPage = () => {
             ) : (
               <div className="text-center py-20 bg-secondary/10 rounded-xl border border-dashed">
                 <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p className="text-muted-foreground">Nenhum historico de pagamento encontrado.</p>
+                <p className="text-muted-foreground">Nenhum histórico de pagamento encontrado.</p>
               </div>
             )}
           </CardContent>
@@ -629,7 +629,7 @@ const PaymentsPage = () => {
         <CardHeader>
           <CardTitle className="text-base">Cancelamento de Assinatura</CardTitle>
           <CardDescription>
-            O cancelamento e permitido apenas em ate {CANCELLATION_WINDOW_DAYS} dias apos o pagamento.
+            O cancelamento é permitido apenas em até {CANCELLATION_WINDOW_DAYS} dias após o pagamento.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

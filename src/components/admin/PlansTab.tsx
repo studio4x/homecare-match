@@ -45,7 +45,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
       case "yearly":
         return "Anual";
       case "free_trial":
-        return "Teste Gratis (Sistema)";
+        return "Teste Grátis (Sistema)";
       default:
         return tier;
     }
@@ -61,11 +61,11 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
     } else {
       setSelectedPlan({
         id: "free_trial",
-        name: "Teste Gratis (Sistema)",
+        name: "Teste Grátis (Sistema)",
         price: "R$ 0,00",
         period: "30 dias",
-        description: "Plano padrao de cadastro",
-        features: "Perfil basico\nVisibilidade limitada\nSuporte por email",
+        description: "Plano padrão de cadastro",
+        features: "Perfil básico\nVisibilidade limitada\nSuporte por email",
         asaas_installment_max: 1,
       });
     }
@@ -143,17 +143,17 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
-              <TableHead>Preco</TableHead>
+              <TableHead>Preço</TableHead>
               <TableHead>Parcelamento</TableHead>
-              <TableHead className="text-right">Acoes</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow className="bg-muted/30">
               <TableCell>
-                <div className="font-medium">{dbFreeTrial?.name || "Teste Gratis (Sistema)"}</div>
+                <div className="font-medium">{dbFreeTrial?.name || "Teste Grátis (Sistema)"}</div>
                 <div className="text-xs text-muted-foreground text-primary">
-                  {dbFreeTrial?.description || "Plano padrao de cadastro"}
+                  {dbFreeTrial?.description || "Plano padrão de cadastro"}
                 </div>
               </TableCell>
               <TableCell>
@@ -161,7 +161,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className="gap-1">
-                  <Settings2 className="h-3 w-3" /> Automatico
+                  <Settings2 className="h-3 w-3" /> Automático
                 </Badge>
               </TableCell>
               <TableCell className="text-right">
@@ -183,7 +183,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                     {p.price}/{p.period}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">Ate {Number(p.asaas_installment_max || 1)}x</Badge>
+                    <Badge variant="outline">Até {Number(p.asaas_installment_max || 1)}x</Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
@@ -224,7 +224,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
               <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex gap-3 items-start">
                 <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-800">
-                  Este plano e aplicado automaticamente para novos profissionais. O ID <strong>free_trial</strong>
+                  Este plano é aplicado automaticamente para novos profissionais. O ID <strong>free_trial</strong>
                   permanece fixo no sistema.
                 </p>
               </div>
@@ -249,7 +249,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
             </div>
 
             <div className="space-y-2">
-              <Label>Subtitulo / Descricao Curta</Label>
+              <Label>Subtítulo / Descrição Curta</Label>
               <Input
                 value={selectedPlan?.description || ""}
                 onChange={(e) => setSelectedPlan({ ...selectedPlan, description: e.target.value })}
@@ -258,7 +258,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
 
             {selectedPlan?.id !== "free_trial" && (
               <div className="space-y-2 p-4 bg-secondary/20 rounded-lg border">
-                <Label>Parcelamento maximo no checkout (Asaas)</Label>
+                <Label>Parcelamento máximo no checkout (Asaas)</Label>
                 <Input
                   type="number"
                   min={1}
@@ -276,14 +276,14 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Preco Exibido</Label>
+                <Label>Preço Exibido</Label>
                 <Input
                   value={selectedPlan?.price || ""}
                   onChange={(e) => setSelectedPlan({ ...selectedPlan, price: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Periodo</Label>
+                <Label>Período</Label>
                 <Input
                   value={selectedPlan?.period || ""}
                   onChange={(e) => setSelectedPlan({ ...selectedPlan, period: e.target.value })}

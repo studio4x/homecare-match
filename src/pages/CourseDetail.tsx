@@ -250,7 +250,7 @@ const CourseDetail = () => {
         return;
       }
 
-      throw new Error("URL de checkout nao retornada pelo servidor.");
+      throw new Error("URL de checkout não retornada pelo servidor.");
     } catch (err: any) {
       toast.error(err.message || "Erro ao iniciar pagamento.");
       toast.dismiss(toastId);
@@ -313,7 +313,7 @@ const CourseDetail = () => {
         return;
       }
 
-      throw new Error("URL de checkout nao retornada pelo servidor.");
+      throw new Error("URL de checkout não retornada pelo servidor.");
     } catch (err: any) {
       toast.error(err.message || "Erro ao iniciar pagamento.");
       toast.dismiss(toastId);

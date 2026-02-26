@@ -82,7 +82,7 @@ const Index = () => {
   const handlePlanCheckout = async (planId: "monthly" | "yearly") => {
     setSelectedPlanForCheckout(null);
     if (!session) {
-      toast.info("Por favor, crie uma conta ou faca login para continuar.");
+      toast.info("Por favor, crie uma conta ou faça login para continuar.");
       navigate("/login#auth-sign-up");
       return;
     }
@@ -98,7 +98,7 @@ const Index = () => {
         toast.success("Redirecionando para pagamento...");
         window.location.href = data.url;
       } else {
-        throw new Error("URL de checkout nao retornada pelo servidor.");
+        throw new Error("URL de checkout não retornada pelo servidor.");
       }
     } catch (err: any) {
       toast.dismiss(toastId);
@@ -111,7 +111,7 @@ const Index = () => {
 
   const handleSubscribe = async (planId: string) => {
     if (!session) {
-      toast.info("Por favor, crie uma conta ou faca login para continuar.");
+      toast.info("Por favor, crie uma conta ou faça login para continuar.");
       navigate("/login#auth-sign-up");
       return;
     }
@@ -126,7 +126,7 @@ const Index = () => {
       return;
     }
 
-    toast.error("Plano invalido para checkout.");
+    toast.error("Plano inválido para checkout.");
   };
 
   const features = [

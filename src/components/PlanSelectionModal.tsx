@@ -68,7 +68,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
         return;
       }
 
-      throw new Error("URL de checkout nao retornada pelo servidor.");
+      throw new Error("URL de checkout não retornada pelo servidor.");
     } catch (err: any) {
       console.error("[Checkout Error]", err);
       toast.dismiss(toastId);
@@ -250,12 +250,12 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
           )}
 
           <div className="rounded-xl border bg-secondary/20 p-3 text-xs text-muted-foreground space-y-1">
-            <p><strong>Plano Mensal:</strong> renovacao automatica mensal no cartao.</p>
-            <p><strong>Plano Anual:</strong> renovacao manual com opcao de parcelamento em ate 12x.</p>
+            <p><strong>Plano Mensal:</strong> renovação automática mensal no cartão.</p>
+            <p><strong>Plano Anual:</strong> renovação manual com opção de parcelamento em até 12x.</p>
           </div>
           
           <p className="text-center text-[10px] text-muted-foreground">
-            Pagamento processado com seguranca via Asaas.
+            Pagamento processado com segurança via Asaas.
           </p>
         </div>
       </DialogContent>

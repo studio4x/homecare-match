@@ -692,7 +692,7 @@ const CoursesTab = () => {
 
               {selectedCourse.price && selectedCourse.price > 0 ? (
                 <div className="space-y-2 p-4 bg-secondary/20 rounded-lg border">
-                  <Label className="font-bold">Parcelamento maximo (Asaas)</Label>
+                  <Label className="font-bold">Parcelamento máximo (Asaas)</Label>
                   <Input
                     type="number"
                     min={1}
@@ -706,7 +706,7 @@ const CoursesTab = () => {
                     }
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Define ate quantas parcelas o checkout do curso pode oferecer no cartao.
+                    Define até quantas parcelas o checkout do curso pode oferecer no cartão.
                   </p>
                 </div>
               ) : null}
@@ -919,5 +919,4 @@ const CoursesTab = () => {
 };
 
 export default CoursesTab;
-
 

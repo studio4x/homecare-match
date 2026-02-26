@@ -67,7 +67,7 @@ const SubscriptionCouponModal = ({
       onOpenChange(false);
       setTimeout(() => window.location.reload(), 1200);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Cupom invalido.";
+      const message = err instanceof Error ? err.message : "Cupom inválido.";
       toast.error(message, { id: toastId });
     } finally {
       setIsApplyingCoupon(false);
@@ -93,20 +93,20 @@ const SubscriptionCouponModal = ({
             Possui cupom promocional?
           </DialogTitle>
           <DialogDescription>
-            Antes de seguir para o checkout do {planLabel}, voce pode aplicar seu cupom.
+            Antes de seguir para o checkout do {planLabel}, você pode aplicar seu cupom.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
           <Input
-            placeholder="Digite seu codigo"
+            placeholder="Digite seu código"
             value={couponCode}
             onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
             disabled={isApplyingCoupon || isProceeding}
             className="uppercase"
           />
           <p className="text-xs text-muted-foreground">
-            Se o cupom for valido, o beneficio sera aplicado imediatamente.
+            Se o cupom for válido, o benefício será aplicado imediatamente.
           </p>
         </div>
 

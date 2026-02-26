@@ -46,7 +46,7 @@ const CoursePaymentMethodDialog = ({
               onClick={() => onSelect("credit_card")}
               disabled={!!loading}
             >
-              <CreditCard className="h-4 w-4" /> Cartao de Credito
+              <CreditCard className="h-4 w-4" /> Cartão de Crédito
             </Button>
             <Button
               variant="outline"
@@ -58,7 +58,7 @@ const CoursePaymentMethodDialog = ({
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground">
-            Boleto bancario nao esta disponivel. PIX ativo apenas para cursos.
+            Boleto bancário não está disponível. PIX ativo apenas para cursos.
           </p>
         </div>
       </DialogContent>

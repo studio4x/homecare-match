@@ -585,7 +585,7 @@ const SiteConfigTab = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            Configuracao de Pagamentos (Asaas)
+            Configuração de Pagamentos (Asaas)
           </CardTitle>
           <CardDescription>Defina ambiente e comportamento do checkout.</CardDescription>
         </CardHeader>
@@ -614,14 +614,14 @@ const SiteConfigTab = () => {
                 onChange={(e) => setFormData({ ...formData, asaas_checkout_base_url: e.target.value })}
               />
               <p className="text-[10px] text-muted-foreground italic">
-                Se vazio, o sistema usa a URL padrao do ambiente selecionado.
+                Se vazio, o sistema usa a URL padrão do ambiente selecionado.
               </p>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Parcelamento maximo padrao</Label>
+              <Label>Parcelamento máximo padrão</Label>
               <Input
                 type="number"
                 min={1}
@@ -633,7 +633,7 @@ const SiteConfigTab = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Expiracao do checkout (minutos)</Label>
+              <Label>Expiração do checkout (minutos)</Label>
               <Input
                 type="number"
                 min={5}
@@ -648,8 +648,8 @@ const SiteConfigTab = () => {
           <div className="grid gap-4 md:grid-cols-1">
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="space-y-0.5">
-                <Label>Aceitar Cartao</Label>
-                <p className="text-[10px] text-muted-foreground">Habilita pagamento em cartao no checkout.</p>
+                <Label>Aceitar Cartão</Label>
+                <p className="text-[10px] text-muted-foreground">Habilita pagamento em cartão no checkout.</p>
               </div>
               <Switch
                 checked={!!formData.asaas_allow_credit_card}

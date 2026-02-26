@@ -374,8 +374,21 @@ const SiteConfigTab = () => {
   const handleSyncAsaasDescriptions = async () => {
     setIsSyncingAsaasDescriptions(true);
     try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) {
+        throw new Error("Sessão expirada. Entre novamente para sincronizar descrições.");
+      }
+
       const { data, error } = await supabase.functions.invoke('sync-asaas-descriptions', {
         body: { limit: 80, days: 90 },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
       if (error) throw error;
 

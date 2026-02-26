@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,10 +20,6 @@ import {
   Eye, 
   DollarSign, 
   Video, 
-  FlaskConical, 
-  Zap, 
-  RefreshCw,
-  CreditCard,
   Save,
   Users,
   X
@@ -64,12 +60,12 @@ const HERO_DIR = "academy/hero";
 const MATERIALS_DIR = "materials";
 const PRIVATE_BUCKET = "academy-private";
 
-// Mapeamento de níveis para exibição correta
+// Mapeamento de nÃ­veis para exibiÃ§Ã£o correta
 export const COURSE_LEVEL_LABELS: Record<string, string> = {
   iniciante: "Iniciante",
-  basico: "Básico",
-  intermediario: "Intermediário",
-  avancado: "Avançado",
+  basico: "BÃ¡sico",
+  intermediario: "IntermediÃ¡rio",
+  avancado: "AvanÃ§ado",
 };
 
 type CourseLevel = "iniciante" | "basico" | "intermediario" | "avancado";
@@ -111,8 +107,7 @@ interface Course {
   video_url?: string;
   video_storage_path?: string;
   video_mime?: string;
-  stripe_price_id_test?: string;
-  stripe_price_id_live?: string;
+  asaas_installment_max?: number;
 }
 
 const generateSlug = (text: string) => {
@@ -135,7 +130,6 @@ const CoursesTab = () => {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [openDialog, setOpenDialog] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
-  const [isSyncingStripe, setIsSyncingStripe] = useState<string | null>(null);
 
   const [openContentDialog, setOpenContentDialog] = useState<boolean>(false);
   const [modules, setModules] = useState<Module[]>([]);
@@ -199,53 +193,6 @@ const CoursesTab = () => {
     }
   }, [modules]);
 
-  const handleSyncStripe = async (mode: 'test' | 'live') => {
-    if (!selectedCourse?.price || selectedCourse.price <= 0) {
-      toast.error("Defina um preço maior que zero para sincronizar.");
-      return;
-    }
-    if (!selectedCourse.slug || !selectedCourse.title) {
-      toast.error("Preencha o título e o slug antes de sincronizar.");
-      return;
-    }
-
-    setIsSyncingStripe(mode);
-    const toastId = toast.loading(`Sincronizando com Stripe (${mode})...`);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('sync-stripe-product', {
-        body: {
-          courseSlug: selectedCourse.slug,
-          title: selectedCourse.title,
-          price: Number(selectedCourse.price),
-          mode
-        }
-      });
-
-      if (error) {
-        let errorMessage = "Erro ao sincronizar.";
-        if (error.context?.json) {
-          const body = await error.context.json();
-          errorMessage = body.error || errorMessage;
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        throw new Error(errorMessage);
-      }
-
-      if (data?.priceId) {
-        const field = mode === 'test' ? 'stripe_price_id_test' : 'stripe_price_id_live';
-        setSelectedCourse(prev => prev ? { ...prev, [field]: data.priceId } : null);
-        toast.success(`ID da Stripe (${mode}) gerado com sucesso!`, { id: toastId });
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Erro ao sincronizar com Stripe.", { id: toastId });
-    } finally {
-      setIsSyncingStripe(null);
-    }
-  };
-
   const handleNewCourse = () => {
     setSelectedCourse({
       slug: "",
@@ -261,8 +208,7 @@ const CoursesTab = () => {
       video_url: "",
       video_storage_path: "",
       video_mime: "",
-      stripe_price_id_test: "",
-      stripe_price_id_live: ""
+      asaas_installment_max: 1
     });
     setOpenDialog(true);
   };
@@ -274,8 +220,7 @@ const CoursesTab = () => {
       video_url: c.video_url || "",
       video_storage_path: c.video_storage_path || "",
       video_mime: c.video_mime || "",
-      stripe_price_id_test: c.stripe_price_id_test || "",
-      stripe_price_id_live: c.stripe_price_id_live || ""
+      asaas_installment_max: c.asaas_installment_max || 1
     });
     setOpenDialog(true);
   };
@@ -343,7 +288,7 @@ const CoursesTab = () => {
     if (!selectedCourse) return;
     setModules(prev => [...prev, {
       id: crypto.randomUUID(),
-      title: "Novo Módulo",
+      title: "Novo MÃ³dulo",
       description: "",
       position: prev.length + 1,
       course_slug: selectedCourse.slug,
@@ -420,7 +365,7 @@ const CoursesTab = () => {
           if (lesErr) throw lesErr;
         }
       }
-      toast.success("Conteúdo salvo!");
+      toast.success("ConteÃºdo salvo!");
       setIsContentDirty(false);
       setOpenContentDialog(false);
       fetchCourses();
@@ -456,7 +401,7 @@ const CoursesTab = () => {
 
   const handleUploadVideo = async (file: File) => {
     if (!selectedCourse?.slug) {
-      toast.error("Defina o slug antes de enviar o vídeo.");
+      toast.error("Defina o slug antes de enviar o vÃ­deo.");
       return;
     }
     setIsUploading(true);
@@ -466,7 +411,7 @@ const CoursesTab = () => {
     try {
       const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
-      toast.success("Vídeo carregado!");
+      toast.success("VÃ­deo carregado!");
       setSelectedCourse((prev) => prev ? {
         ...prev,
         video_source: "storage",
@@ -475,7 +420,7 @@ const CoursesTab = () => {
         video_url: ""
       } : prev);
     } catch {
-      toast.error("Erro ao enviar vídeo.");
+      toast.error("Erro ao enviar vÃ­deo.");
     } finally {
       setIsUploading(false);
       if (videoRef.current) videoRef.current.value = "";
@@ -606,10 +551,10 @@ const CoursesTab = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Título</TableHead>
-                <TableHead>Nível</TableHead>
-                <TableHead>Preço</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead>TÃ­tulo</TableHead>
+                <TableHead>NÃ­vel</TableHead>
+                <TableHead>PreÃ§o</TableHead>
+                <TableHead className="text-right">AÃ§Ãµes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -618,14 +563,14 @@ const CoursesTab = () => {
                   <TableCell className="font-medium">{c.title}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {c.level ? COURSE_LEVEL_LABELS[c.level] || c.level : "Não definido"}
+                      {c.level ? COURSE_LEVEL_LABELS[c.level] || c.level : "NÃ£o definido"}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     {c.price && c.price > 0 ? (
                       <span className="text-sm font-semibold">R$ {Number(c.price).toFixed(2).replace('.', ',')}</span>
                     ) : (
-                      <Badge variant="secondary" className="bg-success/10 text-success border-success/20">Grátis</Badge>
+                      <Badge variant="secondary" className="bg-success/10 text-success border-success/20">GrÃ¡tis</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right flex justify-end gap-2">
@@ -643,7 +588,7 @@ const CoursesTab = () => {
                     <Button variant="outline" size="sm" asChild className="gap-2">
                       <Link to={`/cursos/${c.slug}`} target="_blank"><Eye size={14} /> Ver</Link>
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleOpenContent(c)}>Conteúdo</Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleOpenContent(c)}>ConteÃºdo</Button>
                     <Button variant="ghost" size="sm" onClick={() => handleEditCourse(c)}><Edit2 size={16} /></Button>
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setCourseToDelete(c); setShowDeleteConfirm(true); }}><Trash2 size={16} /></Button>
                   </TableCell>
@@ -661,12 +606,12 @@ const CoursesTab = () => {
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          <DialogHeader><DialogTitle>Configurações do Curso</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>ConfiguraÃ§Ãµes do Curso</DialogTitle></DialogHeader>
           {selectedCourse && (
             <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Título</Label>
+                  <Label>TÃ­tulo</Label>
                   <Input
                     value={selectedCourse.title}
                     onChange={e => {
@@ -693,80 +638,56 @@ const CoursesTab = () => {
                   value={selectedCourse.content_url || ""}
                   onChange={e => setSelectedCourse({...selectedCourse, content_url: e.target.value})}
                 />
-                <p className="text-[10px] text-muted-foreground">Se preenchido, o curso mostrará um botão para acessar esta plataforma diretamente (com opção de visualização interna).</p>
+                <p className="text-[10px] text-muted-foreground">Se preenchido, o curso mostrarÃ¡ um botÃ£o para acessar esta plataforma diretamente (com opÃ§Ã£o de visualizaÃ§Ã£o interna).</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2"><DollarSign size={14} /> Preço (R$)</Label>
+                  <Label className="flex items-center gap-2"><DollarSign size={14} /> PreÃ§o (R$)</Label>
                   <div className="relative">
                     <Input type="number" step="0.01" value={selectedCourse.price} onChange={e => setSelectedCourse({...selectedCourse, price: parseFloat(e.target.value) || 0})} />
                     {(!selectedCourse.price || selectedCourse.price === 0) && (
-                      <span className="absolute right-3 top-2.5 text-[10px] uppercase font-bold text-success">Grátis</span>
+                      <span className="absolute right-3 top-2.5 text-[10px] uppercase font-bold text-success">GrÃ¡tis</span>
                     )}
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Nível</Label>
+                  <Label>NÃ­vel</Label>
                   <Select value={selectedCourse.level} onValueChange={v => setSelectedCourse({...selectedCourse, level: v as any})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="iniciante">Iniciante</SelectItem>
-                      <SelectItem value="basico">Básico</SelectItem>
-                      <SelectItem value="intermediario">Intermediário</SelectItem>
-                      <SelectItem value="avancado">Avançado</SelectItem>
+                      <SelectItem value="basico">BÃ¡sico</SelectItem>
+                      <SelectItem value="intermediario">IntermediÃ¡rio</SelectItem>
+                      <SelectItem value="avancado">AvanÃ§ado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               {selectedCourse.price && selectedCourse.price > 0 ? (
-                <div className="space-y-4 p-4 bg-secondary/20 rounded-lg border">
-                  <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-2 font-bold"><CreditCard size={16} /> Integração Stripe</Label>
-                    <Badge variant="outline" className="text-[10px]">Automático</Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="flex items-center gap-2 text-amber-600 text-[10px] uppercase font-bold"><FlaskConical className="h-3 w-3" /> ID Teste</Label>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-6 text-[9px] gap-1" 
-                          onClick={() => handleSyncStripe('test')}
-                          disabled={!!isSyncingStripe}
-                        >
-                          {isSyncingStripe === 'test' ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                          Gerar na Stripe
-                        </Button>
-                      </div>
-                      <Input placeholder="price_..." value={selectedCourse.stripe_price_id_test || ''} onChange={e => setSelectedCourse({...selectedCourse, stripe_price_id_test: e.target.value})} />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="flex items-center gap-2 text-success text-[10px] uppercase font-bold"><Zap className="h-3 w-3" /> ID Produção</Label>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-6 text-[9px] gap-1" 
-                          onClick={() => handleSyncStripe('live')}
-                          disabled={!!isSyncingStripe}
-                        >
-                          {isSyncingStripe === 'live' ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-                          Gerar na Stripe
-                        </Button>
-                      </div>
-                      <Input placeholder="price_..." value={selectedCourse.stripe_price_id_live || ''} onChange={e => setSelectedCourse({...selectedCourse, stripe_price_id_live: e.target.value})} />
-                    </div>
-                  </div>
+                <div className="space-y-2 p-4 bg-secondary/20 rounded-lg border">
+                  <Label className="font-bold">Parcelamento maximo (Asaas)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={12}
+                    value={selectedCourse.asaas_installment_max || 1}
+                    onChange={(e) =>
+                      setSelectedCourse({
+                        ...selectedCourse,
+                        asaas_installment_max: parseInt(e.target.value || "1", 10) || 1,
+                      })
+                    }
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Define ate quantas parcelas o checkout do curso pode oferecer no cartao.
+                  </p>
                 </div>
               ) : null}
 
               <div className="space-y-2">
-                <Label>Duração Total (minutos)</Label>
+                <Label>DuraÃ§Ã£o Total (minutos)</Label>
                 <Input 
                   type="number" 
                   value={selectedCourse.duration_minutes} 
@@ -776,18 +697,18 @@ const CoursesTab = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Descrição do Curso</Label>
+                <Label>DescriÃ§Ã£o do Curso</Label>
                 <RichTextEditor content={selectedCourse.description || ""} onChange={html => setSelectedCourse({...selectedCourse, description: html})} />
               </div>
 
               <div className="space-y-4 border rounded-lg p-4 bg-secondary/10">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2"><Video className="h-4 w-4 text-primary" /> Vídeo de Destaque (Hero)</Label>
+                  <Label className="flex items-center gap-2"><Video className="h-4 w-4 text-primary" /> VÃ­deo de Destaque (Hero)</Label>
                 </div>
                 
                 <div className="grid gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Origem do Vídeo</Label>
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Origem do VÃ­deo</Label>
                     <Select 
                       value={selectedCourse.video_source || "url"} 
                       onValueChange={(v) => setSelectedCourse(prev => prev ? { ...prev, video_source: v } : prev)}
@@ -804,7 +725,7 @@ const CoursesTab = () => {
 
                   {selectedCourse.video_source === "url" ? (
                     <div className="space-y-2">
-                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">URL do Vídeo</Label>
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">URL do VÃ­deo</Label>
                       <Input 
                         placeholder="https://www.youtube.com/watch?v=..." 
                         value={selectedCourse.video_url || ""} 
@@ -813,7 +734,7 @@ const CoursesTab = () => {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Arquivo de Vídeo</Label>
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Arquivo de VÃ­deo</Label>
                       <div className="flex items-center gap-2">
                         <Button 
                           variant="outline" 
@@ -823,7 +744,7 @@ const CoursesTab = () => {
                           className="w-full gap-2"
                         >
                           {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
-                          {selectedCourse.video_storage_path ? "Substituir Vídeo" : "Subir Vídeo MP4"}
+                          {selectedCourse.video_storage_path ? "Substituir VÃ­deo" : "Subir VÃ­deo MP4"}
                         </Button>
                       </div>
                     </div>
@@ -872,7 +793,7 @@ const CoursesTab = () => {
                 <Button variant="ghost" onClick={() => setOpenDialog(false)}>Cancelar</Button>
                 <Button onClick={handleSaveCourse} disabled={isSaving}>
                   {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  Salvar Configurações
+                  Salvar ConfiguraÃ§Ãµes
                 </Button>
               </div>
             </div>
@@ -885,13 +806,13 @@ const CoursesTab = () => {
           <DialogHeader className="p-6 border-b bg-card">
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle>Conteúdo do Curso: {selectedCourse?.title}</DialogTitle>
+                <DialogTitle>ConteÃºdo do Curso: {selectedCourse?.title}</DialogTitle>
                 <p className="text-xs text-muted-foreground mt-1">Arraste os itens para reordenar.</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={addModule} className="gap-2"><Plus size={14} /> Novo Módulo</Button>
+                <Button variant="outline" size="sm" onClick={addModule} className="gap-2"><Plus size={14} /> Novo MÃ³dulo</Button>
                 <Button size="sm" onClick={handleSaveContent} disabled={isSavingContent} className="gap-2">
-                  {isSavingContent ? <Loader2 size={14} className="animate-spin" /> : null} Salvar Alterações
+                  {isSavingContent ? <Loader2 size={14} className="animate-spin" /> : null} Salvar AlteraÃ§Ãµes
                 </Button>
               </div>
             </div>
@@ -929,8 +850,8 @@ const CoursesTab = () => {
 
             {modules.length === 0 && (
               <div className="text-center py-20 border-2 border-dashed rounded-xl">
-                <p className="text-muted-foreground">Nenhum módulo criado ainda.</p>
-                <Button variant="outline" className="mt-4" onClick={addModule}>Criar Primeiro Módulo</Button>
+                <p className="text-muted-foreground">Nenhum mÃ³dulo criado ainda.</p>
+                <Button variant="outline" className="mt-4" onClick={addModule}>Criar Primeiro MÃ³dulo</Button>
               </div>
             )}
           </div>
@@ -953,7 +874,7 @@ const CoursesTab = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir curso?</AlertDialogTitle>
-            <AlertDialogDescription>Isso apagará permanentemente o curso "{courseToDelete?.title}" e todo o seu conteúdo.</AlertDialogDescription>
+            <AlertDialogDescription>Isso apagarÃ¡ permanentemente o curso "{courseToDelete?.title}" e todo o seu conteÃºdo.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>Cancelar</Button>
@@ -964,7 +885,7 @@ const CoursesTab = () => {
 
       <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Sair sem salvar?</AlertDialogTitle><AlertDialogDescription>Você tem alterações não salvas.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Sair sem salvar?</AlertDialogTitle><AlertDialogDescription>VocÃª tem alteraÃ§Ãµes nÃ£o salvas.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Continuar Editando</AlertDialogCancel><AlertDialogAction onClick={() => { setModules(originalModules); setIsContentDirty(false); setOpenContentDialog(false); setShowCloseConfirm(false); }}>Descartar</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -973,3 +894,7 @@ const CoursesTab = () => {
 };
 
 export default CoursesTab;
+
+
+
+

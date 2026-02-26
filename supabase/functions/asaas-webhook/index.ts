@@ -1,0 +1,300 @@
+﻿// @ts-nocheck
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, asaas-access-token",
+};
+
+const PAID_EVENTS = new Set(["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"]);
+const PAID_STATUSES = new Set(["CONFIRMED", "RECEIVED", "PAID"]);
+
+const parseAsaasDate = (value?: string | null) => {
+  if (!value) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const dateOnly = new Date(`${value}T12:00:00Z`);
+    if (!Number.isNaN(dateOnly.getTime())) return dateOnly.toISOString();
+  }
+
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+
+  return null;
+};
+
+const tierToDurationDays = (planId?: string | null) => {
+  if (planId === "yearly") return 365;
+  if (planId === "monthly") return 30;
+  return 30;
+};
+
+const normalizeStatus = (status?: string | null) => {
+  if (!status) return null;
+  return String(status).toUpperCase();
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Metodo nao permitido." }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 405,
+    });
+  }
+
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+
+  try {
+    const expectedWebhookToken = Deno.env.get("ASAAS_WEBHOOK_TOKEN");
+    const incomingWebhookToken =
+      req.headers.get("asaas-access-token") ||
+      req.headers.get("x-asaas-access-token") ||
+      req.headers.get("authorization")?.replace("Bearer ", "");
+
+    if (expectedWebhookToken && incomingWebhookToken !== expectedWebhookToken) {
+      return new Response(JSON.stringify({ error: "Webhook token invalido." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
+    const textBody = await req.text();
+    const payload = textBody ? JSON.parse(textBody) : {};
+
+    const event = String(payload?.event || "").toUpperCase();
+    const payment = payload?.payment || payload?.data?.payment || payload?.data || null;
+
+    const paymentId = payment?.id || null;
+    const checkoutId = payment?.checkout || payment?.checkoutSession || payload?.checkout?.id || payload?.checkoutId || null;
+    const paymentStatus = normalizeStatus(payment?.status);
+
+    let session = null;
+
+    if (checkoutId) {
+      const { data: byCheckoutSession } = await supabaseAdmin
+        .from("asaas_checkout_sessions")
+        .select("*")
+        .eq("checkout_id", checkoutId)
+        .maybeSingle();
+      session = byCheckoutSession || null;
+    }
+
+    if (!session && paymentId) {
+      const { data: byPaymentSession } = await supabaseAdmin
+        .from("asaas_checkout_sessions")
+        .select("*")
+        .eq("payment_id", paymentId)
+        .maybeSingle();
+      session = byPaymentSession || null;
+    }
+
+    let userId = session?.user_id || null;
+    let planId = session?.plan_id || null;
+    let courseSlug = session?.course_slug || null;
+
+    if (!userId && payment?.customer) {
+      const { data: profileByCustomer } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .eq("asaas_customer_id", payment.customer)
+        .maybeSingle();
+
+      if (profileByCustomer?.id) {
+        userId = profileByCustomer.id;
+      }
+    }
+
+    const { data: existingTx } = paymentId
+      ? await supabaseAdmin
+          .from("payment_transactions")
+          .select("*")
+          .eq("provider", "asaas")
+          .eq("payment_id", paymentId)
+          .maybeSingle()
+      : { data: null };
+
+    if (!planId && existingTx?.plan_id) planId = existingTx.plan_id;
+    if (!courseSlug && existingTx?.course_slug) courseSlug = existingTx.course_slug;
+    if (!userId && existingTx?.user_id) userId = existingTx.user_id;
+
+    if (paymentId) {
+      const transactionType = courseSlug ? "course" : planId ? "plan" : "unknown";
+      const parsedPaymentDate =
+        parseAsaasDate(payment?.paymentDate) ||
+        parseAsaasDate(payment?.clientPaymentDate) ||
+        parseAsaasDate(payment?.confirmedDate) ||
+        parseAsaasDate(payment?.dateCreated) ||
+        parseAsaasDate(payment?.dueDate);
+
+      const isPaidNow = PAID_EVENTS.has(event) || (paymentStatus ? PAID_STATUSES.has(paymentStatus) : false);
+
+      const txPayload: Record<string, any> = {
+        provider: "asaas",
+        payment_id: paymentId,
+        user_id: userId,
+        transaction_type: transactionType,
+        plan_id: planId,
+        course_slug: courseSlug,
+        plan_duration_days: session?.plan_duration_days || existingTx?.plan_duration_days || null,
+        amount: Number(payment?.value || existingTx?.amount || session?.amount || 0),
+        currency: "BRL",
+        status: paymentStatus || event || existingTx?.status || "EVENT_RECEIVED",
+        description:
+          payment?.description ||
+          existingTx?.description ||
+          (courseSlug ? `Curso: ${courseSlug}` : planId ? `Plano: ${planId}` : "Pagamento HomeCare Match"),
+        asaas_checkout_id: checkoutId || existingTx?.asaas_checkout_id || null,
+        asaas_customer_id: payment?.customer || session?.asaas_customer_id || existingTx?.asaas_customer_id || null,
+        invoice_url: payment?.invoiceUrl || payment?.bankSlipUrl || existingTx?.invoice_url || session?.checkout_url || null,
+        payment_date: parsedPaymentDate || existingTx?.payment_date || null,
+        confirmed_at: isPaidNow ? new Date().toISOString() : existingTx?.confirmed_at || null,
+        last_event: event || existingTx?.last_event || null,
+        raw_payload: payload,
+        updated_at: new Date().toISOString(),
+      };
+
+      await supabaseAdmin.from("payment_transactions").upsert(txPayload, { onConflict: "payment_id,provider" });
+    }
+
+    if (session?.id) {
+      const checkoutUpdatePayload: Record<string, any> = {
+        status: paymentStatus || event || "EVENT_RECEIVED",
+        payment_id: paymentId || session.payment_id || null,
+        payment_status: paymentStatus || null,
+        raw_response: payload,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (PAID_EVENTS.has(event) || (paymentStatus ? PAID_STATUSES.has(paymentStatus) : false)) {
+        checkoutUpdatePayload.paid_at = new Date().toISOString();
+      }
+
+      await supabaseAdmin.from("asaas_checkout_sessions").update(checkoutUpdatePayload).eq("id", session.id);
+    }
+
+    const wasPaidBefore = PAID_STATUSES.has(normalizeStatus(existingTx?.status) || "");
+    const isPaidNow = PAID_EVENTS.has(event) || (paymentStatus ? PAID_STATUSES.has(paymentStatus) : false);
+
+    if (isPaidNow && !wasPaidBefore && userId) {
+      if (planId) {
+        const planDurationDays = Number(session?.plan_duration_days || existingTx?.plan_duration_days || tierToDurationDays(planId));
+        const paymentBaseDate =
+          parseAsaasDate(payment?.paymentDate) ||
+          parseAsaasDate(payment?.clientPaymentDate) ||
+          parseAsaasDate(payment?.confirmedDate) ||
+          new Date().toISOString();
+
+        const baseDate = new Date(paymentBaseDate);
+        const subscriptionEndAt = new Date(baseDate.getTime() + planDurationDays * 24 * 60 * 60 * 1000).toISOString();
+
+        await supabaseAdmin
+          .from("profiles")
+          .update({
+            subscription_tier: planId,
+            subscription_end_at: subscriptionEndAt,
+            cancel_at_period_end: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", userId);
+
+        if (paymentId) {
+          await supabaseAdmin
+            .from("payment_transactions")
+            .update({ subscription_end_at: subscriptionEndAt, updated_at: new Date().toISOString() })
+            .eq("provider", "asaas")
+            .eq("payment_id", paymentId);
+        }
+
+        try {
+          await supabaseAdmin.from("notifications").insert({
+            user_id: userId,
+            title: "Pagamento confirmado",
+            content: `Sua assinatura do plano ${planId} foi ativada com sucesso.`,
+            link: "/dashboard",
+            type: "success",
+          });
+        } catch {
+          // not critical
+        }
+
+        try {
+          await supabaseAdmin.from("admin_notifications").insert({
+            title: "Nova assinatura confirmada",
+            content: `Plano ativado: ${planId}`,
+            link: "/admin/usuarios",
+            type: "success",
+          });
+        } catch {
+          // not critical
+        }
+      }
+
+      if (courseSlug) {
+        await supabaseAdmin
+          .from("academy_enrollments")
+          .upsert({
+            user_id: userId,
+            course_slug: courseSlug,
+            created_at: new Date().toISOString(),
+          }, { onConflict: "user_id,course_slug" });
+
+        try {
+          const { data: course } = await supabaseAdmin
+            .from("academy_courses")
+            .select("title")
+            .eq("slug", courseSlug)
+            .maybeSingle();
+
+          await supabaseAdmin.from("notifications").insert({
+            user_id: userId,
+            title: "Curso adquirido",
+            content: `Seu acesso ao curso ${course?.title || courseSlug} foi liberado.`,
+            link: `/cursos/${courseSlug}`,
+            type: "success",
+          });
+        } catch {
+          // not critical
+        }
+
+        try {
+          await supabaseAdmin.from("admin_notifications").insert({
+            title: "Novo curso vendido",
+            content: `Curso adquirido: ${courseSlug}`,
+            link: "/admin/cursos",
+            type: "success",
+          });
+        } catch {
+          // not critical
+        }
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        received: true,
+        event,
+        paymentId,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      },
+    );
+  } catch (error) {
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      },
+    );
+  }
+});

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
@@ -90,7 +90,7 @@ const Courses = () => {
   const [filterLevel, setFilterLevel] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
 
-  // Carrega papel do usuário
+  // Carrega papel do usuÃ¡rio
   useEffect(() => {
     const loadRole = async () => {
       try {
@@ -134,7 +134,7 @@ const Courses = () => {
     loadCourses();
   }, []);
 
-  // Carrega inscrições do usuário
+  // Carrega inscriÃ§Ãµes do usuÃ¡rio
   useEffect(() => {
     const loadEnrollment = async () => {
       if (!user) return;
@@ -155,7 +155,7 @@ const Courses = () => {
     loadEnrollment();
   }, [user]);
 
-  // Checa conclusão dos cursos do usuário
+  // Checa conclusÃ£o dos cursos do usuÃ¡rio
   useEffect(() => {
     const checkCompletion = async () => {
       if (!user || courses.length === 0) {
@@ -196,7 +196,7 @@ const Courses = () => {
     checkCompletion();
   }, [user, courses]);
 
-  // Lógica de Filtragem
+  // LÃ³gica de Filtragem
   const filteredCourses = useMemo(() => {
     return courses.filter(c => {
       const matchesLevel = filterLevel === "all" || c.level === filterLevel;
@@ -225,7 +225,7 @@ const Courses = () => {
     // Se for gratuito, exige plano anual (exceto para admin)
     if (isFree && !isYearlyPlan && !isAdmin) {
       toast.error("Acesso restrito!", {
-        description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
+        description: "Cursos gratuitos sÃ£o exclusivos para assinantes do Plano Anual."
       });
       setIsPlanModalOpen(true);
       return;
@@ -233,7 +233,7 @@ const Courses = () => {
 
     setLoadingEnroll(true);
 
-    // Se for pago, inicia o checkout da Stripe (exceto para admin que acessa tudo)
+    // Se for pago, inicia o checkout de pagamento (exceto para admin que acessa tudo)
     if (!isFree && !isAdmin) {
       const toastId = toast.loading("Iniciando checkout...");
       try {
@@ -265,7 +265,7 @@ const Courses = () => {
         enrolledSlugs: Array.from(new Set([...(prev.enrolledSlugs || []), course.slug])),
         progress: prev.progress || {},
       }));
-      toast.success("Inscrição realizada!");
+      toast.success("InscriÃ§Ã£o realizada!");
     } catch (e) {
       console.error("[Courses] Enroll error:", e);
       toast.error("Falha ao inscrever.");
@@ -295,7 +295,7 @@ const Courses = () => {
     return (
       <Layout>
         <AccessRestricted
-          description="Os cursos de capacitação são exclusivos para Profissionais."
+          description="Os cursos de capacitaÃ§Ã£o sÃ£o exclusivos para Profissionais."
           primaryAction={{ label: "Entrar", to: "/login" }}
           secondaryAction={{ label: "Assinar Agora", to: "/login#auth-sign-up" }}
         />
@@ -303,12 +303,12 @@ const Courses = () => {
     );
   }
 
-  // Admins podem acessar mesmo que não tenham o papel 'professional'
+  // Admins podem acessar mesmo que nÃ£o tenham o papel 'professional'
   if (session && userRole !== "professional" && !isAdmin) {
     return (
       <Layout>
         <AccessRestricted
-          description="Os cursos de capacitação são exclusivos para Profissionais."
+          description="Os cursos de capacitaÃ§Ã£o sÃ£o exclusivos para Profissionais."
           primaryAction={{ label: "Ir para Meu Painel", to: "/dashboard" }}
         />
       </Layout>
@@ -322,7 +322,7 @@ const Courses = () => {
           <div className="space-y-1">
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <BookOpen className="h-8 w-8 text-primary" />
-              Cursos de Capacitação
+              Cursos de CapacitaÃ§Ã£o
             </h1>
             <p className="text-muted-foreground">Aprimore seus conhecimentos e conquiste novos selos para seu perfil.</p>
           </div>
@@ -349,25 +349,25 @@ const Courses = () => {
           <div className="flex flex-col md:flex-row items-end gap-4">
             <div className="grid gap-2 w-full md:w-64">
               <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                <Filter className="h-3 w-3" /> Nível do Curso
+                <Filter className="h-3 w-3" /> NÃ­vel do Curso
               </Label>
               <Select value={filterLevel} onValueChange={setFilterLevel}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Todos os níveis" />
+                  <SelectValue placeholder="Todos os nÃ­veis" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os níveis</SelectItem>
+                  <SelectItem value="all">Todos os nÃ­veis</SelectItem>
                   <SelectItem value="iniciante">Iniciante</SelectItem>
-                  <SelectItem value="basico">Básico</SelectItem>
-                  <SelectItem value="intermediario">Intermediário</SelectItem>
-                  <SelectItem value="avancado">Avançado</SelectItem>
+                  <SelectItem value="basico">BÃ¡sico</SelectItem>
+                  <SelectItem value="intermediario">IntermediÃ¡rio</SelectItem>
+                  <SelectItem value="avancado">AvanÃ§ado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2 w-full md:w-64">
               <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                <Filter className="h-3 w-3" /> Tipo de Inscrição
+                <Filter className="h-3 w-3" /> Tipo de InscriÃ§Ã£o
               </Label>
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger>
@@ -392,7 +392,7 @@ const Courses = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p>Carregando catálogo de cursos...</p>
+            <p>Carregando catÃ¡logo de cursos...</p>
           </div>
         ) : filteredCourses.length > 0 ? (
           <>
@@ -406,7 +406,7 @@ const Courses = () => {
                     {c.hero_asset_url ? (
                       <AspectRatio ratio={4/3} className="relative w-full bg-muted shrink-0 overflow-hidden">
                         {isCompleted(c.slug) ? (
-                          <Badge className="absolute left-2 top-2 bg-success z-10 shadow-sm">Concluído</Badge>
+                          <Badge className="absolute left-2 top-2 bg-success z-10 shadow-sm">ConcluÃ­do</Badge>
                         ) : null}
                         <img
                           src={c.hero_asset_url}
@@ -415,7 +415,7 @@ const Courses = () => {
                         />
                         <div className="absolute bottom-2 right-2">
                           {isFree ? (
-                            <Badge className="bg-success/90 text-white border-none">Grátis</Badge>
+                            <Badge className="bg-success/90 text-white border-none">GrÃ¡tis</Badge>
                           ) : (
                             <Badge className="bg-destructive text-white border-none">R$ {Number(c.price).toFixed(2).replace('.', ',')}</Badge>
                           )}

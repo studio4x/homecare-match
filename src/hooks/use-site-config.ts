@@ -10,9 +10,13 @@ export interface SiteConfig {
   favicon_url: string | null;
   whatsapp_number: string | null;
   enable_professional_list: boolean;
-  stripe_mode?: string | null;
-  stripe_publishable_key_test?: string | null;
-  stripe_publishable_key_live?: string | null;
+  payment_provider?: string | null;
+  asaas_environment?: string | null;
+  asaas_checkout_base_url?: string | null;
+  asaas_allow_credit_card?: boolean | null;
+  asaas_allow_pix?: boolean | null;
+  asaas_default_installment_max?: number | null;
+  asaas_checkout_expiration_minutes?: number | null;
   google_maps_api_key?: string | null;
   vapid_public_key?: string | null;
   gemini_model?: string | null;
@@ -79,7 +83,12 @@ export const useSiteConfig = () => {
           favicon_url: null,
           whatsapp_number: null,
           enable_professional_list: true,
-          stripe_mode: 'test',
+          payment_provider: "asaas",
+          asaas_environment: "sandbox",
+          asaas_allow_credit_card: true,
+          asaas_allow_pix: true,
+          asaas_default_installment_max: 12,
+          asaas_checkout_expiration_minutes: 60,
           ga_enabled: false,
           gtm_enabled: false,
           fb_pixel_enabled: false,

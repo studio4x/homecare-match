@@ -45,6 +45,83 @@ const resolvePaymentDate = (tx: any) => {
   return tx?.confirmed_at || tx?.payment_date || tx?.created_at || new Date().toISOString();
 };
 
+const normalizePaymentMethod = (value?: string | null) => {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized.includes("PIX")) return "pix";
+  if (normalized.includes("CREDIT") || normalized.includes("CARD")) return "credit_card";
+  if (normalized.includes("BOLETO")) return "boleto";
+  return "unknown";
+};
+
+const extractInstallmentsFromText = (value?: string | null) => {
+  const text = String(value || "");
+  const match = text.match(/parcela\s+(\d+)\s+de\s*(\d+)/i);
+  if (!match) return { current: null, total: null };
+  const current = Number(match[1]);
+  const total = Number(match[2]);
+  if (!Number.isFinite(current) || !Number.isFinite(total) || total <= 0) {
+    return { current: null, total: null };
+  }
+  return { current, total };
+};
+
+const extractPaymentPayload = (rawPayload: any) => {
+  if (!rawPayload || typeof rawPayload !== "object") return {};
+  return rawPayload?.payment || rawPayload?.data?.payment || rawPayload?.data || rawPayload;
+};
+
+const resolveInstallments = (tx: any) => {
+  const paymentPayload = extractPaymentPayload(tx?.raw_payload);
+
+  const currentRaw =
+    paymentPayload?.installmentNumber ||
+    paymentPayload?.installment?.installmentNumber ||
+    paymentPayload?.installment_index ||
+    null;
+
+  const totalRaw =
+    paymentPayload?.installmentCount ||
+    paymentPayload?.installment?.installmentCount ||
+    paymentPayload?.installment_count ||
+    null;
+
+  const current = Number(currentRaw);
+  const total = Number(totalRaw);
+
+  if (Number.isFinite(current) && Number.isFinite(total) && total > 0) {
+    return { current, total };
+  }
+
+  const fallback = extractInstallmentsFromText(tx?.description);
+  if (fallback.total) return fallback;
+  return { current: null, total: null };
+};
+
+const resolvePaymentMethod = (tx: any) => {
+  const paymentPayload = extractPaymentPayload(tx?.raw_payload);
+  return normalizePaymentMethod(
+    paymentPayload?.billingType ||
+      paymentPayload?.billing_type ||
+      paymentPayload?.chargeType ||
+      paymentPayload?.paymentMethod ||
+      null,
+  );
+};
+
+const resolveCheckoutMethod = (checkout: any) => {
+  const raw = checkout?.raw_response || {};
+  const context = raw?.checkout_context || {};
+  const billingTypes = Array.isArray(raw?.billingTypes) ? raw.billingTypes : [];
+
+  return normalizePaymentMethod(
+    context?.billing_type ||
+      raw?.billingType ||
+      billingTypes[0] ||
+      raw?.paymentMethod ||
+      null,
+  );
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -81,19 +158,34 @@ serve(async (req) => {
       });
     }
 
-    const { data: transactions, error: txError } = await supabaseAdmin
-      .from("payment_transactions")
-      .select(
-        "id,payment_id,user_id,transaction_type,plan_id,course_slug,status,amount,currency,description,invoice_url,payment_date,confirmed_at,created_at,asaas_checkout_id",
-      )
-      .order("payment_date", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .limit(1000);
+    const [{ data: transactions, error: txError }, { data: checkouts, error: checkoutError }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("payment_transactions")
+          .select(
+            "id,payment_id,user_id,transaction_type,plan_id,course_slug,status,amount,currency,description,invoice_url,payment_date,confirmed_at,created_at,asaas_checkout_id,raw_payload,last_event",
+          )
+          .order("payment_date", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(3000),
+        supabaseAdmin
+          .from("asaas_checkout_sessions")
+          .select(
+            "id,checkout_id,payment_id,user_id,plan_id,course_slug,status,payment_status,amount,checkout_url,created_at,updated_at,paid_at,raw_response",
+          )
+          .order("created_at", { ascending: false })
+          .limit(3000),
+      ]);
 
     if (txError) throw txError;
+    if (checkoutError && !checkoutError.message?.includes("asaas_checkout_sessions")) throw checkoutError;
 
     const uniqueUserIds = Array.from(
-      new Set((transactions || []).map((tx: any) => tx?.user_id).filter(Boolean)),
+      new Set(
+        [...(transactions || []), ...(checkouts || [])]
+          .map((entry: any) => entry?.user_id)
+          .filter(Boolean),
+      ),
     );
     const uniquePlanIds = Array.from(
       new Set((transactions || []).map((tx: any) => String(tx?.plan_id || "").trim()).filter(Boolean)),
@@ -104,7 +196,10 @@ serve(async (req) => {
 
     const [profilesRes, plansRes, coursesRes] = await Promise.all([
       uniqueUserIds.length
-        ? supabaseAdmin.from("profiles").select("id,full_name,email").in("id", uniqueUserIds)
+        ? supabaseAdmin
+            .from("profiles")
+            .select("id,full_name,email,role,is_admin,city,state,subscription_tier")
+            .in("id", uniqueUserIds)
         : Promise.resolve({ data: [] as any[] }),
       uniquePlanIds.length
         ? supabaseAdmin.from("plans").select("id,name").in("id", uniquePlanIds)
@@ -115,33 +210,86 @@ serve(async (req) => {
     ]);
 
     const usersById = Object.fromEntries(
-      (profilesRes.data || []).map((p: any) => [p.id, { full_name: p.full_name, email: p.email }]),
+      (profilesRes.data || []).map((profile: any) => [
+        profile.id,
+        {
+          full_name: profile.full_name,
+          email: profile.email,
+          role: profile.role,
+          is_admin: Boolean(profile.is_admin),
+          city: profile.city,
+          state: profile.state,
+          subscription_tier: profile.subscription_tier,
+        },
+      ]),
     );
-    const plansById = Object.fromEntries((plansRes.data || []).map((p: any) => [p.id, p.name]));
-    const coursesBySlug = Object.fromEntries((coursesRes.data || []).map((c: any) => [c.slug, c.title]));
+    const plansById = Object.fromEntries((plansRes.data || []).map((plan: any) => [plan.id, plan.name]));
+    const coursesBySlug = Object.fromEntries(
+      (coursesRes.data || []).map((course: any) => [course.slug, course.title]),
+    );
 
     const payments = (transactions || []).map((tx: any) => {
       const profile = usersById[tx.user_id] || {};
+      const installments = resolveInstallments(tx);
+
       return {
         id: tx.id || tx.payment_id,
         payment_id: tx.payment_id || null,
         user_id: tx.user_id || null,
         transaction_type: tx.transaction_type || "unknown",
         plan_id: tx.plan_id || null,
+        course_slug: tx.course_slug || null,
         asaas_checkout_id: tx.asaas_checkout_id || null,
         client_name: profile?.full_name || profile?.email || "Cliente nao identificado",
+        user_email: profile?.email || null,
+        user_role: profile?.is_admin ? "admin" : profile?.role || null,
+        user_city: profile?.city || null,
+        user_state: profile?.state || null,
+        user_subscription_tier: profile?.subscription_tier || null,
         item_name: resolveItemLabel(tx, plansById, coursesBySlug),
         description: String(tx?.description || "").trim() || null,
         date: resolvePaymentDate(tx),
+        created_at: tx.created_at || null,
+        confirmed_at: tx.confirmed_at || null,
         status: statusToDisplay(tx.status),
         raw_status: normalizeStatus(tx.status) || null,
         amount: Number(tx.amount || 0),
         currency: String(tx.currency || "BRL").toLowerCase(),
         invoice_url: tx.invoice_url || null,
+        payment_method: resolvePaymentMethod(tx),
+        installment_current: installments.current,
+        installment_total: installments.total,
+        last_event: tx.last_event || null,
       };
     });
 
-    return new Response(JSON.stringify({ payments }), {
+    const checkoutItems = (checkouts || []).map((checkout: any) => {
+      const profile = usersById[checkout.user_id] || {};
+      const type = checkout.course_slug ? "course" : checkout.plan_id ? "plan" : "unknown";
+      return {
+        id: checkout.id,
+        checkout_id: checkout.checkout_id || null,
+        payment_id: checkout.payment_id || null,
+        user_id: checkout.user_id || null,
+        transaction_type: type,
+        plan_id: checkout.plan_id || null,
+        course_slug: checkout.course_slug || null,
+        amount: Number(checkout.amount || 0),
+        status: normalizeStatus(checkout.status) || null,
+        payment_status: normalizeStatus(checkout.payment_status) || null,
+        payment_method: resolveCheckoutMethod(checkout),
+        checkout_url: checkout.checkout_url || null,
+        paid_at: checkout.paid_at || null,
+        created_at: checkout.created_at || null,
+        updated_at: checkout.updated_at || null,
+        user_role: profile?.is_admin ? "admin" : profile?.role || null,
+        user_city: profile?.city || null,
+        user_state: profile?.state || null,
+        user_subscription_tier: profile?.subscription_tier || null,
+      };
+    });
+
+    return new Response(JSON.stringify({ payments, checkouts: checkoutItems }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

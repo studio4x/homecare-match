@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,10 @@ const UserLayout = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
       try {
         const { data, error } = await supabase
           .from("profiles")
@@ -84,6 +87,10 @@ const UserLayout = () => {
 
     fetchProfile();
   }, [user, navigate, signOut]);
+
+  if (!authLoading && !user) {
+    return <Navigate to="/login" replace />;
+  }
 
   if (authLoading || loading || isForbiddenAdmin) {
     return (

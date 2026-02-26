@@ -124,7 +124,7 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border/70 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70">
+    <nav className="sticky top-0 z-[110] border-b border-border/70 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
@@ -273,7 +273,7 @@ const Navbar = () => {
       </div>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[70] md:hidden">
+        <div className="fixed inset-0 z-[140] md:hidden">
           <button
             className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             onClick={() => setMobileMenuOpen(false)}

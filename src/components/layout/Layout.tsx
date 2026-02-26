@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home, Search, LayoutGrid, UserRound, LayoutDashboard } from "lucide-react";
 import Navbar from "./Navbar";
@@ -13,6 +13,7 @@ import CookieConsent from "../CookieConsent";
 import ScrollToTopButton from "../ScrollToTopButton";
 import PushManager from "../PushManager";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LayoutProps {
   children: ReactNode;
@@ -20,16 +21,38 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
+  const [profileRole, setProfileRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (!user) {
+        setProfileRole(null);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      setProfileRole(data?.role ?? null);
+    };
+
+    fetchRole();
+  }, [user]);
 
   const isTabActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
     return location.pathname.startsWith(path);
   };
 
+  const showSearchTab = !!session && (profileRole === "company" || profileRole === "family");
+
   const mobileTabs = [
     { to: "/", label: "Inicio", icon: Home },
-    { to: "/buscar", label: "Buscar", icon: Search },
+    ...(showSearchTab ? [{ to: "/buscar", label: "Buscar", icon: Search }] : []),
     { to: "/funcionalidades", label: "Recursos", icon: LayoutGrid },
     {
       to: session ? "/dashboard" : "/login",

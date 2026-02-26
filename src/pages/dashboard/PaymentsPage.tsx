@@ -24,6 +24,7 @@ import {
   XCircle,
   ChevronDown,
   ChevronUp,
+  Clock,
 } from "lucide-react";
 import { differenceInCalendarDays, format, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -456,7 +457,7 @@ const PaymentsPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Data</TableHead>
+                      <TableHead className="w-36">Data/Hora</TableHead>
                       <TableHead>Descricao</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Status</TableHead>
@@ -470,9 +471,15 @@ const PaymentsPage = () => {
                         return (
                           <TableRow key={p.id}>
                             <TableCell className="whitespace-nowrap">
-                              <div className="flex items-center gap-2 text-xs">
-                                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                {format(p.date, "dd/MM/yyyy", { locale: ptBR })}
+                              <div className="flex flex-col gap-1 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                  {format(p.date, "dd/MM/yyyy", { locale: ptBR })}
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  {format(p.date, "HH:mm", { locale: ptBR })}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -517,9 +524,15 @@ const PaymentsPage = () => {
                         <Fragment key={group.id}>
                           <TableRow className="bg-secondary/20">
                             <TableCell className="whitespace-nowrap">
-                              <div className="flex items-center gap-2 text-xs">
-                                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                {format(latestDate, "dd/MM/yyyy", { locale: ptBR })}
+                              <div className="flex flex-col gap-1 text-xs">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                  {format(latestDate, "dd/MM/yyyy", { locale: ptBR })}
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  {format(latestDate, "HH:mm", { locale: ptBR })}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -557,9 +570,15 @@ const PaymentsPage = () => {
                             group.items.map((p) => (
                               <TableRow key={`installment-${group.id}-${p.id}`} className="bg-muted/20">
                                 <TableCell className="whitespace-nowrap pl-8">
-                                  <div className="flex items-center gap-2 text-xs">
-                                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                    {format(p.date, "dd/MM/yyyy", { locale: ptBR })}
+                                  <div className="flex flex-col gap-1 text-xs">
+                                    <div className="flex items-center gap-2">
+                                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                      {format(p.date, "dd/MM/yyyy", { locale: ptBR })}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                      <Clock className="h-3 w-3" />
+                                      {format(p.date, "HH:mm", { locale: ptBR })}
+                                    </div>
                                   </div>
                                 </TableCell>
                                 <TableCell>

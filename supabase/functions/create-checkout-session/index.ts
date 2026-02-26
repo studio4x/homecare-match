@@ -251,6 +251,10 @@ serve(async (req) => {
     const asaasApiBaseUrl = getAsaasApiBaseUrl(asaasEnv);
     const asaasCheckoutBaseUrl = getAsaasCheckoutBaseUrl(asaasEnv, config?.asaas_checkout_base_url);
     const usePaymentLinks = true;
+    const pixDueDateLimitDays = Math.max(
+      1,
+      Math.min(Number(config?.asaas_pix_due_date_days ?? 3), 30),
+    );
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
@@ -453,6 +457,10 @@ serve(async (req) => {
         },
         externalReference,
       };
+
+      if (billingType === "PIX" || billingType === "UNDEFINED") {
+        paymentLinkPayload.dueDateLimitDays = pixDueDateLimitDays;
+      }
 
       if (paymentLinkPayload.chargeType === "INSTALLMENT") {
         paymentLinkPayload.maxInstallmentCount = Math.max(2, Math.min(Number(maxInstallmentsAllowed), 12));

@@ -348,55 +348,53 @@ serve(async (req) => {
 
     let asaasCustomerId = profile?.asaas_customer_id || null;
 
-    if (!usePaymentLinks) {
-      if (asaasCustomerId) {
-        const updateCustomerRes = await fetch(`${asaasApiBaseUrl}/customers/${encodeURIComponent(asaasCustomerId)}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            access_token: asaasApiKey,
-          },
-          body: JSON.stringify(customerPayload),
-        });
+    if (asaasCustomerId) {
+      const updateCustomerRes = await fetch(`${asaasApiBaseUrl}/customers/${encodeURIComponent(asaasCustomerId)}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: asaasApiKey,
+        },
+        body: JSON.stringify(customerPayload),
+      });
 
-        const updateCustomerJson = await updateCustomerRes.json().catch(() => ({}));
+      const updateCustomerJson = await updateCustomerRes.json().catch(() => ({}));
 
-        if (!updateCustomerRes.ok) {
-          if (updateCustomerRes.status === 404 || isAsaasInvalidCustomerReference(updateCustomerJson)) {
-            asaasCustomerId = null;
-          } else {
-            throw new Error(
-              parseAsaasErrorMessage(updateCustomerJson, "Nao foi possivel atualizar CPF/CNPJ do cliente na Asaas."),
-            );
-          }
+      if (!updateCustomerRes.ok) {
+        if (updateCustomerRes.status === 404 || isAsaasInvalidCustomerReference(updateCustomerJson)) {
+          asaasCustomerId = null;
+        } else {
+          throw new Error(
+            parseAsaasErrorMessage(updateCustomerJson, "Nao foi possivel atualizar CPF/CNPJ do cliente na Asaas."),
+          );
         }
       }
+    }
 
-      if (!asaasCustomerId) {
-        const customerRes = await fetch(`${asaasApiBaseUrl}/customers`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            access_token: asaasApiKey,
-          },
-          body: JSON.stringify(customerPayload),
-        });
+    if (!asaasCustomerId) {
+      const customerRes = await fetch(`${asaasApiBaseUrl}/customers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: asaasApiKey,
+        },
+        body: JSON.stringify(customerPayload),
+      });
 
-        const customerJson = await customerRes.json().catch(() => ({}));
-        if (!customerRes.ok || !customerJson?.id) {
-          throw new Error(parseAsaasErrorMessage(customerJson, "Nao foi possivel criar cliente na Asaas."));
-        }
-
-        asaasCustomerId = customerJson.id;
-        await supabaseAdmin.from("profiles").update({ asaas_customer_id: asaasCustomerId }).eq("id", user.id);
+      const customerJson = await customerRes.json().catch(() => ({}));
+      if (!customerRes.ok || !customerJson?.id) {
+        throw new Error(parseAsaasErrorMessage(customerJson, "Nao foi possivel criar cliente na Asaas."));
       }
+
+      asaasCustomerId = customerJson.id;
+      await supabaseAdmin.from("profiles").update({ asaas_customer_id: asaasCustomerId }).eq("id", user.id);
     }
 
     const isRecurringCheckout = checkoutContext.recurring === true;
     const isCourseCheckout = Boolean(checkoutContext.courseSlug);
 
     const allowCreditCard = config?.asaas_allow_credit_card !== false;
-    const allowPix = isCourseCheckout;
+    const allowPix = false;
 
     const billingTypes: string[] = [];
     if (allowCreditCard) billingTypes.push("CREDIT_CARD");
@@ -460,6 +458,10 @@ serve(async (req) => {
 
       if (billingType === "PIX" || billingType === "UNDEFINED") {
         paymentLinkPayload.dueDateLimitDays = pixDueDateLimitDays;
+      }
+
+      if (asaasCustomerId) {
+        paymentLinkPayload.customer = asaasCustomerId;
       }
 
       if (paymentLinkPayload.chargeType === "INSTALLMENT") {

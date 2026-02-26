@@ -86,12 +86,41 @@ serve(async (req) => {
 
     if (userError || !user) throw new Error("Usuario nao autenticado ou sessao expirada.");
 
+    const body = await req.json().catch(() => ({}));
+    const requestedUserId =
+      typeof body?.userId === "string" && body.userId.trim().length > 0
+        ? body.userId.trim()
+        : null;
+
+    const { data: callerProfile, error: callerProfileError } = await supabaseAdmin
+      .from("profiles")
+      .select("id,is_admin,role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (callerProfileError || !callerProfile) {
+      throw new Error("Perfil do usuario nao encontrado.");
+    }
+
+    const callerRole = String(callerProfile?.role || "").trim().toLowerCase();
+    const isAdmin = !!callerProfile?.is_admin || callerRole === "admin";
+    const isSupport = callerRole === "support" || callerRole === "suporte";
+
+    if (!isAdmin && !isSupport) {
+      return new Response(JSON.stringify({ error: "Acesso restrito a administradores/suporte." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
+    }
+
+    const targetUserId = requestedUserId || user.id;
+
     const [{ data: lastPaidPlan, error: txError }, { data: latestInactiveTx, error: inactiveTxError }] =
       await Promise.all([
         supabaseAdmin
           .from("payment_transactions")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", targetUserId)
           .eq("transaction_type", "plan")
           .in("status", PAID_STATUSES)
           .order("payment_date", { ascending: false, nullsFirst: false })
@@ -101,7 +130,7 @@ serve(async (req) => {
         supabaseAdmin
           .from("payment_transactions")
           .select("status,subscription_end_at,updated_at,payment_date,created_at")
-          .eq("user_id", user.id)
+          .eq("user_id", targetUserId)
           .eq("transaction_type", "plan")
           .in("status", INACTIVE_STATUSES)
           .order("updated_at", { ascending: false, nullsFirst: false })
@@ -127,7 +156,7 @@ serve(async (req) => {
 
     if (!activePlanTx) {
       const [{ data: profile }, { data: config }] = await Promise.all([
-        supabaseAdmin.from("profiles").select("asaas_customer_id").eq("id", user.id).maybeSingle(),
+        supabaseAdmin.from("profiles").select("asaas_customer_id").eq("id", targetUserId).maybeSingle(),
         supabaseAdmin.from("site_config").select("*").eq("id", 1).maybeSingle(),
       ]);
 
@@ -147,7 +176,7 @@ serve(async (req) => {
             supabaseAdmin
               .from("asaas_checkout_sessions")
               .select("*")
-              .eq("user_id", user.id)
+              .eq("user_id", targetUserId)
               .not("plan_id", "is", null)
               .order("created_at", { ascending: false })
               .limit(50),
@@ -220,7 +249,7 @@ serve(async (req) => {
               const txPayload = {
                 provider: "asaas",
                 payment_id: matchedPayment.id,
-                user_id: user.id,
+                user_id: targetUserId,
                 transaction_type: "plan",
                 plan_id: matchedSession.plan_id,
                 plan_duration_days: matchedSession.plan_duration_days || planDurationDaysFromTier(matchedSession.plan_id),
@@ -277,7 +306,7 @@ serve(async (req) => {
           cancel_at_period_end: true,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", user.id)
+        .eq("id", targetUserId)
         .select("*")
         .single();
 
@@ -335,7 +364,7 @@ serve(async (req) => {
     const { data: updatedProfile, error: updateError } = await supabaseAdmin
       .from("profiles")
       .update(updatePayload)
-      .eq("id", user.id)
+      .eq("id", targetUserId)
       .select("*")
       .single();
 

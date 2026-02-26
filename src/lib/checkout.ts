@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 type CheckoutPayload = {
   planId?: string;
   courseSlug?: string;
+  paymentMethod?: "credit_card" | "pix";
+  installmentCount?: number;
 };
 
 type CheckoutResponse = {

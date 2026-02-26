@@ -44,6 +44,7 @@ import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import LandingVideoPlayer
 import { createCheckoutSession } from "@/lib/checkout";
+import CoursePaymentMethodDialog from "@/components/CoursePaymentMethodDialog";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 
 const PRIVATE_BUCKET = "academy-private";
@@ -92,6 +93,7 @@ const CourseDetail = () => {
   const [videoLoading, setVideoLoading] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [viewInside, setViewInside] = useState(false);
+  const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
 
   const isAdmin = userProfile?.is_admin || userProfile?.role === 'admin';
 
@@ -257,29 +259,14 @@ const CourseDetail = () => {
       return;
     }
 
-    setEnrollmentLoading(true);
-
     if (course.price && course.price > 0 && !isAdmin) {
-      const toastId = toast.loading("Iniciando checkout...");
-      try {
-        const data = await createCheckoutSession({ courseSlug: slug });
-        if (data?.url) {
-          window.location.href = data.url;
-          return;
-        }
-
-        throw new Error("URL de checkout nao retornada pelo servidor.");
-      } catch (err: any) {
-        toast.error(err.message || "Erro ao iniciar pagamento.");
-        toast.dismiss(toastId);
-      } finally {
-        setEnrollmentLoading(false);
-      }
+      setPaymentMethodOpen(true);
       return;
     }
 
     // Se for gratuito ou admin, inscreve direto
     try {
+      setEnrollmentLoading(true);
       const { error } = await supabase.from("academy_enrollments").upsert({ user_id: user?.id, course_slug: slug }, { onConflict: "user_id,course_slug" });
       if (error) throw error;
       setIsEnrolled(true);
@@ -290,6 +277,27 @@ const CourseDetail = () => {
       toast.error("Falha ao inscrever.");
     } finally {
       setEnrollmentLoading(false);
+    }
+  };
+
+  const handleCoursePayment = async (method: "credit_card" | "pix") => {
+    if (!slug) return;
+    setEnrollmentLoading(true);
+    const toastId = toast.loading("Iniciando checkout...");
+    try {
+      const data = await createCheckoutSession({ courseSlug: slug, paymentMethod: method });
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      throw new Error("URL de checkout nao retornada pelo servidor.");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao iniciar pagamento.");
+      toast.dismiss(toastId);
+    } finally {
+      setEnrollmentLoading(false);
+      setPaymentMethodOpen(false);
     }
   };
 
@@ -792,6 +800,15 @@ const CourseDetail = () => {
         open={isPlanModalOpen}
         onOpenChange={setIsPlanModalOpen}
         showCoupon={false}
+      />
+
+      <CoursePaymentMethodDialog
+        open={paymentMethodOpen}
+        onOpenChange={setPaymentMethodOpen}
+        courseTitle={course?.title}
+        priceLabel={course?.price ? `R$ ${Number(course.price).toFixed(2).replace(".", ",")}` : undefined}
+        loading={enrollmentLoading}
+        onSelect={handleCoursePayment}
       />
     </Layout>
   );

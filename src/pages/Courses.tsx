@@ -35,6 +35,7 @@ import {
 import PlanSelectionModal from "@/components/PlanSelectionModal";
 import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { createCheckoutSession } from "@/lib/checkout";
+import CoursePaymentMethodDialog from "@/components/CoursePaymentMethodDialog";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 
 type CourseLevel = "iniciante" | "basico" | "intermediario" | "avancado";
@@ -94,6 +95,8 @@ const Courses = () => {
   const [roleLoading, setRoleLoading] = useState<boolean>(true);
   const [completedSlugs, setCompletedSlugs] = useState<string[]>([]);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [paymentMethodOpen, setPaymentMethodOpen] = useState(false);
+  const [pendingCourse, setPendingCourse] = useState<Course | null>(null);
 
   // Estados dos Filtros
   const [filterLevel, setFilterLevel] = useState<string>("all");
@@ -240,30 +243,16 @@ const Courses = () => {
       return;
     }
 
-    setLoadingEnroll(true);
-
     // Se for pago, inicia o checkout de pagamento (exceto para admin que acessa tudo)
     if (!isFree && !isAdmin) {
-      const toastId = toast.loading("Iniciando checkout...");
-      try {
-        const data = await createCheckoutSession({ courseSlug: course.slug });
-        if (data?.url) {
-          window.location.href = data.url;
-          return;
-        }
-
-        throw new Error("URL de checkout nao retornada pelo servidor.");
-      } catch (err: any) {
-        toast.error(err.message || "Erro ao iniciar pagamento.");
-        toast.dismiss(toastId);
-      } finally {
-        setLoadingEnroll(false);
-      }
+      setPendingCourse(course);
+      setPaymentMethodOpen(true);
       return;
     }
 
     // Se for gratuito ou admin, inscreve direto
     try {
+      setLoadingEnroll(true);
       const { error } = await supabase
         .from("academy_enrollments")
         .upsert({ user_id: user.id, course_slug: course.slug }, { onConflict: "user_id,course_slug" });
@@ -278,6 +267,28 @@ const Courses = () => {
       toast.error("Falha ao inscrever.");
     } finally {
       setLoadingEnroll(false);
+    }
+  };
+
+  const handleCoursePayment = async (method: "credit_card" | "pix") => {
+    if (!pendingCourse) return;
+    setLoadingEnroll(true);
+    const toastId = toast.loading("Iniciando checkout...");
+    try {
+      const data = await createCheckoutSession({ courseSlug: pendingCourse.slug, paymentMethod: method });
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      throw new Error("URL de checkout nao retornada pelo servidor.");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao iniciar pagamento.");
+      toast.dismiss(toastId);
+    } finally {
+      setLoadingEnroll(false);
+      setPaymentMethodOpen(false);
+      setPendingCourse(null);
     }
   };
 
@@ -514,6 +525,22 @@ const Courses = () => {
         open={isPlanModalOpen}
         onOpenChange={setIsPlanModalOpen}
         showCoupon={false}
+      />
+
+      <CoursePaymentMethodDialog
+        open={paymentMethodOpen}
+        onOpenChange={(open) => {
+          setPaymentMethodOpen(open);
+          if (!open) setPendingCourse(null);
+        }}
+        courseTitle={pendingCourse?.title}
+        priceLabel={
+          pendingCourse?.price
+            ? `R$ ${Number(pendingCourse.price).toFixed(2).replace(".", ",")}`
+            : undefined
+        }
+        loading={loadingEnroll}
+        onSelect={handleCoursePayment}
       />
     </Layout>
   );

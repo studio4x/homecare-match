@@ -227,6 +227,8 @@ serve(async (req) => {
     const body = await req.json();
     const planId = body?.planId as string | undefined;
     const courseSlug = body?.courseSlug as string | undefined;
+    const requestedPaymentMethod = String(body?.paymentMethod || "").toLowerCase();
+    const requestedInstallmentCount = Number(body?.installmentCount || 1);
 
     if (!planId && !courseSlug) {
       throw new Error("Parametros invalidos: informe planId ou courseSlug.");
@@ -250,7 +252,7 @@ serve(async (req) => {
 
     const asaasApiBaseUrl = getAsaasApiBaseUrl(asaasEnv);
     const asaasCheckoutBaseUrl = getAsaasCheckoutBaseUrl(asaasEnv, config?.asaas_checkout_base_url);
-    const usePaymentLinks = true;
+    const usePaymentLinks = false;
     const pixDueDateLimitDays = Math.max(
       1,
       Math.min(Number(config?.asaas_pix_due_date_days ?? 3), 30),
@@ -394,7 +396,7 @@ serve(async (req) => {
     const isCourseCheckout = Boolean(checkoutContext.courseSlug);
 
     const allowCreditCard = config?.asaas_allow_credit_card !== false;
-    const allowPix = false;
+    const allowPix = isCourseCheckout;
 
     const billingTypes: string[] = [];
     if (allowCreditCard) billingTypes.push("CREDIT_CARD");
@@ -420,6 +422,109 @@ serve(async (req) => {
       : checkoutContext.planId
         ? `plan:${checkoutContext.planId}`
         : undefined;
+
+    const normalizedInstallmentCount = Math.max(
+      1,
+      Math.min(Number.isFinite(requestedInstallmentCount) ? requestedInstallmentCount : 1, maxInstallmentsAllowed),
+    );
+    const directBillingType =
+      isCourseCheckout && requestedPaymentMethod === "pix" ? "PIX" : "CREDIT_CARD";
+
+    if (!isRecurringCheckout && !usePaymentLinks) {
+      if (directBillingType === "PIX" && !allowPix) {
+        throw new Error("PIX nao esta disponivel para esta compra.");
+      }
+      if (directBillingType === "CREDIT_CARD" && !allowCreditCard) {
+        throw new Error("Cartao de credito nao esta disponivel para esta compra.");
+      }
+
+      const shouldUseInstallments =
+        directBillingType === "CREDIT_CARD" && normalizedInstallmentCount > 1;
+
+      const paymentPayload: Record<string, any> = {
+        customer: asaasCustomerId,
+        billingType: directBillingType,
+        dueDate: formatAsaasDate(new Date()),
+        description: checkoutDescription,
+        externalReference,
+      };
+
+      if (shouldUseInstallments) {
+        paymentPayload.installmentCount = normalizedInstallmentCount;
+        paymentPayload.installmentValue = Number((itemAmount / normalizedInstallmentCount).toFixed(2));
+      } else {
+        paymentPayload.value = Number(itemAmount.toFixed(2));
+      }
+
+      const paymentRes = await fetch(`${asaasApiBaseUrl}/payments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: asaasApiKey,
+        },
+        body: JSON.stringify(paymentPayload),
+      });
+
+      const paymentJson = await paymentRes.json().catch(() => ({}));
+      if (!paymentRes.ok || !paymentJson?.id) {
+        throw new Error(parseAsaasErrorMessage(paymentJson, "Nao foi possivel iniciar checkout na Asaas."));
+      }
+
+      const paymentId = paymentJson.id as string;
+      const checkoutUrl =
+        paymentJson.invoiceUrl ||
+        paymentJson.bankSlipUrl ||
+        paymentJson.paymentUrl ||
+        `${asaasCheckoutBaseUrl}/i/${encodeURIComponent(paymentId)}`;
+
+      const sessionPayload: Record<string, any> = {
+        checkout_id: paymentId,
+        payment_id: paymentId,
+        user_id: user.id,
+        plan_id: checkoutContext.planId || null,
+        course_slug: checkoutContext.courseSlug || null,
+        amount: Number(itemAmount.toFixed(2)),
+        provider: "asaas",
+        status: paymentJson?.status || "PAYMENT_CREATED",
+        checkout_url: checkoutUrl,
+        asaas_customer_id: asaasCustomerId,
+        raw_response: {
+          ...paymentJson,
+          checkout_context: {
+            recurring: isRecurringCheckout,
+            plan_id: checkoutContext.planId || null,
+            course_slug: checkoutContext.courseSlug || null,
+            mode: "direct_payment",
+            billing_type: directBillingType,
+          },
+        },
+      };
+
+      if (checkoutContext.durationDays) {
+        sessionPayload.plan_duration_days = checkoutContext.durationDays;
+      }
+
+      const { error: saveSessionError } = await supabaseAdmin.from("asaas_checkout_sessions").insert(sessionPayload);
+
+      if (saveSessionError) {
+        throw new Error(
+          saveSessionError?.message?.includes("asaas_checkout_sessions")
+            ? "Estrutura de pagamentos Asaas nao sincronizada no banco."
+            : `Erro ao salvar sessao de checkout: ${saveSessionError.message}`,
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          url: checkoutUrl,
+          checkoutId: paymentId,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
+    }
 
     const resolveBillingType = () => {
       if (allowCreditCard && allowPix) return "UNDEFINED";

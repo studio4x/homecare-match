@@ -32,6 +32,20 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
@@ -44,6 +58,8 @@ const Index = () => {
   const navigate = useNavigate();
   const location = useLocation(); // Importando useLocation
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [installmentPlan, setInstallmentPlan] = useState<DbPlan | null>(null);
+  const [installmentCount, setInstallmentCount] = useState(1);
 
   // Busca o perfil do usuário para saber o plano atual e o papel
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
@@ -89,6 +105,23 @@ const Index = () => {
       return;
     }
 
+    if (planId === 'yearly') {
+      const plan = allPlans.find((p) => p.id === 'yearly');
+      const maxInstallments = Math.max(1, Math.min(Number(plan?.asaas_installment_max || 12), 12));
+      setInstallmentCount(maxInstallments);
+      setInstallmentPlan(
+        plan ?? {
+          id: "yearly",
+          name: "Plano Anual",
+          price: "R$ 0,00",
+          period: "mês",
+          description: "",
+          features: [],
+        },
+      );
+      return;
+    }
+
     const toastId = toast.loading("Iniciando checkout...");
     setLoadingPlan(planId);
 
@@ -108,6 +141,34 @@ const Index = () => {
       toast.error(`Erro: ${cleanMessage || "Falha ao iniciar pagamento."}`);
     } finally {
       setLoadingPlan(null);
+    }
+  };
+
+  const handleConfirmInstallments = async () => {
+    if (!installmentPlan) return;
+    const toastId = toast.loading("Iniciando checkout...");
+    setLoadingPlan(installmentPlan.id);
+
+    try {
+      const data = await createCheckoutSession({
+        planId: installmentPlan.id,
+        installmentCount,
+      });
+
+      if (data?.url) {
+        toast.dismiss(toastId);
+        toast.success("Redirecionando para pagamento...");
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL de checkout não retornada pelo servidor.");
+      }
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      const cleanMessage = err.message?.replace("Edge Function returned a non-2xx status code", "").trim();
+      toast.error(`Erro: ${cleanMessage || "Falha ao iniciar pagamento."}`);
+    } finally {
+      setLoadingPlan(null);
+      setInstallmentPlan(null);
     }
   };
 
@@ -170,6 +231,7 @@ const Index = () => {
     features?: string[];
     popular?: boolean;
     savings?: string;
+    asaas_installment_max?: number;
   }
 
   const { data: remotePlans } = useQuery({
@@ -189,6 +251,7 @@ const Index = () => {
         features: Array.isArray(p.features) ? p.features : [],
         popular: !!p.popular,
         savings: p.savings ?? undefined,
+        asaas_installment_max: p.asaas_installment_max ?? undefined,
       }));
     },
     staleTime: 1000 * 60 * 5,
@@ -241,6 +304,7 @@ const Index = () => {
       ],
       popular: true,
       savings: "Economize R$ 120/ano",
+      asaas_installment_max: 12,
     },
   ];
 
@@ -707,8 +771,68 @@ const Index = () => {
           </Carousel>
         </div>
       </section>
+
+      <Dialog open={!!installmentPlan} onOpenChange={(open) => !open && setInstallmentPlan(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Escolha o parcelamento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border bg-secondary/30 p-3 text-sm">
+              <p className="font-semibold">{installmentPlan?.name || "Plano Anual"}</p>
+              <p className="text-xs text-muted-foreground">
+                Valor total: {installmentPlan?.price || "R$ 0,00"}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Numero de parcelas</Label>
+              <Select value={String(installmentCount)} onValueChange={(v) => setInstallmentCount(Number(v))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from(
+                    {
+                      length: Math.max(
+                        1,
+                        Math.min(Number(installmentPlan?.asaas_installment_max || 12), 12),
+                      ),
+                    },
+                    (_, idx) => idx + 1,
+                  ).map((value) => (
+                    <SelectItem key={value} value={String(value)}>
+                      {value}x
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setInstallmentPlan(null)}
+                disabled={!!loadingPlan}
+              >
+                Voltar
+              </Button>
+              <Button className="flex-1" onClick={handleConfirmInstallments} disabled={!!loadingPlan}>
+                {loadingPlan === installmentPlan?.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Continuar"
+                )}
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              O pagamento parcelado aparece no Asaas como parcelas mensais.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
 
 export default Index;
+

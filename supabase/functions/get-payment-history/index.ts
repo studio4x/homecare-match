@@ -150,7 +150,7 @@ serve(async (req) => {
 
     const mappedDbPayments = (transactions || []).map((t: any) => ({
       id: t.payment_id || t.id,
-      date: parseDateToMs(t.payment_date || t.confirmed_at || t.created_at),
+      date: parseDateToMs(t.confirmed_at || t.payment_date || t.created_at),
       amount: Number(t.amount || 0),
       currency: String(t.currency || "BRL").toLowerCase(),
       status: statusToDisplay(t.status),

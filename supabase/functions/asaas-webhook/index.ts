@@ -116,6 +116,18 @@ const parseAsaasDate = (value?: string | null) => {
   return null;
 };
 
+const parseAsaasTimestamp = (value?: string | null) => {
+  if (!value) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}$/.test(value)) {
+    const [datePart, timePart] = value.split(" ");
+    const parsed = new Date(`${datePart}T${timePart}-03:00`);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  }
+
+  return parseAsaasDate(value);
+};
+
 const tierToDurationDays = (planId?: string | null) => {
   if (planId === "yearly") return 365;
   if (planId === "monthly") return 30;
@@ -400,12 +412,14 @@ serve(async (req) => {
 
     if (paymentId) {
       const transactionType = courseSlug ? "course" : planId ? "plan" : "unknown";
+      const webhookCreatedAt = parseAsaasTimestamp(payload?.dateCreated);
       const parsedPaymentDate =
         parseAsaasDate(payment?.paymentDate) ||
         parseAsaasDate(payment?.clientPaymentDate) ||
         parseAsaasDate(payment?.confirmedDate) ||
         parseAsaasDate(payment?.dateCreated) ||
-        parseAsaasDate(payment?.dueDate);
+        parseAsaasDate(payment?.dueDate) ||
+        webhookCreatedAt;
 
       const isPaidNow = PAID_EVENTS.has(event) || (paymentStatus ? PAID_STATUSES.has(paymentStatus) : false);
       const existingStatus = normalizeStatus(existingTx?.status);
@@ -435,7 +449,7 @@ serve(async (req) => {
         asaas_customer_id: payment?.customer || session?.asaas_customer_id || existingTx?.asaas_customer_id || null,
         invoice_url: payment?.invoiceUrl || payment?.bankSlipUrl || existingTx?.invoice_url || session?.checkout_url || null,
         payment_date: parsedPaymentDate || existingTx?.payment_date || null,
-        confirmed_at: isPaidNow ? new Date().toISOString() : existingTx?.confirmed_at || null,
+        confirmed_at: isPaidNow ? webhookCreatedAt || new Date().toISOString() : existingTx?.confirmed_at || null,
         last_event: event || existingTx?.last_event || null,
         raw_payload: payload,
         updated_at: new Date().toISOString(),
@@ -476,10 +490,12 @@ serve(async (req) => {
     if (isPaidNow && !wasPaidBefore && !wasInactiveBefore && userId) {
       if (planId) {
         const planDurationDays = Number(session?.plan_duration_days || existingTx?.plan_duration_days || tierToDurationDays(planId));
+        const webhookCreatedAt = parseAsaasTimestamp(payload?.dateCreated);
         const paymentBaseDate =
           parseAsaasDate(payment?.paymentDate) ||
           parseAsaasDate(payment?.clientPaymentDate) ||
           parseAsaasDate(payment?.confirmedDate) ||
+          webhookCreatedAt ||
           new Date().toISOString();
 
         const baseDate = new Date(paymentBaseDate);

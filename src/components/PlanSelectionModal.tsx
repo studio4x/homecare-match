@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -104,7 +104,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
         return;
       }
 
-      throw new Error("URL de checkout não retornada pelo servidor.");
+      throw new Error("URL de checkout nao retornada pelo servidor.");
     } catch (err: any) {
       console.error("[Checkout Error]", err);
       toast.dismiss(toastId);
@@ -142,7 +142,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
 
       setTimeout(() => window.location.reload(), 1500);
     } catch (err: any) {
-      toast.error(err.message || "Cupom inválido.", { id: toastId });
+      toast.error(err.message || "Cupom invalido.", { id: toastId });
     } finally {
       setIsApplyingCoupon(false);
     }
@@ -249,8 +249,8 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-hidden border-none p-0 shadow-2xl sm:max-w-[700px] [&>button.absolute.right-4.top-4]:hidden">
-          <DialogHeader className="bg-primary p-5 text-primary-foreground sm:p-8">
+        <DialogContent className="flex h-[calc(100svh-1rem)] max-h-[calc(100svh-1rem)] w-[calc(100vw-1rem)] flex-col gap-0 overflow-hidden border-none p-0 shadow-2xl sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-[700px] [&>button.absolute.right-4.top-4]:hidden">
+          <DialogHeader className="shrink-0 bg-primary p-4 text-primary-foreground sm:p-8">
             <div className="mb-2 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <Zap className="h-6 w-6 fill-current" />
@@ -267,21 +267,21 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <DialogDescription className="text-base text-primary-foreground/80">
-              Torne seu perfil visível para centenas de empresas e receba propostas direto no WhatsApp.
+            <DialogDescription className="hidden text-base text-primary-foreground/80 sm:block">
+              Torne seu perfil visivel para centenas de empresas e receba propostas direto no WhatsApp.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-[calc(90vh-140px)] space-y-8 overflow-y-auto p-5 sm:max-h-[calc(90vh-168px)] sm:p-8">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:space-y-8 sm:p-8">
             {showCoupon && (
               <div className="rounded-2xl border border-dashed border-primary/20 bg-secondary/30 p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <Ticket className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-bold uppercase tracking-wider">Possui um cupom de lançamento?</span>
+                  <span className="text-sm font-bold uppercase tracking-wider">Possui um cupom de lancamento?</span>
                 </div>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Digite o código aqui..."
+                    placeholder="Digite o codigo aqui..."
                     className="bg-white font-mono uppercase"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
@@ -340,20 +340,10 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
               </>
             )}
 
-            <div className="space-y-1 rounded-xl border bg-secondary/20 p-3 text-xs text-muted-foreground">
-              <p><strong>Plano Mensal:</strong> renovação automática mensal no cartão.</p>
-              <p><strong>Plano Anual:</strong> renovação manual com opção de parcelamento em até 12x.</p>
-            </div>
 
-            <p className="text-center text-[10px] text-muted-foreground">
-              Pagamento processado com segurança via Asaas.
+            <p className="hidden text-center text-[10px] text-muted-foreground sm:block">
+              Pagamento processado com seguranca via Asaas.
             </p>
-
-            <div className="flex justify-end">
-              <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
-                Fechar
-              </Button>
-            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -362,3 +352,4 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
 };
 
 export default PlanSelectionModal;
+

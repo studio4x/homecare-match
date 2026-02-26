@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -158,12 +157,6 @@ const SuggestionDrawer = ({
             {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             Enviar sugestao
           </Button>
-
-          <SheetClose asChild>
-            <Button type="button" variant="outline" className="w-full h-11">
-              Fechar
-            </Button>
-          </SheetClose>
 
           <p className="text-xs text-center text-muted-foreground">
             Ao enviar, voce autoriza o uso da sua ideia para melhorias na plataforma.

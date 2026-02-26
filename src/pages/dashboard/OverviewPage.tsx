@@ -552,6 +552,8 @@ const OverviewPage = () => {
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-6">
+            {isProfessional && QuickAccessCard}
+
             {isProfessional && (
               <Card className="border-amber-400/30 shadow-md">
                 <CardHeader className="pb-3">
@@ -687,53 +689,6 @@ const OverviewPage = () => {
                       </Button>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            )}
-
-            {isProfessional && referralStats && (
-              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Award className="h-4 w-4 text-primary" /> 
-                    Nível de Embaixador
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Selo Atual</p>
-                      <Badge className="bg-primary text-white text-sm px-3 py-1">
-                        {referralStats.currentTier?.badge_label || "Nível Inicial"}
-                      </Badge>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Indicações</p>
-                      <p className="text-2xl font-bold text-primary">{referralStats.count}</p>
-                    </div>
-                  </div>
-                  
-                  {referralStats.nextTier && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-[10px] font-medium">
-                        <span className="text-muted-foreground">Progresso para {referralStats.nextTier.badge_label}</span>
-                        <span>{referralStats.count} / {referralStats.nextTier.threshold}</span>
-                      </div>
-                      <Progress 
-                        value={(referralStats.count / referralStats.nextTier.threshold) * 100} 
-                        className="h-1.5" 
-                      />
-                      <p className="text-[10px] text-muted-foreground italic text-center">
-                        Faltam {referralStats.nextTier.threshold - referralStats.count} indicações para o próximo selo.
-                      </p>
-                    </div>
-                  )}
-                  
-                  <Button asChild variant="link" size="sm" className="w-full mt-2 text-primary h-auto p-0">
-                    <Link to="/dashboard/indicacoes" className="gap-1">
-                      Ver detalhes do programa <ArrowRight className="h-3 w-3" />
-                    </Link>
-                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -878,8 +833,6 @@ const OverviewPage = () => {
           </div>
 
           <div className="space-y-6">
-            {isProfessional && QuickAccessCard}
-
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>
@@ -924,6 +877,53 @@ const OverviewPage = () => {
                 )}
               </CardContent>
             </Card>
+
+            {isProfessional && referralStats && (
+              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Award className="h-4 w-4 text-primary" /> 
+                    Nível de Embaixador
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Selo Atual</p>
+                      <Badge className="bg-primary text-white text-sm px-3 py-1">
+                        {referralStats.currentTier?.badge_label || "Nível Inicial"}
+                      </Badge>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Indicações</p>
+                      <p className="text-2xl font-bold text-primary">{referralStats.count}</p>
+                    </div>
+                  </div>
+                  
+                  {referralStats.nextTier && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-[10px] font-medium">
+                        <span className="text-muted-foreground">Progresso para {referralStats.nextTier.badge_label}</span>
+                        <span>{referralStats.count} / {referralStats.nextTier.threshold}</span>
+                      </div>
+                      <Progress 
+                        value={(referralStats.count / referralStats.nextTier.threshold) * 100} 
+                        className="h-1.5" 
+                      />
+                      <p className="text-[10px] text-muted-foreground italic text-center">
+                        Faltam {referralStats.nextTier.threshold - referralStats.count} indicações para o próximo selo.
+                      </p>
+                    </div>
+                  )}
+                  
+                  <Button asChild variant="link" size="sm" className="w-full mt-2 text-primary h-auto p-0">
+                    <Link to="/dashboard/indicacoes" className="gap-1">
+                      Ver detalhes do programa <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader className="pb-3">

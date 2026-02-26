@@ -12,6 +12,12 @@ const asaasEnvFromConfig = (config: any) => {
   return "sandbox";
 };
 
+const asaasEnvFromBody = (body: any): "sandbox" | "production" | null => {
+  const env = String(body?.env || "").toLowerCase();
+  if (env === "sandbox" || env === "production") return env;
+  return null;
+};
+
 const getAsaasApiBaseUrl = (env: "sandbox" | "production") => {
   return env === "production" ? "https://api.asaas.com/v3" : "https://api-sandbox.asaas.com/v3";
 };
@@ -36,6 +42,15 @@ const truncateText = (value: unknown, maxLength: number, fallback: string) => {
   const text = String(value || "").trim();
   if (!text) return fallback;
   return text.length > maxLength ? text.slice(0, maxLength).trim() : text;
+};
+
+const parseAsaasErrorMessage = (payload: any, fallback: string) => {
+  if (typeof payload?.message === "string" && payload.message.trim()) return payload.message;
+  if (Array.isArray(payload?.errors) && payload.errors.length > 0) {
+    const first = payload.errors[0];
+    if (typeof first?.description === "string" && first.description.trim()) return first.description;
+  }
+  return fallback;
 };
 
 const isAsaasGenericDescription = (value?: string | null) => {
@@ -71,6 +86,15 @@ const resolveDescription = async (supabaseAdmin: any, courseSlug?: string | null
   }
 
   return "Pagamento HomeCare Match";
+};
+
+const buildEnvCandidates = (requested: "sandbox" | "production" | null, configEnv: "sandbox" | "production") => {
+  const candidates: ("sandbox" | "production")[] = [];
+  if (requested) candidates.push(requested);
+  if (!candidates.includes(configEnv)) candidates.push(configEnv);
+  if (!candidates.includes("production")) candidates.push("production");
+  if (!candidates.includes("sandbox")) candidates.push("sandbox");
+  return candidates;
 };
 
 serve(async (req) => {
@@ -123,11 +147,9 @@ serve(async (req) => {
       .eq("id", 1)
       .maybeSingle();
 
-    const asaasEnv = asaasEnvFromConfig(config) as "sandbox" | "production";
-    const asaasApiKey = getAsaasApiKey(asaasEnv);
-    if (!asaasApiKey) {
-      throw new Error("Chave Asaas nao encontrada para o ambiente configurado.");
-    }
+    const configEnv = asaasEnvFromConfig(config) as "sandbox" | "production";
+    const requestedEnv = asaasEnvFromBody(body);
+    const envCandidates = buildEnvCandidates(requestedEnv, configEnv);
 
     const { data: payments } = await supabaseAdmin
       .from("payment_transactions")
@@ -154,54 +176,94 @@ serve(async (req) => {
       summary.processed += 1;
       const desiredDescription = await resolveDescription(supabaseAdmin, payment.course_slug, payment.plan_id);
 
-      try {
-        const getRes = await fetch(
-          `${getAsaasApiBaseUrl(asaasEnv)}/payments/${encodeURIComponent(String(paymentId))}`,
-          {
-            headers: {
-              access_token: asaasApiKey,
-              Authorization: `Bearer ${asaasApiKey}`,
-            },
-          },
-        );
+      let updated = false;
+      let skipped = false;
+      let lastError: { message: string; env?: string; status?: number } | null = null;
 
-        const currentJson = await getRes.json().catch(() => ({}));
-        const currentDescription = String(currentJson?.description || "").trim();
-
-        if (!isAsaasGenericDescription(currentDescription) && currentDescription === desiredDescription) {
-          summary.skipped += 1;
+      for (const envCandidate of envCandidates) {
+        const asaasApiKey = getAsaasApiKey(envCandidate);
+        if (!asaasApiKey) {
+          lastError = {
+            message: "Chave Asaas nao encontrada para este ambiente.",
+            env: envCandidate,
+          };
           continue;
         }
 
-        const updateRes = await fetch(
-          `${getAsaasApiBaseUrl(asaasEnv)}/payments/${encodeURIComponent(String(paymentId))}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              access_token: asaasApiKey,
-              Authorization: `Bearer ${asaasApiKey}`,
+        try {
+          const getRes = await fetch(
+            `${getAsaasApiBaseUrl(envCandidate)}/payments/${encodeURIComponent(String(paymentId))}`,
+            {
+              headers: {
+                access_token: asaasApiKey,
+                Authorization: `Bearer ${asaasApiKey}`,
+              },
             },
-            body: JSON.stringify({ description: desiredDescription }),
-          },
-        );
+          );
 
-        if (!updateRes.ok) {
+          const currentJson = await getRes.json().catch(() => ({}));
+          if (!getRes.ok) {
+            const message = parseAsaasErrorMessage(currentJson, "Falha ao consultar pagamento no Asaas.");
+            lastError = { message, env: envCandidate, status: getRes.status };
+            const shouldTryNext = [401, 403, 404].includes(getRes.status);
+            if (shouldTryNext) continue;
+            break;
+          }
+
+          const currentDescription = String(currentJson?.description || "").trim();
+          if (!isAsaasGenericDescription(currentDescription) && currentDescription === desiredDescription) {
+            skipped = true;
+            break;
+          }
+
+          const updateRes = await fetch(
+            `${getAsaasApiBaseUrl(envCandidate)}/payments/${encodeURIComponent(String(paymentId))}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                access_token: asaasApiKey,
+                Authorization: `Bearer ${asaasApiKey}`,
+              },
+              body: JSON.stringify({ description: desiredDescription }),
+            },
+          );
+
           const updateJson = await updateRes.json().catch(() => ({}));
-          summary.errors.push({
-            payment_id: String(paymentId),
-            message: updateJson?.message || "Falha ao atualizar descricao no Asaas.",
-          });
-          continue;
-        }
+          if (!updateRes.ok) {
+            const message = parseAsaasErrorMessage(updateJson, "Falha ao atualizar descricao no Asaas.");
+            lastError = { message, env: envCandidate, status: updateRes.status };
+            const shouldTryNext = [401, 403, 404].includes(updateRes.status);
+            if (shouldTryNext) continue;
+            break;
+          }
 
-        summary.updated += 1;
-      } catch (error) {
-        summary.errors.push({
-          payment_id: String(paymentId),
-          message: error instanceof Error ? error.message : String(error),
-        });
+          updated = true;
+          break;
+        } catch (error) {
+          lastError = {
+            message: error instanceof Error ? error.message : String(error),
+            env: envCandidate,
+          };
+        }
       }
+
+      if (updated) {
+        summary.updated += 1;
+        continue;
+      }
+
+      if (skipped) {
+        summary.skipped += 1;
+        continue;
+      }
+
+      summary.errors.push({
+        payment_id: String(paymentId),
+        message: lastError?.message || "Falha ao atualizar descricao no Asaas.",
+        env: lastError?.env,
+        status: lastError?.status,
+      });
     }
 
     return new Response(JSON.stringify({ ok: true, ...summary }), {

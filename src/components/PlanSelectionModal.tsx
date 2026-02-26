@@ -197,7 +197,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
         key={plan.id}
         data-plan-card="true"
         className={cn(
-          "relative flex flex-col rounded-2xl border p-6 transition-all",
+          "relative flex flex-col rounded-2xl border p-5 pt-8 transition-all sm:p-6",
           plan.popular
             ? "border-primary bg-primary/5 shadow-lg ring-1 ring-primary/20"
             : "border-border bg-card hover:border-primary/50",
@@ -205,7 +205,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
         )}
       >
         {plan.popular && (
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
+          <span className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
             Mais Popular
           </span>
         )}
@@ -311,7 +311,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
                   style={{ scrollbarWidth: "none" }}
                 >
                   {paidPlans.map((plan) => (
-                    <div key={plan.id} className="min-w-[86%] shrink-0 snap-center">
+                    <div key={plan.id} className="min-w-0 w-[82vw] max-w-[20rem] shrink-0 snap-center">
                       {renderPlanCard(plan)}
                     </div>
                   ))}

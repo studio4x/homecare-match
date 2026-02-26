@@ -50,6 +50,17 @@ const normalizePhone = (value?: string | null) => {
   return onlyDigits.length >= 10 ? onlyDigits : undefined;
 };
 
+const normalizeCpfCnpj = (value?: string | null) => {
+  if (!value) return undefined;
+  const onlyDigits = String(value).replace(/\D/g, "");
+  if (onlyDigits.length === 11 || onlyDigits.length === 14) return onlyDigits;
+  return undefined;
+};
+
+const getProfileCpfCnpj = (profile: any) => {
+  return normalizeCpfCnpj(profile?.cnpj) || normalizeCpfCnpj(profile?.cpf);
+};
+
 const parseMonetaryValue = (raw: unknown): number => {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (typeof raw !== "string") return 0;
@@ -242,9 +253,15 @@ serve(async (req) => {
 
     if (itemAmount <= 0) throw new Error("Valor de pagamento invalido.");
 
+    const cpfCnpj = getProfileCpfCnpj(profile);
+    if (!cpfCnpj) {
+      throw new Error("Para continuar com o pagamento, preencha CPF/CNPJ em Meus Dados.");
+    }
+
     const customerPayload: Record<string, any> = {
       name: profile?.full_name || user.email || "Cliente HomeCare Match",
       email: user.email,
+      cpfCnpj,
     };
 
     const phone = normalizePhone(profile?.phone);
@@ -254,6 +271,29 @@ serve(async (req) => {
     }
 
     let asaasCustomerId = profile?.asaas_customer_id || null;
+
+    if (asaasCustomerId) {
+      const updateCustomerRes = await fetch(`${asaasApiBaseUrl}/customers/${encodeURIComponent(asaasCustomerId)}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          access_token: asaasApiKey,
+        },
+        body: JSON.stringify(customerPayload),
+      });
+
+      const updateCustomerJson = await updateCustomerRes.json().catch(() => ({}));
+
+      if (!updateCustomerRes.ok) {
+        if (isAsaasCustomerNotFound(updateCustomerJson)) {
+          asaasCustomerId = null;
+        } else {
+          throw new Error(
+            parseAsaasErrorMessage(updateCustomerJson, "Nao foi possivel atualizar CPF/CNPJ do cliente na Asaas."),
+          );
+        }
+      }
+    }
 
     if (!asaasCustomerId) {
       const customerRes = await fetch(`${asaasApiBaseUrl}/customers`, {

@@ -25,6 +25,7 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS lng NUMERIC,
         ADD COLUMN IF NOT EXISTS referral_count INTEGER DEFAULT 0,
         ADD COLUMN IF NOT EXISTS coupon_days INTEGER,
+        ADD COLUMN IF NOT EXISTS cpf TEXT,
         ADD COLUMN IF NOT EXISTS ans_registration TEXT,
         ADD COLUMN IF NOT EXISTS company_name TEXT,
         ADD COLUMN IF NOT EXISTS cnpj TEXT,
@@ -232,6 +233,7 @@ serve(async (req) => {
           trial_started_at,
           coupon_days,
           cancel_at_period_end,
+          cpf,
           company_name,
           cnpj,
           ans_registration
@@ -247,6 +249,7 @@ serve(async (req) => {
           CASE WHEN user_role = 'professional' AND final_coupon_days IS NULL THEN NOW() ELSE NULL END,
           final_coupon_days,
           (final_coupon_days IS NOT NULL),
+          new.raw_user_meta_data ->> 'cpf',
           new.raw_user_meta_data ->> 'company_name',
           new.raw_user_meta_data ->> 'cnpj',
           new.raw_user_meta_data ->> 'ans_registration'

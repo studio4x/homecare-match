@@ -523,6 +523,8 @@ const ProfilePage = () => {
     const isCompany = profile.role === 'company';
     const isFamily = profile.role === 'family';
     const cleanPhone = profile.phone?.replace(/\D/g, "") || "";
+    const cleanCpf = profile.cpf?.replace(/\D/g, "") || "";
+    const cleanCnpj = profile.cnpj?.replace(/\D/g, "") || "";
 
     if (!profile.avatar_url) {
       toast.error("A foto de perfil é obrigatória.");
@@ -538,6 +540,14 @@ const ProfilePage = () => {
     }
     if (isProfessional && !profile.specialty) {
       toast.error("A especialidade é obrigatória.");
+      return;
+    }
+    if (!isCompany && cleanCpf.length !== 11) {
+      toast.error("Informe um CPF válido para cobrança.");
+      return;
+    }
+    if (isCompany && cleanCnpj.length !== 14) {
+      toast.error("Informe um CNPJ válido para cobrança.");
       return;
     }
 
@@ -613,6 +623,7 @@ const ProfilePage = () => {
         specialty: profile.specialty,
         registration: profile.registration,
         company_name: profile.company_name,
+        cpf: profile.cpf,
         cnpj: profile.cnpj,
         ans_registration: profile.ans_registration, // Save new field
         hourly_rate: profile.hourly_rate,
@@ -832,7 +843,7 @@ const ProfilePage = () => {
               </div>
 
               {isProfessional ? (
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                   <div className="grid gap-2">
                     <Label>Especialidade *</Label>
                     <Select value={profile.specialty} onValueChange={v => setProfile({...profile, specialty: v})}>
@@ -841,6 +852,7 @@ const ProfilePage = () => {
                     </Select>
                   </div>
                   <div className="grid gap-2"><Label>Registro Profissional</Label><Input value={profile.registration || ""} onChange={e => setProfile({...profile, registration: e.target.value})} /></div>
+                  <div className="grid gap-2"><Label>CPF *</Label><Input value={profile.cpf || ""} onChange={e => setProfile({...profile, cpf: e.target.value})} placeholder="000.000.000-00" /></div>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
@@ -853,6 +865,12 @@ const ProfilePage = () => {
                       <div className="grid gap-2"><Label>CNPJ</Label><Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} /></div>
                       <div className="grid gap-2"><Label>Registro ANS</Label><Input value={profile.ans_registration || ""} onChange={e => setProfile({...profile, ans_registration: e.target.value})} /></div>
                     </>
+                  )}
+                  {!isCompany && (
+                    <div className="grid gap-2">
+                      <Label>{isFamily ? "CPF do Responsável *" : "CPF *"}</Label>
+                      <Input value={profile.cpf || ""} onChange={e => setProfile({...profile, cpf: e.target.value})} placeholder="000.000.000-00" />
+                    </div>
                   )}
                 </div>
               )}

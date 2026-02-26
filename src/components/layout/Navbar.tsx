@@ -254,15 +254,9 @@ const Navbar = () => {
               <Link
                 to={dashboardPath}
                 aria-label="Abrir painel"
-                className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background pl-1 pr-2 shadow-sm transition-colors hover:border-primary/40"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors hover:border-primary/40"
               >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={profile?.avatar_url || ""} />
-                  <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">{initials}</AvatarFallback>
-                </Avatar>
-                <span className="pr-1 text-[11px] font-semibold text-foreground">
-                  Abrir painel
-                </span>
+                <LayoutDashboard className="h-4 w-4 text-foreground" />
               </Link>
             ) : (
               <Button size="sm" variant="outline" asChild>

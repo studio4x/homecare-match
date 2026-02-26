@@ -67,6 +67,22 @@ const asObject = (value: unknown) => {
   return value as Record<string, any>;
 };
 
+const getInstallmentIdFromPayload = (rawPayload: Record<string, any>) => {
+  const cancellation = asObject(rawPayload?.cancellation);
+  const payment = asObject(rawPayload?.payment);
+  const data = asObject(rawPayload?.data);
+  const dataPayment = asObject(data?.payment);
+
+  const installmentId =
+    cancellation?.installment_id ||
+    payment?.installment ||
+    dataPayment?.installment ||
+    null;
+
+  const normalized = String(installmentId || "").trim();
+  return normalized || null;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
 
@@ -140,6 +156,7 @@ serve(async (req) => {
       const rawPayload = asObject(tx.raw_payload);
       const previousRetry = asObject(rawPayload.refund_retry);
       const attemptNumber = Number(previousRetry.attempts || 0) + 1;
+      const installmentId = getInstallmentIdFromPayload(rawPayload);
 
       if (!tx.payment_id) {
         stillPending += 1;
@@ -194,13 +211,17 @@ serve(async (req) => {
           resolvedNow = true;
           lastMessage = "Estorno ja confirmado no Asaas.";
         } else {
-          const refundRes = await requestAsaas("POST", `/payments/${encodeURIComponent(tx.payment_id)}/refund`, {
-            description: "Reprocessamento automatico de estorno pendente.",
-          });
+          const refundRes = installmentId
+            ? await requestAsaas("POST", `/installments/${encodeURIComponent(installmentId)}/refund`)
+            : await requestAsaas("POST", `/payments/${encodeURIComponent(tx.payment_id)}/refund`, {
+                description: "Reprocessamento automatico de estorno pendente.",
+              });
 
           if (refundRes.ok) {
             resolvedNow = true;
-            lastMessage = "Estorno confirmado no Asaas.";
+            lastMessage = installmentId
+              ? "Estorno de parcelamento confirmado no Asaas."
+              : "Estorno confirmado no Asaas.";
           } else if (isAlreadyRefundedError(refundRes.message)) {
             resolvedNow = true;
             lastMessage = "Estorno ja havia sido concluido no Asaas.";

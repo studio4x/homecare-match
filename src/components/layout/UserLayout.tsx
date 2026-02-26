@@ -271,10 +271,6 @@ const UserLayout = () => {
                 <span className="block truncate text-sm font-semibold">{currentPageTitle}</span>
                 <span className="block truncate text-[10px] text-muted-foreground">{profile?.full_name || user?.email}</span>
               </div>
-              <Avatar className="h-8 w-8 border border-border">
-                <AvatarImage src={profile?.avatar_url} />
-                <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">{initials}</AvatarFallback>
-              </Avatar>
             </div>
           </header>
 

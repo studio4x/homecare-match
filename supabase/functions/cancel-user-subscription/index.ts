@@ -273,22 +273,40 @@ serve(async (req) => {
     }
 
     if (PAID_STATUSES.has(paymentStatus)) {
-      try {
-        await requestAsaas("POST", `/payments/${encodeURIComponent(tx.payment_id)}/refund`, {
-          description: "Cancelamento solicitado pelo usuario dentro do prazo de 7 dias.",
-        });
-        asaasOperations.push("refund-payment");
-      } catch (refundError) {
-        const parsedMessage =
-          refundError instanceof Error ? refundError.message : "Falha ao estornar pagamento no Asaas.";
+      if (installmentId) {
+        try {
+          await requestAsaas("POST", `/installments/${encodeURIComponent(installmentId)}/refund`);
+          asaasOperations.push("refund-installment");
+        } catch (refundError) {
+          const parsedMessage =
+            refundError instanceof Error ? refundError.message : "Falha ao estornar parcelamento no Asaas.";
 
-        if (!isInsufficientBalanceError(parsedMessage)) {
-          throw refundError;
+          if (!isInsufficientBalanceError(parsedMessage)) {
+            throw refundError;
+          }
+
+          refundPending = true;
+          refundErrorMessage = parsedMessage;
+          asaasOperations.push("refund-installment-pending-insufficient-balance");
         }
+      } else {
+        try {
+          await requestAsaas("POST", `/payments/${encodeURIComponent(tx.payment_id)}/refund`, {
+            description: "Cancelamento solicitado pelo usuario dentro do prazo de 7 dias.",
+          });
+          asaasOperations.push("refund-payment");
+        } catch (refundError) {
+          const parsedMessage =
+            refundError instanceof Error ? refundError.message : "Falha ao estornar pagamento no Asaas.";
 
-        refundPending = true;
-        refundErrorMessage = parsedMessage;
-        asaasOperations.push("refund-pending-insufficient-balance");
+          if (!isInsufficientBalanceError(parsedMessage)) {
+            throw refundError;
+          }
+
+          refundPending = true;
+          refundErrorMessage = parsedMessage;
+          asaasOperations.push("refund-pending-insufficient-balance");
+        }
       }
     } else {
       await requestAsaas("DELETE", `/payments/${encodeURIComponent(tx.payment_id)}`);
@@ -301,6 +319,7 @@ serve(async (req) => {
       canceled_by: user.id,
       source: "cancel-user-subscription",
       asaas_operations: asaasOperations,
+      installment_id: installmentId,
       payment_status_at_cancellation: paymentStatus,
       cancellation_window_days: CANCELLATION_WINDOW_DAYS,
       refund_pending: refundPending,
@@ -347,6 +366,7 @@ serve(async (req) => {
           source: "cancel-user-subscription",
           canceled_at: nowIso,
           asaas_operations: asaasOperations,
+          installment_id: installmentId,
           refund_pending: refundPending,
           refund_error: refundErrorMessage,
         },

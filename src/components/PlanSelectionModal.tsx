@@ -247,6 +247,11 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
               })}
             </div>
           )}
+
+          <div className="rounded-xl border bg-secondary/20 p-3 text-xs text-muted-foreground space-y-1">
+            <p><strong>Plano Mensal:</strong> renovacao automatica mensal no cartao.</p>
+            <p><strong>Plano Anual:</strong> renovacao manual com opcao de parcelamento em ate 12x.</p>
+          </div>
           
           <p className="text-center text-[10px] text-muted-foreground">
             Pagamento processado com seguranca via Asaas.

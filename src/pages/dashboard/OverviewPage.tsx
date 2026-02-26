@@ -365,6 +365,35 @@ const OverviewPage = () => {
     };
   };
 
+  const getRenewalAlert = () => {
+    if (!profile?.subscription_tier || !profile?.subscription_end_at) return null;
+    if (!["monthly", "yearly"].includes(profile.subscription_tier)) return null;
+
+    const endDate = parseISO(profile.subscription_end_at);
+    if (!isValid(endDate)) return null;
+
+    const daysRemaining = differenceInDays(endDate, new Date());
+    if (daysRemaining < 0 || daysRemaining > 7) return null;
+
+    if (profile.subscription_tier === "monthly") {
+      return {
+        title: daysRemaining === 0 ? "Renovação automática hoje" : "Renovação automática próxima",
+        description:
+          daysRemaining === 0
+            ? "Seu plano mensal renova automaticamente hoje. Verifique seu cartão para evitar interrupção."
+            : `Seu plano mensal renova automaticamente em ${daysRemaining} dia(s). Verifique seu cartão para evitar interrupção.`,
+      };
+    }
+
+    return {
+      title: daysRemaining === 0 ? "Plano anual vence hoje" : "Plano anual perto do vencimento",
+      description:
+        daysRemaining === 0
+          ? "Seu plano anual vence hoje. A renovação é manual e pode ser feita com parcelamento em até 12x."
+          : `Seu plano anual vence em ${daysRemaining} dia(s). A renovação é manual e pode ser feita com parcelamento em até 12x.`,
+    };
+  };
+
   const completeness = getProfileCompleteness();
   const trial = getTrialInfo();
   const isProfessional = profile?.role === 'professional';
@@ -375,6 +404,7 @@ const OverviewPage = () => {
   
   const hasPaidPlan = (profile?.subscription_tier && profile?.subscription_tier !== 'free_trial') || profile?.coupon_days;
   const subStatus = getSubscriptionStatus();
+  const renewalAlert = getRenewalAlert();
 
   const getPlanLabel = (tier: string) => {
     if (tier === 'monthly') return 'Plano Mensal';
@@ -484,6 +514,20 @@ const OverviewPage = () => {
             }
           </p>
         </div>
+
+        {renewalAlert && (
+          <Card className="border-amber-300/40 bg-amber-50/40">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold text-amber-900">{renewalAlert.title}</p>
+                  <p className="text-sm text-amber-800">{renewalAlert.description}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isProfessional && trial?.isExpired && !profile?.coupon_days && (
           <Card className="border-destructive/50 bg-destructive/5 animate-pulse">
@@ -643,6 +687,11 @@ const OverviewPage = () => {
                         {profile.cancel_at_period_end && !profile.coupon_days && (
                           <p className="text-[10px] text-amber-600 mt-1 font-medium">
                             Sua assinatura não será renovada automaticamente.
+                          </p>
+                        )}
+                        {!profile.cancel_at_period_end && profile.subscription_tier === "monthly" && !profile.coupon_days && (
+                          <p className="text-[10px] text-green-700 mt-1 font-medium">
+                            Sua assinatura mensal está com renovação automática ativa.
                           </p>
                         )}
                       </div>

@@ -35,6 +35,16 @@ const normalizeStatus = (status?: string | null) => {
   return String(status).toUpperCase();
 };
 
+const getPayloadSubscriptionId = (raw: any) => {
+  return (
+    raw?.payment?.subscription ||
+    raw?.data?.payment?.subscription ||
+    raw?.data?.subscription ||
+    raw?.subscription?.id ||
+    null
+  );
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -73,6 +83,7 @@ serve(async (req) => {
     const paymentId = payment?.id || null;
     const checkoutId = payment?.checkout || payment?.checkoutSession || payload?.checkout?.id || payload?.checkoutId || null;
     const paymentStatus = normalizeStatus(payment?.status);
+    const subscriptionId = payment?.subscription || getPayloadSubscriptionId(payload);
 
     let session = null;
 
@@ -122,6 +133,37 @@ serve(async (req) => {
     if (!planId && existingTx?.plan_id) planId = existingTx.plan_id;
     if (!courseSlug && existingTx?.course_slug) courseSlug = existingTx.course_slug;
     if (!userId && existingTx?.user_id) userId = existingTx.user_id;
+
+    if (!planId && subscriptionId && userId) {
+      const { data: candidateTxs } = await supabaseAdmin
+        .from("payment_transactions")
+        .select("plan_id,raw_payload")
+        .eq("provider", "asaas")
+        .eq("user_id", userId)
+        .eq("transaction_type", "plan")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      const bySubscription = (candidateTxs || []).find((tx: any) => {
+        return getPayloadSubscriptionId(tx?.raw_payload) === subscriptionId;
+      });
+
+      if (bySubscription?.plan_id) {
+        planId = bySubscription.plan_id;
+      }
+    }
+
+    if (!planId && userId) {
+      const { data: profileTier } = await supabaseAdmin
+        .from("profiles")
+        .select("subscription_tier")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (["monthly", "yearly"].includes(String(profileTier?.subscription_tier || "").toLowerCase())) {
+        planId = String(profileTier?.subscription_tier).toLowerCase();
+      }
+    }
 
     if (paymentId) {
       const transactionType = courseSlug ? "course" : planId ? "plan" : "unknown";
@@ -198,7 +240,7 @@ serve(async (req) => {
           .update({
             subscription_tier: planId,
             subscription_end_at: subscriptionEndAt,
-            cancel_at_period_end: true,
+            cancel_at_period_end: planId !== "monthly",
             updated_at: new Date().toISOString(),
           })
           .eq("id", userId);
@@ -212,10 +254,14 @@ serve(async (req) => {
         }
 
         try {
+          const renewalText =
+            planId === "monthly"
+              ? "Sua assinatura mensal foi confirmada e seguira com renovacao automatica."
+              : `Sua assinatura do plano ${planId} foi ativada com sucesso.`;
           await supabaseAdmin.from("notifications").insert({
             user_id: userId,
             title: "Pagamento confirmado",
-            content: `Sua assinatura do plano ${planId} foi ativada com sucesso.`,
+            content: renewalText,
             link: "/dashboard",
             type: "success",
           });

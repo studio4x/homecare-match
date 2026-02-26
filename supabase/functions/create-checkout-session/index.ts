@@ -150,6 +150,10 @@ const getPlanDurationDays = (plan: any) => {
   return 30;
 };
 
+const formatAsaasDate = (date: Date) => {
+  return date.toISOString().slice(0, 10);
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -214,7 +218,7 @@ serve(async (req) => {
     let itemAmount = 0;
     let maxInstallments = Number(config?.asaas_default_installment_max ?? 12);
     let successUrl = `${appBaseUrl}/dashboard?success=true`;
-    let checkoutContext: { planId?: string; courseSlug?: string; durationDays?: number } = {};
+    let checkoutContext: { planId?: string; courseSlug?: string; durationDays?: number; recurring?: boolean } = {};
 
     if (courseSlug) {
       const { data: course, error: courseError } = await supabaseAdmin
@@ -230,7 +234,7 @@ serve(async (req) => {
       itemDescription = `Compra de curso: ${course.title || course.slug}`;
       itemAmount = Number(course.price);
       maxInstallments = Number(course.asaas_installment_max || maxInstallments || 1);
-      checkoutContext = { courseSlug };
+      checkoutContext = { courseSlug, recurring: false };
       successUrl = `${appBaseUrl}/conversion/course?courseSlug=${courseSlug}&courseTitle=${encodeURIComponent(
         course.title || courseSlug,
       )}`;
@@ -251,7 +255,9 @@ serve(async (req) => {
       itemName = plan.name || `Plano ${plan.id}`;
       itemDescription = plan.description || `Assinatura do plano ${plan.name || plan.id}`;
       maxInstallments = Number(plan.asaas_installment_max || maxInstallments || 1);
-      checkoutContext = { planId, durationDays: getPlanDurationDays(plan) };
+      const normalizedPlanId = String(plan.id || "").toLowerCase();
+      const isRecurringMonthlyPlan = normalizedPlanId === "monthly";
+      checkoutContext = { planId, durationDays: getPlanDurationDays(plan), recurring: isRecurringMonthlyPlan };
       successUrl = `${appBaseUrl}/conversion/subscription?planId=${planId}&planName=${encodeURIComponent(
         plan.name || planId,
       )}`;
@@ -335,10 +341,19 @@ serve(async (req) => {
       await supabaseAdmin.from("profiles").update({ asaas_customer_id: asaasCustomerId }).eq("id", user.id);
     }
 
+    const isRecurringCheckout = checkoutContext.recurring === true;
+
     const billingTypes: string[] = [];
-    if (config?.asaas_allow_credit_card !== false) billingTypes.push("CREDIT_CARD");
-    if (config?.asaas_allow_pix !== false) billingTypes.push("PIX");
-    if (billingTypes.length === 0) billingTypes.push("CREDIT_CARD");
+    if (isRecurringCheckout) {
+      if (config?.asaas_allow_credit_card === false) {
+        throw new Error("Plano mensal com renovacao automatica exige cartao de credito habilitado.");
+      }
+      billingTypes.push("CREDIT_CARD");
+    } else {
+      if (config?.asaas_allow_credit_card !== false) billingTypes.push("CREDIT_CARD");
+      if (config?.asaas_allow_pix !== false) billingTypes.push("PIX");
+      if (billingTypes.length === 0) billingTypes.push("CREDIT_CARD");
+    }
 
     const maxInstallmentsAllowed = getInstallmentLimitByAmount(
       itemAmount,
@@ -346,8 +361,8 @@ serve(async (req) => {
       Number(config?.asaas_min_installment_value ?? 5),
     );
 
-    const chargeTypes: string[] = ["DETACHED"];
-    if (maxInstallmentsAllowed > 1 && billingTypes.includes("CREDIT_CARD")) {
+    const chargeTypes: string[] = isRecurringCheckout ? ["RECURRENT"] : ["DETACHED"];
+    if (!isRecurringCheckout && maxInstallmentsAllowed > 1 && billingTypes.includes("CREDIT_CARD")) {
       chargeTypes.push("INSTALLMENT");
     }
 
@@ -370,6 +385,16 @@ serve(async (req) => {
       ],
       customer: asaasCustomerId,
     };
+
+    if (chargeTypes.includes("RECURRENT")) {
+      const recurringEndDate = new Date();
+      recurringEndDate.setFullYear(recurringEndDate.getFullYear() + 20);
+      checkoutPayload.subscription = {
+        cycle: "MONTHLY",
+        nextDueDate: formatAsaasDate(new Date()),
+        endDate: formatAsaasDate(recurringEndDate),
+      };
+    }
 
     if (chargeTypes.includes("INSTALLMENT")) {
       checkoutPayload.installment = {
@@ -433,7 +458,14 @@ serve(async (req) => {
       status: "CHECKOUT_CREATED",
       checkout_url: checkoutUrl,
       asaas_customer_id: asaasCustomerId,
-      raw_response: checkoutJson,
+      raw_response: {
+        ...checkoutJson,
+        checkout_context: {
+          recurring: isRecurringCheckout,
+          plan_id: checkoutContext.planId || null,
+          course_slug: checkoutContext.courseSlug || null,
+        },
+      },
     };
 
     if (checkoutContext.durationDays) {

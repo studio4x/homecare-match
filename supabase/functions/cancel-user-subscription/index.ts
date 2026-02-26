@@ -271,7 +271,7 @@ serve(async (req) => {
       try {
         await supabaseAdmin.from("admin_notifications").insert({
           title: "Estorno pendente no Asaas",
-          content: `Assinatura cancelada por usuario ${user.id}, mas estorno pendente por saldo insuficiente.`,
+          content: `Assinatura cancelada por usuario ${user.id}, com estorno pendente no Asaas.`,
           link: "/admin/usuarios",
           type: "warning",
         });
@@ -284,10 +284,9 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: refundPending
-          ? "Assinatura cancelada. O estorno no Asaas esta pendente por saldo insuficiente."
+          ? "Assinatura cancelada com sucesso. O estorno esta pendente no Asaas."
           : "Assinatura cancelada com sucesso.",
         refundPending,
-        refundError: refundErrorMessage,
         cancellationDeadline: deadline.toISOString(),
       }),
       {

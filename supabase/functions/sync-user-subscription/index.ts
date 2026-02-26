@@ -234,7 +234,7 @@ serve(async (req) => {
     const updatePayload: Record<string, any> = {
       subscription_tier: activePlanTx.plan_id,
       subscription_end_at: subscriptionEndAt,
-      cancel_at_period_end: true,
+      cancel_at_period_end: activePlanTx.plan_id !== "monthly",
       updated_at: new Date().toISOString(),
     };
 

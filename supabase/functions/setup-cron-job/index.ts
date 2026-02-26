@@ -1,43 +1,114 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL") || "";
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") || "").replace(/\/+$/, "");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   let client: Client | null = null;
   try {
-    console.log("[setup-cron-job] Iniciando ativação de automação...");
-    
+    if (!SUPABASE_DB_URL) throw new Error("SUPABASE_DB_URL ausente.");
+    if (!SERVICE_ROLE_KEY) throw new Error("SUPABASE_SERVICE_ROLE_KEY ausente.");
+    if (!SUPABASE_URL) throw new Error("SUPABASE_URL ausente.");
+
+    const authHeader = req.headers.get("authorization");
+    const jwtToken = authHeader?.replace("Bearer ", "").trim() || "";
+    if (!jwtToken) {
+      return new Response(JSON.stringify({ error: "Autenticacao ausente." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseAdmin.auth.getUser(jwtToken);
+
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Usuario nao autenticado." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("is_admin, role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const isAdmin = !!profile?.is_admin || profile?.role === "admin";
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Acesso negado." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const escapedServiceRole = SERVICE_ROLE_KEY.replace(/'/g, "''");
+    const escapedSupabaseUrl = SUPABASE_URL.replace(/'/g, "''");
+
+    console.log("[setup-cron-job] Iniciando ativacao de automacao...");
+
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
-    
+
     const sql = `
-      -- 1. Ativar extensões necessárias
       CREATE EXTENSION IF NOT EXISTS pg_net;
       CREATE EXTENSION IF NOT EXISTS pg_cron;
 
-      -- 2. Limpar agendamento anterior se existir (evita duplicatas)
-      SELECT cron.unschedule('processar-notificacoes-push') 
+      SELECT cron.unschedule('processar-notificacoes-push')
       WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'processar-notificacoes-push');
 
-      -- 3. Agendar o novo job
-      -- Ele vai chamar a função process-push-notifications a cada 1 minuto
+      SELECT cron.unschedule('processar-estornos-pendentes')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'processar-estornos-pendentes');
+
+      SELECT cron.unschedule('processar-alertas-assinatura')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'processar-alertas-assinatura');
+
       SELECT cron.schedule(
         'processar-notificacoes-push',
         '* * * * *',
         $$
         SELECT net.http_post(
-          url := 'https://rkjvtnadqkbwomgzyswr.supabase.co/functions/v1/process-push-notifications',
-          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${SERVICE_ROLE_KEY}"}'::jsonb,
+          url := '${escapedSupabaseUrl}/functions/v1/process-push-notifications',
+          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedServiceRole}"}'::jsonb,
           body := '{"action": "process_scheduled"}'::jsonb
+        );
+        $$
+      );
+
+      SELECT cron.schedule(
+        'processar-estornos-pendentes',
+        '*/15 * * * *',
+        $$
+        SELECT net.http_post(
+          url := '${escapedSupabaseUrl}/functions/v1/process-pending-refunds',
+          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedServiceRole}"}'::jsonb,
+          body := '{}'::jsonb
+        );
+        $$
+      );
+
+      SELECT cron.schedule(
+        'processar-alertas-assinatura',
+        '0 */6 * * *',
+        $$
+        SELECT net.http_post(
+          url := '${escapedSupabaseUrl}/functions/v1/process-subscription-expiry-alerts',
+          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedServiceRole}"}'::jsonb,
+          body := '{}'::jsonb
         );
         $$
       );
@@ -47,13 +118,29 @@ serve(async (req) => {
     await client.end();
     client = null;
 
-    return new Response(JSON.stringify({ ok: true, message: "Automação (Cron Job) ativada com sucesso!" }), {
-      status: 200,
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        message: "Automacao ativada com sucesso (push + estornos pendentes + alertas de assinatura).",
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    if (client) {
+      try {
+        await client.end();
+      } catch {
+        // ignore close errors
+      }
+    }
+
+    console.error("[setup-cron-job] Erro:", error?.message || error);
+    return new Response(JSON.stringify({ error: error?.message || "Erro interno." }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
-    if (client) try { await client.end(); } catch {}
-    console.error("[setup-cron-job] Erro:", e.message);
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
   }
 });

@@ -23,7 +23,7 @@ import {
   RefreshCw,
   XCircle,
 } from "lucide-react";
-import { format } from "date-fns";
+import { differenceInCalendarDays, format, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
@@ -42,6 +42,17 @@ interface CancellationState {
   canCancel: boolean;
   deadline: Date | null;
   message: string;
+}
+
+interface SubscriptionSnapshot {
+  tier: string | null;
+  endAt: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+interface RenewalAlert {
+  title: string;
+  description: string;
 }
 
 type InvokeFunctionError = {
@@ -81,6 +92,7 @@ const PaymentsPage = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [subscriptionSnapshot, setSubscriptionSnapshot] = useState<SubscriptionSnapshot | null>(null);
 
   const fetchHistory = async (silent = false) => {
     if (!silent) {
@@ -94,17 +106,37 @@ const PaymentsPage = () => {
       const { data, error: funcError } = await supabase.functions.invoke("get-payment-history");
 
       if (funcError) {
-        const msg = await readFunctionErrorMessage(funcError, "Erro ao consultar histórico.");
+        const msg = await readFunctionErrorMessage(funcError, "Erro ao consultar historico.");
         throw new Error(msg);
       }
 
       setPayments(data?.payments || []);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user?.id) {
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("subscription_tier,subscription_end_at,cancel_at_period_end")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (!profileError && profileData) {
+          setSubscriptionSnapshot({
+            tier: profileData.subscription_tier || null,
+            endAt: profileData.subscription_end_at || null,
+            cancelAtPeriodEnd: !!profileData.cancel_at_period_end,
+          });
+        }
+      }
     } catch (err: unknown) {
       console.error("[PaymentsPage] Erro:", err);
       const errorMessage =
         err instanceof Error && err.message
           ? err.message
-          : "Não foi possível carregar seu histórico de pagamentos.";
+          : "Nao foi possivel carregar seu historico de pagamentos.";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -116,6 +148,35 @@ const PaymentsPage = () => {
   useEffect(() => {
     fetchHistory();
   }, []);
+
+  const renewalAlert = useMemo<RenewalAlert | null>(() => {
+    if (!subscriptionSnapshot?.tier || !subscriptionSnapshot.endAt) return null;
+    if (!["monthly", "yearly"].includes(subscriptionSnapshot.tier)) return null;
+
+    const endDate = parseISO(subscriptionSnapshot.endAt);
+    if (!isValid(endDate)) return null;
+
+    const daysRemaining = differenceInCalendarDays(endDate, new Date());
+    if (daysRemaining < 0 || daysRemaining > 7) return null;
+
+    if (subscriptionSnapshot.tier === "monthly") {
+      return {
+        title: daysRemaining === 0 ? "Renovacao automatica hoje" : "Renovacao automatica proxima",
+        description:
+          daysRemaining === 0
+            ? "Seu plano mensal renova automaticamente hoje. Verifique seu cartao para evitar interrupcao."
+            : `Seu plano mensal renova automaticamente em ${daysRemaining} dia(s). Verifique seu cartao para evitar interrupcao.`,
+      };
+    }
+
+    return {
+      title: daysRemaining === 0 ? "Plano anual vence hoje" : "Plano anual perto do vencimento",
+      description:
+        daysRemaining === 0
+          ? "Seu plano anual vence hoje. A renovacao e manual e pode ser feita com parcelamento em ate 12x."
+          : `Seu plano anual vence em ${daysRemaining} dia(s). A renovacao e manual e pode ser feita com parcelamento em ate 12x.`,
+    };
+  }, [subscriptionSnapshot]);
 
   const cancellationState = useMemo<CancellationState>(() => {
     const latestPaidSubscription = [...payments]
@@ -147,7 +208,7 @@ const PaymentsPage = () => {
     return {
       canCancel: true,
       deadline,
-      message: `Cancelamento disponível até ${format(deadline, "dd/MM/yyyy", { locale: ptBR })}.`,
+      message: `Cancelamento disponivel ate ${format(deadline, "dd/MM/yyyy", { locale: ptBR })}.`,
     };
   }, [payments]);
 
@@ -155,7 +216,7 @@ const PaymentsPage = () => {
     if (!cancellationState.canCancel || isCancelling) return;
 
     const confirmed = window.confirm(
-      "Deseja cancelar sua assinatura? Essa ação é irreversível e será aplicada também no Asaas.",
+      "Deseja cancelar sua assinatura? Essa acao e irreversivel e sera aplicada tambem no Asaas.",
     );
     if (!confirmed) return;
 
@@ -166,7 +227,7 @@ const PaymentsPage = () => {
       const { data, error: funcError } = await supabase.functions.invoke("cancel-user-subscription");
 
       if (funcError) {
-        const message = await readFunctionErrorMessage(funcError, "Não foi possível cancelar a assinatura.");
+        const message = await readFunctionErrorMessage(funcError, "Nao foi possivel cancelar a assinatura.");
         throw new Error(message);
       }
 
@@ -208,7 +269,7 @@ const PaymentsPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-primary" /> Histórico de Pagamentos
+            <Receipt className="h-6 w-6 text-primary" /> Historico de Pagamentos
           </h1>
           <p className="text-muted-foreground">Consulte suas faturas e recibos de assinaturas e cursos.</p>
         </div>
@@ -225,6 +286,20 @@ const PaymentsPage = () => {
           </Button>
         </div>
       </div>
+
+      {renewalAlert && (
+        <Card className="border-amber-300/40 bg-amber-50/40">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-semibold text-amber-900">{renewalAlert.title}</p>
+                <p className="text-sm text-amber-800">{renewalAlert.description}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {error ? (
         <Card className="border-destructive/20 bg-destructive/5">
@@ -253,7 +328,7 @@ const PaymentsPage = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
-                      <TableHead>Descrição</TableHead>
+                      <TableHead>Descricao</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Fatura</TableHead>
@@ -272,7 +347,7 @@ const PaymentsPage = () => {
                           <div className="space-y-0.5">
                             <p className="text-sm font-medium leading-none">{p.description}</p>
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                              {p.type === "subscription" ? "Assinatura" : "Pagamento Único"}
+                              {p.type === "subscription" ? "Assinatura" : "Pagamento Unico"}
                             </p>
                           </div>
                         </TableCell>
@@ -299,7 +374,7 @@ const PaymentsPage = () => {
             ) : (
               <div className="text-center py-20 bg-secondary/10 rounded-xl border border-dashed">
                 <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p className="text-muted-foreground">Nenhum histórico de pagamento encontrado.</p>
+                <p className="text-muted-foreground">Nenhum historico de pagamento encontrado.</p>
               </div>
             )}
           </CardContent>
@@ -310,7 +385,7 @@ const PaymentsPage = () => {
         <CardHeader>
           <CardTitle className="text-base">Cancelamento de Assinatura</CardTitle>
           <CardDescription>
-            O cancelamento é permitido apenas em até {CANCELLATION_WINDOW_DAYS} dias após o pagamento.
+            O cancelamento e permitido apenas em ate {CANCELLATION_WINDOW_DAYS} dias apos o pagamento.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -338,7 +413,7 @@ const PaymentsPage = () => {
         <div className="space-y-1">
           <p className="text-sm font-semibold text-blue-900">Precisa gerenciar sua assinatura?</p>
           <p className="text-xs text-blue-800 leading-relaxed">
-            Para alterar formas de pagamento ou trocar de plano, utilize o botão <strong>Gerenciar Assinatura</strong> na página inicial do seu painel.
+            Para alterar forma de pagamento ou trocar de plano, use o botao <strong>Gerenciar Assinatura</strong> na pagina inicial do seu painel.
           </p>
         </div>
       </div>

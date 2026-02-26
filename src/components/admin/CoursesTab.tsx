@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import CourseEnrollmentsDialog from "./CourseEnrollmentsDialog";
+import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,12 +61,12 @@ const HERO_DIR = "academy/hero";
 const MATERIALS_DIR = "materials";
 const PRIVATE_BUCKET = "academy-private";
 
-// Mapeamento de nÃ­veis para exibiÃ§Ã£o correta
+// Mapeamento de níveis para exibição correta
 export const COURSE_LEVEL_LABELS: Record<string, string> = {
   iniciante: "Iniciante",
-  basico: "BÃ¡sico",
-  intermediario: "IntermediÃ¡rio",
-  avancado: "AvanÃ§ado",
+  basico: "Básico",
+  intermediario: "Intermediário",
+  avancado: "Avançado",
 };
 
 type CourseLevel = "iniciante" | "basico" | "intermediario" | "avancado";
@@ -123,6 +124,27 @@ const generateSlug = (text: string) => {
     .trim();
 };
 
+const normalizeCourseData = (course: any): Course => ({
+  ...course,
+  title: fixMojibake(course?.title),
+  description: fixNullableMojibake(course?.description) || "",
+  content_url: fixNullableMojibake(course?.content_url) || "",
+});
+
+const normalizeModuleData = (module: any): Module => ({
+  ...module,
+  title: fixMojibake(module?.title),
+  description: fixNullableMojibake(module?.description) || "",
+});
+
+const normalizeLessonData = (lesson: any): Lesson => ({
+  ...lesson,
+  title: fixMojibake(lesson?.title),
+  resource_url: fixNullableMojibake(lesson?.resource_url) || "",
+  content: fixNullableMojibake(lesson?.content) || "",
+  type: lesson?.type as any,
+});
+
 const CoursesTab = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -167,7 +189,7 @@ const CoursesTab = () => {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setCourses(data || []);
+      setCourses((data || []).map(normalizeCourseData));
     } catch (e) {
       console.warn("[CoursesTab] Falha ao carregar cursos:", e);
       setCourses([]);
@@ -215,7 +237,7 @@ const CoursesTab = () => {
 
   const handleEditCourse = (c: Course) => {
     setSelectedCourse({ 
-      ...c,
+      ...normalizeCourseData(c),
       video_source: c.video_source || "url",
       video_url: c.video_url || "",
       video_storage_path: c.video_storage_path || "",
@@ -248,6 +270,9 @@ const CoursesTab = () => {
       
       const { error } = await supabase.from("academy_courses").upsert({
         ...selectedCourse,
+        title: fixMojibake(selectedCourse.title),
+        description: fixNullableMojibake(selectedCourse.description),
+        content_url: fixNullableMojibake(selectedCourse.content_url),
         created_at: selectedCourse.created_at || new Date().toISOString(),
       });
       if (error) throw error;
@@ -266,8 +291,8 @@ const CoursesTab = () => {
       for (const m of mods || []) {
         const { data: lessons } = await supabase.from("academy_lessons").select("*").eq("module_id", m.id).order("position", { ascending: true });
         modulesWithLessons.push({
-          ...m,
-          lessons: (lessons || []).map(l => ({ ...l, type: l.type as any }))
+          ...normalizeModuleData(m),
+          lessons: (lessons || []).map(normalizeLessonData)
         });
       }
       setModules(modulesWithLessons);
@@ -279,7 +304,7 @@ const CoursesTab = () => {
   };
 
   const handleOpenContent = async (c: Course) => {
-    setSelectedCourse(c);
+    setSelectedCourse(normalizeCourseData(c));
     await loadContent(c);
     setOpenContentDialog(true);
   };
@@ -288,7 +313,7 @@ const CoursesTab = () => {
     if (!selectedCourse) return;
     setModules(prev => [...prev, {
       id: crypto.randomUUID(),
-      title: "Novo MÃ³dulo",
+      title: "Novo Módulo",
       description: "",
       position: prev.length + 1,
       course_slug: selectedCourse.slug,
@@ -344,8 +369,8 @@ const CoursesTab = () => {
         const { error: modErr } = await supabase.from("academy_modules").upsert({
           id: m.id, 
           course_slug: m.course_slug, 
-          title: m.title, 
-          description: m.description, 
+          title: fixMojibake(m.title),
+          description: fixNullableMojibake(m.description),
           position: mi + 1 
         });
         if (modErr) throw modErr;
@@ -355,17 +380,17 @@ const CoursesTab = () => {
           const { error: lesErr } = await supabase.from("academy_lessons").upsert({
             id: l.id, 
             module_id: m.id, 
-            title: l.title, 
+            title: fixMojibake(l.title),
             type: l.type, 
             duration_minutes: l.duration_minutes, 
-            resource_url: l.resource_url, 
-            content: l.content, 
+            resource_url: fixNullableMojibake(l.resource_url),
+            content: fixNullableMojibake(l.content),
             position: li + 1 
           });
           if (lesErr) throw lesErr;
         }
       }
-      toast.success("ConteÃºdo salvo!");
+      toast.success("Conteúdo salvo!");
       setIsContentDirty(false);
       setOpenContentDialog(false);
       fetchCourses();
@@ -401,7 +426,7 @@ const CoursesTab = () => {
 
   const handleUploadVideo = async (file: File) => {
     if (!selectedCourse?.slug) {
-      toast.error("Defina o slug antes de enviar o vÃ­deo.");
+      toast.error("Defina o slug antes de enviar o vídeo.");
       return;
     }
     setIsUploading(true);
@@ -411,7 +436,7 @@ const CoursesTab = () => {
     try {
       const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
-      toast.success("VÃ­deo carregado!");
+      toast.success("Vídeo carregado!");
       setSelectedCourse((prev) => prev ? {
         ...prev,
         video_source: "storage",
@@ -420,7 +445,7 @@ const CoursesTab = () => {
         video_url: ""
       } : prev);
     } catch {
-      toast.error("Erro ao enviar vÃ­deo.");
+      toast.error("Erro ao enviar vídeo.");
     } finally {
       setIsUploading(false);
       if (videoRef.current) videoRef.current.value = "";
@@ -551,10 +576,10 @@ const CoursesTab = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>TÃ­tulo</TableHead>
-                <TableHead>NÃ­vel</TableHead>
-                <TableHead>PreÃ§o</TableHead>
-                <TableHead className="text-right">AÃ§Ãµes</TableHead>
+                <TableHead>Título</TableHead>
+                <TableHead>Nível</TableHead>
+                <TableHead>Preço</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -563,14 +588,14 @@ const CoursesTab = () => {
                   <TableCell className="font-medium">{c.title}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
-                      {c.level ? COURSE_LEVEL_LABELS[c.level] || c.level : "NÃ£o definido"}
+                      {c.level ? COURSE_LEVEL_LABELS[c.level] || c.level : "Não definido"}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     {c.price && c.price > 0 ? (
                       <span className="text-sm font-semibold">R$ {Number(c.price).toFixed(2).replace('.', ',')}</span>
                     ) : (
-                      <Badge variant="secondary" className="bg-success/10 text-success border-success/20">GrÃ¡tis</Badge>
+                      <Badge variant="secondary" className="bg-success/10 text-success border-success/20">Grátis</Badge>
                     )}
                   </TableCell>
                   <TableCell className="text-right flex justify-end gap-2">
@@ -588,7 +613,7 @@ const CoursesTab = () => {
                     <Button variant="outline" size="sm" asChild className="gap-2">
                       <Link to={`/cursos/${c.slug}`} target="_blank"><Eye size={14} /> Ver</Link>
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleOpenContent(c)}>ConteÃºdo</Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleOpenContent(c)}>Conteúdo</Button>
                     <Button variant="ghost" size="sm" onClick={() => handleEditCourse(c)}><Edit2 size={16} /></Button>
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setCourseToDelete(c); setShowDeleteConfirm(true); }}><Trash2 size={16} /></Button>
                   </TableCell>
@@ -606,12 +631,12 @@ const CoursesTab = () => {
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
-          <DialogHeader><DialogTitle>ConfiguraÃ§Ãµes do Curso</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Configurações do Curso</DialogTitle></DialogHeader>
           {selectedCourse && (
             <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>TÃ­tulo</Label>
+                  <Label>Título</Label>
                   <Input
                     value={selectedCourse.title}
                     onChange={e => {
@@ -638,28 +663,28 @@ const CoursesTab = () => {
                   value={selectedCourse.content_url || ""}
                   onChange={e => setSelectedCourse({...selectedCourse, content_url: e.target.value})}
                 />
-                <p className="text-[10px] text-muted-foreground">Se preenchido, o curso mostrarÃ¡ um botÃ£o para acessar esta plataforma diretamente (com opÃ§Ã£o de visualizaÃ§Ã£o interna).</p>
+                <p className="text-[10px] text-muted-foreground">Se preenchido, o curso mostrará um botão para acessar esta plataforma diretamente (com opção de visualização interna).</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2"><DollarSign size={14} /> PreÃ§o (R$)</Label>
+                  <Label className="flex items-center gap-2"><DollarSign size={14} /> Preço (R$)</Label>
                   <div className="relative">
                     <Input type="number" step="0.01" value={selectedCourse.price} onChange={e => setSelectedCourse({...selectedCourse, price: parseFloat(e.target.value) || 0})} />
                     {(!selectedCourse.price || selectedCourse.price === 0) && (
-                      <span className="absolute right-3 top-2.5 text-[10px] uppercase font-bold text-success">GrÃ¡tis</span>
+                      <span className="absolute right-3 top-2.5 text-[10px] uppercase font-bold text-success">Grátis</span>
                     )}
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>NÃ­vel</Label>
+                  <Label>Nível</Label>
                   <Select value={selectedCourse.level} onValueChange={v => setSelectedCourse({...selectedCourse, level: v as any})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="iniciante">Iniciante</SelectItem>
-                      <SelectItem value="basico">BÃ¡sico</SelectItem>
-                      <SelectItem value="intermediario">IntermediÃ¡rio</SelectItem>
-                      <SelectItem value="avancado">AvanÃ§ado</SelectItem>
+                      <SelectItem value="basico">Básico</SelectItem>
+                      <SelectItem value="intermediario">Intermediário</SelectItem>
+                      <SelectItem value="avancado">Avançado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -687,7 +712,7 @@ const CoursesTab = () => {
               ) : null}
 
               <div className="space-y-2">
-                <Label>DuraÃ§Ã£o Total (minutos)</Label>
+                <Label>Duração Total (minutos)</Label>
                 <Input 
                   type="number" 
                   value={selectedCourse.duration_minutes} 
@@ -697,18 +722,18 @@ const CoursesTab = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>DescriÃ§Ã£o do Curso</Label>
+                <Label>Descrição do Curso</Label>
                 <RichTextEditor content={selectedCourse.description || ""} onChange={html => setSelectedCourse({...selectedCourse, description: html})} />
               </div>
 
               <div className="space-y-4 border rounded-lg p-4 bg-secondary/10">
                 <div className="flex items-center justify-between">
-                  <Label className="flex items-center gap-2"><Video className="h-4 w-4 text-primary" /> VÃ­deo de Destaque (Hero)</Label>
+                  <Label className="flex items-center gap-2"><Video className="h-4 w-4 text-primary" /> Vídeo de Destaque (Hero)</Label>
                 </div>
                 
                 <div className="grid gap-4">
                   <div className="space-y-2">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Origem do VÃ­deo</Label>
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Origem do Vídeo</Label>
                     <Select 
                       value={selectedCourse.video_source || "url"} 
                       onValueChange={(v) => setSelectedCourse(prev => prev ? { ...prev, video_source: v } : prev)}
@@ -725,7 +750,7 @@ const CoursesTab = () => {
 
                   {selectedCourse.video_source === "url" ? (
                     <div className="space-y-2">
-                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">URL do VÃ­deo</Label>
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">URL do Vídeo</Label>
                       <Input 
                         placeholder="https://www.youtube.com/watch?v=..." 
                         value={selectedCourse.video_url || ""} 
@@ -734,7 +759,7 @@ const CoursesTab = () => {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Arquivo de VÃ­deo</Label>
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Arquivo de Vídeo</Label>
                       <div className="flex items-center gap-2">
                         <Button 
                           variant="outline" 
@@ -744,7 +769,7 @@ const CoursesTab = () => {
                           className="w-full gap-2"
                         >
                           {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
-                          {selectedCourse.video_storage_path ? "Substituir VÃ­deo" : "Subir VÃ­deo MP4"}
+                          {selectedCourse.video_storage_path ? "Substituir Vídeo" : "Subir Vídeo MP4"}
                         </Button>
                       </div>
                     </div>
@@ -793,7 +818,7 @@ const CoursesTab = () => {
                 <Button variant="ghost" onClick={() => setOpenDialog(false)}>Cancelar</Button>
                 <Button onClick={handleSaveCourse} disabled={isSaving}>
                   {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  Salvar ConfiguraÃ§Ãµes
+                  Salvar Configurações
                 </Button>
               </div>
             </div>
@@ -806,13 +831,13 @@ const CoursesTab = () => {
           <DialogHeader className="p-6 border-b bg-card">
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle>ConteÃºdo do Curso: {selectedCourse?.title}</DialogTitle>
+                <DialogTitle>Conteúdo do Curso: {selectedCourse?.title}</DialogTitle>
                 <p className="text-xs text-muted-foreground mt-1">Arraste os itens para reordenar.</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={addModule} className="gap-2"><Plus size={14} /> Novo MÃ³dulo</Button>
+                <Button variant="outline" size="sm" onClick={addModule} className="gap-2"><Plus size={14} /> Novo Módulo</Button>
                 <Button size="sm" onClick={handleSaveContent} disabled={isSavingContent} className="gap-2">
-                  {isSavingContent ? <Loader2 size={14} className="animate-spin" /> : null} Salvar AlteraÃ§Ãµes
+                  {isSavingContent ? <Loader2 size={14} className="animate-spin" /> : null} Salvar Alterações
                 </Button>
               </div>
             </div>
@@ -850,8 +875,8 @@ const CoursesTab = () => {
 
             {modules.length === 0 && (
               <div className="text-center py-20 border-2 border-dashed rounded-xl">
-                <p className="text-muted-foreground">Nenhum mÃ³dulo criado ainda.</p>
-                <Button variant="outline" className="mt-4" onClick={addModule}>Criar Primeiro MÃ³dulo</Button>
+                <p className="text-muted-foreground">Nenhum módulo criado ainda.</p>
+                <Button variant="outline" className="mt-4" onClick={addModule}>Criar Primeiro Módulo</Button>
               </div>
             )}
           </div>
@@ -874,7 +899,7 @@ const CoursesTab = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir curso?</AlertDialogTitle>
-            <AlertDialogDescription>Isso apagarÃ¡ permanentemente o curso "{courseToDelete?.title}" e todo o seu conteÃºdo.</AlertDialogDescription>
+            <AlertDialogDescription>Isso apagará permanentemente o curso "{courseToDelete?.title}" e todo o seu conteúdo.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>Cancelar</Button>
@@ -885,7 +910,7 @@ const CoursesTab = () => {
 
       <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Sair sem salvar?</AlertDialogTitle><AlertDialogDescription>VocÃª tem alteraÃ§Ãµes nÃ£o salvas.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>Sair sem salvar?</AlertDialogTitle><AlertDialogDescription>Você tem alterações não salvas.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Continuar Editando</AlertDialogCancel><AlertDialogAction onClick={() => { setModules(originalModules); setIsContentDirty(false); setOpenContentDialog(false); setShowCloseConfirm(false); }}>Descartar</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -894,7 +919,5 @@ const CoursesTab = () => {
 };
 
 export default CoursesTab;
-
-
 
 

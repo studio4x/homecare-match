@@ -67,6 +67,12 @@ const normalizePostalCode = (value?: string | null) => {
   return onlyDigits.length === 8 ? onlyDigits : undefined;
 };
 
+const truncateText = (value: unknown, maxLength: number, fallback: string) => {
+  const text = String(value || "").trim();
+  if (!text) return fallback;
+  return text.length > maxLength ? text.slice(0, maxLength).trim() : text;
+};
+
 const parseMonetaryValue = (raw: unknown): number => {
   if (typeof raw === "number" && Number.isFinite(raw)) return raw;
   if (typeof raw !== "string") return 0;
@@ -356,12 +362,18 @@ serve(async (req) => {
     }
 
     const isRecurringCheckout = checkoutContext.recurring === true;
+    const isCourseCheckout = Boolean(checkoutContext.courseSlug);
 
-    if (config?.asaas_allow_credit_card === false) {
-      throw new Error("Pagamento com cartao de credito esta desabilitado nas configuracoes.");
+    const allowCreditCard = config?.asaas_allow_credit_card !== false;
+    const allowPix = isCourseCheckout;
+
+    const billingTypes: string[] = [];
+    if (allowCreditCard) billingTypes.push("CREDIT_CARD");
+    if (allowPix) billingTypes.push("PIX");
+
+    if (billingTypes.length === 0) {
+      throw new Error("Nenhum metodo de pagamento habilitado para esta compra.");
     }
-
-    const billingTypes: string[] = ["CREDIT_CARD"];
 
     const maxInstallmentsAllowed = getInstallmentLimitByAmount(
       itemAmount,
@@ -385,7 +397,7 @@ serve(async (req) => {
       },
       items: [
         {
-          name: itemName,
+          name: truncateText(itemName, 30, "Compra HomeCare Match"),
           description: itemDescription,
           quantity: 1,
           value: Number(itemAmount.toFixed(2)),

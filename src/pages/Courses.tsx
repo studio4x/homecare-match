@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
@@ -35,6 +35,7 @@ import {
 import PlanSelectionModal from "@/components/PlanSelectionModal";
 import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { createCheckoutSession } from "@/lib/checkout";
+import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 
 type CourseLevel = "iniciante" | "basico" | "intermediario" | "avancado";
 
@@ -75,6 +76,13 @@ interface EnrollmentData {
   progress: Record<string, Record<string, "completed" | "in-progress">>;
 }
 
+const normalizeCourseData = (course: any): Course => ({
+  ...course,
+  title: fixMojibake(course?.title),
+  description: fixNullableMojibake(course?.description) || "",
+  content_url: fixNullableMojibake(course?.content_url) || "",
+});
+
 const Courses = () => {
   const { user, session } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -91,7 +99,7 @@ const Courses = () => {
   const [filterLevel, setFilterLevel] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
 
-  // Carrega papel do usuÃ¡rio
+  // Carrega papel do usuário
   useEffect(() => {
     const loadRole = async () => {
       try {
@@ -124,7 +132,7 @@ const Courses = () => {
           .eq("is_active", true)
           .order("created_at", { ascending: false });
         if (error) throw error;
-        setCourses(data || []);
+        setCourses((data || []).map(normalizeCourseData));
       } catch (e) {
         console.warn("[Courses] Falha ao carregar cursos:", e);
         setCourses([]);
@@ -135,7 +143,7 @@ const Courses = () => {
     loadCourses();
   }, []);
 
-  // Carrega inscriÃ§Ãµes do usuÃ¡rio
+  // Carrega inscrições do usuário
   useEffect(() => {
     const loadEnrollment = async () => {
       if (!user) return;
@@ -156,7 +164,7 @@ const Courses = () => {
     loadEnrollment();
   }, [user]);
 
-  // Checa conclusÃ£o dos cursos do usuÃ¡rio
+  // Checa conclusão dos cursos do usuário
   useEffect(() => {
     const checkCompletion = async () => {
       if (!user || courses.length === 0) {
@@ -197,7 +205,7 @@ const Courses = () => {
     checkCompletion();
   }, [user, courses]);
 
-  // LÃ³gica de Filtragem
+  // Lógica de Filtragem
   const filteredCourses = useMemo(() => {
     return courses.filter(c => {
       const matchesLevel = filterLevel === "all" || c.level === filterLevel;
@@ -226,7 +234,7 @@ const Courses = () => {
     // Se for gratuito, exige plano anual (exceto para admin)
     if (isFree && !isYearlyPlan && !isAdmin) {
       toast.error("Acesso restrito!", {
-        description: "Cursos gratuitos sÃ£o exclusivos para assinantes do Plano Anual."
+        description: "Cursos gratuitos são exclusivos para assinantes do Plano Anual."
       });
       setIsPlanModalOpen(true);
       return;
@@ -264,7 +272,7 @@ const Courses = () => {
         enrolledSlugs: Array.from(new Set([...(prev.enrolledSlugs || []), course.slug])),
         progress: prev.progress || {},
       }));
-      toast.success("InscriÃ§Ã£o realizada!");
+      toast.success("Inscrição realizada!");
     } catch (e) {
       console.error("[Courses] Enroll error:", e);
       toast.error("Falha ao inscrever.");
@@ -294,7 +302,7 @@ const Courses = () => {
     return (
       <Layout>
         <AccessRestricted
-          description="Os cursos de capacitaÃ§Ã£o sÃ£o exclusivos para Profissionais."
+          description="Os cursos de capacitação são exclusivos para Profissionais."
           primaryAction={{ label: "Entrar", to: "/login" }}
           secondaryAction={{ label: "Assinar Agora", to: "/login#auth-sign-up" }}
         />
@@ -302,12 +310,12 @@ const Courses = () => {
     );
   }
 
-  // Admins podem acessar mesmo que nÃ£o tenham o papel 'professional'
+  // Admins podem acessar mesmo que não tenham o papel 'professional'
   if (session && userRole !== "professional" && !isAdmin) {
     return (
       <Layout>
         <AccessRestricted
-          description="Os cursos de capacitaÃ§Ã£o sÃ£o exclusivos para Profissionais."
+          description="Os cursos de capacitação são exclusivos para Profissionais."
           primaryAction={{ label: "Ir para Meu Painel", to: "/dashboard" }}
         />
       </Layout>
@@ -321,7 +329,7 @@ const Courses = () => {
           <div className="space-y-1">
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <BookOpen className="h-8 w-8 text-primary" />
-              Cursos de CapacitaÃ§Ã£o
+              Cursos de Capacitação
             </h1>
             <p className="text-muted-foreground">Aprimore seus conhecimentos e conquiste novos selos para seu perfil.</p>
           </div>
@@ -348,25 +356,25 @@ const Courses = () => {
           <div className="flex flex-col md:flex-row items-end gap-4">
             <div className="grid gap-2 w-full md:w-64">
               <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                <Filter className="h-3 w-3" /> NÃ­vel do Curso
+                <Filter className="h-3 w-3" /> Nível do Curso
               </Label>
               <Select value={filterLevel} onValueChange={setFilterLevel}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Todos os nÃ­veis" />
+                  <SelectValue placeholder="Todos os níveis" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos os nÃ­veis</SelectItem>
+                  <SelectItem value="all">Todos os níveis</SelectItem>
                   <SelectItem value="iniciante">Iniciante</SelectItem>
-                  <SelectItem value="basico">BÃ¡sico</SelectItem>
-                  <SelectItem value="intermediario">IntermediÃ¡rio</SelectItem>
-                  <SelectItem value="avancado">AvanÃ§ado</SelectItem>
+                  <SelectItem value="basico">Básico</SelectItem>
+                  <SelectItem value="intermediario">Intermediário</SelectItem>
+                  <SelectItem value="avancado">Avançado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="grid gap-2 w-full md:w-64">
               <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
-                <Filter className="h-3 w-3" /> Tipo de InscriÃ§Ã£o
+                <Filter className="h-3 w-3" /> Tipo de Inscrição
               </Label>
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger>
@@ -391,7 +399,7 @@ const Courses = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p>Carregando catÃ¡logo de cursos...</p>
+            <p>Carregando catálogo de cursos...</p>
           </div>
         ) : filteredCourses.length > 0 ? (
           <>
@@ -405,7 +413,7 @@ const Courses = () => {
                     {c.hero_asset_url ? (
                       <AspectRatio ratio={4/3} className="relative w-full bg-muted shrink-0 overflow-hidden">
                         {isCompleted(c.slug) ? (
-                          <Badge className="absolute left-2 top-2 bg-success z-10 shadow-sm">ConcluÃ­do</Badge>
+                          <Badge className="absolute left-2 top-2 bg-success z-10 shadow-sm">Concluído</Badge>
                         ) : null}
                         <img
                           src={c.hero_asset_url}
@@ -414,7 +422,7 @@ const Courses = () => {
                         />
                         <div className="absolute bottom-2 right-2">
                           {isFree ? (
-                            <Badge className="bg-success/90 text-white border-none">GrÃ¡tis</Badge>
+                            <Badge className="bg-success/90 text-white border-none">Grátis</Badge>
                           ) : (
                             <Badge className="bg-destructive text-white border-none">R$ {Number(c.price).toFixed(2).replace('.', ',')}</Badge>
                           )}

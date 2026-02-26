@@ -44,8 +44,29 @@ import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import LandingVideoPlayer
 import { createCheckoutSession } from "@/lib/checkout";
+import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 
 const PRIVATE_BUCKET = "academy-private";
+
+const normalizeCourseData = (course: any) => ({
+  ...course,
+  title: fixMojibake(course?.title),
+  description: fixNullableMojibake(course?.description) || "",
+  content_url: fixNullableMojibake(course?.content_url) || "",
+});
+
+const normalizeModuleData = (module: any) => ({
+  ...module,
+  title: fixMojibake(module?.title),
+  description: fixNullableMojibake(module?.description) || "",
+});
+
+const normalizeLessonData = (lesson: any) => ({
+  ...lesson,
+  title: fixMojibake(lesson?.title),
+  content: fixNullableMojibake(lesson?.content) || "",
+  resource_url: fixNullableMojibake(lesson?.resource_url) || "",
+});
 
 const CourseDetail = () => {
   const { slug } = useParams();
@@ -79,6 +100,7 @@ const CourseDetail = () => {
     try {
       const { data: c, error: cErr } = await supabase.from("academy_courses").select("*").eq(slug ? "slug" : "", slug).single();
       if (cErr) throw cErr;
+      const normalizedCourse = normalizeCourseData(c);
 
       const { data: m } = await supabase.from("academy_modules").select("*").eq("course_slug", slug).order("position", { ascending: true });
       
@@ -87,7 +109,7 @@ const CourseDetail = () => {
 
       for (const mod of m || []) {
         const { data: l } = await supabase.from("academy_lessons").select("*").eq("module_id", mod.id).order("position", { ascending: true });
-        const lessons = l || [];
+        const lessons = (l || []).map(normalizeLessonData);
         
         lessons.forEach(lesson => {
           if (lesson.resource_url && !lesson.resource_url.startsWith('http')) {
@@ -95,9 +117,9 @@ const CourseDetail = () => {
           }
         });
 
-        modsWithLessons.push({ ...mod, lessons });
+        modsWithLessons.push({ ...normalizeModuleData(mod), lessons });
       }
-      setCourse({ ...c, modules: modsWithLessons });
+      setCourse({ ...normalizedCourse, modules: modsWithLessons });
 
       if (user) {
         const { data: prof } = await supabase.from("profiles").select("subscription_tier, is_admin, role").eq("id", user.id).single();
@@ -341,7 +363,7 @@ const CourseDetail = () => {
       return;
     }
 
-    setSelectedLesson(lesson);
+    setSelectedLesson(normalizeLessonData(lesson));
     setVideoEnded(false);
     setViewInside(false);
   };

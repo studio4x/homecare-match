@@ -393,6 +393,7 @@ const SiteConfigTab = () => {
       if (error) throw error;
 
       const updated = Number((data as any)?.updated || 0);
+      const skippedNonEditable = Number((data as any)?.skipped_non_editable || 0);
       const errors = Array.isArray((data as any)?.errors) ? (data as any)?.errors : [];
       if (errors.length > 0) {
         const firstError = errors[0] || {};
@@ -402,13 +403,18 @@ const SiteConfigTab = () => {
             ? `Primeiro erro (${firstError.payment_id || "pagamento"}${firstEnv}): ${firstError.message}`
             : undefined;
         toast.error(`Sincronização concluída com ${errors.length} erros. Atualizados: ${updated}.`, {
-          description,
+          description: skippedNonEditable
+            ? `${description ? `${description} ` : ""}Asaas bloqueou ${skippedNonEditable} cobranças antecipadas.`
+            : description,
         });
         if (errors.length > 1) {
           console.warn("[sync-asaas-descriptions] Erros retornados:", errors);
         }
       } else {
-        toast.success(`Descrições sincronizadas no Asaas! Atualizados: ${updated}.`);
+        const description = skippedNonEditable
+          ? `Asaas bloqueou ${skippedNonEditable} cobranças antecipadas (não é possível editar).`
+          : undefined;
+        toast.success(`Descrições sincronizadas no Asaas! Atualizados: ${updated}.`, { description });
       }
     } catch (error: any) {
       toast.error(error?.message || "Erro ao sincronizar descrições no Asaas.");

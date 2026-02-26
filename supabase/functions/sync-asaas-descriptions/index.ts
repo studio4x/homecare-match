@@ -53,6 +53,11 @@ const parseAsaasErrorMessage = (payload: any, fallback: string) => {
   return fallback;
 };
 
+const isAsaasNonEditableChargeError = (message?: string | null) => {
+  const text = String(message || "").toLowerCase();
+  return text.includes("cobranc") && text.includes("antecipad");
+};
+
 const isAsaasGenericDescription = (value?: string | null) => {
   const text = String(value || "").trim().toLowerCase();
   if (!text) return true;
@@ -86,6 +91,33 @@ const resolveDescription = async (supabaseAdmin: any, courseSlug?: string | null
   }
 
   return "Pagamento HomeCare Match";
+};
+
+const parseExternalReference = (value?: string | null) => {
+  const text = String(value || "").trim();
+  if (!text) return { courseSlug: null, planId: null };
+  const lower = text.toLowerCase();
+  if (lower.startsWith("course:")) {
+    return { courseSlug: text.split(":").slice(1).join(":").trim() || null, planId: null };
+  }
+  if (lower.startsWith("plan:")) {
+    return { courseSlug: null, planId: text.split(":").slice(1).join(":").trim() || null };
+  }
+  return { courseSlug: null, planId: null };
+};
+
+const extractReferenceFromPayload = (payload: any) => {
+  const direct =
+    payload?.payment?.externalReference ||
+    payload?.data?.payment?.externalReference ||
+    payload?.data?.externalReference ||
+    payload?.externalReference ||
+    payload?.payment?.reference ||
+    payload?.data?.payment?.reference ||
+    payload?.data?.reference ||
+    payload?.reference ||
+    null;
+  return parseExternalReference(direct);
 };
 
 const buildEnvCandidates = (requested: "sandbox" | "production" | null, configEnv: "sandbox" | "production") => {
@@ -153,7 +185,7 @@ serve(async (req) => {
 
     const { data: payments } = await supabaseAdmin
       .from("payment_transactions")
-      .select("payment_id, plan_id, course_slug, description, created_at")
+      .select("payment_id, plan_id, course_slug, description, created_at, raw_payload")
       .eq("provider", "asaas")
       .gte("created_at", since)
       .order("created_at", { ascending: false })
@@ -163,6 +195,7 @@ serve(async (req) => {
       processed: 0,
       updated: 0,
       skipped: 0,
+      skipped_non_editable: 0,
       errors: [] as Array<{ payment_id: string; message: string }>,
     };
 
@@ -174,10 +207,20 @@ serve(async (req) => {
       }
 
       summary.processed += 1;
-      const desiredDescription = await resolveDescription(supabaseAdmin, payment.course_slug, payment.plan_id);
+
+      let courseSlug = payment.course_slug || null;
+      let planId = payment.plan_id || null;
+      if (!courseSlug || !planId) {
+        const extracted = extractReferenceFromPayload(payment?.raw_payload || {});
+        if (!courseSlug && extracted.courseSlug) courseSlug = extracted.courseSlug;
+        if (!planId && extracted.planId) planId = extracted.planId;
+      }
+
+      const desiredDescription = await resolveDescription(supabaseAdmin, courseSlug, planId);
 
       let updated = false;
       let skipped = false;
+      let skippedNonEditable = false;
       let lastError: { message: string; env?: string; status?: number } | null = null;
 
       for (const envCandidate of envCandidates) {
@@ -232,6 +275,11 @@ serve(async (req) => {
           const updateJson = await updateRes.json().catch(() => ({}));
           if (!updateRes.ok) {
             const message = parseAsaasErrorMessage(updateJson, "Falha ao atualizar descricao no Asaas.");
+            if (isAsaasNonEditableChargeError(message)) {
+              skippedNonEditable = true;
+              lastError = { message, env: envCandidate, status: updateRes.status };
+              break;
+            }
             lastError = { message, env: envCandidate, status: updateRes.status };
             const shouldTryNext = [401, 403, 404].includes(updateRes.status);
             if (shouldTryNext) continue;
@@ -255,6 +303,11 @@ serve(async (req) => {
 
       if (skipped) {
         summary.skipped += 1;
+        continue;
+      }
+
+      if (skippedNonEditable) {
+        summary.skipped_non_editable += 1;
         continue;
       }
 

@@ -113,11 +113,11 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
       queryClient.invalidateQueries({ queryKey: ["user-profile-tier-modal"] });
       onOpenChange(false);
       
-      // Recarrega a pÃ¡gina para atualizar o estado global do dashboard
+      // Recarrega a página para atualizar o estado global do dashboard
       setTimeout(() => window.location.reload(), 1500);
       
     } catch (err: any) {
-      toast.error(err.message || "Cupom invÃ¡lido.", { id: toastId });
+      toast.error(err.message || "Cupom inválido.", { id: toastId });
     } finally {
       setIsApplyingCoupon(false);
     }
@@ -156,21 +156,21 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
             <DialogTitle className="text-2xl font-bold">Escolha seu Plano</DialogTitle>
           </div>
           <DialogDescription className="text-primary-foreground/80 text-base">
-            Torne seu perfil visÃ­vel para centenas de empresas e receba propostas direto no WhatsApp.
+            Torne seu perfil visível para centenas de empresas e receba propostas direto no WhatsApp.
           </DialogDescription>
         </DialogHeader>
 
         <div className="p-8 space-y-8">
-          {/* SeÃ§Ã£o de Cupom - Oculta se showCoupon for false */}
+          {/* Seção de Cupom - Oculta se showCoupon for false */}
           {showCoupon && (
             <div className="bg-secondary/30 p-4 rounded-2xl border border-dashed border-primary/20">
               <div className="flex items-center gap-2 mb-3">
                 <Ticket className="h-4 w-4 text-primary" />
-                <span className="text-sm font-bold uppercase tracking-wider">Possui um cupom de lanÃ§amento?</span>
+                <span className="text-sm font-bold uppercase tracking-wider">Possui um cupom de lançamento?</span>
               </div>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="Digite o cÃ³digo aqui..." 
+                  placeholder="Digite o código aqui..." 
                   className="bg-white uppercase font-mono"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
@@ -267,3 +267,4 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
 };
 
 export default PlanSelectionModal;
+

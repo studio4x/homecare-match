@@ -1,4 +1,4 @@
-﻿-- Asaas payment migration
+-- Asaas payment migration
 
 ALTER TABLE public.site_config
   ADD COLUMN IF NOT EXISTS payment_provider TEXT DEFAULT 'asaas',

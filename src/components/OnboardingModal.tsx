@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import {
@@ -333,3 +333,4 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
 };
 
 export default OnboardingModal;
+

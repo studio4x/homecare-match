@@ -60,7 +60,7 @@ const PaymentsPage = () => {
       const { data, error: funcError } = await supabase.functions.invoke('get-payment-history');
       
       if (funcError) {
-        let msg = "Erro ao consultar histÃ³rico.";
+        let msg = "Erro ao consultar histórico.";
         try {
           const body = await funcError.context?.json();
           if (body?.error) msg = body.error;
@@ -71,7 +71,7 @@ const PaymentsPage = () => {
       setPayments(data?.payments || []);
     } catch (err: any) {
       console.error("[PaymentsPage] Erro:", err);
-      const errorMessage = err.message || "NÃ£o foi possÃ­vel carregar seu histÃ³rico de pagamentos.";
+      const errorMessage = err.message || "Não foi possível carregar seu histórico de pagamentos.";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -104,7 +104,7 @@ const PaymentsPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <Receipt className="h-6 w-6 text-primary" /> HistÃ³rico de Pagamentos
+            <Receipt className="h-6 w-6 text-primary" /> Histórico de Pagamentos
           </h1>
           <p className="text-muted-foreground">Consulte suas faturas e recibos de assinaturas e cursos.</p>
         </div>
@@ -158,7 +158,7 @@ const PaymentsPage = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Data</TableHead>
-                      <TableHead>DescriÃ§Ã£o</TableHead>
+                      <TableHead>Descrição</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Fatura</TableHead>
@@ -177,7 +177,7 @@ const PaymentsPage = () => {
                           <div className="space-y-0.5">
                             <p className="text-sm font-medium leading-none">{p.description}</p>
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                              {p.type === 'subscription' ? 'Assinatura' : 'Pagamento Ãšnico'}
+                              {p.type === 'subscription' ? 'Assinatura' : 'Pagamento Único'}
                             </p>
                           </div>
                         </TableCell>
@@ -204,7 +204,7 @@ const PaymentsPage = () => {
             ) : (
               <div className="text-center py-20 bg-secondary/10 rounded-xl border border-dashed">
                 <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                <p className="text-muted-foreground">Nenhum histÃ³rico de pagamento encontrado.</p>
+                <p className="text-muted-foreground">Nenhum histórico de pagamento encontrado.</p>
               </div>
             )}
           </CardContent>
@@ -221,7 +221,7 @@ const PaymentsPage = () => {
         <div className="space-y-1">
           <p className="text-sm font-semibold text-blue-900">Precisa gerenciar sua assinatura?</p>
           <p className="text-xs text-blue-800 leading-relaxed">
-            Para alterar formas de pagamento, trocar de plano ou cancelar renovaÃ§Ãµes automÃ¡ticas, utilize o botÃ£o <strong>Gerenciar Assinatura</strong> na pÃ¡gina inicial do seu painel.
+            Para alterar formas de pagamento, trocar de plano ou cancelar renovações automáticas, utilize o botão <strong>Gerenciar Assinatura</strong> na página inicial do seu painel.
           </p>
         </div>
       </div>

@@ -88,7 +88,7 @@ const SiteConfigTab = () => {
   const logoRef = useRef<HTMLInputElement>(null);
 
   const geminiFlashModels = [
-    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Nova GeraÃ§Ã£o)" },
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash (Nova Geração)" },
   ];
 
   useEffect(() => {
@@ -145,9 +145,9 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-kyc-storage');
       if (error) throw error;
-      toast.success("SeguranÃ§a de documentos configurada!");
+      toast.success("Segurança de documentos configurada!");
     } catch (error: any) {
-      toast.error("Erro ao configurar seguranÃ§a.");
+      toast.error("Erro ao configurar segurança.");
     } finally {
       setIsSyncingKYC(false);
     }
@@ -158,7 +158,7 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-analytics');
       if (error) throw error;
-      toast.success("Estrutura de mÃ©tricas configurada!");
+      toast.success("Estrutura de métricas configurada!");
     } catch (error: any) {
       toast.error("Erro ao configurar analytics.");
     } finally {
@@ -171,9 +171,9 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('security-patch-privileges');
       if (error) throw error;
-      toast.success("ProteÃ§Ã£o de privilÃ©gios aplicada!");
+      toast.success("Proteção de privilégios aplicada!");
     } catch (error: any) {
-      toast.error("Erro ao aplicar patch de seguranÃ§a.");
+      toast.error("Erro ao aplicar patch de segurança.");
     } finally {
       setIsSyncingSecurity(false);
     }
@@ -184,9 +184,9 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('security-patch-privacy');
       if (error) throw error;
-      toast.success("ProteÃ§Ã£o de dados sensÃ­veis aplicada!");
+      toast.success("Proteção de dados sensíveis aplicada!");
     } catch (error: any) {
-      toast.error("Erro ao aplicar proteÃ§Ã£o de dados.");
+      toast.error("Erro ao aplicar proteção de dados.");
     } finally {
       setIsSyncingRLS(false);
     }
@@ -210,9 +210,9 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-api-protection');
       if (error) throw error;
-      toast.success("ProteÃ§Ã£o de API e Controle de Custos ativos!");
+      toast.success("Proteção de API e Controle de Custos ativos!");
     } catch (error: any) {
-      toast.error("Erro ao configurar proteÃ§Ã£o de API.");
+      toast.error("Erro ao configurar proteção de API.");
     } finally {
       setIsSyncingAPI(false);
     }
@@ -223,9 +223,9 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-notifications');
       if (error) throw error;
-      toast.success("Sistema de notificaÃ§Ãµes configurado!");
+      toast.success("Sistema de notificações configurado!");
     } catch (error: any) {
-      toast.error("Erro ao configurar notificaÃ§Ãµes.");
+      toast.error("Erro ao configurar notificações.");
     } finally {
       setIsSyncingNotifications(false);
     }
@@ -236,9 +236,9 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-user-notifications');
       if (error) throw error;
-      toast.success("Sistema de notificaÃ§Ãµes de usuÃ¡rio configurado!");
+      toast.success("Sistema de notificações de usuário configurado!");
     } catch (error: any) {
-      toast.error("Erro ao configurar notificaÃ§Ãµes de usuÃ¡rio.");
+      toast.error("Erro ao configurar notificações de usuário.");
     } finally {
       setIsSyncingUserNotifications(false);
     }
@@ -249,7 +249,7 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-push-notifications');
       if (error) throw error;
-      toast.success("Sistema de notificaÃ§Ãµes Push configurado!");
+      toast.success("Sistema de notificações Push configurado!");
     } catch (error: any) {
       toast.error("Erro ao configurar sistema de Push.");
     } finally {
@@ -262,9 +262,9 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-cron-job');
       if (error) throw error;
-      toast.success("AutomaÃ§Ã£o (Cron Job) ativada com sucesso!");
+      toast.success("Automação (Cron Job) ativada com sucesso!");
     } catch (error: any) {
-      toast.error("Erro ao ativar automaÃ§Ã£o. Verifique se as extensÃµes pg_net e pg_cron estÃ£o disponÃ­veis no seu plano.");
+      toast.error("Erro ao ativar automação. Verifique se as extensões pg_net e pg_cron estão disponíveis no seu plano.");
     } finally {
       setIsSyncingCron(false);
     }
@@ -288,9 +288,9 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-user-preferences');
       if (error) throw error;
-      toast.success("PreferÃªncias de usuÃ¡rio sincronizadas!");
+      toast.success("Preferências de usuário sincronizadas!");
     } catch (error: any) {
-      toast.error("Erro ao configurar preferÃªncias.");
+      toast.error("Erro ao configurar preferências.");
     } finally {
       setIsSyncingPrefs(false);
     }
@@ -301,10 +301,10 @@ const SiteConfigTab = () => {
     try {
       const { error } = await supabase.functions.invoke('setup-feature-videos');
       if (error) throw error;
-      toast.success("Tabela de vÃ­deos de funcionalidades configurada!");
+      toast.success("Tabela de vídeos de funcionalidades configurada!");
       queryClient.invalidateQueries({ queryKey: ["feature-videos"] });
     } catch (error: any) {
-      toast.error("Erro ao configurar vÃ­deos de funcionalidades.");
+      toast.error("Erro ao configurar vídeos de funcionalidades.");
     } finally {
       setIsSyncingFeatureVideos(false);
     }
@@ -321,10 +321,10 @@ const SiteConfigTab = () => {
         throw new Error(`Colunas ainda ausentes: ${missingColumns.join(", ")}`);
       }
 
-      toast.success("Campos de perfil da famÃ­lia sincronizados!");
+      toast.success("Campos de perfil da família sincronizados!");
       queryClient.invalidateQueries({ queryKey: ["site-config"] }); // Invalidate to refresh profile data
     } catch (error: any) {
-      const details = error?.message || error?.details || "Erro ao sincronizar campos do perfil da famÃ­lia.";
+      const details = error?.message || error?.details || "Erro ao sincronizar campos do perfil da família.";
       toast.error(details);
     } finally {
       setIsSyncingFamilyProfileFields(false);
@@ -403,17 +403,17 @@ const SiteConfigTab = () => {
 
       if (error) {
         if (error.message.includes("column") || error.code === "42703") {
-          toast.error("Coluna nÃ£o encontrada no banco!", {
-            description: "Clique no botÃ£o 'Sincronizar Estrutura Base' no final da pÃ¡gina primeiro."
+          toast.error("Coluna não encontrada no banco!", {
+            description: "Clique no botão 'Sincronizar Estrutura Base' no final da página primeiro."
           });
           return;
         }
         throw error;
       }
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
-      toast.success("ConfiguraÃ§Ãµes salvas!");
+      toast.success("Configurações salvas!");
     } catch (error: any) {
-      toast.error("Erro ao salvar configuraÃ§Ãµes.");
+      toast.error("Erro ao salvar configurações.");
     } finally {
       setIsSaving(false);
     }
@@ -427,9 +427,9 @@ const SiteConfigTab = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            InteligÃªncia Artificial (Gemini)
+            Inteligência Artificial (Gemini)
           </CardTitle>
-          <CardDescription>Modelo configurado para geraÃ§Ã£o de biografias.</CardDescription>
+          <CardDescription>Modelo configurado para geração de biografias.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -450,7 +450,7 @@ const SiteConfigTab = () => {
               </SelectContent>
             </Select>
             <p className="text-[10px] text-muted-foreground italic">
-              Utilizando a versÃ£o <strong>Gemini 2.0 Flash</strong>, otimizada para a melhor performance.
+              Utilizando a versão <strong>Gemini 2.0 Flash</strong>, otimizada para a melhor performance.
             </p>
           </div>
         </CardContent>
@@ -460,9 +460,9 @@ const SiteConfigTab = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
-            NotificaÃ§Ãµes Push (VAPID)
+            Notificações Push (VAPID)
           </CardTitle>
-          <CardDescription>Configure a chave pÃºblica para permitir que os navegadores assinem as notificaÃ§Ãµes.</CardDescription>
+          <CardDescription>Configure a chave pública para permitir que os navegadores assinem as notificações.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -473,7 +473,7 @@ const SiteConfigTab = () => {
               onChange={(e) => setFormData({...formData, vapid_public_key: e.target.value})} 
             />
             <p className="text-[10px] text-muted-foreground italic">
-              Esta chave deve ser a mesma que vocÃª configurou nos Secrets do Supabase.
+              Esta chave deve ser a mesma que você configurou nos Secrets do Supabase.
             </p>
           </div>
         </CardContent>
@@ -496,7 +496,7 @@ const SiteConfigTab = () => {
               onChange={(e) => setFormData({...formData, google_maps_api_key: e.target.value})} 
             />
             <p className="text-[10px] text-muted-foreground italic">
-              Esta chave deve ter permissÃ£o para "Maps JavaScript API".
+              Esta chave deve ter permissão para "Maps JavaScript API".
             </p>
           </div>
         </CardContent>
@@ -601,7 +601,7 @@ const SiteConfigTab = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>ConfiguraÃ§Ãµes Globais</CardTitle>
+          <CardTitle>Configurações Globais</CardTitle>
           <CardDescription>Gerencie identidade visual e contatos.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -647,7 +647,7 @@ const SiteConfigTab = () => {
           <div className="flex justify-end pt-4">
             <Button onClick={handleSave} disabled={isSaving}>
               {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Salvar ConfiguraÃ§Ãµes
+              Salvar Configurações
             </Button>
           </div>
         </CardContent>
@@ -656,14 +656,14 @@ const SiteConfigTab = () => {
       <Card className="border-amber-200 bg-amber-50/50">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2 text-amber-800">
-            <Database className="h-4 w-4" /> ManutenÃ§Ã£o do Sistema
+            <Database className="h-4 w-4" /> Manutenção do Sistema
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-amber-900">Sincronizar Estrutura Base</p>
-              <p className="text-xs text-amber-800/70">Atualiza tabelas de avaliaÃ§Ãµes, academy e Asaas.</p>
+              <p className="text-xs text-amber-800/70">Atualiza tabelas de avaliações, academy e Asaas.</p>
             </div>
             <Button variant="outline" onClick={handleSyncDatabase} disabled={isSyncing}>
               {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -682,7 +682,7 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">SeguranÃ§a de Documentos (KYC)</p>
+              <p className="text-sm font-semibold text-amber-900">Segurança de Documentos (KYC)</p>
               <p className="text-xs text-amber-800/70">Torna o bucket de documentos privado e configura RLS.</p>
             </div>
             <Button variant="outline" onClick={handleSyncKYC} disabled={isSyncingKYC}>
@@ -693,7 +693,7 @@ const SiteConfigTab = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-amber-900">Sincronizar Analytics</p>
-              <p className="text-xs text-amber-800/70">Cria tabelas para rastrear visualizaÃ§Ãµes e cliques.</p>
+              <p className="text-xs text-amber-800/70">Cria tabelas para rastrear visualizações e cliques.</p>
             </div>
             <Button variant="outline" onClick={handleSyncAnalytics} disabled={isSyncingAnalytics}>
               {isSyncingAnalytics ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
@@ -703,7 +703,7 @@ const SiteConfigTab = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-amber-900">Configurar Auditoria (Logs)</p>
-              <p className="text-xs text-amber-800/70">Cria tabela imutÃ¡vel para rastrear aÃ§Ãµes administrativas.</p>
+              <p className="text-xs text-amber-800/70">Cria tabela imutável para rastrear ações administrativas.</p>
             </div>
             <Button variant="outline" onClick={handleSyncAudit} disabled={isSyncingAudit}>
               {isSyncingAudit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
@@ -712,8 +712,8 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">ProteÃ§Ã£o de API e Custos</p>
-              <p className="text-xs text-amber-800/70">Ativa limites diÃ¡rios para uso de IA e Mapas.</p>
+              <p className="text-sm font-semibold text-amber-900">Proteção de API e Custos</p>
+              <p className="text-xs text-amber-800/70">Ativa limites diários para uso de IA e Mapas.</p>
             </div>
             <Button variant="outline" onClick={handleSyncAPI} disabled={isSyncingAPI}>
               {isSyncingAPI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />}
@@ -722,7 +722,7 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">Sistema de NotificaÃ§Ãµes Admin</p>
+              <p className="text-sm font-semibold text-amber-900">Sistema de Notificações Admin</p>
               <p className="text-xs text-amber-800/70">Cria tabela e habilita tempo real para alertas do admin.</p>
             </div>
             <Button variant="outline" onClick={handleSyncNotifications} disabled={isSyncingNotifications}>
@@ -732,7 +732,7 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">Sistema de NotificaÃ§Ãµes de UsuÃ¡rio</p>
+              <p className="text-sm font-semibold text-amber-900">Sistema de Notificações de Usuário</p>
               <p className="text-xs text-amber-800/70">Cria tabela e habilita alertas para profissionais e recrutadores.</p>
             </div>
             <Button variant="outline" onClick={handleSyncUserNotifications} disabled={isSyncingUserNotifications}>
@@ -742,8 +742,8 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">Sistema de NotificaÃ§Ãµes Push</p>
-              <p className="text-xs text-amber-800/70">Cria tabelas e polÃ­ticas para envio de mensagens diretas.</p>
+              <p className="text-sm font-semibold text-amber-900">Sistema de Notificações Push</p>
+              <p className="text-xs text-amber-800/70">Cria tabelas e políticas para envio de mensagens diretas.</p>
             </div>
             <Button variant="outline" onClick={handleSyncPush} disabled={isSyncingPush}>
               {isSyncingPush ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -752,8 +752,8 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">Configurar AutomaÃ§Ã£o (Cron Job)</p>
-              <p className="text-xs text-amber-800/70">Ativa o envio automÃ¡tico de notificaÃ§Ãµes agendadas.</p>
+              <p className="text-sm font-semibold text-amber-900">Configurar Automação (Cron Job)</p>
+              <p className="text-xs text-amber-800/70">Ativa o envio automático de notificações agendadas.</p>
             </div>
             <Button variant="outline" onClick={handleSyncCron} disabled={isSyncingCron}>
               {isSyncingCron ? <Loader2 className="h-4 w-4 animate-spin" /> : <Timer className="h-4 w-4" />}
@@ -763,7 +763,7 @@ const SiteConfigTab = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-amber-900">Sistema de Cupons Promocionais</p>
-              <p className="text-xs text-amber-800/70">Cria tabelas e polÃ­ticas para gestÃ£o de cupons de lanÃ§amento.</p>
+              <p className="text-xs text-amber-800/70">Cria tabelas e políticas para gestão de cupons de lançamento.</p>
             </div>
             <Button variant="outline" onClick={handleSyncCoupons} disabled={isSyncingCoupons}>
               {isSyncingCoupons ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
@@ -772,8 +772,8 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">PreferÃªncias de UsuÃ¡rio</p>
-              <p className="text-xs text-amber-800/70">Adiciona colunas de controle de notificaÃ§Ãµes no perfil.</p>
+              <p className="text-sm font-semibold text-amber-900">Preferências de Usuário</p>
+              <p className="text-xs text-amber-800/70">Adiciona colunas de controle de notificações no perfil.</p>
             </div>
             <Button variant="outline" onClick={handleSyncPrefs} disabled={isSyncingPrefs}>
               {isSyncingPrefs ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings2 className="h-4 w-4" />}
@@ -782,8 +782,8 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">VÃ­deos de Funcionalidades</p>
-              <p className="text-xs text-amber-800/70">Cria a tabela para gerenciar vÃ­deos de demonstraÃ§Ã£o.</p>
+              <p className="text-sm font-semibold text-amber-900">Vídeos de Funcionalidades</p>
+              <p className="text-xs text-amber-800/70">Cria a tabela para gerenciar vídeos de demonstração.</p>
             </div>
             <Button variant="outline" onClick={handleSyncFeatureVideos} disabled={isSyncingFeatureVideos}>
               {isSyncingFeatureVideos ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
@@ -792,8 +792,8 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-amber-900">Campos de Perfil da FamÃ­lia</p>
-              <p className="text-xs text-amber-800/70">Adiciona campos detalhados sobre o paciente para perfis de famÃ­lia.</p>
+              <p className="text-sm font-semibold text-amber-900">Campos de Perfil da Família</p>
+              <p className="text-xs text-amber-800/70">Adiciona campos detalhados sobre o paciente para perfis de família.</p>
             </div>
             <Button variant="outline" onClick={handleSyncFamilyProfileFields} disabled={isSyncingFamilyProfileFields}>
               {isSyncingFamilyProfileFields ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
@@ -803,7 +803,7 @@ const SiteConfigTab = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-amber-900">Sistema de Pacientes da Empresa</p>
-              <p className="text-xs text-amber-800/70">Cria a tabela para empresas gerenciarem mÃºltiplos pacientes.</p>
+              <p className="text-xs text-amber-800/70">Cria a tabela para empresas gerenciarem múltiplos pacientes.</p>
             </div>
             <Button variant="outline" onClick={handleSyncCompanyPatients} disabled={isSyncingCompanyPatients}>
               {isSyncingCompanyPatients ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
@@ -812,8 +812,8 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-destructive/20 rounded-lg bg-destructive/5">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-destructive">Patch de SeguranÃ§a: PrivilÃ©gios</p>
-              <p className="text-xs text-muted-foreground">Impede que usuÃ¡rios comuns alterem seu prÃ³prio papel (Admin/Role).</p>
+              <p className="text-sm font-semibold text-destructive">Patch de Segurança: Privilégios</p>
+              <p className="text-xs text-muted-foreground">Impede que usuários comuns alterem seu próprio papel (Admin/Role).</p>
             </div>
             <Button variant="destructive" onClick={handleSyncSecurity} disabled={isSyncingSecurity} className="gap-2">
               {isSyncingSecurity ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldAlert className="h-4 w-4" />}
@@ -823,8 +823,8 @@ const SiteConfigTab = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-blue-200 rounded-lg bg-blue-50/30">
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-blue-900">ProteÃ§Ã£o de Dados SensÃ­veis (RLS)</p>
-              <p className="text-xs text-blue-800/70">Cria View Segura e oculta WhatsApp/EndereÃ§o de curiosos.</p>
+              <p className="text-sm font-semibold text-blue-900">Proteção de Dados Sensíveis (RLS)</p>
+              <p className="text-xs text-blue-800/70">Cria View Segura e oculta WhatsApp/Endereço de curiosos.</p>
             </div>
             <Button variant="outline" onClick={handleSyncRLS} disabled={isSyncingRLS} className="border-blue-300 text-blue-700 hover:bg-blue-100">
               {isSyncingRLS ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
@@ -837,5 +837,6 @@ const SiteConfigTab = () => {
 };
 
 export default SiteConfigTab;
+
 
 

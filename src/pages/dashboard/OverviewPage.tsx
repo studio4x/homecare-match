@@ -168,7 +168,7 @@ const OverviewPage = () => {
           await fetchProfile();
         }
       } else {
-        toast.info(data.message || "Nenhuma alteraÃ§Ã£o encontrada.", { id: toastId });
+        toast.info(data.message || "Nenhuma alteração encontrada.", { id: toastId });
       }
     } catch (err: any) {
       console.error("[Sync Error]", err);
@@ -188,7 +188,7 @@ const OverviewPage = () => {
       }
     } catch (err: any) {
       console.error(err);
-      toast.error("NÃ£o foi possÃ­vel acessar o portal de pagamentos.");
+      toast.error("Não foi possível acessar o portal de pagamentos.");
     } finally {
       setIsManagingBilling(false);
     }
@@ -209,18 +209,18 @@ const OverviewPage = () => {
     if (profile.role === 'professional') {
       requiredFields.specialty = "Especialidade";
       requiredFields.registration = "Registro";
-      requiredFields.experience = "FormaÃ§Ãµes";
+      requiredFields.experience = "Formações";
       requiredFields.bio = "Biografia";
     } else if (profile.role === 'company') {
-      requiredFields.company_name = "RazÃ£o Social";
+      requiredFields.company_name = "Razão Social";
       requiredFields.cnpj = "CNPJ";
-      requiredFields.bio = "DescriÃ§Ã£o da Empresa";
+      requiredFields.bio = "Descrição da Empresa";
     } else if (profile.role === 'family') {
       requiredFields.patient_name = "Nome do Paciente";
       requiredFields.patient_age = "Idade do Paciente";
-      requiredFields.patient_medical_conditions = "CondiÃ§Ã£o MÃ©dica";
-      requiredFields.bio = "Outras ObservaÃ§Ãµes";
-      requiredFields.availability = "HorÃ¡rio de Atendimento";
+      requiredFields.patient_medical_conditions = "Condição Médica";
+      requiredFields.bio = "Outras Observações";
+      requiredFields.availability = "Horário de Atendimento";
     }
     
     let completedCount = 0;
@@ -268,7 +268,7 @@ const OverviewPage = () => {
         .update({ rejection_reason: null, verification_sent: false })
         .eq("id", user.id);
       if (error) throw error;
-      toast.success("Agora vocÃª pode reenviar seus documentos na seÃ§Ã£o Meus Dados.");
+      toast.success("Agora você pode reenviar seus documentos na seção Meus Dados.");
       fetchProfile();
     } catch (err) {
       toast.error("Erro ao reiniciar processo.");
@@ -287,9 +287,9 @@ const OverviewPage = () => {
       
       if (error) throw error;
       setProfile(prev => prev ? { ...prev, has_seen_onboarding: newHasSeenOnboarding } : prev);
-      toast.success("PreferÃªncia de tutorial salva!");
+      toast.success("Preferência de tutorial salva!");
     } catch (err) {
-      toast.error("Erro ao salvar preferÃªncia.");
+      toast.error("Erro ao salvar preferência.");
     } finally {
       setIsSavingOnboardingPref(false);
     }
@@ -301,7 +301,7 @@ const OverviewPage = () => {
     const roles: Record<string, { label: string, icon: any, color: string }> = {
       professional: { label: "Profissional", icon: User, color: "bg-primary/10 text-primary border-primary/20" },
       company: { label: "Empresa", icon: Building2, color: "bg-success/10 text-success border-success/20" },
-      family: { label: "FamÃ­lia", icon: Home, color: "bg-amber-100 text-amber-700 border-amber-200" },
+      family: { label: "Família", icon: Home, color: "bg-amber-100 text-amber-700 border-amber-200" },
       admin: { label: "Administrador", icon: ShieldCheck, color: "bg-slate-100 text-slate-700 border-slate-200" }
     };
 
@@ -322,7 +322,7 @@ const OverviewPage = () => {
     if (!profile.subscription_end_at) {
       return {
         label: "Ativa",
-        description: "Aguardando sincronizaÃ§Ã£o...",
+        description: "Aguardando sincronização...",
         icon: CheckCircle2,
         color: "text-green-600",
         bg: "bg-green-50 border-green-200",
@@ -347,21 +347,21 @@ const OverviewPage = () => {
       }
       return {
         label: "Ativa",
-        description: "PerÃ­odo de acesso garantido.",
+        description: "Período de acesso garantido.",
         icon: Ticket,
         color: "text-primary",
         bg: "bg-primary/5 border-primary/20",
-        dateLabel: "VÃ¡lido atÃ©"
+        dateLabel: "Válido até"
       };
     }
 
     return {
       label: "Ativa",
-      description: "RenovaÃ§Ã£o automÃ¡tica.",
+      description: "Renovação automática.",
       icon: CheckCircle2,
       color: "text-green-600",
       bg: "bg-green-50 border-green-200",
-      dateLabel: "PrÃ³xima renovaÃ§Ã£o"
+      dateLabel: "Próxima renovação"
     };
   };
 
@@ -371,7 +371,7 @@ const OverviewPage = () => {
   const isCompany = profile?.role === 'company';
   const isFamily = profile?.role === 'family';
   const isAdmin = profile?.is_admin || profile?.role === 'admin';
-  const firstName = profile?.full_name?.split(' ')[0] || "UsuÃ¡rio";
+  const firstName = profile?.full_name?.split(' ')[0] || "Usuário";
   
   const hasPaidPlan = (profile?.subscription_tier && profile?.subscription_tier !== 'free_trial') || profile?.coupon_days;
   const subStatus = getSubscriptionStatus();
@@ -379,7 +379,7 @@ const OverviewPage = () => {
   const getPlanLabel = (tier: string) => {
     if (tier === 'monthly') return 'Plano Mensal';
     if (tier === 'yearly') return 'Plano Anual';
-    if (tier === 'free_trial') return 'PerÃ­odo de 30 dias Gratuitos';
+    if (tier === 'free_trial') return 'Período de 30 dias Gratuitos';
     return tier;
   };
 
@@ -395,12 +395,12 @@ const OverviewPage = () => {
     ? profile.patient_medical_conditions.length > 180
       ? `${profile.patient_medical_conditions.slice(0, 180)}...`
       : profile.patient_medical_conditions
-    : "NÃ£o informado";
+    : "Não informado";
 
   const QuickAccessCard = (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Acesso RÃ¡pido</CardTitle>
+        <CardTitle className="text-base">Acesso Rápido</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-2">
         {isAdmin && (
@@ -419,7 +419,7 @@ const OverviewPage = () => {
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Eye className="h-4 w-4" />
               </div>
-              Ver Perfil PÃºblico
+              Ver Perfil Público
             </Link>
           </Button>
         )}
@@ -436,7 +436,7 @@ const OverviewPage = () => {
             <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
               <LayoutGrid className="h-4 w-4 text-primary" />
             </div>
-            HistÃ³rico de Contatos
+            Histórico de Contatos
           </Link>
         </Button>
         <Button variant="outline" asChild className="justify-start gap-3 h-12 border-amber-200 hover:bg-amber-50">
@@ -458,7 +458,7 @@ const OverviewPage = () => {
           {getRoleBadge()}
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <h1 className="text-3xl font-bold tracking-tight">OlÃ¡, {firstName}!</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Olá, {firstName}!</h1>
               <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                 <Mail className="h-3.5 w-3.5" />
                 {user?.email}
@@ -477,10 +477,10 @@ const OverviewPage = () => {
           </div>
           <p className="text-muted-foreground max-w-2xl mt-2">
             {isProfessional 
-              ? "Gerencie seu perfil profissional, acompanhe suas verificaÃ§Ãµes e acesse conteÃºdos educativos para impulsionar sua carreira no HomeCare Match."
+              ? "Gerencie seu perfil profissional, acompanhe suas verificações e acesse conteúdos educativos para impulsionar sua carreira no HomeCare Match."
               : isCompany
-              ? "Encontre os melhores profissionais para sua escala de atendimento, gerencie seus contatos salvos e acompanhe suas interaÃ§Ãµes recentes."
-              : "Encontre profissionais verificados para o seu familiar, acompanhe seus contatos e mantenha as informaÃ§Ãµes do paciente sempre atualizadas."
+              ? "Encontre os melhores profissionais para sua escala de atendimento, gerencie seus contatos salvos e acompanhe suas interações recentes."
+              : "Encontre profissionais verificados para o seu familiar, acompanhe seus contatos e mantenha as informações do paciente sempre atualizadas."
             }
           </p>
         </div>
@@ -493,9 +493,9 @@ const OverviewPage = () => {
                   <EyeOff className="h-6 w-6 text-destructive" />
                 </div>
                 <div className="space-y-3 flex-1">
-                  <h3 className="font-bold text-destructive text-lg">Seu perfil estÃ¡ OCULTO nas buscas!</h3>
+                  <h3 className="font-bold text-destructive text-lg">Seu perfil está OCULTO nas buscas!</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Seu perÃ­odo de teste gratuito chegou ao fim. Para continuar visÃ­vel para empresas e famÃ­lias, escolha um plano.
+                    Seu período de teste gratuito chegou ao fim. Para continuar visível para empresas e famílias, escolha um plano.
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <Button 
@@ -569,21 +569,21 @@ const OverviewPage = () => {
                               <Gift className="h-4 w-4" />
                             </div>
                             <div className="space-y-1">
-                              <p className="text-xs font-bold text-primary uppercase tracking-wider">BonificaÃ§Ã£o Ativa</p>
+                              <p className="text-xs font-bold text-primary uppercase tracking-wider">Bonificação Ativa</p>
                               <p className="text-xs text-muted-foreground leading-relaxed">
-                                Sua assinatura atual foi bonificada com <strong>{profile.coupon_days} dias</strong> atravÃ©s de um cupom de desconto.
+                                Sua assinatura atual foi bonificada com <strong>{profile.coupon_days} dias</strong> através de um cupom de desconto.
                               </p>
                             </div>
                           </div>
                           <div className="pl-11">
                             <p className="text-[10px] text-muted-foreground leading-relaxed">
-                              Ao tÃ©rmino deste perÃ­odo, vocÃª poderÃ¡ optar por renovar o plano mensal ou atualizar para o{" "}
+                              Ao término deste período, você poderá optar por renovar o plano mensal ou atualizar para o{" "}
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <span className="text-primary font-bold cursor-help underline decoration-dotted underline-offset-2">plano Anual</span>
                                 </TooltipTrigger>
                                 <TooltipContent className="max-w-xs p-4 space-y-2">
-                                  <p className="font-bold text-xs uppercase tracking-wider border-b pb-1 mb-2">BenefÃ­cios do Plano Anual:</p>
+                                  <p className="font-bold text-xs uppercase tracking-wider border-b pb-1 mb-2">Benefícios do Plano Anual:</p>
                                   <ul className="space-y-1.5">
                                     {annualPlan?.features ? (
                                       annualPlan.features.map((f: string, i: number) => (
@@ -594,15 +594,15 @@ const OverviewPage = () => {
                                     ) : (
                                       <>
                                         <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Destaque no topo das buscas</li>
-                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Selo dourado de verificaÃ§Ã£o</li>
-                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Acesso grÃ¡tis aos cursos Academy</li>
-                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Suporte prioritÃ¡rio</li>
+                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Selo dourado de verificação</li>
+                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Acesso grátis aos cursos Academy</li>
+                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Suporte prioritário</li>
                                       </>
                                     )}
                                   </ul>
                                 </TooltipContent>
                               </Tooltip>
-                              {" "}e ganhar novos benefÃ­cios exclusivos.
+                              {" "}e ganhar novos benefícios exclusivos.
                             </p>
                           </div>
                         </div>
@@ -637,12 +637,12 @@ const OverviewPage = () => {
                         </div>
                         {!profile.subscription_end_at && (
                           <p className="text-[10px] text-muted-foreground mt-1 italic">
-                            Clique em sincronizar se vocÃª jÃ¡ realizou o pagamento.
+                            Clique em sincronizar se você já realizou o pagamento.
                           </p>
                         )}
                         {profile.cancel_at_period_end && !profile.coupon_days && (
                           <p className="text-[10px] text-amber-600 mt-1 font-medium">
-                            Sua assinatura nÃ£o serÃ¡ renovada automaticamente.
+                            Sua assinatura não será renovada automaticamente.
                           </p>
                         )}
                       </div>
@@ -663,7 +663,7 @@ const OverviewPage = () => {
                   ) : trial && (
                     <div className="space-y-3">
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="text-muted-foreground">PerÃ­odo de Teste</span>
+                        <span className="text-muted-foreground">Período de Teste</span>
                         <span className={cn("font-medium", trial.daysRemaining <= 5 ? "text-destructive" : "text-primary")}>
                           {trial.daysRemaining} dias restantes
                         </span>
@@ -693,7 +693,7 @@ const OverviewPage = () => {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Award className="h-4 w-4 text-primary" /> 
-                    NÃ­vel de Embaixador
+                    Nível de Embaixador
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -701,11 +701,11 @@ const OverviewPage = () => {
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Selo Atual</p>
                       <Badge className="bg-primary text-white text-sm px-3 py-1">
-                        {referralStats.currentTier?.badge_label || "NÃ­vel Inicial"}
+                        {referralStats.currentTier?.badge_label || "Nível Inicial"}
                       </Badge>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">IndicaÃ§Ãµes</p>
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Indicações</p>
                       <p className="text-2xl font-bold text-primary">{referralStats.count}</p>
                     </div>
                   </div>
@@ -721,7 +721,7 @@ const OverviewPage = () => {
                         className="h-1.5" 
                       />
                       <p className="text-[10px] text-muted-foreground italic text-center">
-                        Faltam {referralStats.nextTier.threshold - referralStats.count} indicaÃ§Ãµes para o prÃ³ximo selo.
+                        Faltam {referralStats.nextTier.threshold - referralStats.count} indicações para o próximo selo.
                       </p>
                     </div>
                   )}
@@ -758,7 +758,7 @@ const OverviewPage = () => {
                   </h2>
                 </div>
 
-                {/* Exibe atÃ© 4 pacientes em grid 2x2 no resumo do dashboard */}
+                {/* Exibe até 4 pacientes em grid 2x2 no resumo do dashboard */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {companyPatients.slice(0, 4).map((patient) => (
                     <Card key={patient.id} className="border-primary/10">
@@ -795,21 +795,21 @@ const OverviewPage = () => {
                       <Home className="h-4 w-4 text-amber-600" />
                       Resumo do Paciente
                     </CardTitle>
-                    <CardDescription>Esses dados sÃ£o usados para encontrar profissionais compatÃ­veis.</CardDescription>
+                    <CardDescription>Esses dados são usados para encontrar profissionais compatíveis.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="rounded-lg border bg-background/70 p-3">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Paciente</p>
-                        <p className="text-sm font-semibold mt-1">{profile?.patient_name || "NÃ£o informado"}</p>
+                        <p className="text-sm font-semibold mt-1">{profile?.patient_name || "Não informado"}</p>
                       </div>
                       <div className="rounded-lg border bg-background/70 p-3">
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Idade</p>
-                        <p className="text-sm font-semibold mt-1">{profile?.patient_age || "NÃ£o informado"}</p>
+                        <p className="text-sm font-semibold mt-1">{profile?.patient_age || "Não informado"}</p>
                       </div>
                     </div>
                     <div className="rounded-lg border bg-background/70 p-3">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">CondiÃ§Ã£o MÃ©dica</p>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Condição Médica</p>
                       <p className="text-sm mt-1 leading-relaxed">{familyMedicalSummary}</p>
                     </div>
                     <div className="space-y-2">
@@ -833,7 +833,7 @@ const OverviewPage = () => {
                     </div>
                     <Button asChild variant="outline" className="w-full gap-2">
                       <Link to="/dashboard/perfil">
-                        Editar informaÃ§Ãµes do paciente
+                        Editar informações do paciente
                         <Edit2 className="h-4 w-4" />
                       </Link>
                     </Button>
@@ -844,7 +844,7 @@ const OverviewPage = () => {
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
                       <Users className="h-4 w-4 text-primary" />
-                      AÃ§Ãµes rÃ¡pidas da famÃ­lia
+                      Ações rápidas da família
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
@@ -893,7 +893,7 @@ const OverviewPage = () => {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> VerificaÃ§Ã£o de Perfil</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>
               </CardHeader>
               <CardContent>
                 {profile?.is_verified ? (
@@ -901,7 +901,7 @@ const OverviewPage = () => {
                     <CheckCircle2 className="h-5 w-5" />
                     <div>
                       <p className="text-sm font-semibold">Perfil Verificado</p>
-                      <p className="text-[10px] opacity-80">Selo de confianÃ§a ativo.</p>
+                      <p className="text-[10px] opacity-80">Selo de confiança ativo.</p>
                     </div>
                   </div>
                 ) : profile?.rejection_reason ? (
@@ -921,8 +921,8 @@ const OverviewPage = () => {
                   <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
                     <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
                     <div>
-                      <p className="font-semibold text-primary">Documentos em AnÃ¡lise</p>
-                      <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em atÃ© 24 horas Ãºteis.</p>
+                      <p className="font-semibold text-primary">Documentos em Análise</p>
+                      <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
                     </div>
                   </div>
                 ) : (
@@ -939,9 +939,9 @@ const OverviewPage = () => {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <PlayCircle className="h-4 w-4 text-primary" /> ConfiguraÃ§Ãµes do Tutorial
+                  <PlayCircle className="h-4 w-4 text-primary" /> Configurações do Tutorial
                 </CardTitle>
-                <CardDescription>Gerencie a exibiÃ§Ã£o do tutorial de boas-vindas.</CardDescription>
+                <CardDescription>Gerencie a exibição do tutorial de boas-vindas.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Button 
@@ -955,7 +955,7 @@ const OverviewPage = () => {
                   <div className="space-y-0.5">
                     <Label>Exibir tutorial ao fazer login</Label>
                     <p className="text-[10px] text-muted-foreground">
-                      Se desativado, o tutorial nÃ£o aparecerÃ¡ automaticamente.
+                      Se desativado, o tutorial não aparecerá automaticamente.
                     </p>
                   </div>
                   <Switch
@@ -981,5 +981,6 @@ const OverviewPage = () => {
 };
 
 export default OverviewPage;
+
 
 

@@ -78,24 +78,40 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
 
     setIsSavingPlan(true);
     try {
+      const normalizedId = String(selectedPlan.id || "").trim();
       const payload = {
-        ...selectedPlan,
+        id: normalizedId,
+        name: String(selectedPlan.name || "").trim(),
+        price: selectedPlan.price ?? "",
+        period: selectedPlan.period ?? "",
+        description: selectedPlan.description ?? "",
+        popular: !!selectedPlan.popular,
         asaas_installment_max: Number(selectedPlan.asaas_installment_max || 1),
         features: Array.isArray(selectedPlan.features)
           ? selectedPlan.features
           : String(selectedPlan.features || "")
               .split("\n")
-              .filter((f: string) => f.trim() !== ""),
+              .map((f: string) => f.trim())
+              .filter((f: string) => f !== ""),
       };
 
-      const { error } = await supabase.from("plans").upsert(payload);
+      const isExistingPlan = plans.some((p) => p.id === normalizedId);
+      const isSystemPlan = normalizedId === "free_trial";
+
+      const { error } = isExistingPlan || isSystemPlan
+        ? await supabase.from("plans").update(payload).eq("id", normalizedId)
+        : await supabase.from("plans").insert(payload);
+
       if (error) throw error;
 
       toast.success("Plano salvo!");
       setPlanModalOpen(false);
       refetchData();
-    } catch {
-      toast.error("Erro ao salvar plano.");
+    } catch (error: any) {
+      console.error("[PlansTab] Erro ao salvar plano:", error);
+      toast.error("Erro ao salvar plano.", {
+        description: error?.message || "Verifique os dados e tente novamente.",
+      });
     } finally {
       setIsSavingPlan(false);
     }

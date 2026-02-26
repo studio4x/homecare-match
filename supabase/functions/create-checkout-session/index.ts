@@ -134,6 +134,30 @@ const isAsaasInvalidCustomerReference = (payload: any) => {
   return false;
 };
 
+const isAsaasInvalidCheckoutDescriptionField = (payload: any) => {
+  const parts: string[] = [];
+  if (typeof payload?.message === "string") parts.push(payload.message);
+
+  if (Array.isArray(payload?.errors)) {
+    for (const err of payload.errors) {
+      if (typeof err?.code === "string") parts.push(err.code);
+      if (typeof err?.description === "string") parts.push(err.description);
+    }
+  }
+
+  const text = parts.join(" ").toLowerCase();
+  if (!text.includes("description") && !text.includes("descri")) return false;
+
+  return (
+    text.includes("invalid") ||
+    text.includes("invalido") ||
+    text.includes("inválido") ||
+    text.includes("unknown") ||
+    text.includes("nao permitido") ||
+    text.includes("não permitido")
+  );
+};
+
 const getInstallmentLimitByAmount = (amount: number, requestedMax: number, minInstallmentValue = 5) => {
   if (!Number.isFinite(amount) || amount <= 0) return 1;
   const requested = Math.max(1, Math.min(Number(requestedMax || 1), 12));
@@ -380,6 +404,11 @@ serve(async (req) => {
       maxInstallments,
       Number(config?.asaas_min_installment_value ?? 5),
     );
+    const checkoutDescription = truncateText(
+      itemDescription,
+      120,
+      truncateText(itemName, 120, "Compra HomeCare Match"),
+    );
 
     const chargeTypes: string[] = isRecurringCheckout ? ["RECURRENT"] : ["DETACHED"];
     if (!isRecurringCheckout && maxInstallmentsAllowed > 1 && billingTypes.includes("CREDIT_CARD")) {
@@ -395,10 +424,11 @@ serve(async (req) => {
         cancelUrl: `${appBaseUrl}/dashboard?canceled=true`,
         expiredUrl: `${appBaseUrl}/dashboard?canceled=true`,
       },
+      description: checkoutDescription,
       items: [
         {
           name: truncateText(itemName, 30, "Compra HomeCare Match"),
-          description: itemDescription,
+          description: checkoutDescription,
           quantity: 1,
           value: Number(itemAmount.toFixed(2)),
         },
@@ -457,6 +487,15 @@ serve(async (req) => {
       checkoutPayload.customer = asaasCustomerId;
       await supabaseAdmin.from("profiles").update({ asaas_customer_id: asaasCustomerId }).eq("id", user.id);
 
+      ({ response: checkoutRes, json: checkoutJson } = await createCheckout());
+    }
+
+    if (
+      (!checkoutRes.ok || !checkoutJson?.id) &&
+      Object.prototype.hasOwnProperty.call(checkoutPayload, "description") &&
+      isAsaasInvalidCheckoutDescriptionField(checkoutJson)
+    ) {
+      delete checkoutPayload.description;
       ({ response: checkoutRes, json: checkoutJson } = await createCheckout());
     }
 

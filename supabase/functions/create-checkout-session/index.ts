@@ -410,6 +410,12 @@ serve(async (req) => {
       truncateText(itemName, 120, "Compra HomeCare Match"),
     );
 
+    const externalReference = checkoutContext.courseSlug
+      ? `course:${checkoutContext.courseSlug}`
+      : checkoutContext.planId
+        ? `plan:${checkoutContext.planId}`
+        : undefined;
+
     const chargeTypes: string[] = isRecurringCheckout ? ["RECURRENT"] : ["DETACHED"];
     if (!isRecurringCheckout && maxInstallmentsAllowed > 1 && billingTypes.includes("CREDIT_CARD")) {
       chargeTypes.push("INSTALLMENT");
@@ -425,6 +431,7 @@ serve(async (req) => {
         expiredUrl: `${appBaseUrl}/dashboard?canceled=true`,
       },
       description: checkoutDescription,
+      externalReference,
       items: [
         {
           name: truncateText(itemName, 30, "Compra HomeCare Match"),
@@ -496,6 +503,7 @@ serve(async (req) => {
       isAsaasInvalidCheckoutDescriptionField(checkoutJson)
     ) {
       delete checkoutPayload.description;
+      delete checkoutPayload.externalReference;
       ({ response: checkoutRes, json: checkoutJson } = await createCheckout());
     }
 

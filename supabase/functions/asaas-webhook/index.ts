@@ -172,10 +172,13 @@ serve(async (req) => {
     const event = String(payload?.event || "").toUpperCase();
     const payment = payload?.payment || payload?.data?.payment || payload?.data || null;
 
-    const paymentId = payment?.id || null;
-    const checkoutId = payment?.checkout || payment?.checkoutSession || payload?.checkout?.id || payload?.checkoutId || null;
-    const paymentStatus = normalizeStatus(payment?.status);
-    const subscriptionId = payment?.subscription || getPayloadSubscriptionId(payload);
+  const paymentId = payment?.id || null;
+  const checkoutId = payment?.checkout || payment?.checkoutSession || payload?.checkout?.id || payload?.checkoutId || null;
+  const paymentStatus = normalizeStatus(payment?.status);
+  const subscriptionId = payment?.subscription || getPayloadSubscriptionId(payload);
+  const externalReference = String(
+    payment?.externalReference || payment?.reference || payload?.externalReference || ""
+  ).trim();
 
     let session = null;
 
@@ -257,6 +260,15 @@ serve(async (req) => {
       }
     }
 
+    if ((!courseSlug || !planId) && externalReference) {
+      if (!courseSlug && externalReference.toLowerCase().startsWith("course:")) {
+        courseSlug = externalReference.split(":").slice(1).join(":").trim() || courseSlug;
+      }
+      if (!planId && externalReference.toLowerCase().startsWith("plan:")) {
+        planId = externalReference.split(":").slice(1).join(":").trim() || planId;
+      }
+    }
+
     if (!session && userId) {
       const paymentValue = Number(payment?.value || 0);
       const { data: pendingSessions } = await supabaseAdmin
@@ -317,6 +329,7 @@ serve(async (req) => {
                 headers: {
                   "Content-Type": "application/json",
                   access_token: asaasApiKey,
+                  Authorization: `Bearer ${asaasApiKey}`,
                 },
                 body: JSON.stringify({
                   description: desiredPaymentDescription,

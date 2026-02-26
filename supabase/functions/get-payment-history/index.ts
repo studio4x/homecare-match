@@ -46,6 +46,56 @@ const parseDateToMs = (value?: string | null) => {
   return Number.isFinite(parsed) ? parsed : Date.now();
 };
 
+const PLAN_LABEL_BY_ID: Record<string, string> = {
+  monthly: "Plano Mensal",
+  yearly: "Plano Anual",
+  annual: "Plano Anual",
+};
+
+const normalizePlanId = (value?: string | null) => String(value || "").trim().toLowerCase();
+
+const getPlanDisplayName = (planId?: string | null, plansById: Record<string, string> = {}) => {
+  const normalized = normalizePlanId(planId);
+  if (!normalized) return "HomeCare Match";
+
+  const dynamicName = plansById[normalized];
+  if (dynamicName) return dynamicName;
+
+  return PLAN_LABEL_BY_ID[normalized] || normalized;
+};
+
+const normalizeSubscriptionDescription = (
+  rawDescription: unknown,
+  rawPlanId: unknown,
+  plansById: Record<string, string>,
+) => {
+  const description = typeof rawDescription === "string" ? rawDescription.trim() : "";
+  const explicitPlanId = typeof rawPlanId === "string" ? rawPlanId : "";
+  const fallbackPlan = getPlanDisplayName(explicitPlanId, plansById);
+
+  if (!description) return `Plano: ${fallbackPlan}`;
+
+  const match = description.match(/^plano:\s*(.+)$/i);
+  if (!match) return description;
+
+  const describedPlan = match[1]?.trim();
+  if (!describedPlan) return `Plano: ${fallbackPlan}`;
+
+  const normalizedPlan = getPlanDisplayName(describedPlan, plansById);
+  return `Plano: ${normalizedPlan}`;
+};
+
+const normalizeAsaasDescription = (rawDescription: unknown) => {
+  const description = typeof rawDescription === "string" ? rawDescription.trim() : "";
+  if (!description) return "Pagamento HomeCare Match";
+
+  const match = description.match(/^plano:\s*(.+)$/i);
+  if (!match) return description;
+
+  const planId = match[1]?.trim();
+  return `Plano: ${getPlanDisplayName(planId)}`;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -76,6 +126,28 @@ serve(async (req) => {
       throw txError;
     }
 
+    const planIds = Array.from(
+      new Set(
+        (transactions || [])
+          .map((t: any) => (typeof t?.plan_id === "string" ? normalizePlanId(t.plan_id) : ""))
+          .filter(Boolean),
+      ),
+    );
+
+    let plansById: Record<string, string> = {};
+    if (planIds.length > 0) {
+      const { data: plans } = await supabaseAdmin
+        .from("plans")
+        .select("id,name")
+        .in("id", planIds);
+
+      plansById = Object.fromEntries(
+        (plans || [])
+          .map((plan: any) => [normalizePlanId(plan?.id), String(plan?.name || "").trim()])
+          .filter(([id, name]) => Boolean(id) && Boolean(name)),
+      );
+    }
+
     const mappedDbPayments = (transactions || []).map((t: any) => ({
       id: t.payment_id || t.id,
       date: parseDateToMs(t.payment_date || t.confirmed_at || t.created_at),
@@ -83,10 +155,9 @@ serve(async (req) => {
       currency: String(t.currency || "BRL").toLowerCase(),
       status: statusToDisplay(t.status),
       description:
-        t.description ||
-        (t.transaction_type === "course"
-          ? `Curso: ${t.course_slug || "HomeCare Match"}`
-          : `Plano: ${t.plan_id || "HomeCare Match"}`),
+        t.transaction_type === "course"
+          ? t.description || `Curso: ${t.course_slug || "HomeCare Match"}`
+          : normalizeSubscriptionDescription(t.description, t.plan_id, plansById),
       pdf_url: t.invoice_url || null,
       type: t.transaction_type === "course" ? "one_time" : "subscription",
     }));
@@ -156,7 +227,7 @@ serve(async (req) => {
       amount: Number(p.value || 0),
       currency: String(p.currency || "BRL").toLowerCase(),
       status: statusToDisplay(p.status),
-      description: p.description || "Pagamento HomeCare Match",
+      description: normalizeAsaasDescription(p.description),
       pdf_url: p.invoiceUrl || p.bankSlipUrl || null,
       type: p.subscription ? "subscription" : "one_time",
     }));

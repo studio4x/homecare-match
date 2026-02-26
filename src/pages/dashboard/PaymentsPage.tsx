@@ -1,34 +1,31 @@
-﻿"use client";
+"use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Loader2, 
-  CreditCard, 
-  Download, 
-  ExternalLink, 
-  Receipt, 
+import {
+  Loader2,
+  CreditCard,
+  Download,
+  Receipt,
   Calendar,
   AlertCircle,
   RefreshCw,
   XCircle,
-  Ticket
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
-import PlanSelectionModal from "@/components/PlanSelectionModal";
 
 interface PaymentRecord {
   id: string;
@@ -38,12 +35,20 @@ interface PaymentRecord {
   status: string;
   description: string;
   pdf_url: string | null;
-  type: 'subscription' | 'one_time';
+  type: "subscription" | "one_time";
+}
+
+interface CancellationState {
+  canCancel: boolean;
+  deadline: Date | null;
+  message: string;
 }
 
 type InvokeFunctionError = {
   context?: Response;
 };
+
+const CANCELLATION_WINDOW_DAYS = 7;
 
 const readFunctionErrorMessage = async (
   funcError: InvokeFunctionError | null,
@@ -74,8 +79,8 @@ const PaymentsPage = () => {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 
   const fetchHistory = async (silent = false) => {
     if (!silent) {
@@ -86,19 +91,20 @@ const PaymentsPage = () => {
     }
 
     try {
-      const { data, error: funcError } = await supabase.functions.invoke('get-payment-history');
-      
+      const { data, error: funcError } = await supabase.functions.invoke("get-payment-history");
+
       if (funcError) {
         const msg = await readFunctionErrorMessage(funcError, "Erro ao consultar histórico.");
         throw new Error(msg);
       }
-      
+
       setPayments(data?.payments || []);
     } catch (err: unknown) {
       console.error("[PaymentsPage] Erro:", err);
-      const errorMessage = err instanceof Error && err.message
-        ? err.message
-        : "Não foi possível carregar seu histórico de pagamentos.";
+      const errorMessage =
+        err instanceof Error && err.message
+          ? err.message
+          : "Não foi possível carregar seu histórico de pagamentos.";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -111,15 +117,82 @@ const PaymentsPage = () => {
     fetchHistory();
   }, []);
 
+  const cancellationState = useMemo<CancellationState>(() => {
+    const latestPaidSubscription = [...payments]
+      .filter((payment) => {
+        const normalizedStatus = payment.status.toLowerCase();
+        return payment.type === "subscription" && (normalizedStatus === "paid" || normalizedStatus === "succeeded");
+      })
+      .sort((a, b) => b.date - a.date)[0];
+
+    if (!latestPaidSubscription) {
+      return {
+        canCancel: false,
+        deadline: null,
+        message: "Nenhuma assinatura paga foi encontrada para cancelamento.",
+      };
+    }
+
+    const deadline = new Date(latestPaidSubscription.date + CANCELLATION_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const now = new Date();
+
+    if (now.getTime() > deadline.getTime()) {
+      return {
+        canCancel: false,
+        deadline,
+        message: `Prazo de cancelamento encerrado em ${format(deadline, "dd/MM/yyyy", { locale: ptBR })}.`,
+      };
+    }
+
+    return {
+      canCancel: true,
+      deadline,
+      message: `Cancelamento disponível até ${format(deadline, "dd/MM/yyyy", { locale: ptBR })}.`,
+    };
+  }, [payments]);
+
+  const handleCancelSubscription = async () => {
+    if (!cancellationState.canCancel || isCancelling) return;
+
+    const confirmed = window.confirm(
+      "Deseja cancelar sua assinatura? Essa ação é irreversível e será aplicada também no Asaas.",
+    );
+    if (!confirmed) return;
+
+    setIsCancelling(true);
+    const toastId = toast.loading("Cancelando assinatura...");
+
+    try {
+      const { data, error: funcError } = await supabase.functions.invoke("cancel-user-subscription");
+
+      if (funcError) {
+        const message = await readFunctionErrorMessage(funcError, "Não foi possível cancelar a assinatura.");
+        throw new Error(message);
+      }
+
+      toast.success(data?.message || "Assinatura cancelada com sucesso.", { id: toastId });
+      await fetchHistory(true);
+    } catch (err: unknown) {
+      console.error("[Cancel Subscription Error]", err);
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : "Erro ao cancelar assinatura.";
+      toast.error(message, { id: toastId });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'paid':
-      case 'succeeded':
+      case "paid":
+      case "succeeded":
         return <Badge className="bg-success hover:bg-success">Pago</Badge>;
-      case 'open':
+      case "open":
         return <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">Pendente</Badge>;
-      case 'void':
-      case 'canceled':
+      case "void":
+      case "canceled":
         return <Badge variant="secondary">Cancelado</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -136,24 +209,15 @@ const PaymentsPage = () => {
           <p className="text-muted-foreground">Consulte suas faturas e recibos de assinaturas e cursos.</p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-2" 
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
             onClick={() => fetchHistory(true)}
             disabled={isRefreshing || loading}
           >
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Atualizar
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="gap-2 border-primary/50 text-primary hover:bg-primary/5" 
-            onClick={() => setIsPlanModalOpen(true)}
-          >
-            <Ticket className="h-4 w-4" />
-            Inserir Cupom
           </Button>
         </div>
       </div>
@@ -204,12 +268,12 @@ const PaymentsPage = () => {
                           <div className="space-y-0.5">
                             <p className="text-sm font-medium leading-none">{p.description}</p>
                             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                              {p.type === 'subscription' ? 'Assinatura' : 'Pagamento Único'}
+                              {p.type === "subscription" ? "Assinatura" : "Pagamento Único"}
                             </p>
                           </div>
                         </TableCell>
                         <TableCell className="font-semibold">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: p.currency.toUpperCase() }).format(p.amount)}
+                          {new Intl.NumberFormat("pt-BR", { style: "currency", currency: p.currency.toUpperCase() }).format(p.amount)}
                         </TableCell>
                         <TableCell>{getStatusBadge(p.status)}</TableCell>
                         <TableCell className="text-right">
@@ -238,17 +302,39 @@ const PaymentsPage = () => {
         </Card>
       )}
 
-      <PlanSelectionModal 
-        open={isPlanModalOpen} 
-        onOpenChange={setIsPlanModalOpen} 
-      />
+      <Card className="border-amber-300/40 bg-amber-50/30">
+        <CardHeader>
+          <CardTitle className="text-base">Cancelamento de Assinatura</CardTitle>
+          <CardDescription>
+            O cancelamento é permitido apenas em até {CANCELLATION_WINDOW_DAYS} dias após o pagamento.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">{cancellationState.message}</p>
+          {cancellationState.deadline && (
+            <p className="text-xs text-muted-foreground">
+              Data limite: <strong>{format(cancellationState.deadline, "dd/MM/yyyy", { locale: ptBR })}</strong>
+            </p>
+          )}
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleCancelSubscription}
+            disabled={!cancellationState.canCancel || isCancelling || loading}
+            className="w-full sm:w-auto"
+          >
+            {isCancelling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+            Cancelar Assinatura
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
         <AlertCircle className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="text-sm font-semibold text-blue-900">Precisa gerenciar sua assinatura?</p>
           <p className="text-xs text-blue-800 leading-relaxed">
-            Para alterar formas de pagamento, trocar de plano ou cancelar renovações automáticas, utilize o botão <strong>Gerenciar Assinatura</strong> na página inicial do seu painel.
+            Para alterar formas de pagamento ou trocar de plano, utilize o botão <strong>Gerenciar Assinatura</strong> na página inicial do seu painel.
           </p>
         </div>
       </div>

@@ -253,6 +253,7 @@ const FeatureVideosPage = () => {
                         <LandingVideoPlayer 
                           url={sourceUrl}
                           title={feature.title}
+                          showTitleOverlay={false}
                         />
                       )}
                     </div>

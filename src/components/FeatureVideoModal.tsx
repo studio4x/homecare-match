@@ -41,6 +41,7 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
             title={video.title} 
             className="border-none"
             autoplay={false} // Desativar autoplay
+            showTitleOverlay={false}
           />
         </AspectRatio>
       </DialogContent>

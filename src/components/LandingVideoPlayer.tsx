@@ -11,9 +11,17 @@ interface LandingVideoPlayerProps {
   className?: string;
   autoplay?: boolean; // Adicionando prop autoplay
   deferLoad?: boolean;
+  showTitleOverlay?: boolean;
 }
 
-const LandingVideoPlayer = ({ url, title, className, autoplay = false, deferLoad = false }: LandingVideoPlayerProps) => {
+const LandingVideoPlayer = ({
+  url,
+  title,
+  className,
+  autoplay = false,
+  deferLoad = false,
+  showTitleOverlay = true,
+}: LandingVideoPlayerProps) => {
   const isYouTubeUrl = url && (url.includes("youtube.com") || url.includes("youtu.be"));
   const processedUrl = isYouTubeUrl ? getYouTubeEmbedUrl(url) : url;
   const isEmbeddedVideo = isYouTubeUrl || processedUrl.includes("vimeo.com/video");
@@ -65,7 +73,7 @@ const LandingVideoPlayer = ({ url, title, className, autoplay = false, deferLoad
         </button>
       )}
 
-      {title && (
+      {showTitleOverlay && title && (
         <div className="absolute top-4 left-4 pointer-events-none z-10">
           <span className="px-3 py-1 rounded-full bg-black/40 backdrop-blur-md text-white text-[10px] font-bold uppercase tracking-wider border border-white/10">
             {title}

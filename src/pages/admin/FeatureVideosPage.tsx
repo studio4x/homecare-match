@@ -254,6 +254,7 @@ const FeatureVideosPage = () => {
                           url={sourceUrl}
                           title={feature.title}
                           autoplay={false} // Desativar autoplay
+                          showTitleOverlay={false}
                         />
                       )}
                     </div>

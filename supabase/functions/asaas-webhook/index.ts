@@ -20,6 +20,63 @@ const INACTIVE_STATUSES = new Set([
   "CHARGEBACK_DISPUTE",
 ]);
 
+const asaasEnvFromConfig = (config: any) => {
+  if (config?.asaas_environment === "production") return "production";
+  return "sandbox";
+};
+
+const getAsaasApiBaseUrl = (env: "sandbox" | "production") => {
+  return env === "production" ? "https://api.asaas.com/v3" : "https://api-sandbox.asaas.com/v3";
+};
+
+const getAsaasApiKey = (env: "sandbox" | "production") => {
+  if (env === "production") {
+    return (
+      Deno.env.get("ASAAS_API_KEY_PRODUCTION") ||
+      Deno.env.get("ASAAS_API_KEY_LIVE") ||
+      Deno.env.get("ASAAS_API_KEY")
+    );
+  }
+
+  return (
+    Deno.env.get("ASAAS_API_KEY_SANDBOX") ||
+    Deno.env.get("ASAAS_API_KEY_TEST") ||
+    Deno.env.get("ASAAS_API_KEY")
+  );
+};
+
+const truncateText = (value: unknown, maxLength: number, fallback: string) => {
+  const text = String(value || "").trim();
+  if (!text) return fallback;
+  return text.length > maxLength ? text.slice(0, maxLength).trim() : text;
+};
+
+const resolveAsaasChargeDescription = async (
+  supabaseAdmin: any,
+  courseSlug?: string | null,
+  planId?: string | null,
+) => {
+  if (courseSlug) {
+    const { data: course } = await supabaseAdmin
+      .from("academy_courses")
+      .select("title")
+      .eq("slug", courseSlug)
+      .maybeSingle();
+    return truncateText(`Curso: ${course?.title || courseSlug}`, 120, `Curso: ${courseSlug}`);
+  }
+
+  if (planId) {
+    const { data: plan } = await supabaseAdmin
+      .from("plans")
+      .select("name")
+      .eq("id", planId)
+      .maybeSingle();
+    return truncateText(`Plano: ${plan?.name || planId}`, 120, `Plano: ${planId}`);
+  }
+
+  return "Pagamento HomeCare Match";
+};
+
 const parseAsaasDate = (value?: string | null) => {
   if (!value) return null;
 
@@ -175,6 +232,46 @@ serve(async (req) => {
       }
     }
 
+    let resolvedPaymentDescription = String(payment?.description || "").trim();
+
+    if (paymentId && !resolvedPaymentDescription) {
+      resolvedPaymentDescription = await resolveAsaasChargeDescription(supabaseAdmin, courseSlug, planId);
+
+      const { data: config } = await supabaseAdmin
+        .from("site_config")
+        .select("asaas_environment")
+        .eq("id", 1)
+        .maybeSingle();
+
+      const asaasEnv = asaasEnvFromConfig(config) as "sandbox" | "production";
+      const asaasApiKey = getAsaasApiKey(asaasEnv);
+
+      if (asaasApiKey) {
+        try {
+          const updateRes = await fetch(
+            `${getAsaasApiBaseUrl(asaasEnv)}/payments/${encodeURIComponent(String(paymentId))}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                access_token: asaasApiKey,
+              },
+              body: JSON.stringify({
+                description: resolvedPaymentDescription,
+              }),
+            },
+          );
+
+          const updateJson = await updateRes.json().catch(() => ({}));
+          if (updateRes.ok && typeof updateJson?.description === "string" && updateJson.description.trim()) {
+            resolvedPaymentDescription = updateJson.description.trim();
+          }
+        } catch {
+          // best effort: keep local fallback when Asaas update is not allowed for current payment state
+        }
+      }
+    }
+
     if (paymentId) {
       const transactionType = courseSlug ? "course" : planId ? "plan" : "unknown";
       const parsedPaymentDate =
@@ -205,7 +302,7 @@ serve(async (req) => {
         currency: "BRL",
         status: statusForUpsert,
         description:
-          payment?.description ||
+          resolvedPaymentDescription ||
           existingTx?.description ||
           (courseSlug ? `Curso: ${courseSlug}` : planId ? `Plano: ${planId}` : "Pagamento HomeCare Match"),
         asaas_checkout_id: checkoutId || existingTx?.asaas_checkout_id || null,

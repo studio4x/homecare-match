@@ -250,15 +250,7 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
-            {session ? (
-              <Link
-                to={dashboardPath}
-                aria-label="Abrir painel"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors hover:border-primary/40"
-              >
-                <LayoutDashboard className="h-4 w-4 text-foreground" />
-              </Link>
-            ) : (
+            {!session && (
               <Button size="sm" variant="outline" asChild>
                 <Link to="/login">Entrar</Link>
               </Button>

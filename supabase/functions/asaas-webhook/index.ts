@@ -9,6 +9,16 @@ const corsHeaders = {
 
 const PAID_EVENTS = new Set(["PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"]);
 const PAID_STATUSES = new Set(["CONFIRMED", "RECEIVED", "PAID"]);
+const INACTIVE_STATUSES = new Set([
+  "REFUND_PENDING",
+  "REFUNDED",
+  "CANCELED",
+  "CANCELLED",
+  "VOID",
+  "DELETED",
+  "CHARGEBACK_REQUESTED",
+  "CHARGEBACK_DISPUTE",
+]);
 
 const parseAsaasDate = (value?: string | null) => {
   if (!value) return null;
@@ -175,6 +185,13 @@ serve(async (req) => {
         parseAsaasDate(payment?.dueDate);
 
       const isPaidNow = PAID_EVENTS.has(event) || (paymentStatus ? PAID_STATUSES.has(paymentStatus) : false);
+      const existingStatus = normalizeStatus(existingTx?.status);
+      const existingIsInactive = INACTIVE_STATUSES.has(existingStatus || "");
+      const keepInactiveStatus = existingIsInactive && isPaidNow;
+      const statusForUpsert =
+        keepInactiveStatus
+          ? existingTx?.status
+          : paymentStatus || event || existingTx?.status || "EVENT_RECEIVED";
 
       const txPayload: Record<string, any> = {
         provider: "asaas",
@@ -186,7 +203,7 @@ serve(async (req) => {
         plan_duration_days: session?.plan_duration_days || existingTx?.plan_duration_days || null,
         amount: Number(payment?.value || existingTx?.amount || session?.amount || 0),
         currency: "BRL",
-        status: paymentStatus || event || existingTx?.status || "EVENT_RECEIVED",
+        status: statusForUpsert,
         description:
           payment?.description ||
           existingTx?.description ||
@@ -205,25 +222,35 @@ serve(async (req) => {
     }
 
     if (session?.id) {
+      const sessionStatus = normalizeStatus(session?.status);
+      const sessionPaymentStatus = normalizeStatus(session?.payment_status);
+      const incomingPaid = PAID_EVENTS.has(event) || (paymentStatus ? PAID_STATUSES.has(paymentStatus) : false);
+      const sessionIsInactive =
+        INACTIVE_STATUSES.has(sessionStatus || "") ||
+        INACTIVE_STATUSES.has(sessionPaymentStatus || "");
+      const keepInactiveSessionState = sessionIsInactive && incomingPaid;
+
       const checkoutUpdatePayload: Record<string, any> = {
-        status: paymentStatus || event || "EVENT_RECEIVED",
+        status: keepInactiveSessionState ? session.status : paymentStatus || event || "EVENT_RECEIVED",
         payment_id: paymentId || session.payment_id || null,
-        payment_status: paymentStatus || null,
+        payment_status: keepInactiveSessionState ? session.payment_status : paymentStatus || null,
         raw_response: payload,
         updated_at: new Date().toISOString(),
       };
 
-      if (PAID_EVENTS.has(event) || (paymentStatus ? PAID_STATUSES.has(paymentStatus) : false)) {
+      if (!keepInactiveSessionState && (PAID_EVENTS.has(event) || (paymentStatus ? PAID_STATUSES.has(paymentStatus) : false))) {
         checkoutUpdatePayload.paid_at = new Date().toISOString();
       }
 
       await supabaseAdmin.from("asaas_checkout_sessions").update(checkoutUpdatePayload).eq("id", session.id);
     }
 
-    const wasPaidBefore = PAID_STATUSES.has(normalizeStatus(existingTx?.status) || "");
+    const previousStatus = normalizeStatus(existingTx?.status) || "";
+    const wasPaidBefore = PAID_STATUSES.has(previousStatus);
+    const wasInactiveBefore = INACTIVE_STATUSES.has(previousStatus);
     const isPaidNow = PAID_EVENTS.has(event) || (paymentStatus ? PAID_STATUSES.has(paymentStatus) : false);
 
-    if (isPaidNow && !wasPaidBefore && userId) {
+    if (isPaidNow && !wasPaidBefore && !wasInactiveBefore && userId) {
       if (planId) {
         const planDurationDays = Number(session?.plan_duration_days || existingTx?.plan_duration_days || tierToDurationDays(planId));
         const paymentBaseDate =

@@ -7,7 +7,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PAID_STATUSES = ["RECEIVED", "CONFIRMED", "paid", "received", "confirmed"];
+const PAID_STATUSES = ["RECEIVED", "CONFIRMED", "PAID"];
+const PAID_STATUS_SET = new Set(PAID_STATUSES);
+const INACTIVE_STATUSES = ["REFUND_PENDING", "REFUNDED", "CANCELED", "CANCELLED", "VOID", "DELETED"];
+const INACTIVE_STATUS_SET = new Set(INACTIVE_STATUSES);
 
 const asaasEnvFromConfig = (config: any) => {
   if (config?.asaas_environment === "production") return "production";
@@ -54,6 +57,15 @@ const parseAsaasDate = (value?: string | null) => {
   return new Date();
 };
 
+const normalizeStatus = (value?: string | null) => String(value || "").trim().toUpperCase();
+
+const dateToMs = (value?: string | Date | null) => {
+  if (!value) return 0;
+  const parsed = value instanceof Date ? value : new Date(value);
+  const time = parsed.getTime();
+  return Number.isFinite(time) ? time : 0;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -74,22 +86,44 @@ serve(async (req) => {
 
     if (userError || !user) throw new Error("Usuario nao autenticado ou sessao expirada.");
 
-    const { data: lastPaidPlan, error: txError } = await supabaseAdmin
-      .from("payment_transactions")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("transaction_type", "plan")
-      .in("status", PAID_STATUSES)
-      .order("payment_date", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [{ data: lastPaidPlan, error: txError }, { data: latestInactiveTx, error: inactiveTxError }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("payment_transactions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("transaction_type", "plan")
+          .in("status", PAID_STATUSES)
+          .order("payment_date", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("payment_transactions")
+          .select("status,subscription_end_at,updated_at,payment_date,created_at")
+          .eq("user_id", user.id)
+          .eq("transaction_type", "plan")
+          .in("status", INACTIVE_STATUSES)
+          .order("updated_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
 
-    if (txError && !txError.message?.includes("payment_transactions")) {
-      throw txError;
-    }
+    if (txError && !txError.message?.includes("payment_transactions")) throw txError;
+    if (inactiveTxError && !inactiveTxError.message?.includes("payment_transactions")) throw inactiveTxError;
+
+    const latestInactiveAtMs = dateToMs(
+      latestInactiveTx?.updated_at || latestInactiveTx?.subscription_end_at || latestInactiveTx?.created_at,
+    );
 
     let activePlanTx = lastPaidPlan || null;
+    if (activePlanTx && latestInactiveAtMs > 0) {
+      const activeTxDateMs = dateToMs(activePlanTx.payment_date || activePlanTx.created_at || activePlanTx.updated_at);
+      if (activeTxDateMs <= latestInactiveAtMs) {
+        activePlanTx = null;
+      }
+    }
 
     if (!activePlanTx) {
       const [{ data: profile }, { data: config }] = await Promise.all([
@@ -130,13 +164,27 @@ serve(async (req) => {
           const paymentsJson = await paymentsRes.json().catch(() => ({}));
           const payments = Array.isArray(paymentsJson?.data) ? paymentsJson.data : [];
 
-          const paidPayments = payments.filter((p: any) => ["RECEIVED", "CONFIRMED"].includes(String(p?.status || "").toUpperCase()));
+          const validSessions = sessions.filter((session: any) => {
+            const sessionStatus = normalizeStatus(session?.status);
+            const sessionPaymentStatus = normalizeStatus(session?.payment_status);
+            return !INACTIVE_STATUS_SET.has(sessionStatus) && !INACTIVE_STATUS_SET.has(sessionPaymentStatus);
+          });
 
-          if (sessions.length > 0 && paidPayments.length > 0) {
+          const paidPayments = payments
+            .filter((p: any) => PAID_STATUS_SET.has(normalizeStatus(p?.status)))
+            .filter((p: any) => {
+              if (!latestInactiveAtMs) return true;
+              const paymentDate = parseAsaasDate(
+                p?.paymentDate || p?.clientPaymentDate || p?.confirmedDate || p?.dateCreated || p?.dueDate,
+              );
+              return paymentDate.getTime() > latestInactiveAtMs;
+            });
+
+          if (validSessions.length > 0 && paidPayments.length > 0) {
             let matchedSession: any = null;
             let matchedPayment: any = null;
 
-            for (const session of sessions) {
+            for (const session of validSessions) {
               const candidate = paidPayments.find((p: any) => {
                 const sameValue = Math.abs(Number(p?.value || 0) - Number(session?.amount || 0)) <= 0.01;
                 const paymentDate = parseAsaasDate(p?.paymentDate || p?.clientPaymentDate || p?.dateCreated);
@@ -146,6 +194,18 @@ serve(async (req) => {
               });
 
               if (candidate) {
+                const { data: existingCandidateTx } = await supabaseAdmin
+                  .from("payment_transactions")
+                  .select("status")
+                  .eq("provider", "asaas")
+                  .eq("payment_id", candidate.id)
+                  .maybeSingle();
+
+                const existingCandidateStatus = normalizeStatus(existingCandidateTx?.status);
+                if (INACTIVE_STATUS_SET.has(existingCandidateStatus)) {
+                  continue;
+                }
+
                 matchedSession = session;
                 matchedPayment = candidate;
                 break;
@@ -200,6 +260,40 @@ serve(async (req) => {
           }
         }
       }
+    }
+
+    if (!activePlanTx && latestInactiveTx) {
+      const canceledAt =
+        latestInactiveTx.subscription_end_at ||
+        latestInactiveTx.updated_at ||
+        latestInactiveTx.created_at ||
+        new Date().toISOString();
+
+      const { data: canceledProfile, error: canceledProfileError } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          subscription_tier: "free_trial",
+          subscription_end_at: canceledAt,
+          cancel_at_period_end: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id)
+        .select("*")
+        .single();
+
+      if (canceledProfileError) throw canceledProfileError;
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Assinatura permanece cancelada.",
+          profile: canceledProfile,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
     }
 
     if (!activePlanTx) {

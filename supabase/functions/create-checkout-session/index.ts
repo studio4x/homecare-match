@@ -92,22 +92,36 @@ const parseAsaasErrorMessage = (payload: any, fallback: string) => {
   return fallback;
 };
 
-const isAsaasCustomerNotFound = (payload: any) => {
-  const msg = String(payload?.message || "").toLowerCase();
-  if (msg.includes("customer") && msg.includes("not found")) return true;
-  if (msg.includes("cliente") && (msg.includes("nao encontrado") || msg.includes("não encontrado"))) return true;
+const isAsaasInvalidCustomerReference = (payload: any) => {
+  const message = String(payload?.message || "").toLowerCase();
+
+  const indicatesCustomerField = message.includes("customer") || message.includes("cliente");
+  const indicatesInvalidCustomer =
+    message.includes("not found") ||
+    message.includes("nao encontrado") ||
+    message.includes("não encontrado") ||
+    message.includes("invalid") ||
+    message.includes("invalido") ||
+    message.includes("inválido");
+
+  if (indicatesCustomerField && indicatesInvalidCustomer) return true;
 
   if (Array.isArray(payload?.errors)) {
     return payload.errors.some((err: any) => {
       const code = String(err?.code || "").toLowerCase();
       const desc = String(err?.description || "").toLowerCase();
-      return (
-        code.includes("customer") && code.includes("not") && code.includes("found")
-      ) || (
-        desc.includes("customer") && desc.includes("not found")
-      ) || (
-        desc.includes("cliente") && (desc.includes("nao encontrado") || desc.includes("não encontrado"))
-      );
+      const text = `${code} ${desc}`;
+
+      const hasCustomer = text.includes("customer") || text.includes("cliente");
+      const hasInvalidReference =
+        text.includes("not found") ||
+        text.includes("nao encontrado") ||
+        text.includes("não encontrado") ||
+        text.includes("invalid") ||
+        text.includes("invalido") ||
+        text.includes("inválido");
+
+      return hasCustomer && hasInvalidReference;
     });
   }
 
@@ -312,7 +326,7 @@ serve(async (req) => {
       const updateCustomerJson = await updateCustomerRes.json().catch(() => ({}));
 
       if (!updateCustomerRes.ok) {
-        if (isAsaasCustomerNotFound(updateCustomerJson)) {
+        if (updateCustomerRes.status === 404 || isAsaasInvalidCustomerReference(updateCustomerJson)) {
           asaasCustomerId = null;
         } else {
           throw new Error(
@@ -418,7 +432,7 @@ serve(async (req) => {
 
     let { response: checkoutRes, json: checkoutJson } = await createCheckout();
 
-    if ((!checkoutRes.ok || !checkoutJson?.id) && isAsaasCustomerNotFound(checkoutJson)) {
+    if ((!checkoutRes.ok || !checkoutJson?.id) && isAsaasInvalidCustomerReference(checkoutJson)) {
       const customerRes = await fetch(`${asaasApiBaseUrl}/customers`, {
         method: "POST",
         headers: {

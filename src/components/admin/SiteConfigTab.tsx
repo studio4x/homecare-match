@@ -260,11 +260,28 @@ const SiteConfigTab = () => {
   const handleSyncCron = async () => {
     setIsSyncingCron(true);
     try {
-      const { error } = await supabase.functions.invoke('setup-cron-job');
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) {
+        throw new Error("Sessao expirada. Entre novamente para configurar a automacao.");
+      }
+
+      const { error } = await supabase.functions.invoke('setup-cron-job', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
       if (error) throw error;
       toast.success("Automação (Cron Job) ativada com sucesso!");
     } catch (error: any) {
-      toast.error("Erro ao ativar automação. Verifique se as extensões pg_net e pg_cron estão disponíveis no seu plano.");
+      const message =
+        error?.message ||
+        "Erro ao ativar automacao. Verifique se as extensoes pg_net e pg_cron estao disponiveis no seu plano.";
+      toast.error(message);
     } finally {
       setIsSyncingCron(false);
     }

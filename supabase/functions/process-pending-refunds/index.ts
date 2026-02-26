@@ -238,6 +238,7 @@ serve(async (req) => {
         await supabaseAdmin
           .from("asaas_checkout_sessions")
           .update({
+            status: "CANCELED",
             payment_status: "REFUNDED",
             updated_at: nowIso,
             raw_response: {
@@ -249,6 +250,16 @@ serve(async (req) => {
             },
           })
           .eq("payment_id", tx.payment_id);
+
+        await supabaseAdmin
+          .from("profiles")
+          .update({
+            subscription_tier: "free_trial",
+            subscription_end_at: nowIso,
+            cancel_at_period_end: true,
+            updated_at: nowIso,
+          })
+          .eq("id", tx.user_id);
 
         try {
           await supabaseAdmin.from("notifications").insert({

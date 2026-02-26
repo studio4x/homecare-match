@@ -57,7 +57,7 @@ const SiteConfigTab = () => {
     asaas_environment: "sandbox",
     asaas_checkout_base_url: "",
     asaas_allow_credit_card: true,
-    asaas_allow_pix: true,
+    asaas_allow_pix: false,
     asaas_default_installment_max: 12,
     asaas_checkout_expiration_minutes: 60,
     google_maps_api_key: "",
@@ -102,7 +102,7 @@ const SiteConfigTab = () => {
         asaas_environment: config.asaas_environment || "sandbox",
         asaas_checkout_base_url: config.asaas_checkout_base_url || "",
         asaas_allow_credit_card: config.asaas_allow_credit_card ?? true,
-        asaas_allow_pix: config.asaas_allow_pix ?? true,
+        asaas_allow_pix: config.asaas_allow_pix ?? false,
         asaas_default_installment_max: config.asaas_default_installment_max ?? 12,
         asaas_checkout_expiration_minutes: config.asaas_checkout_expiration_minutes ?? 60,
         google_maps_api_key: config.google_maps_api_key || "",
@@ -408,7 +408,7 @@ const SiteConfigTab = () => {
           asaas_environment: formData.asaas_environment,
           asaas_checkout_base_url: formData.asaas_checkout_base_url,
           asaas_allow_credit_card: formData.asaas_allow_credit_card,
-          asaas_allow_pix: formData.asaas_allow_pix,
+          asaas_allow_pix: false,
           asaas_default_installment_max: Number(formData.asaas_default_installment_max || 12),
           asaas_checkout_expiration_minutes: Number(formData.asaas_checkout_expiration_minutes || 60),
           google_maps_api_key: formData.google_maps_api_key,
@@ -583,7 +583,7 @@ const SiteConfigTab = () => {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-1">
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="space-y-0.5">
                 <Label>Aceitar Cartao</Label>
@@ -592,16 +592,6 @@ const SiteConfigTab = () => {
               <Switch
                 checked={!!formData.asaas_allow_credit_card}
                 onCheckedChange={(checked) => setFormData({ ...formData, asaas_allow_credit_card: checked })}
-              />
-            </div>
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="space-y-0.5">
-                <Label>Aceitar PIX</Label>
-                <p className="text-[10px] text-muted-foreground">Habilita PIX como opcao de pagamento.</p>
-              </div>
-              <Switch
-                checked={!!formData.asaas_allow_pix}
-                onCheckedChange={(checked) => setFormData({ ...formData, asaas_allow_pix: checked })}
               />
             </div>
           </div>

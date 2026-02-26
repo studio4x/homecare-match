@@ -357,17 +357,11 @@ serve(async (req) => {
 
     const isRecurringCheckout = checkoutContext.recurring === true;
 
-    const billingTypes: string[] = [];
-    if (isRecurringCheckout) {
-      if (config?.asaas_allow_credit_card === false) {
-        throw new Error("Plano mensal com renovacao automatica exige cartao de credito habilitado.");
-      }
-      billingTypes.push("CREDIT_CARD");
-    } else {
-      if (config?.asaas_allow_credit_card !== false) billingTypes.push("CREDIT_CARD");
-      if (config?.asaas_allow_pix !== false) billingTypes.push("PIX");
-      if (billingTypes.length === 0) billingTypes.push("CREDIT_CARD");
+    if (config?.asaas_allow_credit_card === false) {
+      throw new Error("Pagamento com cartao de credito esta desabilitado nas configuracoes.");
     }
+
+    const billingTypes: string[] = ["CREDIT_CARD"];
 
     const maxInstallmentsAllowed = getInstallmentLimitByAmount(
       itemAmount,

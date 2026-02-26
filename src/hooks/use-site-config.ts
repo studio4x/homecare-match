@@ -86,7 +86,7 @@ export const useSiteConfig = () => {
           payment_provider: "asaas",
           asaas_environment: "sandbox",
           asaas_allow_credit_card: true,
-          asaas_allow_pix: true,
+          asaas_allow_pix: false,
           asaas_default_installment_max: 12,
           asaas_checkout_expiration_minutes: 60,
           ga_enabled: false,

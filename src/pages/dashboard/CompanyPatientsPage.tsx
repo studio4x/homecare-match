@@ -53,6 +53,10 @@ import CompanyPatientForm from "@/components/CompanyPatientForm";
 import AccessRestricted from "@/components/AccessRestricted";
 import { useSearchParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import {
+  isMissingHiringStatusColumnError,
+  syncCompanyPatientsSchema,
+} from "@/lib/companyPatientsSchema";
 
 interface Patient {
   id: string;
@@ -78,7 +82,7 @@ type HiringStatus = "needs_professional" | "hiring_in_progress" | "hired";
 
 const HIRING_STATUS_OPTIONS: { value: HiringStatus; label: string }[] = [
   { value: "needs_professional", label: "Precisa de profissional" },
-  { value: "hiring_in_progress", label: "Contratacao em andamento" },
+  { value: "hiring_in_progress", label: "Contratação em andamento" },
   { value: "hired", label: "Profissional contratado" },
 ];
 
@@ -205,7 +209,7 @@ const CompanyPatientsPage = () => {
     if (status === "hiring_in_progress") {
       return (
         <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">
-          Contratacao em andamento
+          Contratação em andamento
         </Badge>
       );
     }
@@ -242,13 +246,30 @@ const CompanyPatientsPage = () => {
         updatePayload.is_visible = false;
       }
 
-      const { error } = await supabase
-        .from("company_patients")
-        .update(updatePayload)
-        .eq("id", patient.id)
-        .eq("company_id", user.id);
+      const persistStatus = async () => {
+        const { error } = await supabase
+          .from("company_patients")
+          .update(updatePayload)
+          .eq("id", patient.id)
+          .eq("company_id", user.id);
+        if (error) throw error;
+      };
 
-      if (error) throw error;
+      try {
+        await persistStatus();
+      } catch (statusError: any) {
+        if (!isMissingHiringStatusColumnError(statusError)) throw statusError;
+
+        const synced = await syncCompanyPatientsSchema();
+        if (!synced) {
+          throw new Error(
+            "A estrutura de pacientes ainda não foi sincronizada. Abra Painel Admin > Configurações > Manutenção e clique em 'Pacientes da Empresa'.",
+          );
+        }
+
+        toast.info("Estrutura atualizada. Reaplicando alteração de status...");
+        await persistStatus();
+      }
 
       const statusLabel = getHiringStatusLabel(nextStatus);
       toast.success(`Status atualizado para "${statusLabel}".`);
@@ -256,7 +277,7 @@ const CompanyPatientsPage = () => {
       if (nextStatus === "hired") {
         toast.info("Paciente ocultado automaticamente para profissionais.");
         const shouldRemove = window.confirm(
-          "A contratacao foi concluida. Deseja remover este paciente agora?",
+          "A contratação foi concluída. Deseja remover este paciente agora?",
         );
 
         if (shouldRemove) {
@@ -273,8 +294,8 @@ const CompanyPatientsPage = () => {
 
       await fetchPatients(true);
     } catch (err) {
-      console.error("[CompanyPatientsPage] Erro ao atualizar status de contratacao:", err);
-      toast.error("Erro ao atualizar status de contratacao.");
+      console.error("[CompanyPatientsPage] Erro ao atualizar status de contratação:", err);
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar status de contratação.");
     } finally {
       setStatusUpdatingPatientId(null);
     }
@@ -333,7 +354,7 @@ const CompanyPatientsPage = () => {
                   <TableHead>Idade</TableHead>
                   <TableHead>Especialidades</TableHead> {/* New TableHead */}
                   <TableHead>Período</TableHead> {/* New TableHead */}
-                  <TableHead>Status da Contratacao</TableHead>
+                  <TableHead>Status da Contratação</TableHead>
                   <TableHead>Visibilidade</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>

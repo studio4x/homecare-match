@@ -25,6 +25,18 @@ const asaasEnvFromConfig = (config: any) => {
   return "sandbox";
 };
 
+const asaasEnvFromRequest = (requestUrl?: string | null): "sandbox" | "production" | null => {
+  if (!requestUrl) return null;
+  try {
+    const url = new URL(requestUrl);
+    const env = String(url.searchParams.get("env") || "").toLowerCase();
+    if (env === "sandbox" || env === "production") return env;
+  } catch {
+    // ignore malformed url
+  }
+  return null;
+};
+
 const getAsaasApiBaseUrl = (env: "sandbox" | "production") => {
   return env === "production" ? "https://api.asaas.com/v3" : "https://api-sandbox.asaas.com/v3";
 };
@@ -245,6 +257,27 @@ serve(async (req) => {
       }
     }
 
+    if (!session && userId) {
+      const paymentValue = Number(payment?.value || 0);
+      const { data: pendingSessions } = await supabaseAdmin
+        .from("asaas_checkout_sessions")
+        .select("*")
+        .eq("user_id", userId)
+        .is("payment_id", null)
+        .order("created_at", { ascending: false })
+        .limit(15);
+
+      if (pendingSessions?.length) {
+        session =
+          pendingSessions.find((candidate: any) => Number(candidate?.amount || 0) === paymentValue) ||
+          pendingSessions[0];
+      }
+    }
+
+    if (!userId && session?.user_id) userId = session.user_id;
+    if (!planId && session?.plan_id) planId = session.plan_id;
+    if (!courseSlug && session?.course_slug) courseSlug = session.course_slug;
+
     let resolvedPaymentDescription = String(payment?.description || "").trim();
 
     if (paymentId && (courseSlug || planId)) {
@@ -260,38 +293,76 @@ serve(async (req) => {
         .eq("id", 1)
         .maybeSingle();
 
-      const asaasEnv = asaasEnvFromConfig(config) as "sandbox" | "production";
-      const asaasApiKey = getAsaasApiKey(asaasEnv);
+      const configEnv = asaasEnvFromConfig(config) as "sandbox" | "production";
+      const requestEnv = asaasEnvFromRequest(req.url);
+      const asaasEnvCandidates: ("sandbox" | "production")[] = [];
 
-      if (shouldUpdateAsaasDescription && asaasApiKey) {
-        try {
-          const updateRes = await fetch(
-            `${getAsaasApiBaseUrl(asaasEnv)}/payments/${encodeURIComponent(String(paymentId))}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                access_token: asaasApiKey,
+      if (requestEnv) asaasEnvCandidates.push(requestEnv);
+      if (!asaasEnvCandidates.includes(configEnv)) asaasEnvCandidates.push(configEnv);
+      if (!asaasEnvCandidates.includes("production")) asaasEnvCandidates.push("production");
+      if (!asaasEnvCandidates.includes("sandbox")) asaasEnvCandidates.push("sandbox");
+
+      if (shouldUpdateAsaasDescription) {
+        let updatedOnAsaas = false;
+
+        for (const envCandidate of asaasEnvCandidates) {
+          const asaasApiKey = getAsaasApiKey(envCandidate);
+          if (!asaasApiKey) continue;
+
+          try {
+            const updateRes = await fetch(
+              `${getAsaasApiBaseUrl(envCandidate)}/payments/${encodeURIComponent(String(paymentId))}`,
+              {
+                method: "PUT",
+                headers: {
+                  "Content-Type": "application/json",
+                  access_token: asaasApiKey,
+                },
+                body: JSON.stringify({
+                  description: desiredPaymentDescription,
+                }),
               },
-              body: JSON.stringify({
-                description: desiredPaymentDescription,
-              }),
-            },
-          );
+            );
 
-          const updateJson = await updateRes.json().catch(() => ({}));
-          if (updateRes.ok && typeof updateJson?.description === "string" && updateJson.description.trim()) {
-            resolvedPaymentDescription = updateJson.description.trim();
-          } else {
-            resolvedPaymentDescription = desiredPaymentDescription;
+            const updateJson = await updateRes.json().catch(() => ({}));
+            if (updateRes.ok) {
+              if (typeof updateJson?.description === "string" && updateJson.description.trim()) {
+                resolvedPaymentDescription = updateJson.description.trim();
+              } else {
+                resolvedPaymentDescription = desiredPaymentDescription;
+              }
+              updatedOnAsaas = true;
+              break;
+            }
+
+            const shouldTryNextEnv = updateRes.status === 404 || updateRes.status === 401 || updateRes.status === 403;
+            if (!shouldTryNextEnv) {
+              console.warn("[asaas-webhook] Falha ao atualizar descricao no Asaas:", {
+                status: updateRes.status,
+                env: envCandidate,
+                body: updateJson,
+              });
+              break;
+            }
+          } catch (error) {
+            console.warn("[asaas-webhook] Erro ao atualizar descricao no Asaas:", {
+              env: envCandidate,
+              error: error instanceof Error ? error.message : String(error),
+            });
           }
-        } catch {
-          // best effort: keep local fallback when Asaas update is not allowed for current payment state
+        }
+
+        if (!updatedOnAsaas) {
+          // fallback local: mantem descricao correta no historico interno
           resolvedPaymentDescription = desiredPaymentDescription;
         }
       } else if (!resolvedPaymentDescription || isAsaasGenericDescription(resolvedPaymentDescription)) {
         resolvedPaymentDescription = desiredPaymentDescription;
       }
+    }
+
+    if (!resolvedPaymentDescription && (courseSlug || planId)) {
+      resolvedPaymentDescription = await resolveAsaasChargeDescription(supabaseAdmin, courseSlug, planId);
     }
 
     if (paymentId) {

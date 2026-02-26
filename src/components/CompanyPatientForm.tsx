@@ -45,24 +45,28 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  isMissingHiringStatusColumnError,
+  syncCompanyPatientsSchema,
+} from "@/lib/companyPatientsSchema";
 
 const mobilityLevelOptions = [
   "Acamado",
   "Cadeira de Rodas",
-  "Anda com AuxÃ­lio",
-  "Totalmente MÃ³vel",
+  "Anda com Auxílio",
+  "Totalmente Móvel",
 ];
 
 const cognitiveStateOptions = [
   "Alerta e Orientado",
   "Comprometimento Leve",
-  "DemÃªncia",
-  "ConfusÃ£o/AgitaÃ§Ã£o",
+  "Demência",
+  "Confusão/Agitação",
 ];
 
 const specialEquipmentOptions = [
-  "OxigÃªnio",
-  "Sonda de AlimentaÃ§Ã£o",
+  "Oxigênio",
+  "Sonda de Alimentação",
   "Cateter",
   "Ventilador",
   "Ostomia",
@@ -70,9 +74,9 @@ const specialEquipmentOptions = [
 
 const communicationSkillsOptions = [
   "Verbal",
-  "NÃ£o-Verbal",
+  "Não-Verbal",
   "Com Dificuldade",
-  "Prancha de ComunÃ£o",
+  "Prancha de Comunicação",
 ];
 
 const specialtiesOptions = [ // Re-using specialties from other parts of the app
@@ -80,24 +84,24 @@ const specialtiesOptions = [ // Re-using specialties from other parts of the app
   { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
   { value: "dentista", label: "Dentista" },
   { value: "enfermeiro", label: "Enfermeiro(a)" },
-  { value: "farmaceutico", label: "FarmacÃªutico(a)" },
+  { value: "farmaceutico", label: "Farmacêutico(a)" },
   { value: "fisioterapeuta", label: "Fisioterapeuta" },
-  { value: "fonoaudiologo", label: "FonoaudiÃ³logo(a)" },
-  { value: "medico-clinico", label: "MÃ©dico(a) - ClÃ­nico Geral / Geriatra" },
+  { value: "fonoaudiologo", label: "Fonoaudiólogo(a)" },
+  { value: "medico-clinico", label: "Médico(a) - Clínico Geral / Geriatra" },
   { value: "nutricionista", label: "Nutricionista" },
-  { value: "psicologo", label: "PsicÃ³logo(a)" },
-  { value: "tecnico-enfermagem", label: "TÃ©cnico(a) de Enfermagem" },
+  { value: "psicologo", label: "Psicólogo(a)" },
+  { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
   { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
 ];
 
 const periodOptions = [
-  "ManhÃ£ (06h-12h)",
+  "Manhã (06h-12h)",
   "Tarde (12h-18h)",
   "Noite (18h-00h)",
   "Madrugada (00h-06h)",
-  "PlantÃ£o 12h (Diurno)",
-  "PlantÃ£o 12h (Noturno)",
-  "PlantÃ£o 24h",
+  "Plantão 12h (Diurno)",
+  "Plantão 12h (Noturno)",
+  "Plantão 24h",
   "1h de atendimento",
   "2h de atendimento",
   "3h de atendimento",
@@ -105,7 +109,7 @@ const periodOptions = [
 
 const hiringStatusOptions = [
   { value: "needs_professional", label: "Precisa de profissional" },
-  { value: "hiring_in_progress", label: "Contratacao em andamento" },
+  { value: "hiring_in_progress", label: "Contratação em andamento" },
   { value: "hired", label: "Profissional contratado" },
 ] as const;
 
@@ -114,7 +118,7 @@ const formSchema = z.object({
   patient_name: z.string().optional(), // Changed to optional
   patient_age: z.preprocess(
     (val) => (val === "" ? undefined : Number(val)),
-    z.number().min(0, "Idade deve ser um nÃºmero positivo").optional()
+    z.number().min(0, "Idade deve ser um número positivo").optional()
   ),
   patient_medical_conditions: z.string().optional(),
   patient_mobility_level: z.array(z.string()).default([]),
@@ -131,7 +135,7 @@ const formSchema = z.object({
   ),
   patient_days_per_week: z.preprocess( // New field
     (val) => (val === "" ? undefined : Number(val)),
-    z.number().min(1, "MÃ­nimo 1 dia").max(7, "MÃ¡ximo 7 dias").optional()
+    z.number().min(1, "Mínimo 1 dia").max(7, "Máximo 7 dias").optional()
   ),
   hiring_status: z.enum(["needs_professional", "hiring_in_progress", "hired"]).default("needs_professional"),
 });
@@ -179,7 +183,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
 
   const onSubmit = async (data: PatientFormData) => {
     if (!user) {
-      toast.error("VocÃª precisa estar logado para gerenciar pacientes.");
+      toast.error("Você precisa estar logado para gerenciar pacientes.");
       return;
     }
 
@@ -203,24 +207,41 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
         hiring_status: data.hiring_status,
       };
 
-      if (data.id) {
-        // Update existing patient
-        const { error } = await supabase
-          .from("company_patients")
-          .update({ ...payload, updated_at: new Date().toISOString() })
-          .eq("id", data.id);
-        if (error) throw error;
-        toast.success("Paciente atualizado com sucesso!");
-      } else {
-        // Add new patient
+      const persistPatient = async () => {
+        if (data.id) {
+          const { error } = await supabase
+            .from("company_patients")
+            .update({ ...payload, updated_at: new Date().toISOString() })
+            .eq("id", data.id);
+          if (error) throw error;
+          toast.success("Paciente atualizado com sucesso!");
+          return;
+        }
+
         const { error } = await supabase
           .from("company_patients")
           .insert(payload);
         if (error) throw error;
         toast.success("Paciente adicionado com sucesso!");
+      };
+
+      try {
+        await persistPatient();
+      } catch (saveError: any) {
+        if (!isMissingHiringStatusColumnError(saveError)) throw saveError;
+
+        const synced = await syncCompanyPatientsSchema();
+        if (!synced) {
+          throw new Error(
+            "A estrutura de pacientes ainda não foi sincronizada. Abra Painel Admin > Configurações > Manutenção e clique em 'Pacientes da Empresa'.",
+          );
+        }
+
+        await persistPatient();
       }
+
       if (data.hiring_status === "hired") {
-        toast.info("Paciente ocultado automaticamente para profissionais, pois a contratacao foi concluida.");
+        toast.info("Paciente ocultado automaticamente para profissionais, pois a contratação foi concluída.");
       }
       onSuccess();
     } catch (error: any) {
@@ -240,7 +261,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <User className="h-4 w-4 text-primary" /> ID/CÃ³digo do Paciente* (opcional)
+                <User className="h-4 w-4 text-primary" /> ID/Código do Paciente* (opcional)
               </FormLabel>
               <FormControl>
                 <Input placeholder="Ex: Paciente-001, Maria Silva" {...field} />
@@ -288,11 +309,11 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <HeartPulse className="h-4 w-4 text-primary" /> CondiÃ§Ãµes MÃ©dicas / HistÃ³rico
+                <HeartPulse className="h-4 w-4 text-primary" /> Condições Médicas / Histórico
               </FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Ex: AVC com sequelas motoras, Alzheimer em estÃ¡gio inicial, Diabetes tipo 2."
+                  placeholder="Ex: AVC com sequelas motoras, Alzheimer em estágio inicial, Diabetes tipo 2."
                   rows={3}
                   {...field}
                 />
@@ -308,7 +329,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={() => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <Footprints className="h-4 w-4 text-primary" /> NÃ­vel de Mobilidade
+                <Footprints className="h-4 w-4 text-primary" /> Nível de Mobilidade
               </FormLabel>
               <div className="grid grid-cols-2 gap-2">
                 {mobilityLevelOptions.map((option) => (
@@ -425,7 +446,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={() => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-primary" /> Habilidades de ComunicaÃ§Ã£o
+                <MessageSquare className="h-4 w-4 text-primary" /> Habilidades de Comunicação
               </FormLabel>
               <div className="grid grid-cols-2 gap-2">
                 {communicationSkillsOptions.map((option) => (
@@ -464,7 +485,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={() => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-primary" /> Especialidades NecessÃ¡rias
+                <Users className="h-4 w-4 text-primary" /> Especialidades Necessárias
               </FormLabel>
               <div className="grid grid-cols-2 gap-2">
                 {specialtiesOptions.map((option) => (
@@ -503,7 +524,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={() => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" /> PerÃ­odo NecessÃ¡rio
+                <Clock className="h-4 w-4 text-primary" /> Período Necessário
               </FormLabel>
               <div className="grid grid-cols-2 gap-2">
                 {periodOptions.map((option) => (
@@ -532,7 +553,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                VocÃª pode selecionar mais de uma opÃ§Ã£o. Ex.: PerÃ­odo Diurno + 1h de atendimento.
+                Você pode selecionar mais de uma opção. Ex.: Período Diurno + 1h de atendimento.
               </p>
               <FormMessage />
             </FormItem>
@@ -577,7 +598,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={({ field }) => (
             <FormItem>
               <FormLabel className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" /> Status da Contratacao
+                <Clock className="h-4 w-4 text-primary" /> Status da Contratação
               </FormLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl>
@@ -594,7 +615,7 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Ao marcar como contratado, a visibilidade sera desativada automaticamente.
+                Ao marcar como contratado, a visibilidade será desativada automaticamente.
               </p>
               <FormMessage />
             </FormItem>
@@ -606,11 +627,11 @@ const CompanyPatientForm = ({ initialData, onSuccess, onCancel }: CompanyPatient
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
               <div className="space-y-0.5">
-                <FormLabel className="text-base">Visivel para Profissionais</FormLabel>
+                <FormLabel className="text-base">Visível para Profissionais</FormLabel>
                 <p className="text-xs text-muted-foreground">
                   {hiringStatus === "hired"
                     ? "Paciente contratado: a visibilidade fica desativada automaticamente."
-                    : "Se ativado, este paciente aparecera no perfil publico da sua empresa."}
+                    : "Se ativado, este paciente aparecerá no perfil público da sua empresa."}
                 </p>
               </div>
               <FormControl>

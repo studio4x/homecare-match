@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +39,7 @@ const Navbar = () => {
   const { session, user, signOut } = useAuth();
   const { data: config } = useSiteConfig();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
   const [profile, setProfile] = useState<{
     avatar_url: string | null;
     full_name: string | null;
@@ -69,6 +71,10 @@ const Navbar = () => {
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   const initials = profile?.full_name
     ? profile.full_name
@@ -124,7 +130,7 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="sticky top-0 z-[110] border-b border-border/70 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70">
+    <nav className="sticky top-0 z-[160] border-b border-border/70 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
@@ -248,12 +254,15 @@ const Navbar = () => {
               <Link
                 to={dashboardPath}
                 aria-label="Abrir painel"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background shadow-sm transition-colors hover:border-primary/40"
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-background pl-1 pr-2 shadow-sm transition-colors hover:border-primary/40"
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={profile?.avatar_url || ""} />
                   <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">{initials}</AvatarFallback>
                 </Avatar>
+                <span className="pr-1 text-[11px] font-semibold text-foreground">
+                  Abrir painel
+                </span>
               </Link>
             ) : (
               <Button size="sm" variant="outline" asChild>
@@ -272,8 +281,10 @@ const Navbar = () => {
         </div>
       </div>
 
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[140] md:hidden">
+      {portalReady &&
+        mobileMenuOpen &&
+        createPortal(
+        <div className="fixed inset-0 z-[1000] md:hidden">
           <button
             className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             onClick={() => setMobileMenuOpen(false)}
@@ -355,7 +366,7 @@ const Navbar = () => {
             </div>
           </div>
         </div>
-      )}
+        , document.body)}
     </nav>
   );
 };

@@ -177,12 +177,12 @@ const UserLayout = () => {
 
       <div className="flex flex-1 bg-secondary/10">
         {sidebarOpen && (
-          <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed inset-0 z-[220] bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-72 border-r border-border bg-card transition-transform duration-200 ease-in-out lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-64 lg:translate-x-0",
+            "fixed inset-y-0 left-0 z-[230] w-72 border-r border-border bg-card transition-transform duration-200 ease-in-out lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-64 lg:translate-x-0",
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -256,7 +256,7 @@ const UserLayout = () => {
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 border-b border-border/70 bg-card/95 backdrop-blur-xl lg:hidden">
+          <header className="sticky top-0 z-[210] border-b border-border/70 bg-card/95 backdrop-blur-xl lg:hidden">
             <div className="flex h-14 items-center gap-3 px-4">
               <button
                 onClick={() => setSidebarOpen(true)}

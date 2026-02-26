@@ -24,15 +24,7 @@ const Footer = () => {
       <div className="container mx-auto px-4 py-10 md:py-12">
         <div className="space-y-8 md:hidden">
           <div className="rounded-3xl border border-border/70 bg-gradient-to-br from-card via-card to-secondary/40 p-5 shadow-sm">
-            <Link to="/" className="flex items-center justify-center">
-              <img
-                src={logoUrl}
-                alt="HomeCare Match"
-                style={{ height: `${logoHeight}px`, width: "auto" }}
-                className="object-contain"
-              />
-            </Link>
-            <p className="mt-3 text-center text-sm leading-relaxed text-muted-foreground">
+            <p className="text-center text-sm leading-relaxed text-muted-foreground">
               Conectando profissionais de saude as melhores oportunidades em Home Care.
             </p>
           </div>

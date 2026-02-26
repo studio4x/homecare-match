@@ -2,33 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-} from "recharts";
 import { Loader2 } from "lucide-react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  CohortsTab,
+  CheckoutTab,
+  CommercialTab,
+  CoursesFunnelTab,
+  CoursesPerformanceTab,
+  EngagementTab,
+  PaymentsTab,
+  SalesTab,
+  SegmentsTab,
+  SubscriptionsTab,
+  SupportImpactTab,
+  SupportTab,
+} from "@/components/admin/tabs/metrics";
+import { toCurrency } from "@/components/admin/tabs/metrics/shared";
 
-const COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2"];
 const PAID = new Set(["paid", "succeeded"]);
 const CANCELED = new Set(["canceled", "cancelled", "void"]);
 const REFUND = new Set(["refunded", "refund_pending"]);
@@ -63,11 +55,6 @@ const EMPTY_STATS: any = {
   supportVolumeImpact: [],
   supportSlaImpact: [],
 };
-
-const toCurrency = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 }).format(Number(value || 0));
-
-const toPercent = (value: number) => `${Number(value || 0).toFixed(1)}%`;
 
 const isPaid = (status?: string | null) => PAID.has(String(status || "").toLowerCase().trim());
 const isCanceled = (status?: string | null) => CANCELED.has(String(status || "").toLowerCase().trim());
@@ -173,63 +160,6 @@ const buildSales = (payments: any[], type: "course" | "plan", fallbackName: stri
     topByCount: Array.from(countByItem.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10),
   };
 };
-
-const SalesTab = ({ title, subtitle, stats }: { title: string; subtitle: string; stats: any }) => (
-  <div className="space-y-4">
-    <div className="grid gap-4 md:grid-cols-4">
-      <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Faturamento Pago</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{toCurrency(stats.paidRevenue)}</div></CardContent></Card>
-      <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Transacoes Totais</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.totalTransactions}</div></CardContent></Card>
-      <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Transacoes Pagas</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.paidTransactions}</div></CardContent></Card>
-      <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Ticket Medio</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{toCurrency(stats.averageTicket)}</div></CardContent></Card>
-    </div>
-
-    <div className="grid gap-4 md:grid-cols-2">
-      <Card>
-        <CardHeader><CardTitle className="text-base">{title}</CardTitle><CardDescription>{subtitle}</CardDescription></CardHeader>
-        <CardContent className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stats.topByRevenue} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" hide />
-              <YAxis dataKey="name" type="category" width={160} fontSize={10} />
-              <RechartsTooltip formatter={(v: number) => toCurrency(Number(v || 0))} />
-              <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle className="text-base">Status das Transacoes</CardTitle></CardHeader>
-        <CardContent className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={stats.statusBreakdown} dataKey="value" cx="50%" cy="50%" outerRadius={90}>
-                {stats.statusBreakdown.map((e: any, i: number) => <Cell key={`status-${e.name}-${i}`} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <RechartsTooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card className="md:col-span-2">
-        <CardHeader><CardTitle className="text-base">Mais Vendidos (Quantidade de Pagamentos)</CardTitle></CardHeader>
-        <CardContent className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stats.topByCount}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" fontSize={10} interval={0} angle={-10} height={70} textAnchor="end" />
-              <YAxis allowDecimals={false} fontSize={12} />
-              <RechartsTooltip />
-              <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-    </div>
-  </div>
-);
 
 const AnalyticsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -801,93 +731,62 @@ const AnalyticsPage = () => {
         </TabsList>
 
         <TabsContent value="engagement" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardHeader><CardTitle className="text-base">Top 10 Perfis Mais Visualizados</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.profileViews} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={140} fontSize={10} /><RechartsTooltip /><Bar dataKey="value" fill="#2563eb" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-base">Profissionais Mais Adicionados</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.contactAdditions} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={140} fontSize={10} /><RechartsTooltip /><Bar dataKey="value" fill="#16a34a" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-            <Card className="md:col-span-2"><CardHeader><CardTitle className="text-base">Cliques no WhatsApp por Tipo de Usuario</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={stats.whatsappClicks} dataKey="value" cx="50%" cy="50%" outerRadius={90}>{stats.whatsappClicks.map((e: any, i: number) => <Cell key={`w-${e.name}-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie><RechartsTooltip /></PieChart></ResponsiveContainer></CardContent></Card>
-          </div>
+          <EngagementTab stats={stats} />
         </TabsContent>
 
         <TabsContent value="support" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardHeader><CardTitle className="text-base">Tickets por Urgencia</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={stats.ticketsByUrgency} dataKey="value" cx="50%" cy="50%" outerRadius={90}>{stats.ticketsByUrgency.map((e: any, i: number) => <Cell key={`u-${e.name}-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie><RechartsTooltip /></PieChart></ResponsiveContainer></CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-base">Tickets por Tipo de Usuario</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.ticketsByUserType}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" fontSize={12} /><YAxis allowDecimals={false} fontSize={12} /><RechartsTooltip /><Bar dataKey="value" fill="#7c3aed" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-          </div>
+          <SupportTab stats={stats} />
         </TabsContent>
 
-        <TabsContent value="sales-course"><SalesTab title="Top Cursos por Faturamento" subtitle="Baseado em pagamentos confirmados." stats={stats.courseSales} /></TabsContent>
-        <TabsContent value="sales-plan"><SalesTab title="Top Planos por Faturamento" subtitle="Baseado em pagamentos confirmados." stats={stats.planSales} /></TabsContent>
+        <TabsContent value="sales-course">
+          <SalesTab
+            title="Top Cursos por Faturamento"
+            subtitle="Baseado em pagamentos confirmados."
+            stats={stats.courseSales}
+          />
+        </TabsContent>
+        <TabsContent value="sales-plan">
+          <SalesTab
+            title="Top Planos por Faturamento"
+            subtitle="Baseado em pagamentos confirmados."
+            stats={stats.planSales}
+          />
+        </TabsContent>
 
         <TabsContent value="checkout" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardHeader><CardTitle className="text-base">Funil de Checkout - Cursos</CardTitle></CardHeader><CardContent className="space-y-2"><p>Iniciados: <strong>{stats.checkoutCourse.started}</strong></p><p>Pagos: <strong>{stats.checkoutCourse.paid}</strong></p><p>Abandonados: <strong>{stats.checkoutCourse.abandoned}</strong></p><p>Conversao: <strong>{toPercent(stats.checkoutCourse.conversionRate)}</strong></p></CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-base">Funil de Checkout - Planos</CardTitle></CardHeader><CardContent className="space-y-2"><p>Iniciados: <strong>{stats.checkoutPlan.started}</strong></p><p>Pagos: <strong>{stats.checkoutPlan.paid}</strong></p><p>Abandonados: <strong>{stats.checkoutPlan.abandoned}</strong></p><p>Conversao: <strong>{toPercent(stats.checkoutPlan.conversionRate)}</strong></p></CardContent></Card>
-          </div>
-          <Card><CardHeader><CardTitle className="text-base">Comparativo por Tipo</CardTitle></CardHeader><CardContent className="h-[340px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.checkoutRows}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><RechartsTooltip /><Bar dataKey="started" name="Iniciados" fill="#2563eb" radius={[4, 4, 0, 0]} /><Bar dataKey="paid" name="Pagos" fill="#16a34a" radius={[4, 4, 0, 0]} /><Bar dataKey="abandoned" name="Abandonados" fill="#dc2626" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
+          <CheckoutTab stats={stats} />
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardHeader><CardTitle className="text-base">Aprovacao por Metodo</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.methodApproval}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="method" /><YAxis allowDecimals={false} /><RechartsTooltip /><Bar dataKey="total" name="Total" fill="#94a3b8" radius={[4, 4, 0, 0]} /><Bar dataKey="paid" name="Pago" fill="#16a34a" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-base">Parcelamento no Cartao</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.installmentDist}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis allowDecimals={false} /><RechartsTooltip /><Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-          </div>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base">Taxa de Estorno/Inadimplencia por Segmento</CardTitle></CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader><TableRow><TableHead>Segmento</TableHead><TableHead>Total</TableHead><TableHead>Estornos</TableHead><TableHead>Inadimplentes</TableHead><TableHead>Taxa Estorno</TableHead><TableHead>Taxa Inadimplencia</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {stats.refundDefaultRows.map((r: any) => <TableRow key={r.segment}><TableCell className="font-medium">{r.segment}</TableCell><TableCell>{r.total}</TableCell><TableCell>{r.refunds}</TableCell><TableCell>{r.defaults}</TableCell><TableCell>{toPercent(r.refundRate)}</TableCell><TableCell>{toPercent(r.defaultRate)}</TableCell></TableRow>)}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <PaymentsTab stats={stats} />
         </TabsContent>
 
         <TabsContent value="subscriptions" className="space-y-4">
-          <Card><CardHeader><CardTitle className="text-base">MRR, Receita Nova, Expansao e Churn (12 meses)</CardTitle></CardHeader><CardContent className="h-[360px]"><ResponsiveContainer width="100%" height="100%"><LineChart data={stats.subscriptionSeries}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="month" /><YAxis yAxisId="money" /><YAxis yAxisId="rate" orientation="right" /><RechartsTooltip /><Line yAxisId="money" type="monotone" dataKey="mrr" name="MRR" stroke="#2563eb" strokeWidth={2} /><Line yAxisId="money" type="monotone" dataKey="newRevenue" name="Receita Nova" stroke="#16a34a" strokeWidth={2} /><Line yAxisId="money" type="monotone" dataKey="expansionRevenue" name="Expansao" stroke="#f59e0b" strokeWidth={2} /><Line yAxisId="rate" type="monotone" dataKey="churnRate" name="Churn %" stroke="#dc2626" strokeWidth={2} /></LineChart></ResponsiveContainer></CardContent></Card>
+          <SubscriptionsTab stats={stats} />
         </TabsContent>
 
         <TabsContent value="cohorts" className="space-y-4">
-          <Card><CardHeader><CardTitle className="text-base">Retencao por Coorte de Assinantes</CardTitle><CardDescription>M0-M5 representa retencao percentual por mes apos entrada.</CardDescription></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Coorte</TableHead><TableHead>Tamanho</TableHead><TableHead>M0</TableHead><TableHead>M1</TableHead><TableHead>M2</TableHead><TableHead>M3</TableHead><TableHead>M4</TableHead><TableHead>M5</TableHead></TableRow></TableHeader><TableBody>{stats.cohortRows.map((r: any) => <TableRow key={r.cohort}><TableCell className="font-medium">{r.cohort}</TableCell><TableCell>{r.size}</TableCell><TableCell>{toPercent(r.m0)}</TableCell><TableCell>{toPercent(r.m1)}</TableCell><TableCell>{toPercent(r.m2)}</TableCell><TableCell>{toPercent(r.m3)}</TableCell><TableCell>{toPercent(r.m4)}</TableCell><TableCell>{toPercent(r.m5)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+          <CohortsTab stats={stats} />
         </TabsContent>
 
         <TabsContent value="courses-funnel" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Comprados</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.courseFunnelOverall.purchased}</div></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Iniciados</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.courseFunnelOverall.started}</div></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Concluidos</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.courseFunnelOverall.completed}</div></CardContent></Card>
-            <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Certificados</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.courseFunnelOverall.certified}</div></CardContent></Card>
-          </div>
-          <Card><CardHeader><CardTitle className="text-base">Funil por Curso (Top 12)</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Curso</TableHead><TableHead>Comprados</TableHead><TableHead>Iniciados</TableHead><TableHead>Concluidos</TableHead><TableHead>Certificados</TableHead></TableRow></TableHeader><TableBody>{stats.courseFunnelRows.map((r: any) => <TableRow key={r.course}><TableCell className="font-medium">{r.course}</TableCell><TableCell>{r.purchased}</TableCell><TableCell>{r.started}</TableCell><TableCell>{r.completed}</TableCell><TableCell>{r.certified}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+          <CoursesFunnelTab stats={stats} />
         </TabsContent>
 
         <TabsContent value="courses-performance" className="space-y-4">
-          <Card><CardHeader><CardTitle className="text-base">Taxa de Conclusao e Tempo Medio ate Certificado</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Curso</TableHead><TableHead>Inscritos</TableHead><TableHead>Concluidos</TableHead><TableHead>Taxa Conclusao</TableHead><TableHead>Tempo Medio (dias)</TableHead></TableRow></TableHeader><TableBody>{stats.coursePerformanceRows.map((r: any) => <TableRow key={r.course}><TableCell className="font-medium">{r.course}</TableCell><TableCell>{r.enrolled}</TableCell><TableCell>{r.completed}</TableCell><TableCell>{toPercent(r.completionRate)}</TableCell><TableCell>{Number(r.avgDaysToCertificate || 0).toFixed(1)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+          <CoursesPerformanceTab stats={stats} />
         </TabsContent>
 
         <TabsContent value="commercial" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardHeader><CardTitle className="text-base">Funil Comercial</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.commercialFunnel}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="step" fontSize={10} interval={0} angle={-10} height={80} textAnchor="end" /><YAxis allowDecimals={false} /><RechartsTooltip /><Bar dataKey="value" fill="#2563eb" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-base">Taxas de Conversao</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Etapa</TableHead><TableHead>Taxa</TableHead></TableRow></TableHeader><TableBody>{stats.commercialRates.map((r: any) => <TableRow key={r.step}><TableCell className="font-medium">{r.step}</TableCell><TableCell>{toPercent(r.rate)}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
-          </div>
+          <CommercialTab stats={stats} />
         </TabsContent>
 
         <TabsContent value="segments" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardHeader><CardTitle className="text-base">Receita por Papel do Comprador</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.segmentRoles}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis /><RechartsTooltip formatter={(v: number) => toCurrency(Number(v || 0))} /><Bar dataKey="value" fill="#16a34a" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-base">Receita por Plano Atual</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={stats.segmentTiers} dataKey="value" cx="50%" cy="50%" outerRadius={90}>{stats.segmentTiers.map((e: any, i: number) => <Cell key={`tier-${e.name}-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie><RechartsTooltip formatter={(v: number) => toCurrency(Number(v || 0))} /></PieChart></ResponsiveContainer></CardContent></Card>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card><CardHeader><CardTitle className="text-base">Top Cidades por Receita</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.segmentCities} layout="vertical"><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" hide /><YAxis dataKey="name" type="category" width={130} fontSize={10} /><RechartsTooltip formatter={(v: number) => toCurrency(Number(v || 0))} /><Bar dataKey="value" fill="#0891b2" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-            <Card><CardHeader><CardTitle className="text-base">Top Estados por Receita</CardTitle></CardHeader><CardContent className="h-[320px]"><ResponsiveContainer width="100%" height="100%"><BarChart data={stats.segmentStates}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis /><RechartsTooltip formatter={(v: number) => toCurrency(Number(v || 0))} /><Bar dataKey="value" fill="#7c3aed" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></CardContent></Card>
-          </div>
+          <SegmentsTab stats={stats} />
         </TabsContent>
 
         <TabsContent value="support-impact" className="space-y-4">
-          <Card><CardHeader><CardTitle className="text-base">Impacto de Volume de Tickets em Receita/Churn/Inadimplencia</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Bucket</TableHead><TableHead>Usuarios</TableHead><TableHead>Receita Media</TableHead><TableHead>Churn</TableHead><TableHead>Inadimplencia</TableHead><TableHead>SLA Medio (h)</TableHead></TableRow></TableHeader><TableBody>{stats.supportVolumeImpact.map((r: any) => <TableRow key={r.bucket}><TableCell className="font-medium">{r.bucket}</TableCell><TableCell>{r.users}</TableCell><TableCell>{toCurrency(r.avgRevenue)}</TableCell><TableCell>{toPercent(r.churnRate)}</TableCell><TableCell>{toPercent(r.defaultRate)}</TableCell><TableCell>{r.avgSlaHours > 0 ? Number(r.avgSlaHours).toFixed(1) : "-"}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
-          <Card><CardHeader><CardTitle className="text-base">Impacto de SLA em Receita/Churn/Inadimplencia</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead>Bucket SLA</TableHead><TableHead>Usuarios</TableHead><TableHead>Receita Media</TableHead><TableHead>Churn</TableHead><TableHead>Inadimplencia</TableHead><TableHead>SLA Medio (h)</TableHead></TableRow></TableHeader><TableBody>{stats.supportSlaImpact.map((r: any) => <TableRow key={r.bucket}><TableCell className="font-medium">{r.bucket}</TableCell><TableCell>{r.users}</TableCell><TableCell>{toCurrency(r.avgRevenue)}</TableCell><TableCell>{toPercent(r.churnRate)}</TableCell><TableCell>{toPercent(r.defaultRate)}</TableCell><TableCell>{r.avgSlaHours > 0 ? Number(r.avgSlaHours).toFixed(1) : "-"}</TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
+          <SupportImpactTab stats={stats} />
         </TabsContent>
       </Tabs>
     </div>

@@ -161,13 +161,13 @@ const AdminLayout = () => {
     <div className="flex min-h-screen bg-secondary/10">
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-[220] bg-black/50 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transition-transform duration-200 ease-in-out md:translate-x-0 md:sticky md:top-0 md:h-screen md:block",
+        "fixed inset-y-0 left-0 z-[230] w-64 bg-card border-r border-border transition-transform duration-200 ease-in-out md:translate-x-0 md:sticky md:top-0 md:h-screen md:block",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex h-16 items-center justify-between px-6 border-b">
@@ -208,7 +208,7 @@ const AdminLayout = () => {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 flex items-center gap-4 px-4 border-b bg-card md:hidden">
+        <header className="h-16 flex items-center gap-4 px-4 border-b bg-card md:hidden sticky top-0 z-[210]">
           <button onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6" />
           </button>

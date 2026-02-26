@@ -43,6 +43,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import OnboardingModal from "@/components/OnboardingModal";
+import PlanSelectionModal from "@/components/PlanSelectionModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useQuery } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch"; 
@@ -55,6 +56,7 @@ const OverviewPage = () => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isManagingBilling, setIsManagingBilling] = useState(false);
+  const [isPlanSelectionOpen, setIsPlanSelectionOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
   const [isSavingOnboardingPref, setIsSavingOnboardingPref] = useState(false);
@@ -679,7 +681,7 @@ const OverviewPage = () => {
                         size="sm" 
                         className="w-full mt-2" 
                         variant={trial.isExpired ? "default" : "outline"}
-                        onClick={() => (window.location.href = "/#planos")}
+                        onClick={() => setIsPlanSelectionOpen(true)}
                       >
                         Assinar Agora
                       </Button>
@@ -957,6 +959,7 @@ const OverviewPage = () => {
         </div>
 
         <OnboardingModal open={isOnboardingOpen} onOpenChange={setIsOnboardingOpen} forceShow={true} role={profile?.role} />
+        <PlanSelectionModal open={isPlanSelectionOpen} onOpenChange={setIsPlanSelectionOpen} />
       </div>
     </TooltipProvider>
   );

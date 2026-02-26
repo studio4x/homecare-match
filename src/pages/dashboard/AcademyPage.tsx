@@ -8,6 +8,37 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+interface EnrollmentRow {
+  course_slug: string;
+}
+
+interface CertificateRow {
+  id: string;
+  course_slug: string;
+}
+
+interface CourseRow {
+  slug: string;
+  title: string;
+  hero_asset_url: string | null;
+}
+
+interface ModuleRow {
+  id: string;
+  course_slug: string;
+}
+
+interface LessonRow {
+  id: string;
+  module_id: string;
+}
+
+interface ProgressRow {
+  id: string;
+  course_slug: string;
+  lesson_id: string | null;
+}
+
 const AcademyPage = () => {
   const { user } = useAuth();
   const [started, setStarted] = useState<any[]>([]);
@@ -16,33 +47,108 @@ const AcademyPage = () => {
 
   useEffect(() => {
     loadCourses();
-  }, [user]);
+  }, [user?.id]);
 
   const loadCourses = async () => {
-    if (!user) return;
+    if (!user) {
+      setStarted([]);
+      setCompleted([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      const { data: enrolls } = await supabase.from("academy_enrollments").select("course_slug").eq("user_id", user.id);
-      const { data: certs } = await supabase.from("certificates").select("id, course_slug").eq("user_id", user.id);
-      
-      const certMap = new Map();
-      (certs || []).forEach(c => certMap.set(c.course_slug, c.id));
+      const [{ data: enrolls, error: enrollError }, { data: certs, error: certError }] = await Promise.all([
+        supabase.from("academy_enrollments").select("course_slug").eq("user_id", user.id),
+        supabase.from("certificates").select("id, course_slug").eq("user_id", user.id),
+      ]);
+      if (enrollError) throw enrollError;
+      if (certError) throw certError;
 
-      const slugs = (enrolls || []).map((e: any) => e.course_slug);
+      const certMap = new Map();
+      (certs as CertificateRow[] | null)?.forEach((c) => certMap.set(c.course_slug, c.id));
+
+      const slugs = Array.from(
+        new Set(
+          ((enrolls as EnrollmentRow[] | null) || [])
+            .map((e) => e.course_slug)
+            .filter(Boolean)
+        )
+      );
+      if (slugs.length === 0) {
+        setStarted([]);
+        setCompleted([]);
+        return;
+      }
+
+      const [
+        { data: courses, error: coursesError },
+        { data: modules, error: modulesError },
+        { data: progressRows, error: progressError },
+      ] = await Promise.all([
+        supabase.from("academy_courses").select("slug,title,hero_asset_url").in("slug", slugs),
+        supabase.from("academy_modules").select("id,course_slug").in("course_slug", slugs),
+        supabase
+          .from("academy_progress")
+          .select("id,course_slug,lesson_id")
+          .eq("user_id", user.id)
+          .eq("status", "completed")
+          .in("course_slug", slugs),
+      ]);
+
+      if (coursesError) throw coursesError;
+      if (modulesError) throw modulesError;
+      if (progressError) throw progressError;
+
+      const courseBySlug = new Map<string, CourseRow>();
+      (courses as CourseRow[] | null)?.forEach((course) => {
+        courseBySlug.set(course.slug, course);
+      });
+
+      const moduleToCourse = new Map<string, string>();
+      const moduleIds: string[] = [];
+      (modules as ModuleRow[] | null)?.forEach((module) => {
+        moduleIds.push(module.id);
+        moduleToCourse.set(module.id, module.course_slug);
+      });
+
+      let lessons: LessonRow[] = [];
+      if (moduleIds.length > 0) {
+        const { data: lessonRows, error: lessonsError } = await supabase
+          .from("academy_lessons")
+          .select("id,module_id")
+          .in("module_id", moduleIds);
+        if (lessonsError) throw lessonsError;
+        lessons = (lessonRows as LessonRow[] | null) || [];
+      }
+
+      const totalLessonsByCourse = new Map<string, number>();
+      lessons.forEach((lesson) => {
+        const courseSlug = moduleToCourse.get(lesson.module_id);
+        if (!courseSlug) return;
+        totalLessonsByCourse.set(courseSlug, (totalLessonsByCourse.get(courseSlug) || 0) + 1);
+      });
+
+      const doneLessonSetByCourse = new Map<string, Set<string>>();
+      (progressRows as ProgressRow[] | null)?.forEach((row) => {
+        const key = row.lesson_id || row.id;
+        if (!key) return;
+        if (!doneLessonSetByCourse.has(row.course_slug)) {
+          doneLessonSetByCourse.set(row.course_slug, new Set<string>());
+        }
+        doneLessonSetByCourse.get(row.course_slug)?.add(key);
+      });
+
       const sArr = [];
       const cArr = [];
-      
+
       for (const slug of slugs) {
-        const { data: courseData } = await supabase.from("academy_courses").select("slug,title,hero_asset_url").eq("slug", slug).maybeSingle();
+        const courseData = courseBySlug.get(slug);
         if (!courseData) continue;
-        const { data: mods } = await supabase.from("academy_modules").select("id").eq("course_slug", slug);
-        const moduleIds = (mods || []).map((m: any) => m.id);
-        let total = 0;
-        if (moduleIds.length > 0) {
-          const { count } = await supabase.from("academy_lessons").select("id", { count: "exact", head: true }).in("module_id", moduleIds);
-          total = count || 0;
-        }
-        const { count: done } = await supabase.from("academy_progress").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("course_slug", slug).eq("status", "completed");
+
+        const total = totalLessonsByCourse.get(slug) || 0;
+        const done = doneLessonSetByCourse.get(slug)?.size || 0;
         const progressPct = total > 0 ? Math.round(((done || 0) / total) * 100) : 0;
         const item = { 
           slug: courseData.slug, 
@@ -55,6 +161,10 @@ const AcademyPage = () => {
       }
       setStarted(sArr);
       setCompleted(cArr);
+    } catch (error) {
+      console.error("[AcademyPage] Falha ao carregar cursos:", error);
+      setStarted([]);
+      setCompleted([]);
     } finally {
       setLoading(false);
     }

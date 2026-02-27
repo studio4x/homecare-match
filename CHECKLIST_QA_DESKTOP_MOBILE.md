@@ -20,12 +20,12 @@
 ---
 
 ## 1) Escopo e Ambiente
-- [ ] ENV-01 - Produção e homologação validadas
+- [OK] ENV-01 - Produção e homologação validadas
   - Status:
   - Evidência:
   - Ambiente:
   - Notas de falha:
-- [ ] ENV-02 - Desktop Chrome e Edge validados
+- [OK] ENV-02 - Desktop Chrome e Edge validados
   - Status:
   - Evidência:
   - Ambiente:
@@ -35,7 +35,7 @@
   - Evidência:
   - Ambiente:
   - Notas de falha:
-- [ ] ENV-04 - Perfis testados: profissional, empresa, família, admin
+- [OK] ENV-04 - Perfis testados: profissional, empresa, família, admin
   - Status:
   - Evidência:
   - Ambiente:

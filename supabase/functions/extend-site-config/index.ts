@@ -43,7 +43,19 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS asaas_allow_credit_card BOOLEAN DEFAULT true,
         ADD COLUMN IF NOT EXISTS asaas_allow_pix BOOLEAN DEFAULT true,
         ADD COLUMN IF NOT EXISTS asaas_default_installment_max INTEGER DEFAULT 12,
-        ADD COLUMN IF NOT EXISTS asaas_checkout_expiration_minutes INTEGER DEFAULT 60;
+        ADD COLUMN IF NOT EXISTS asaas_checkout_expiration_minutes INTEGER DEFAULT 60,
+        ADD COLUMN IF NOT EXISTS pwa_app_name TEXT DEFAULT 'HomeCare Match',
+        ADD COLUMN IF NOT EXISTS pwa_short_name TEXT DEFAULT 'HomeCare',
+        ADD COLUMN IF NOT EXISTS pwa_description TEXT DEFAULT 'Conectando profissionais de saúde às melhores oportunidades em Home Care.',
+        ADD COLUMN IF NOT EXISTS pwa_theme_color TEXT DEFAULT '#0f172a',
+        ADD COLUMN IF NOT EXISTS pwa_background_color TEXT DEFAULT '#ffffff',
+        ADD COLUMN IF NOT EXISTS pwa_icon_192_url TEXT,
+        ADD COLUMN IF NOT EXISTS pwa_icon_512_url TEXT,
+        ADD COLUMN IF NOT EXISTS pwa_maskable_icon_url TEXT,
+        ADD COLUMN IF NOT EXISTS pwa_install_image_url TEXT,
+        ADD COLUMN IF NOT EXISTS pwa_install_title TEXT DEFAULT 'Instale o app HomeCare Match',
+        ADD COLUMN IF NOT EXISTS pwa_install_description TEXT DEFAULT 'Acesse mais rápido pelo seu celular, direto da tela inicial.',
+        ADD COLUMN IF NOT EXISTS pwa_screenshots_json JSONB DEFAULT '[]'::jsonb;
 
       UPDATE public.site_config
       SET payment_provider = 'asaas'

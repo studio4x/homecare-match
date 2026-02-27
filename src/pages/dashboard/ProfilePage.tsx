@@ -796,6 +796,136 @@ const ProfilePage = () => {
   };
 
   const CONFIRMATION_PHRASE = "EXCLUIR MINHA CONTA";
+  const isCompanyOrFamily = isCompany || isFamily;
+
+  const VerificationCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>
+        <CardDescription className="text-[10px]">O selo de verificação comprova a autenticidade dos seus documentos.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="bg-secondary/30 p-3 rounded-lg flex gap-3 items-start border border-border/50">
+          <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Upload Seguro</p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">Seus documentos são armazenados em um servidor privado com criptografia.</p>
+          </div>
+        </div>
+
+        {profile.is_verified ? (
+          <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center"><CheckCircle2 className="h-8 w-8 text-success mb-2" /><p className="font-semibold text-success">Perfil Verificado</p></div>
+        ) : profile.rejection_reason ? (
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 text-destructive bg-destructive/5 p-4 rounded-lg border border-destructive/10">
+              <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">Documentos Reprovados</p>
+                <p className="text-xs mt-1">{profile.rejection_reason}</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleRetryVerification}>
+              <RotateCcw className="h-3 w-3" /> Reiniciar Processo
+            </Button>
+          </div>
+        ) : profile.verification_sent ? (
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
+            <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
+            <div>
+              <p className="font-semibold text-primary">Documentos em Análise</p>
+              <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase">{doc1Label}</Label>
+              {isCompany && <Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} placeholder="CNPJ da Empresa" className="mb-2" />}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>
+                  {isUploading === "id_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  {getDocumentButtonLabel("id_doc", profile.id_document_url)}
+                </Button>
+                {profile.id_document_url && (
+                  <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("id_doc")} disabled={!!isUploading}>
+                    Excluir
+                  </Button>
+                )}
+              </div>
+              <input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} />
+            </div>
+            {!isFamily && (
+              <div className="space-y-1">
+                <Label className="text-[10px] uppercase">{doc2Label}</Label>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>
+                    {isUploading === "prof_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    {getDocumentButtonLabel("prof_doc", profile.prof_registration_url)}
+                  </Button>
+                  {profile.prof_registration_url && (
+                    <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("prof_doc")} disabled={!!isUploading}>
+                      Excluir
+                    </Button>
+                  )}
+                </div>
+                <input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} />
+              </div>
+            )}
+            {isFamily && (
+              <>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase">{familyDoc2Label}</Label>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => patientDocRef.current?.click()} disabled={!!isUploading}>
+                      {isUploading === "patient_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      {getDocumentButtonLabel("patient_doc", profile.patient_document_url)}
+                    </Button>
+                    {profile.patient_document_url && (
+                      <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("patient_doc")} disabled={!!isUploading}>
+                        Excluir
+                      </Button>
+                    )}
+                  </div>
+                  <input type="file" id="patient_doc" ref={patientDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_doc')} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] uppercase">{familyDoc3Label}</Label>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => patientAddressProofRef.current?.click()} disabled={!!isUploading}>
+                      {isUploading === "patient_address_proof" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      {getDocumentButtonLabel("patient_address_proof", profile.patient_address_proof_url)}
+                    </Button>
+                    {profile.patient_address_proof_url && (
+                      <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("patient_address_proof")} disabled={!!isUploading}>
+                        Excluir
+                      </Button>
+                    )}
+                  </div>
+                  <input type="file" id="patient_address_proof" ref={patientAddressProofRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_address_proof')} />
+                </div>
+              </>
+            )}
+            <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && (!profile.id_document_url || !profile.patient_document_url || !profile.patient_address_proof_url)) || (isCompany && (!profile.cnpj || !profile.id_document_url)) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const SecurityCard = (
+    <Card>
+      <CardHeader><CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /> Segurança</CardTitle></CardHeader>
+      <CardContent><ChangePasswordDialog /></CardContent>
+    </Card>
+  );
+
+  const DangerZoneCard = (
+    <Collapsible open={isDangerZoneOpen} onOpenChange={setIsDangerZoneOpen} className="border border-destructive/20 rounded-xl bg-card overflow-hidden">
+      <CollapsibleTrigger asChild><Button variant="ghost" className="w-full flex items-center justify-between p-6 h-auto hover:bg-destructive/5 group"><div className="flex items-center gap-2 text-destructive"><Trash2 className="h-4 w-4" /><span className="font-semibold text-base">Zona de Perigo</span></div>{isDangerZoneOpen ? <ChevronUp className="h-4 w-4 text-destructive" /> : <ChevronDown className="h-4 w-4 text-destructive" />}</Button></CollapsibleTrigger>
+      <CollapsibleContent className="px-6 pb-6 space-y-4 animate-accordion-down"><p className="text-[10px] text-muted-foreground">Ações irreversíveis relacionadas à exclusão definitiva da sua conta.</p><Button variant="destructive" size="sm" className="w-full justify-start gap-2 h-10" onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}><Trash2 className="h-4 w-4" /> Excluir minha conta permanentemente</Button></CollapsibleContent>
+    </Collapsible>
+  );
 
   return (
     <div className="space-y-6">
@@ -805,8 +935,9 @@ const ProfilePage = () => {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
+        <div className={`${isCompanyOrFamily ? "order-2 lg:order-none " : ""}lg:col-span-2 flex flex-col gap-6`}>
+          <div className={isFamily ? "order-2 lg:order-none" : isCompany ? "order-1 lg:order-none" : ""}>
+            <Card>
             <CardHeader>
               <CardTitle>Informações Básicas</CardTitle>
               <CardDescription>Dados essenciais para identificação na plataforma.</CardDescription>
@@ -875,9 +1006,11 @@ const ProfilePage = () => {
                 </div>
               )}
             </CardContent>
-          </Card>
+            </Card>
+          </div>
 
-          <Card>
+          <div className={isFamily ? "order-3 lg:order-none" : isCompany ? "order-4 lg:order-none" : ""}>
+            <Card>
             <CardHeader>
               <CardTitle>Endereço e Localização *</CardTitle>
               <CardDescription>Sua localização é usada para te conectar a oportunidades próximas.</CardDescription>
@@ -928,7 +1061,8 @@ const ProfilePage = () => {
                 </div>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
 
           {isProfessional && (
             <>
@@ -972,20 +1106,26 @@ const ProfilePage = () => {
             </>
           )}
 
+          {isCompany && <div className="lg:hidden order-2">{SecurityCard}</div>}
+          {isCompany && <div className="lg:hidden order-3">{DangerZoneCard}</div>}
+
           {isCompany && (
-            <Card>
-              <CardHeader><CardTitle>Sobre a Empresa *</CardTitle></CardHeader>
-              <CardContent><Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} /></CardContent>
-            </Card>
+            <div className="order-5 lg:order-none">
+              <Card>
+                <CardHeader><CardTitle>Sobre a Empresa *</CardTitle></CardHeader>
+                <CardContent><Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} /></CardContent>
+              </Card>
+            </div>
           )}
 
           {isFamily && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações do Paciente *</CardTitle>
-                <CardDescription>Detalhes sobre a pessoa que precisa de atendimento.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+            <div className="order-1 lg:order-none">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Informações do Paciente *</CardTitle>
+                  <CardDescription>Detalhes sobre a pessoa que precisa de atendimento.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2">
                     <Label className="flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Nome do Paciente *</Label>
@@ -1111,139 +1251,35 @@ const ProfilePage = () => {
                   <Textarea value={profile.bio || ""} onChange={e => setProfile({...profile, bio: e.target.value})} rows={6} />
                   <p className="text-[10px] text-muted-foreground">Informações adicionais que o profissional precisa saber (ex: preferências, rotina, temperamento).</p>
                 </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
-          <div className="flex justify-end gap-3">
+          {isFamily && <div className="lg:hidden order-4">{SecurityCard}</div>}
+          {isFamily && <div className="lg:hidden order-5">{DangerZoneCard}</div>}
+
+          <div className={isFamily ? "order-6 lg:order-none" : isCompany ? "order-6 lg:order-none" : ""}>
+            <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => fetchProfile()}>Descartar</Button>
             <Button onClick={handleSave} disabled={isSaving} className="gap-2">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar Alterações</Button>
+            </div>
           </div>
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><FileCheck className="h-4 w-4 text-primary" /> Verificação</CardTitle>
-              <CardDescription className="text-[10px]">O selo de verificação comprova a autenticidade dos seus documentos.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-secondary/30 p-3 rounded-lg flex gap-3 items-start border border-border/50">
-                <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold">Upload Seguro</p>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">Seus documentos são armazenados em um servidor privado com criptografia.</p>
-                </div>
-              </div>
-
-              {profile.is_verified ? (
-                <div className="bg-success/5 border border-success/20 rounded-lg p-4 flex flex-col items-center text-center"><CheckCircle2 className="h-8 w-8 text-success mb-2" /><p className="font-semibold text-success">Perfil Verificado</p></div>
-              ) : profile.rejection_reason ? (
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 text-destructive bg-destructive/5 p-4 rounded-lg border border-destructive/10">
-                    <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold">Documentos Reprovados</p>
-                      <p className="text-xs mt-1">{profile.rejection_reason}</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleRetryVerification}>
-                    <RotateCcw className="h-3 w-3" /> Reiniciar Processo
-                  </Button>
-                </div>
-              ) : profile.verification_sent ? (
-                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
-                  <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
-                  <div>
-                    <p className="font-semibold text-primary">Documentos em Análise</p>
-                    <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] uppercase">{doc1Label}</Label>
-                    {isCompany && <Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} placeholder="CNPJ da Empresa" className="mb-2" />}
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>
-                        {isUploading === "id_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                        {getDocumentButtonLabel("id_doc", profile.id_document_url)}
-                      </Button>
-                      {profile.id_document_url && (
-                        <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("id_doc")} disabled={!!isUploading}>
-                          Excluir
-                        </Button>
-                      )}
-                    </div>
-                    <input type="file" id="id_doc" ref={idDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'id_doc')} />
-                  </div>
-                  {!isFamily && (
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase">{doc2Label}</Label>
-                      <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => profDocRef.current?.click()} disabled={!!isUploading}>
-                          {isUploading === "prof_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                          {getDocumentButtonLabel("prof_doc", profile.prof_registration_url)}
-                        </Button>
-                        {profile.prof_registration_url && (
-                          <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("prof_doc")} disabled={!!isUploading}>
-                            Excluir
-                          </Button>
-                        )}
-                      </div>
-                      <input type="file" id="prof_doc" ref={profDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'prof_doc')} />
-                    </div>
-                  )}
-                  {isFamily && (
-                    <>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase">{familyDoc2Label}</Label>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => patientDocRef.current?.click()} disabled={!!isUploading}>
-                            {isUploading === "patient_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            {getDocumentButtonLabel("patient_doc", profile.patient_document_url)}
-                          </Button>
-                          {profile.patient_document_url && (
-                            <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("patient_doc")} disabled={!!isUploading}>
-                              Excluir
-                            </Button>
-                          )}
-                        </div>
-                        <input type="file" id="patient_doc" ref={patientDocRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_doc')} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase">{familyDoc3Label}</Label>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => patientAddressProofRef.current?.click()} disabled={!!isUploading}>
-                            {isUploading === "patient_address_proof" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            {getDocumentButtonLabel("patient_address_proof", profile.patient_address_proof_url)}
-                          </Button>
-                          {profile.patient_address_proof_url && (
-                            <Button variant="outline" size="sm" className="h-9 shrink-0" onClick={() => handleRemoveUploadedDocument("patient_address_proof")} disabled={!!isUploading}>
-                              Excluir
-                            </Button>
-                          )}
-                        </div>
-                        <input type="file" id="patient_address_proof" ref={patientAddressProofRef} className="hidden" accept="image/*,application/pdf" onChange={e => handleFileUpload(e, 'patient_address_proof')} />
-                      </div>
-                    </>
-                  )}
-                  <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && (!profile.id_document_url || !profile.patient_document_url || !profile.patient_address_proof_url)) || (isCompany && (!profile.cnpj || !profile.id_document_url)) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4 text-primary" /> Segurança</CardTitle></CardHeader>
-            <CardContent><ChangePasswordDialog /></CardContent>
-          </Card>
-
-          <Collapsible open={isDangerZoneOpen} onOpenChange={setIsDangerZoneOpen} className="border border-destructive/20 rounded-xl bg-card overflow-hidden">
-            <CollapsibleTrigger asChild><Button variant="ghost" className="w-full flex items-center justify-between p-6 h-auto hover:bg-destructive/5 group"><div className="flex items-center gap-2 text-destructive"><Trash2 className="h-4 w-4" /><span className="font-semibold text-base">Zona de Perigo</span></div>{isDangerZoneOpen ? <ChevronUp className="h-4 w-4 text-destructive" /> : <ChevronDown className="h-4 w-4 text-destructive" />}</Button></CollapsibleTrigger>
-            <CollapsibleContent className="px-6 pb-6 space-y-4 animate-accordion-down"><p className="text-[10px] text-muted-foreground">Ações irreversíveis relacionadas à exclusão definitiva da sua conta.</p><Button variant="destructive" size="sm" className="w-full justify-start gap-2 h-10" onClick={() => { setDeleteStep(1); setDeleteAccountModalOpen(true); }}><Trash2 className="h-4 w-4" /> Excluir minha conta permanentemente</Button></CollapsibleContent>
-          </Collapsible>
+        <div className={`${isCompanyOrFamily ? "order-1 lg:order-none " : ""}space-y-6`}>
+          {VerificationCard}
+          {isCompanyOrFamily ? (
+            <>
+              <div className="hidden lg:block">{SecurityCard}</div>
+              <div className="hidden lg:block">{DangerZoneCard}</div>
+            </>
+          ) : (
+            <>
+              {SecurityCard}
+              {DangerZoneCard}
+            </>
+          )}
         </div>
       </div>
 

@@ -60,6 +60,25 @@ export interface SiteConfig {
   video_mime_onboarding_company?: string | null;
   video_storage_path_onboarding_family?: string | null;
   video_mime_onboarding_family?: string | null;
+  // PWA fields
+  pwa_app_name?: string | null;
+  pwa_short_name?: string | null;
+  pwa_description?: string | null;
+  pwa_theme_color?: string | null;
+  pwa_background_color?: string | null;
+  pwa_icon_192_url?: string | null;
+  pwa_icon_512_url?: string | null;
+  pwa_maskable_icon_url?: string | null;
+  pwa_install_image_url?: string | null;
+  pwa_install_title?: string | null;
+  pwa_install_description?: string | null;
+  pwa_screenshots_json?: Array<{
+    src: string;
+    sizes: string;
+    type?: string;
+    label?: string;
+    form_factor?: "narrow" | "wide";
+  }> | null;
 }
 
 export const useSiteConfig = () => {
@@ -92,7 +111,15 @@ export const useSiteConfig = () => {
           ga_enabled: false,
           gtm_enabled: false,
           fb_pixel_enabled: false,
-          gemini_model: 'gemini-1.5-flash'
+          gemini_model: 'gemini-1.5-flash',
+          pwa_app_name: "HomeCare Match",
+          pwa_short_name: "HomeCare",
+          pwa_description: "Conectando profissionais de saúde às melhores oportunidades em Home Care.",
+          pwa_theme_color: "#0f172a",
+          pwa_background_color: "#ffffff",
+          pwa_install_title: "Instale o app HomeCare Match",
+          pwa_install_description: "Acesse mais rápido pelo seu celular, direto da tela inicial.",
+          pwa_screenshots_json: []
         };
       }
 

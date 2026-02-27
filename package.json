@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run check:encoding && vite build",
-    "build:dev": "vite build --mode development",
+    "build": "npm run bump:build-version && npm run check:encoding && vite build",
+    "build:dev": "npm run bump:build-version && vite build --mode development",
+    "bump:build-version": "node scripts/bump-build-version.mjs",
     "check:encoding": "node scripts/check-mojibake.mjs",
     "lint": "eslint .",
     "preview": "vite preview",

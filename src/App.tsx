@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import PwaMetaManager from "@/components/layout/PwaMetaManager";
 
 // Páginas Públicas / Usuário
 import Index from "./pages/Index";
@@ -64,6 +65,7 @@ import PushNotificationsPage from "./pages/admin/PushNotificationsPage";
 import FeatureVideosPage from "./pages/admin/FeatureVideosPage";
 import ConciergeRequestsPage from "./pages/admin/ConciergeRequestsPage";
 import PaymentsAdminPage from "./pages/admin/PaymentsAdminPage";
+import PwaSettingsPage from "./pages/admin/PwaSettingsPage";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +78,7 @@ const App = () => (
           <Sonner position="bottom-right" offset={40} />
           <SpeedInsights />
           <AppErrorBoundary>
+            <PwaMetaManager />
             <Routes>
               {/* Rotas Públicas */}
               <Route path="/" element={<Index />} />
@@ -136,6 +139,7 @@ const App = () => (
                 <Route path="auditoria" element={<AuditLogsPage />} />
                 <Route path="videos-funcionalidades" element={<FeatureVideosPage />} />
                 <Route path="concierge" element={<ConciergeRequestsPage />} />
+                <Route path="pwa" element={<PwaSettingsPage />} />
               </Route>
 
               {/* 404 */}

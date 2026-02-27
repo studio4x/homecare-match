@@ -12,6 +12,7 @@ import SuggestionDrawer from "../SuggestionDrawer";
 import CookieConsent from "../CookieConsent";
 import ScrollToTopButton from "../ScrollToTopButton";
 import PushManager from "../PushManager";
+import PwaInstallPrompt from "../PwaInstallPrompt";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -71,6 +72,7 @@ const Layout = ({ children }: LayoutProps) => {
       <SuggestionDrawer autoPromptEnabled />
       <CookieConsent />
       <PushManager />
+      <PwaInstallPrompt />
 
       <main className="flex-1 py-6 pb-24 md:py-12 md:pb-12">{children}</main>
 

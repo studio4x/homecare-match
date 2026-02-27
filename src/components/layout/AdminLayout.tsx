@@ -30,7 +30,8 @@ import {
   Ticket,
   PlayCircle,
   UserPlus, // New import
-  Headset
+  Headset,
+  Smartphone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -146,6 +147,7 @@ const AdminLayout = () => {
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
     { href: "/admin/videos", label: "Vídeos do Site", icon: Video },
     { href: "/admin/videos-funcionalidades", label: "Vídeos Funcionalidades", icon: PlayCircle },
+    { href: "/admin/pwa", label: "PWA Android", icon: Smartphone },
     { href: "/admin/concierge", label: "Solicitações Concierge", icon: Headset },
     { href: "/admin/push", label: "Avisos (Push)", icon: Bell },
     { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },

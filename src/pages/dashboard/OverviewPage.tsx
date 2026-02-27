@@ -456,6 +456,179 @@ const OverviewPage = () => {
     </Card>
   );
 
+  const CompanyQuickActionsCard = (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-primary" />
+          Ações rápidas da empresa
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <Button asChild className="w-full gap-2">
+          <Link to="/buscar">
+            Buscar profissionais agora
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="w-full gap-2">
+          <Link to="/dashboard/pacientes">
+            Gerenciar pacientes
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="w-full gap-2">
+          <Link to="/dashboard/contatos">
+            Ver contatos salvos
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="w-full gap-2">
+          <Link to="/dashboard/suporte">
+            Abrir suporte
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  const FamilyQuickActionsCard = (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" />
+          Ações rápidas da família
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <Button asChild className="w-full gap-2">
+          <Link to="/buscar">
+            Buscar profissionais agora
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="w-full gap-2">
+          <Link to="/dashboard/contatos">
+            Ver contatos salvos
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="w-full gap-2">
+          <Link to="/dashboard/suporte">
+            Abrir suporte
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  const FamilyPatientSummaryCard = (
+    <Card className="border-amber-300/40 bg-amber-50/30">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Home className="h-4 w-4 text-amber-600" />
+          Resumo do Paciente
+        </CardTitle>
+        <CardDescription>Esses dados são usados para encontrar profissionais compatíveis.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border bg-background/70 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Paciente</p>
+            <p className="text-sm font-semibold mt-1">{profile?.patient_name || "Não informado"}</p>
+          </div>
+          <div className="rounded-lg border bg-background/70 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Idade</p>
+            <p className="text-sm font-semibold mt-1">{profile?.patient_age || "Não informado"}</p>
+          </div>
+        </div>
+        <div className="rounded-lg border bg-background/70 p-3">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Condição Médica</p>
+          <p className="text-sm mt-1 leading-relaxed">{familyMedicalSummary}</p>
+        </div>
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Disponibilidade</p>
+          {familyAvailability.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {familyAvailability.slice(0, 4).map((slot: string) => (
+                <Badge key={slot} variant="outline" className="bg-background/80 text-[11px]">
+                  {slot}
+                </Badge>
+              ))}
+              {familyAvailability.length > 4 && (
+                <Badge variant="outline" className="bg-background/80 text-[11px]">
+                  +{familyAvailability.length - 4}
+                </Badge>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Nenhuma disponibilidade cadastrada.</p>
+          )}
+        </div>
+        <Button asChild variant="outline" className="w-full gap-2">
+          <Link to="/dashboard/perfil">
+            Editar informações do paciente
+            <Edit2 className="h-4 w-4" />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
+  const CompanyRecentPatientsCard = (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Users className="h-4 w-4 text-primary" />
+          Pacientes Recentes
+        </CardTitle>
+        <CardDescription>Acompanhe os últimos pacientes cadastrados pela sua empresa.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {companyPatients.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {companyPatients.slice(0, 4).map((patient) => (
+                <Card key={patient.id} className="border-primary/10">
+                  <CardContent className="p-4 flex items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">ID do Paciente</p>
+                      <p className="text-xl font-bold text-foreground">{getPatientCode(patient)}</p>
+                    </div>
+                    <Button asChild size="sm" variant="outline" className="gap-1">
+                      <Link to={`/dashboard/pacientes?edit=${patient.id}`}>
+                        <Edit2 className="h-3.5 w-3.5" />
+                        Editar
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            <Button asChild variant="outline" className="w-full gap-2">
+              <Link to="/dashboard/pacientes">
+                Ver todos os pacientes ({companyPatients.length})
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">Nenhum paciente visível cadastrado ainda.</p>
+            <Button asChild variant="outline" className="w-full gap-2">
+              <Link to="/dashboard/pacientes">
+                Cadastrar primeiro paciente
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -589,6 +762,8 @@ const OverviewPage = () => {
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-6">
             {isProfessional && QuickAccessCard}
+            {isCompany && CompanyQuickActionsCard}
+            {isFamily && FamilyQuickActionsCard}
 
             {isProfessional && (
               <Card className="border-amber-400/30 shadow-md">
@@ -756,128 +931,6 @@ const OverviewPage = () => {
               </Card>
             )}
 
-            {isCompany && companyPatients.length > 0 && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Pacientes Recentes
-                  </h2>
-                </div>
-
-                {/* Exibe até 4 pacientes em grid 2x2 no resumo do dashboard */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {companyPatients.slice(0, 4).map((patient) => (
-                    <Card key={patient.id} className="border-primary/10">
-                      <CardContent className="p-4 flex items-center justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">ID do Paciente</p>
-                          <p className="text-xl font-bold text-foreground">{getPatientCode(patient)}</p>
-                        </div>
-                        <Button asChild size="sm" variant="outline" className="gap-1">
-                          <Link to={`/dashboard/pacientes?edit=${patient.id}`}>
-                            <Edit2 className="h-3.5 w-3.5" />
-                            Editar
-                          </Link>
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
-                <Button asChild variant="outline" className="w-full gap-2">
-                  <Link to="/dashboard/pacientes">
-                    Ver todos os pacientes ({companyPatients.length})
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            )}
-
-            {isFamily && (
-              <div className="space-y-6">
-                <Card className="border-amber-300/40 bg-amber-50/30">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Home className="h-4 w-4 text-amber-600" />
-                      Resumo do Paciente
-                    </CardTitle>
-                    <CardDescription>Esses dados são usados para encontrar profissionais compatíveis.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-lg border bg-background/70 p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Paciente</p>
-                        <p className="text-sm font-semibold mt-1">{profile?.patient_name || "Não informado"}</p>
-                      </div>
-                      <div className="rounded-lg border bg-background/70 p-3">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Idade</p>
-                        <p className="text-sm font-semibold mt-1">{profile?.patient_age || "Não informado"}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-lg border bg-background/70 p-3">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Condição Médica</p>
-                      <p className="text-sm mt-1 leading-relaxed">{familyMedicalSummary}</p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Disponibilidade</p>
-                      {familyAvailability.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {familyAvailability.slice(0, 4).map((slot: string) => (
-                            <Badge key={slot} variant="outline" className="bg-background/80 text-[11px]">
-                              {slot}
-                            </Badge>
-                          ))}
-                          {familyAvailability.length > 4 && (
-                            <Badge variant="outline" className="bg-background/80 text-[11px]">
-                              +{familyAvailability.length - 4}
-                            </Badge>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">Nenhuma disponibilidade cadastrada.</p>
-                      )}
-                    </div>
-                    <Button asChild variant="outline" className="w-full gap-2">
-                      <Link to="/dashboard/perfil">
-                        Editar informações do paciente
-                        <Edit2 className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Users className="h-4 w-4 text-primary" />
-                      Ações rápidas da família
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <Button asChild className="w-full gap-2">
-                      <Link to="/buscar">
-                        Buscar profissionais agora
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="w-full gap-2">
-                      <Link to="/dashboard/contatos">
-                        Ver contatos salvos
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="w-full gap-2">
-                      <Link to="/dashboard/suporte">
-                        Abrir suporte
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
             {(!isProfessional && !isCompany && !isFamily) && QuickAccessCard}
           </div>
 
@@ -926,6 +979,9 @@ const OverviewPage = () => {
                 )}
               </CardContent>
             </Card>
+
+            {isCompany && CompanyRecentPatientsCard}
+            {isFamily && FamilyPatientSummaryCard}
 
             {isProfessional && referralStats && (
               <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">

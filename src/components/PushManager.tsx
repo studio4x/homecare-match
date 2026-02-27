@@ -99,9 +99,7 @@ const PushManager = () => {
 
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js", { scope: "/" })
-        .then(() => checkAndShowPrompt())
-        .catch((err) => console.error("[Push] SW Error:", err));
+      checkAndShowPrompt();
     }
 
     const handleConsent = () => checkAndShowPrompt();

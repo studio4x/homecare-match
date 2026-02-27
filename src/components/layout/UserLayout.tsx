@@ -36,6 +36,7 @@ import UserNotificationWidget from "../UserNotificationWidget";
 import PushManager from "../PushManager";
 import SuggestionDrawer from "../SuggestionDrawer";
 import { useIsMobile } from "@/hooks/use-mobile";
+import PwaInstallPrompt from "../PwaInstallPrompt";
 
 const UserLayout = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -175,6 +176,7 @@ const UserLayout = () => {
       <ImpersonationBar />
       <MarketingScripts />
       <PushManager />
+      <PwaInstallPrompt />
       <SuggestionDrawer autoPromptEnabled showTrigger={false} />
 
       <div className="flex flex-1 bg-secondary/10">

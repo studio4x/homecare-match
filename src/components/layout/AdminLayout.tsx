@@ -220,7 +220,7 @@ const AdminLayout = () => {
         </div>
         <PushManager />
         <AdminNotificationWidget />
-        <ScrollToTopButton />
+        <ScrollToTopButton hideOnMobile />
         <AppVersion />
       </main>
     </div>

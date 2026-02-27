@@ -322,7 +322,7 @@ const UserLayout = () => {
 
       <UserNotificationWidget />
       <Footer />
-      <ScrollToTopButton />
+      <ScrollToTopButton hideOnMobile />
       <AppVersion />
     </div>
   );

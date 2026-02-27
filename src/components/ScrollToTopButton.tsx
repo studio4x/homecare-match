@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ScrollToTopButton = () => {
+interface ScrollToTopButtonProps {
+  hideOnMobile?: boolean;
+  className?: string;
+}
+
+const ScrollToTopButton = ({ hideOnMobile = false, className }: ScrollToTopButtonProps) => {
   const [isVisible, setIsVisible] = useState(false);
 
   // Monitora a rolagem da página
@@ -33,7 +38,9 @@ const ScrollToTopButton = () => {
     <div
       className={cn(
         "fixed bottom-24 right-4 z-50 transition-all duration-300 transform md:bottom-6 md:right-6",
-        isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none"
+        hideOnMobile && "hidden md:block",
+        isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none",
+        className
       )}
     >
       <Button

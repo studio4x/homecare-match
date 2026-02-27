@@ -169,7 +169,7 @@ const AdminLayout = () => {
       )}
 
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-[230] w-64 bg-card border-r border-border transition-transform duration-200 ease-in-out md:translate-x-0 md:sticky md:top-0 md:h-screen md:block",
+        "fixed inset-y-0 left-0 z-[230] w-64 bg-card border-r border-border transition-transform duration-200 ease-in-out md:translate-x-0 md:sticky md:top-0 md:h-screen md:block flex flex-col",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex h-16 items-center justify-between px-6 border-b">
@@ -181,27 +181,29 @@ const AdminLayout = () => {
             <X className="h-5 w-5" />
           </button>
         </div>
-        
-        <div className="p-4 space-y-1">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) => cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                isActive 
-                  ? "bg-primary text-primary-foreground" 
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </NavLink>
-          ))}
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <nav className="space-y-1 pb-4">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={({ isActive }) => cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
         </div>
 
-        <div className="absolute bottom-4 left-0 right-0 px-4">
+        <div className="mt-auto border-t px-4 py-4">
           <Button variant="outline" className="w-full justify-start gap-2" onClick={signOut}>
             <LogOut className="h-4 w-4" />
             Sair

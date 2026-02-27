@@ -300,16 +300,14 @@ const PwaSettingsPage = () => {
         return;
       }
 
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${accessToken}`,
-      };
-
-      const { error } = await supabase.functions.invoke("extend-site-config", { body: {}, headers });
+      supabase.functions.setAuth(accessToken);
+      const { error } = await supabase.functions.invoke("extend-site-config", { body: {} });
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       toast.success("Estrutura PWA sincronizada com sucesso.");
     } catch (err: any) {
       const rawMessage = String(err?.message || "");
+      console.error("[PWA] syncBaseStructure error:", err);
       const statusCode =
         Number(err?.context?.status) ||
         Number(err?.status) ||

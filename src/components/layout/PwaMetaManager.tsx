@@ -34,6 +34,18 @@ const toScreenshots = (value: unknown): PwaManifestScreenshot[] => {
     .filter((item) => item.src && item.sizes);
 };
 
+const toAbsoluteUrl = (value: string, origin: string): string => {
+  const clean = value.trim();
+  if (!clean) return "";
+
+  try {
+    if (origin) return new URL(clean, `${origin}/`).toString();
+    return clean;
+  } catch {
+    return "";
+  }
+};
+
 const ensureMeta = (name: string, attr: "name" | "property" = "name") => {
   const selector = `meta[${attr}="${name}"]`;
   const found = document.head.querySelector(selector) as HTMLMetaElement | null;
@@ -98,6 +110,8 @@ const PwaMetaManager = () => {
   const { data: config } = useSiteConfig();
 
   const manifestPayload = useMemo(() => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const appRoot = origin ? `${origin}/` : "/";
     const name = config?.pwa_app_name || "HomeCare Match";
     const shortName = config?.pwa_short_name || "HomeCare";
     const description =
@@ -105,22 +119,37 @@ const PwaMetaManager = () => {
     const themeColor = config?.pwa_theme_color || "#0f172a";
     const backgroundColor = config?.pwa_background_color || "#ffffff";
 
-    const icon192 = config?.pwa_icon_192_url || config?.favicon_url || FALLBACK_ICON;
-    const icon512 = config?.pwa_icon_512_url || config?.favicon_url || FALLBACK_ICON;
-    const maskable = config?.pwa_maskable_icon_url || icon512;
-    const assets =
+    const icon192 =
+      toAbsoluteUrl(config?.pwa_icon_192_url || config?.favicon_url || FALLBACK_ICON, origin) ||
+      (origin ? `${origin}${FALLBACK_ICON}` : FALLBACK_ICON);
+    const icon512 =
+      toAbsoluteUrl(config?.pwa_icon_512_url || config?.favicon_url || FALLBACK_ICON, origin) ||
+      (origin ? `${origin}${FALLBACK_ICON}` : FALLBACK_ICON);
+    const maskable = toAbsoluteUrl(config?.pwa_maskable_icon_url || icon512, origin) || icon512;
+    const rawAssets =
       config?.pwa_assets_json && typeof config.pwa_assets_json === "object" && !Array.isArray(config.pwa_assets_json)
         ? config.pwa_assets_json
         : {};
-    const screenshots = toScreenshots(config?.pwa_screenshots_json);
+    const assets = Object.entries(rawAssets).reduce<Record<string, string>>((acc, [key, value]) => {
+      if (typeof value !== "string") return acc;
+      const absolute = toAbsoluteUrl(value, origin);
+      if (absolute) acc[key] = absolute;
+      return acc;
+    }, {});
+    const screenshots = toScreenshots(config?.pwa_screenshots_json)
+      .map((screenshot) => ({
+        ...screenshot,
+        src: toAbsoluteUrl(screenshot.src, origin),
+      }))
+      .filter((screenshot) => screenshot.src);
 
     return {
-      id: "/",
+      id: appRoot,
       name,
       short_name: shortName,
       description,
-      start_url: "/",
-      scope: "/",
+      start_url: appRoot,
+      scope: appRoot,
       display: "standalone",
       orientation: "portrait",
       theme_color: themeColor,
@@ -166,6 +195,9 @@ const PwaMetaManager = () => {
 
     const appleCapableMeta = ensureMeta("apple-mobile-web-app-capable");
     appleCapableMeta.content = "yes";
+
+    const mobileCapableMeta = ensureMeta("mobile-web-app-capable");
+    mobileCapableMeta.content = "yes";
 
     const appleStatusBarMeta = ensureMeta("apple-mobile-web-app-status-bar-style");
     appleStatusBarMeta.content = "default";

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -291,7 +291,7 @@ const PwaSettingsPage = () => {
       } = await supabase.auth.getSession();
 
       const { data: refreshed } = await supabase.auth.refreshSession();
-      const accessToken = refreshed.session?.access_token || session?.access_token;
+      const accessToken = refreshed.session?.access_token || session?.access_token || "";
 
       if (!accessToken) {
         toast.error("Sessao expirada para sincronizacao.", {
@@ -300,17 +300,40 @@ const PwaSettingsPage = () => {
         return;
       }
 
-      supabase.functions.setAuth(accessToken);
-      const { error } = await supabase.functions.invoke("extend-site-config", { body: {} });
-      if (error) throw error;
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/extend-site-config`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          const message = typeof payload?.error === "string" ? payload.error : "";
+          const extra = typeof payload?.details === "string" ? payload.details : "";
+          const text = [message, extra].filter(Boolean).join(" - ");
+          if (text) detail = text;
+        } catch {
+          // noop: detail remains status code
+        }
+        const error = new Error(detail) as Error & { status?: number };
+        error.status = response.status;
+        throw error;
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       toast.success("Estrutura PWA sincronizada com sucesso.");
     } catch (err: any) {
       const rawMessage = String(err?.message || "");
       console.error("[PWA] syncBaseStructure error:", err);
       const statusCode =
-        Number(err?.context?.status) ||
         Number(err?.status) ||
+        Number(err?.context?.status) ||
         (/\b401\b/.test(rawMessage) ? 401 : undefined);
 
       if (statusCode === 401 || /unauthorized|jwt/i.test(rawMessage)) {
@@ -587,11 +610,46 @@ const PwaSettingsPage = () => {
     );
   }
 
-  const imageButtons: Array<{ label: string; field: ImageField; ref: RefObject<HTMLInputElement> }> = [
-    { label: "Icone 192x192", field: "pwa_icon_192_url", ref: icon192Ref },
-    { label: "Icone 512x512", field: "pwa_icon_512_url", ref: icon512Ref },
-    { label: "Icone Maskable", field: "pwa_maskable_icon_url", ref: maskableRef },
-    { label: "Imagem do Prompt", field: "pwa_install_image_url", ref: installImageRef },
+  const imageButtons: Array<{
+    label: string;
+    field: ImageField;
+    ref: RefObject<HTMLInputElement>;
+    recommendedSize: string;
+    description: string;
+    instruction: string;
+  }> = [
+    {
+      label: "Icone 192x192",
+      field: "pwa_icon_192_url",
+      ref: icon192Ref,
+      recommendedSize: "192x192",
+      description: "Icone principal para Android (atalho do app e instalacao do PWA).",
+      instruction: "Use PNG quadrado, nitido e com pouco texto. Este campo alimenta `icon-192x192.png` no checklist.",
+    },
+    {
+      label: "Icone 512x512",
+      field: "pwa_icon_512_url",
+      ref: icon512Ref,
+      recommendedSize: "512x512",
+      description: "Icone de alta resolucao usado no manifesto e na instalacao.",
+      instruction: "Use PNG quadrado em alta qualidade. Este campo alimenta `icon-512x512.png` no checklist.",
+    },
+    {
+      label: "Icone Maskable",
+      field: "pwa_maskable_icon_url",
+      ref: maskableRef,
+      recommendedSize: "512x512 (maskable)",
+      description: "Icone adaptavel para launchers que recortam a arte automaticamente.",
+      instruction: "Mantenha margem segura interna (~20%) para evitar corte visual. Este campo alimenta `icon-512x512-maskable.png`.",
+    },
+    {
+      label: "Imagem do Prompt",
+      field: "pwa_install_image_url",
+      ref: installImageRef,
+      recommendedSize: "1200x900 (ou similar)",
+      description: "Imagem exibida no card/modal interno de convite para instalacao do app.",
+      instruction: "Use arte leve e horizontal. Nao entra no manifesto; e apenas visual do prompt dentro da plataforma.",
+    },
   ];
 
   const requiredSpecs = useMemo(() => pwaAssetSpecs.filter((item) => item.required), []);
@@ -686,17 +744,31 @@ const PwaSettingsPage = () => {
             <ImagePlus className="h-5 w-5 text-primary" />
             Imagens do PWA
           </CardTitle>
-          <CardDescription>Use PNG para icones (recomendado) e imagem leve no prompt.</CardDescription>
+          <CardDescription>
+            Campos principais do PWA com orientacoes de tamanho e uso. Preferencia: PNG para icones.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid md:grid-cols-2 gap-3">
             {imageButtons.map((item) => (
               <div key={item.field} className="rounded-lg border p-3 space-y-2">
-                <Label>{item.label}</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>{item.label}</Label>
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-muted text-muted-foreground">{item.recommendedSize}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{item.description}</p>
+                <p className="text-xs text-muted-foreground">{item.instruction}</p>
                 {formData[item.field] ? (
                   <img src={formData[item.field]} alt={item.label} className="h-16 w-16 object-cover rounded border" />
                 ) : (
                   <div className="h-16 w-16 rounded border bg-muted/40" />
+                )}
+                {formData[item.field] ? (
+                  <a href={formData[item.field]} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all">
+                    {formData[item.field]}
+                  </a>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Sem arquivo enviado.</p>
                 )}
                 <Button
                   type="button"
@@ -719,89 +791,6 @@ const PwaSettingsPage = () => {
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-2">
-            <span>Checklist Completo de Imagens PWA</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              Obrigatorios: {requiredReady}/{requiredSpecs.length} | Minimo recomendado: {recommendedReady}/{recommendedSpecs.length}
-            </span>
-          </CardTitle>
-          <CardDescription>
-            Lista completa solicitada: icones, Apple Touch, favicons, tile e splash iOS.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {(["icons", "apple", "favicon", "windows", "splash"] as PwaAssetCategory[]).map((category) => (
-            <div key={category} className="space-y-2">
-              <h3 className="text-sm font-semibold">{categoryLabels[category]}</h3>
-              <div className="space-y-2">
-                {pwaAssetSpecs
-                  .filter((item) => item.category === category)
-                  .map((item) => {
-                    const url = getAssetUrlByKey(item.key);
-                    const done = !!url;
-                    return (
-                      <div key={item.key} className="rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <span className="text-sm font-medium">{item.label}</span>
-                            {item.width && item.height ? (
-                              <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                                {item.width}x{item.height}
-                              </span>
-                            ) : null}
-                            <span className={`text-xs px-2 py-0.5 rounded ${item.required ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}>
-                              {item.required ? "Obrigatorio" : "Opcional"}
-                            </span>
-                            {item.recommended ? (
-                              <span className="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">Minimo</span>
-                            ) : null}
-                            <span className={`text-xs px-2 py-0.5 rounded ${item.auto ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
-                              {item.auto ? "Auto" : "Manual"}
-                            </span>
-                          </div>
-                          {url ? (
-                            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all">
-                              {url}
-                            </a>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Sem arquivo configurado.</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {done ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              OK
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              Faltando
-                            </span>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedAssetKey(item.key);
-                              setManualAssetUrl(url);
-                            }}
-                          >
-                            Selecionar
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ))}
         </CardContent>
       </Card>
 
@@ -917,6 +906,89 @@ const PwaSettingsPage = () => {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between gap-2">
+            <span>Checklist Completo de Imagens PWA</span>
+            <span className="text-sm font-normal text-muted-foreground">
+              Obrigatorios: {requiredReady}/{requiredSpecs.length} | Minimo recomendado: {recommendedReady}/{recommendedSpecs.length}
+            </span>
+          </CardTitle>
+          <CardDescription>
+            Lista completa solicitada: icones, Apple Touch, favicons, tile e splash iOS.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {(["icons", "apple", "favicon", "windows", "splash"] as PwaAssetCategory[]).map((category) => (
+            <div key={category} className="space-y-2">
+              <h3 className="text-sm font-semibold">{categoryLabels[category]}</h3>
+              <div className="space-y-2">
+                {pwaAssetSpecs
+                  .filter((item) => item.category === category)
+                  .map((item) => {
+                    const url = getAssetUrlByKey(item.key);
+                    const done = !!url;
+                    return (
+                      <div key={item.key} className="rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <span className="text-sm font-medium">{item.label}</span>
+                            {item.width && item.height ? (
+                              <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                                {item.width}x{item.height}
+                              </span>
+                            ) : null}
+                            <span className={`text-xs px-2 py-0.5 rounded ${item.required ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}>
+                              {item.required ? "Obrigatorio" : "Opcional"}
+                            </span>
+                            {item.recommended ? (
+                              <span className="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">Minimo</span>
+                            ) : null}
+                            <span className={`text-xs px-2 py-0.5 rounded ${item.auto ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                              {item.auto ? "Auto" : "Manual"}
+                            </span>
+                          </div>
+                          {url ? (
+                            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all">
+                              {url}
+                            </a>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Sem arquivo configurado.</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {done ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              OK
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              Faltando
+                            </span>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedAssetKey(item.key);
+                              setManualAssetUrl(url);
+                            }}
+                          >
+                            Selecionar
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

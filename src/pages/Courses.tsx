@@ -98,6 +98,7 @@ const Courses = () => {
   // Estados dos Filtros
   const [filterLevel, setFilterLevel] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
+  const [filterEnrollmentStatus, setFilterEnrollmentStatus] = useState<string>("all");
 
   // Carrega papel do usuário
   useEffect(() => {
@@ -210,13 +211,20 @@ const Courses = () => {
     return courses.filter(c => {
       const matchesLevel = filterLevel === "all" || c.level === filterLevel;
       const isFree = !c.price || c.price === 0;
+      const isEnrolledCourse = enrollments.enrolledSlugs.includes(c.slug);
+      const isCompletedCourse = completedSlugs.includes(c.slug);
       const matchesType = filterType === "all" || 
                          (filterType === "free" && isFree) || 
                          (filterType === "paid" && !isFree);
+      const matchesEnrollmentStatus =
+        filterEnrollmentStatus === "all" ||
+        (filterEnrollmentStatus === "enrolled" && isEnrolledCourse) ||
+        (filterEnrollmentStatus === "not-enrolled" && !isEnrolledCourse) ||
+        (filterEnrollmentStatus === "completed" && isCompletedCourse);
       
-      return matchesLevel && matchesType;
+      return matchesLevel && matchesType && matchesEnrollmentStatus;
     });
-  }, [courses, filterLevel, filterType]);
+  }, [courses, filterLevel, filterType, filterEnrollmentStatus, enrollments.enrolledSlugs, completedSlugs]);
 
   const isAdmin = userProfile?.is_admin || userProfile?.role === 'admin';
   const isEnrolled = (slug: string) => enrollments.enrolledSlugs.includes(slug);
@@ -312,6 +320,7 @@ const Courses = () => {
   const clearFilters = () => {
     setFilterLevel("all");
     setFilterType("all");
+    setFilterEnrollmentStatus("all");
   };
 
   if (roleLoading) {
@@ -416,7 +425,24 @@ const Courses = () => {
               </Select>
             </div>
 
-            {(filterLevel !== "all" || filterType !== "all") && (
+            <div className="grid gap-2 w-full md:w-64">
+              <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                <Filter className="h-3 w-3" /> Status
+              </Label>
+              <Select value={filterEnrollmentStatus} onValueChange={setFilterEnrollmentStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  <SelectItem value="enrolled">Inscritos</SelectItem>
+                  <SelectItem value="not-enrolled">Não Inscritos</SelectItem>
+                  <SelectItem value="completed">Concluídos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(filterLevel !== "all" || filterType !== "all" || filterEnrollmentStatus !== "all") && (
               <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2 text-muted-foreground hover:text-foreground">
                 <X className="h-4 w-4" /> Limpar Filtros
               </Button>

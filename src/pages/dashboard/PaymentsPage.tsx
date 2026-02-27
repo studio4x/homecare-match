@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
   CreditCard,
-  Download,
+  ExternalLink,
   Receipt,
   Calendar,
   AlertCircle,
@@ -409,6 +409,11 @@ const PaymentsPage = () => {
     return <Badge variant="outline">Parcial</Badge>;
   };
 
+  const getInvoiceActionLabel = (status: string) => {
+    const normalizedStatus = status.toLowerCase();
+    return normalizedStatus === "open" || normalizedStatus === "pending" ? "Pagar" : "Ver Fatura";
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -514,9 +519,10 @@ const PaymentsPage = () => {
                             <TableCell>{getStatusBadge(p.status)}</TableCell>
                             <TableCell className="text-right">
                               {p.pdf_url ? (
-                                <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-primary">
-                                  <a href={p.pdf_url} target="_blank" rel="noopener noreferrer" title="Baixar PDF">
-                                    <Download className="h-4 w-4" />
+                                <Button variant="ghost" size="sm" asChild className="h-8 gap-1.5 text-primary">
+                                  <a href={p.pdf_url} target="_blank" rel="noopener noreferrer" title={getInvoiceActionLabel(p.status)}>
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                    <span>{getInvoiceActionLabel(p.status)}</span>
                                   </a>
                                 </Button>
                               ) : (
@@ -613,9 +619,10 @@ const PaymentsPage = () => {
                                 <TableCell>{getStatusBadge(p.status)}</TableCell>
                                 <TableCell className="text-right">
                                   {p.pdf_url ? (
-                                    <Button variant="ghost" size="icon" asChild className="h-8 w-8 text-primary">
-                                      <a href={p.pdf_url} target="_blank" rel="noopener noreferrer" title="Baixar PDF">
-                                        <Download className="h-4 w-4" />
+                                    <Button variant="ghost" size="sm" asChild className="h-8 gap-1.5 text-primary">
+                                      <a href={p.pdf_url} target="_blank" rel="noopener noreferrer" title={getInvoiceActionLabel(p.status)}>
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        <span>{getInvoiceActionLabel(p.status)}</span>
                                       </a>
                                     </Button>
                                   ) : (

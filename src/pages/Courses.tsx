@@ -83,6 +83,19 @@ const normalizeCourseData = (course: any): Course => ({
   content_url: fixNullableMojibake(course?.content_url) || "",
 });
 
+const getCourseDescriptionPreview = (html?: string, maxLength = 220) => {
+  if (!html) return "";
+
+  const rawText =
+    typeof window !== "undefined"
+      ? new DOMParser().parseFromString(html, "text/html").body.textContent || ""
+      : html.replace(/<[^>]*>/g, " ");
+
+  const normalized = rawText.replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength).trimEnd()}...`;
+};
+
 const Courses = () => {
   const { user, session } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -497,10 +510,9 @@ const Courses = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4 flex-1 flex flex-col pt-0">
-                      <div 
-                        className="text-sm text-muted-foreground prose prose-sm max-none line-clamp-3 flex-1"
-                        dangerouslySetInnerHTML={{ __html: c.description || "" }}
-                      />
+                      <p className="text-sm text-muted-foreground line-clamp-4 flex-1">
+                        {getCourseDescriptionPreview(c.description)}
+                      </p>
                       
                       {needsYearly && (
                         <div className="bg-amber-50 border border-amber-200 p-2 rounded-lg flex items-center gap-2 text-[10px] text-amber-700 font-medium">

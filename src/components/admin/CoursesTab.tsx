@@ -627,8 +627,16 @@ const CoursesTab = () => {
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
         <DialogContent 
           className="max-w-2xl"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest("[data-radix-select-content]")) return;
+            e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest("[data-radix-select-content]")) return;
+            e.preventDefault();
+          }}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <DialogHeader><DialogTitle>Configurações do Curso</DialogTitle></DialogHeader>
@@ -919,4 +927,3 @@ const CoursesTab = () => {
 };
 
 export default CoursesTab;
-

@@ -72,6 +72,7 @@ export interface SiteConfig {
   pwa_install_image_url?: string | null;
   pwa_install_title?: string | null;
   pwa_install_description?: string | null;
+  pwa_assets_json?: Record<string, string> | null;
   pwa_screenshots_json?: Array<{
     src: string;
     sizes: string;
@@ -119,6 +120,7 @@ export const useSiteConfig = () => {
           pwa_background_color: "#ffffff",
           pwa_install_title: "Instale o app HomeCare Match",
           pwa_install_description: "Acesse mais rápido pelo seu celular, direto da tela inicial.",
+          pwa_assets_json: {},
           pwa_screenshots_json: []
         };
       }

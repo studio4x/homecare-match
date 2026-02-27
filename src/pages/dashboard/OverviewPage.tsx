@@ -629,6 +629,53 @@ const OverviewPage = () => {
     </Card>
   );
 
+  const VerificationCard = (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {profile?.is_verified ? (
+          <div className="flex items-center gap-3 text-success bg-success/5 p-4 rounded-lg border border-success/10">
+            <CheckCircle2 className="h-5 w-5" />
+            <div>
+              <p className="text-sm font-semibold">Perfil Verificado</p>
+              <p className="text-[10px] opacity-80">Selo de confiança ativo.</p>
+            </div>
+          </div>
+        ) : profile?.rejection_reason ? (
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 text-destructive bg-destructive/5 p-4 rounded-lg border border-destructive/10">
+              <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold">Documentos Reprovados</p>
+                <p className="text-xs mt-1">{profile.rejection_reason}</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleRetryVerification}>
+              <RotateCcw className="h-3 w-3" /> Reiniciar Processo
+            </Button>
+          </div>
+        ) : profile?.verification_sent ? (
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
+            <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
+            <div>
+              <p className="font-semibold text-primary">Documentos em Análise</p>
+              <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <Link to="/dashboard/perfil">Enviar Documentos</Link>
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -763,6 +810,7 @@ const OverviewPage = () => {
           <div className="space-y-6">
             {isProfessional && QuickAccessCard}
             {isCompany && CompanyQuickActionsCard}
+            {isCompany && VerificationCard}
             {isFamily && FamilyQuickActionsCard}
 
             {isProfessional && (
@@ -935,50 +983,7 @@ const OverviewPage = () => {
           </div>
 
           <div className="space-y-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-primary" /> Verificação de Perfil</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {profile?.is_verified ? (
-                  <div className="flex items-center gap-3 text-success bg-success/5 p-4 rounded-lg border border-success/10">
-                    <CheckCircle2 className="h-5 w-5" />
-                    <div>
-                      <p className="text-sm font-semibold">Perfil Verificado</p>
-                      <p className="text-[10px] opacity-80">Selo de confiança ativo.</p>
-                    </div>
-                  </div>
-                ) : profile?.rejection_reason ? (
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-3 text-destructive bg-destructive/5 p-4 rounded-lg border border-destructive/10">
-                      <AlertOctagon className="h-5 w-5 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold">Documentos Reprovados</p>
-                        <p className="text-xs mt-1">{profile.rejection_reason}</p>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleRetryVerification}>
-                      <RotateCcw className="h-3 w-3" /> Reiniciar Processo
-                    </Button>
-                  </div>
-                ) : profile?.verification_sent ? (
-                  <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
-                    <Clock className="h-8 w-8 text-primary mx-auto mb-2 animate-pulse" />
-                    <div>
-                      <p className="font-semibold text-primary">Documentos em Análise</p>
-                      <p className="text-xs text-muted-foreground mt-1">Aguarde o retorno por e-mail em até 24 horas úteis.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
-                    <Button asChild variant="outline" size="sm" className="w-full">
-                      <Link to="/dashboard/perfil">Enviar Documentos</Link>
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {!isCompany && VerificationCard}
 
             {isCompany && CompanyRecentPatientsCard}
             {isFamily && FamilyPatientSummaryCard}

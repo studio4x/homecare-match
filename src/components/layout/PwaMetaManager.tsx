@@ -55,6 +55,45 @@ const ensureLink = (rel: string) => {
   return link;
 };
 
+const ensureLinkWithSizes = (rel: string, sizes: string) => {
+  const selector = `link[rel="${rel}"][sizes="${sizes}"]`;
+  const found = document.head.querySelector(selector) as HTMLLinkElement | null;
+  if (found) return found;
+
+  const link = document.createElement("link");
+  link.rel = rel;
+  link.sizes = sizes;
+  document.head.appendChild(link);
+  return link;
+};
+
+const ensureStartupLink = (media: string) => {
+  const selector = `link[rel="apple-touch-startup-image"][media="${media}"]`;
+  const found = document.head.querySelector(selector) as HTMLLinkElement | null;
+  if (found) return found;
+
+  const link = document.createElement("link");
+  link.rel = "apple-touch-startup-image";
+  link.media = media;
+  document.head.appendChild(link);
+  return link;
+};
+
+const splashMediaByKey: Record<string, string> = {
+  splash_640x1136: "(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
+  splash_750x1334: "(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
+  splash_828x1792: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
+  splash_1125x2436: "(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+  splash_1170x2532: "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+  splash_1242x2208: "(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+  splash_1242x2688: "(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+  splash_1284x2778: "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+  splash_1536x2048: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
+  splash_1668x2224: "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
+  splash_1668x2388: "(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
+  splash_2048x2732: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
+};
+
 const PwaMetaManager = () => {
   const { data: config } = useSiteConfig();
 
@@ -69,6 +108,10 @@ const PwaMetaManager = () => {
     const icon192 = config?.pwa_icon_192_url || config?.favicon_url || FALLBACK_ICON;
     const icon512 = config?.pwa_icon_512_url || config?.favicon_url || FALLBACK_ICON;
     const maskable = config?.pwa_maskable_icon_url || icon512;
+    const assets =
+      config?.pwa_assets_json && typeof config.pwa_assets_json === "object" && !Array.isArray(config.pwa_assets_json)
+        ? config.pwa_assets_json
+        : {};
     const screenshots = toScreenshots(config?.pwa_screenshots_json);
 
     return {
@@ -88,6 +131,7 @@ const PwaMetaManager = () => {
         { src: icon512, sizes: "512x512", type: "image/png", purpose: "any" },
         { src: maskable, sizes: "512x512", type: "image/png", purpose: "maskable" },
       ],
+      assets,
       screenshots,
     };
   }, [
@@ -98,6 +142,7 @@ const PwaMetaManager = () => {
     config?.pwa_icon_192_url,
     config?.pwa_icon_512_url,
     config?.pwa_maskable_icon_url,
+    config?.pwa_assets_json,
     config?.pwa_screenshots_json,
     config?.pwa_short_name,
     config?.pwa_theme_color,
@@ -125,8 +170,59 @@ const PwaMetaManager = () => {
     const appleStatusBarMeta = ensureMeta("apple-mobile-web-app-status-bar-style");
     appleStatusBarMeta.content = "default";
 
-    const appleTouchIcon = ensureLink("apple-touch-icon");
-    appleTouchIcon.href = manifestPayload.icons[0]?.src || FALLBACK_ICON;
+    const assetMap = manifestPayload.assets as Record<string, string>;
+
+    const apple180 = assetMap.apple_touch_icon_180x180 || manifestPayload.icons[0]?.src || FALLBACK_ICON;
+    const apple167 = assetMap.apple_touch_icon_167x167;
+    const apple152 = assetMap.apple_touch_icon_152x152;
+    const favicon16 = assetMap.favicon_16x16;
+    const favicon32 = assetMap.favicon_32x32;
+    const faviconIco = assetMap.favicon_ico;
+    const msTile = assetMap.mstile_144x144;
+
+    const appleTouchDefault = ensureLink("apple-touch-icon");
+    appleTouchDefault.href = apple180;
+
+    const appleTouch180 = ensureLinkWithSizes("apple-touch-icon", "180x180");
+    appleTouch180.href = apple180;
+    if (apple167) {
+      const appleTouch167 = ensureLinkWithSizes("apple-touch-icon", "167x167");
+      appleTouch167.href = apple167;
+    }
+    if (apple152) {
+      const appleTouch152 = ensureLinkWithSizes("apple-touch-icon", "152x152");
+      appleTouch152.href = apple152;
+    }
+
+    if (favicon32) {
+      const icon32 = ensureLinkWithSizes("icon", "32x32");
+      icon32.href = favicon32;
+      icon32.type = "image/png";
+    }
+    if (favicon16) {
+      const icon16 = ensureLinkWithSizes("icon", "16x16");
+      icon16.href = favicon16;
+      icon16.type = "image/png";
+    }
+    if (faviconIco) {
+      const shortcutIcon = ensureLink("shortcut icon");
+      shortcutIcon.href = faviconIco;
+      shortcutIcon.type = "image/x-icon";
+    }
+
+    if (msTile) {
+      const tileImageMeta = ensureMeta("msapplication-TileImage");
+      tileImageMeta.content = msTile;
+    }
+    const tileColorMeta = ensureMeta("msapplication-TileColor");
+    tileColorMeta.content = manifestPayload.theme_color;
+
+    Object.entries(splashMediaByKey).forEach(([key, media]) => {
+      const url = assetMap[key];
+      if (!url) return;
+      const splashLink = ensureStartupLink(media);
+      splashLink.href = url;
+    });
 
     return () => {
       URL.revokeObjectURL(manifestUrl);

@@ -1106,8 +1106,8 @@ const ProfilePage = () => {
             </>
           )}
 
-          {isCompany && <div className="lg:hidden order-2">{SecurityCard}</div>}
-          {isCompany && <div className="lg:hidden order-3">{DangerZoneCard}</div>}
+          {isCompany && <div className="lg:hidden order-6">{SecurityCard}</div>}
+          {isCompany && <div className="lg:hidden order-7">{DangerZoneCard}</div>}
 
           {isCompany && (
             <div className="order-5 lg:order-none">
@@ -1259,7 +1259,7 @@ const ProfilePage = () => {
           {isFamily && <div className="lg:hidden order-4">{SecurityCard}</div>}
           {isFamily && <div className="lg:hidden order-5">{DangerZoneCard}</div>}
 
-          <div className={isFamily ? "order-6 lg:order-none" : isCompany ? "order-6 lg:order-none" : ""}>
+          <div className={isFamily ? "order-6 lg:order-none" : isCompany ? "order-8 lg:order-none" : ""}>
             <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => fetchProfile()}>Descartar</Button>
             <Button onClick={handleSave} disabled={isSaving} className="gap-2">{isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Salvar Alterações</Button>

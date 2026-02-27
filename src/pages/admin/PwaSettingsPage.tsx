@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, RefObject } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,9 +10,49 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Download, ImagePlus, Loader2, Plus, RefreshCw, Save, Smartphone, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, ImagePlus, Loader2, Plus, RefreshCw, Save, Smartphone, Trash2, WandSparkles } from "lucide-react";
 
 type ImageField = "pwa_icon_192_url" | "pwa_icon_512_url" | "pwa_maskable_icon_url" | "pwa_install_image_url";
+type PwaAssetKey =
+  | "icon_192x192"
+  | "icon_512x512"
+  | "icon_512x512_maskable"
+  | "apple_touch_icon_180x180"
+  | "apple_touch_icon_167x167"
+  | "apple_touch_icon_152x152"
+  | "favicon_16x16"
+  | "favicon_32x32"
+  | "favicon_ico"
+  | "mstile_144x144"
+  | "splash_640x1136"
+  | "splash_750x1334"
+  | "splash_828x1792"
+  | "splash_1125x2436"
+  | "splash_1170x2532"
+  | "splash_1242x2208"
+  | "splash_1242x2688"
+  | "splash_1284x2778"
+  | "splash_1536x2048"
+  | "splash_1668x2224"
+  | "splash_1668x2388"
+  | "splash_2048x2732";
+
+type PwaAssetsMap = Partial<Record<PwaAssetKey, string>>;
+type PwaAssetCategory = "icons" | "apple" | "favicon" | "windows" | "splash";
+type PwaAssetKind = "icon" | "maskable" | "splash" | "manual";
+
+type PwaAssetSpec = {
+  key: PwaAssetKey;
+  label: string;
+  category: PwaAssetCategory;
+  required: boolean;
+  recommended: boolean;
+  auto: boolean;
+  kind: PwaAssetKind;
+  width?: number;
+  height?: number;
+  fileName: string;
+};
 
 type ManifestScreenshot = {
   id: string;
@@ -31,6 +71,52 @@ const defaults = {
   pwa_background_color: "#ffffff",
   pwa_install_title: "Instale o app HomeCare Match",
   pwa_install_description: "Acesse mais rapido pelo seu celular, direto da tela inicial.",
+};
+
+const pwaAssetSpecs: PwaAssetSpec[] = [
+  { key: "icon_192x192", label: "icon-192x192.png", category: "icons", required: true, recommended: true, auto: true, kind: "icon", width: 192, height: 192, fileName: "icon-192x192.png" },
+  { key: "icon_512x512", label: "icon-512x512.png", category: "icons", required: true, recommended: true, auto: true, kind: "icon", width: 512, height: 512, fileName: "icon-512x512.png" },
+  { key: "icon_512x512_maskable", label: "icon-512x512-maskable.png", category: "icons", required: true, recommended: true, auto: true, kind: "maskable", width: 512, height: 512, fileName: "icon-512x512-maskable.png" },
+  { key: "apple_touch_icon_180x180", label: "apple-touch-icon.png", category: "apple", required: true, recommended: true, auto: true, kind: "icon", width: 180, height: 180, fileName: "apple-touch-icon.png" },
+  { key: "apple_touch_icon_167x167", label: "apple-touch-icon-167x167.png", category: "apple", required: false, recommended: false, auto: true, kind: "icon", width: 167, height: 167, fileName: "apple-touch-icon-167x167.png" },
+  { key: "apple_touch_icon_152x152", label: "apple-touch-icon-152x152.png", category: "apple", required: false, recommended: false, auto: true, kind: "icon", width: 152, height: 152, fileName: "apple-touch-icon-152x152.png" },
+  { key: "favicon_16x16", label: "favicon-16x16.png", category: "favicon", required: true, recommended: true, auto: true, kind: "icon", width: 16, height: 16, fileName: "favicon-16x16.png" },
+  { key: "favicon_32x32", label: "favicon-32x32.png", category: "favicon", required: true, recommended: true, auto: true, kind: "icon", width: 32, height: 32, fileName: "favicon-32x32.png" },
+  { key: "favicon_ico", label: "favicon.ico", category: "favicon", required: true, recommended: false, auto: false, kind: "manual", fileName: "favicon.ico" },
+  { key: "mstile_144x144", label: "mstile-144x144.png", category: "windows", required: true, recommended: false, auto: true, kind: "icon", width: 144, height: 144, fileName: "mstile-144x144.png" },
+  { key: "splash_640x1136", label: "splash-640x1136.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 640, height: 1136, fileName: "splash-640x1136.png" },
+  { key: "splash_750x1334", label: "splash-750x1334.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 750, height: 1334, fileName: "splash-750x1334.png" },
+  { key: "splash_828x1792", label: "splash-828x1792.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 828, height: 1792, fileName: "splash-828x1792.png" },
+  { key: "splash_1125x2436", label: "splash-1125x2436.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1125, height: 2436, fileName: "splash-1125x2436.png" },
+  { key: "splash_1170x2532", label: "splash-1170x2532.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 1170, height: 2532, fileName: "splash-1170x2532.png" },
+  { key: "splash_1242x2208", label: "splash-1242x2208.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1242, height: 2208, fileName: "splash-1242x2208.png" },
+  { key: "splash_1242x2688", label: "splash-1242x2688.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1242, height: 2688, fileName: "splash-1242x2688.png" },
+  { key: "splash_1284x2778", label: "splash-1284x2778.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 1284, height: 2778, fileName: "splash-1284x2778.png" },
+  { key: "splash_1536x2048", label: "splash-1536x2048.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 1536, height: 2048, fileName: "splash-1536x2048.png" },
+  { key: "splash_1668x2224", label: "splash-1668x2224.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1668, height: 2224, fileName: "splash-1668x2224.png" },
+  { key: "splash_1668x2388", label: "splash-1668x2388.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1668, height: 2388, fileName: "splash-1668x2388.png" },
+  { key: "splash_2048x2732", label: "splash-2048x2732.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 2048, height: 2732, fileName: "splash-2048x2732.png" },
+];
+
+const minimumRecommendedKeys = new Set<PwaAssetKey>([
+  "icon_192x192",
+  "icon_512x512",
+  "icon_512x512_maskable",
+  "apple_touch_icon_180x180",
+  "favicon_16x16",
+  "favicon_32x32",
+  "splash_1170x2532",
+  "splash_1284x2778",
+  "splash_828x1792",
+  "splash_1536x2048",
+]);
+
+const categoryLabels: Record<PwaAssetCategory, string> = {
+  icons: "Icones principais (manifest)",
+  apple: "Apple touch icon (iOS)",
+  favicon: "Favicons",
+  windows: "Windows tile",
+  splash: "Splash screens iOS (retrato)",
 };
 
 const createScreenshot = (): ManifestScreenshot => ({
@@ -60,6 +146,80 @@ const normalizeScreenshots = (value: unknown): ManifestScreenshot[] => {
   return parsed;
 };
 
+const normalizeAssetsMap = (value: unknown): PwaAssetsMap => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const raw = value as Record<string, unknown>;
+  const result: PwaAssetsMap = {};
+  for (const spec of pwaAssetSpecs) {
+    const maybeUrl = raw[spec.key];
+    if (typeof maybeUrl === "string" && maybeUrl.trim()) {
+      result[spec.key] = maybeUrl.trim();
+    }
+  }
+  return result;
+};
+
+const loadImageFromFile = (file: File): Promise<HTMLImageElement> =>
+  new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Nao foi possivel ler a imagem base."));
+    };
+    image.src = url;
+  });
+
+const canvasToBlob = (canvas: HTMLCanvasElement): Promise<Blob> =>
+  new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Falha ao gerar imagem."));
+        return;
+      }
+      resolve(blob);
+    }, "image/png");
+  });
+
+const drawImageAsset = async (
+  source: HTMLImageElement,
+  width: number,
+  height: number,
+  options?: { paddingRatio?: number; backgroundColor?: string },
+) => {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas indisponivel.");
+
+  if (options?.backgroundColor) {
+    ctx.fillStyle = options.backgroundColor;
+    ctx.fillRect(0, 0, width, height);
+  } else {
+    ctx.clearRect(0, 0, width, height);
+  }
+
+  const paddingRatio = options?.paddingRatio || 0;
+  const innerW = width * (1 - paddingRatio * 2);
+  const innerH = height * (1 - paddingRatio * 2);
+  const scale = Math.min(innerW / source.width, innerH / source.height);
+  const drawW = source.width * scale;
+  const drawH = source.height * scale;
+  const x = (width - drawW) / 2;
+  const y = (height - drawH) / 2;
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(source, x, y, drawW, drawH);
+
+  return canvasToBlob(canvas);
+};
+
 const PwaSettingsPage = () => {
   const { data: config, isLoading } = useSiteConfig();
   const queryClient = useQueryClient();
@@ -70,6 +230,7 @@ const PwaSettingsPage = () => {
     pwa_icon_512_url: "",
     pwa_maskable_icon_url: "",
     pwa_install_image_url: "",
+    pwa_assets_json: {} as PwaAssetsMap,
     pwa_screenshots_json: [] as ManifestScreenshot[],
   });
 
@@ -77,11 +238,18 @@ const PwaSettingsPage = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [uploadingField, setUploadingField] = useState<ImageField | null>(null);
   const [uploadingScreenshotId, setUploadingScreenshotId] = useState<string | null>(null);
+  const [uploadingAssetKey, setUploadingAssetKey] = useState<PwaAssetKey | null>(null);
+  const [isGeneratingPack, setIsGeneratingPack] = useState<"minimum" | "full" | null>(null);
+  const [baseAssetFile, setBaseAssetFile] = useState<File | null>(null);
+  const [selectedAssetKey, setSelectedAssetKey] = useState<PwaAssetKey>("favicon_ico");
+  const [manualAssetUrl, setManualAssetUrl] = useState("");
 
   const icon192Ref = useRef<HTMLInputElement>(null);
   const icon512Ref = useRef<HTMLInputElement>(null);
   const maskableRef = useRef<HTMLInputElement>(null);
   const installImageRef = useRef<HTMLInputElement>(null);
+  const baseAssetRef = useRef<HTMLInputElement>(null);
+  const manualAssetRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!config) return;
@@ -98,22 +266,111 @@ const PwaSettingsPage = () => {
       pwa_icon_512_url: config.pwa_icon_512_url || "",
       pwa_maskable_icon_url: config.pwa_maskable_icon_url || "",
       pwa_install_image_url: config.pwa_install_image_url || "",
+      pwa_assets_json: normalizeAssetsMap(config.pwa_assets_json),
       pwa_screenshots_json: normalizeScreenshots(config.pwa_screenshots_json),
     });
   }, [config]);
 
+  useEffect(() => {
+    const fromMap =
+      selectedAssetKey === "icon_192x192"
+        ? formData.pwa_icon_192_url
+        : selectedAssetKey === "icon_512x512"
+        ? formData.pwa_icon_512_url
+        : selectedAssetKey === "icon_512x512_maskable"
+        ? formData.pwa_maskable_icon_url
+        : formData.pwa_assets_json[selectedAssetKey] || "";
+    setManualAssetUrl(fromMap);
+  }, [formData.pwa_assets_json, formData.pwa_icon_192_url, formData.pwa_icon_512_url, formData.pwa_maskable_icon_url, selectedAssetKey]);
+
   const syncBaseStructure = async () => {
     setIsSyncing(true);
     try {
-      const { error } = await supabase.functions.invoke("extend-site-config");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || session?.access_token;
+
+      if (!accessToken) {
+        toast.error("Sessao expirada para sincronizacao.", {
+          description: "Faca login novamente e tente de novo.",
+        });
+        return;
+      }
+
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${accessToken}`,
+      };
+
+      const { error } = await supabase.functions.invoke("extend-site-config", { body: {}, headers });
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       toast.success("Estrutura PWA sincronizada com sucesso.");
-    } catch {
-      toast.error("Nao foi possivel sincronizar a estrutura PWA.");
+    } catch (err: any) {
+      const rawMessage = String(err?.message || "");
+      const statusCode =
+        Number(err?.context?.status) ||
+        Number(err?.status) ||
+        (/\b401\b/.test(rawMessage) ? 401 : undefined);
+
+      if (statusCode === 401 || /unauthorized|jwt/i.test(rawMessage)) {
+        toast.error("Nao autorizado para sincronizar estrutura PWA.", {
+          description: "Faca login novamente no painel admin e tente de novo.",
+        });
+        return;
+      }
+
+      if (statusCode === 404 || /not found/i.test(rawMessage)) {
+        toast.error("Funcao 'extend-site-config' nao encontrada.", {
+          description: "Publique/deploy a edge function no Supabase e tente novamente.",
+        });
+        return;
+      }
+
+      const detail = rawMessage || "Erro desconhecido ao sincronizar.";
+      toast.error("Nao foi possivel sincronizar a estrutura PWA.", {
+        description: detail.slice(0, 180),
+      });
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const getAssetUrlByKey = (key: PwaAssetKey): string => {
+    if (key === "icon_192x192") return formData.pwa_icon_192_url || "";
+    if (key === "icon_512x512") return formData.pwa_icon_512_url || "";
+    if (key === "icon_512x512_maskable") return formData.pwa_maskable_icon_url || "";
+    return formData.pwa_assets_json[key] || "";
+  };
+
+  const applyAssetUrl = (key: PwaAssetKey, url: string) => {
+    const clean = url.trim();
+    setFormData((prev) => {
+      const nextAssets = { ...prev.pwa_assets_json };
+      if (clean) nextAssets[key] = clean;
+      else delete nextAssets[key];
+
+      const next = { ...prev, pwa_assets_json: nextAssets };
+      if (key === "icon_192x192") next.pwa_icon_192_url = clean;
+      if (key === "icon_512x512") next.pwa_icon_512_url = clean;
+      if (key === "icon_512x512_maskable") next.pwa_maskable_icon_url = clean;
+      return next;
+    });
+  };
+
+  const uploadToStorage = async (filePath: string, file: Blob, contentType = "image/png") => {
+    const { error: uploadError } = await supabase.storage.from("uploads").upload(filePath, file, {
+      upsert: true,
+      cacheControl: "31536000",
+      contentType,
+    });
+    if (uploadError) throw uploadError;
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("uploads").getPublicUrl(filePath);
+    return publicUrl;
   };
 
   const handleUpload = async (event: ChangeEvent<HTMLInputElement>, field: ImageField) => {
@@ -127,17 +384,11 @@ const PwaSettingsPage = () => {
     const filePath = `pwa-assets/${fileName}`;
 
     try {
-      const { error: uploadError } = await supabase.storage.from("uploads").upload(filePath, file, {
-        upsert: true,
-        cacheControl: "31536000",
-      });
-      if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("uploads").getPublicUrl(filePath);
-
+      const publicUrl = await uploadToStorage(filePath, file, file.type || "image/png");
       setFormData((prev) => ({ ...prev, [field]: publicUrl }));
+      if (field === "pwa_icon_192_url") applyAssetUrl("icon_192x192", publicUrl);
+      if (field === "pwa_icon_512_url") applyAssetUrl("icon_512x512", publicUrl);
+      if (field === "pwa_maskable_icon_url") applyAssetUrl("icon_512x512_maskable", publicUrl);
       toast.success("Imagem enviada com sucesso.");
     } catch {
       toast.error("Falha no upload da imagem.");
@@ -158,15 +409,7 @@ const PwaSettingsPage = () => {
     const filePath = `pwa-screenshots/${fileName}`;
 
     try {
-      const { error: uploadError } = await supabase.storage.from("uploads").upload(filePath, file, {
-        upsert: true,
-        cacheControl: "31536000",
-      });
-      if (uploadError) throw uploadError;
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("uploads").getPublicUrl(filePath);
+      const publicUrl = await uploadToStorage(filePath, file, file.type || "image/png");
 
       setFormData((prev) => ({
         ...prev,
@@ -183,6 +426,76 @@ const PwaSettingsPage = () => {
     } finally {
       setUploadingScreenshotId(null);
       event.target.value = "";
+    }
+  };
+
+  const handleAssetUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAssetKey(selectedAssetKey);
+    const ext = file.name.split(".").pop() || "png";
+    const filePath = `pwa-assets/manual/${selectedAssetKey}_${Date.now()}.${ext}`;
+
+    try {
+      const publicUrl = await uploadToStorage(filePath, file, file.type || "application/octet-stream");
+      applyAssetUrl(selectedAssetKey, publicUrl);
+      setManualAssetUrl(publicUrl);
+      toast.success("Asset enviado com sucesso.");
+    } catch {
+      toast.error("Falha no upload do asset.");
+    } finally {
+      setUploadingAssetKey(null);
+      event.target.value = "";
+    }
+  };
+
+  const generateAssetPack = async (mode: "minimum" | "full") => {
+    if (!baseAssetFile) {
+      toast.error("Selecione uma imagem base para gerar os assets.");
+      return;
+    }
+
+    setIsGeneratingPack(mode);
+    try {
+      const source = await loadImageFromFile(baseAssetFile);
+      const batchStamp = Date.now();
+      const targets = pwaAssetSpecs.filter((spec) => {
+        if (!spec.auto || !spec.width || !spec.height) return false;
+        return mode === "full" ? true : minimumRecommendedKeys.has(spec.key);
+      });
+
+      const newUrls: Partial<Record<PwaAssetKey, string>> = {};
+      for (const spec of targets) {
+        const blob =
+          spec.kind === "splash"
+            ? await drawImageAsset(source, spec.width!, spec.height!, { backgroundColor: formData.pwa_background_color })
+            : await drawImageAsset(source, spec.width!, spec.height!, {
+                paddingRatio: spec.kind === "maskable" ? 0.2 : 0,
+              });
+        const filePath = `pwa-assets/generated/${spec.fileName.replace(".png", "")}_${batchStamp}.png`;
+        newUrls[spec.key] = await uploadToStorage(filePath, blob, "image/png");
+      }
+
+      setFormData((prev) => {
+        const merged = { ...prev.pwa_assets_json, ...newUrls };
+        return {
+          ...prev,
+          pwa_assets_json: merged,
+          pwa_icon_192_url: newUrls.icon_192x192 || prev.pwa_icon_192_url,
+          pwa_icon_512_url: newUrls.icon_512x512 || prev.pwa_icon_512_url,
+          pwa_maskable_icon_url: newUrls.icon_512x512_maskable || prev.pwa_maskable_icon_url,
+        };
+      });
+
+      toast.success(
+        `Pacote ${mode === "full" ? "completo" : "minimo"} gerado (${Object.keys(newUrls).length} arquivos). favicon.ico continua manual.`,
+      );
+    } catch (err) {
+      console.error("[PWA] Erro ao gerar pacote:", err);
+      toast.error("Nao foi possivel gerar o pacote automaticamente.");
+    } finally {
+      setIsGeneratingPack(null);
     }
   };
 
@@ -222,6 +535,13 @@ const PwaSettingsPage = () => {
         }))
         .filter((item) => item.src && item.sizes);
 
+      const assetsMap = Object.entries(formData.pwa_assets_json).reduce<Record<string, string>>((acc, [key, value]) => {
+        if (typeof value === "string" && value.trim()) {
+          acc[key] = value.trim();
+        }
+        return acc;
+      }, {});
+
       const { error } = await supabase
         .from("site_config")
         .update({
@@ -236,6 +556,7 @@ const PwaSettingsPage = () => {
           pwa_icon_512_url: formData.pwa_icon_512_url || null,
           pwa_maskable_icon_url: formData.pwa_maskable_icon_url || null,
           pwa_install_image_url: formData.pwa_install_image_url || null,
+          pwa_assets_json: assetsMap,
           pwa_screenshots_json: screenshotsForManifest,
           updated_at: new Date().toISOString(),
         })
@@ -274,6 +595,11 @@ const PwaSettingsPage = () => {
     { label: "Icone Maskable", field: "pwa_maskable_icon_url", ref: maskableRef },
     { label: "Imagem do Prompt", field: "pwa_install_image_url", ref: installImageRef },
   ];
+
+  const requiredSpecs = useMemo(() => pwaAssetSpecs.filter((item) => item.required), []);
+  const recommendedSpecs = useMemo(() => pwaAssetSpecs.filter((item) => item.recommended), []);
+  const requiredReady = requiredSpecs.filter((item) => !!getAssetUrlByKey(item.key)).length;
+  const recommendedReady = recommendedSpecs.filter((item) => !!getAssetUrlByKey(item.key)).length;
 
   return (
     <div className="space-y-6">
@@ -394,6 +720,204 @@ const PwaSettingsPage = () => {
                 />
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between gap-2">
+            <span>Checklist Completo de Imagens PWA</span>
+            <span className="text-sm font-normal text-muted-foreground">
+              Obrigatorios: {requiredReady}/{requiredSpecs.length} | Minimo recomendado: {recommendedReady}/{recommendedSpecs.length}
+            </span>
+          </CardTitle>
+          <CardDescription>
+            Lista completa solicitada: icones, Apple Touch, favicons, tile e splash iOS.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {(["icons", "apple", "favicon", "windows", "splash"] as PwaAssetCategory[]).map((category) => (
+            <div key={category} className="space-y-2">
+              <h3 className="text-sm font-semibold">{categoryLabels[category]}</h3>
+              <div className="space-y-2">
+                {pwaAssetSpecs
+                  .filter((item) => item.category === category)
+                  .map((item) => {
+                    const url = getAssetUrlByKey(item.key);
+                    const done = !!url;
+                    return (
+                      <div key={item.key} className="rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <span className="text-sm font-medium">{item.label}</span>
+                            {item.width && item.height ? (
+                              <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                                {item.width}x{item.height}
+                              </span>
+                            ) : null}
+                            <span className={`text-xs px-2 py-0.5 rounded ${item.required ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}>
+                              {item.required ? "Obrigatorio" : "Opcional"}
+                            </span>
+                            {item.recommended ? (
+                              <span className="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">Minimo</span>
+                            ) : null}
+                            <span className={`text-xs px-2 py-0.5 rounded ${item.auto ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                              {item.auto ? "Auto" : "Manual"}
+                            </span>
+                          </div>
+                          {url ? (
+                            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all">
+                              {url}
+                            </a>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Sem arquivo configurado.</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {done ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              OK
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              Faltando
+                            </span>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedAssetKey(item.key);
+                              setManualAssetUrl(url);
+                            }}
+                          >
+                            Selecionar
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <WandSparkles className="h-5 w-5 text-primary" />
+            Automacao de Assets
+          </CardTitle>
+          <CardDescription>
+            Gere automaticamente pacote minimo ou completo a partir de uma imagem base (PNG quadrado recomendado).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border p-3 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => baseAssetRef.current?.click()}>
+                Selecionar imagem base
+              </Button>
+              <input
+                ref={baseAssetRef}
+                type="file"
+                accept="image/png,image/webp,image/jpeg"
+                className="hidden"
+                onChange={(e) => setBaseAssetFile(e.target.files?.[0] || null)}
+              />
+              <span className="text-sm text-muted-foreground">
+                {baseAssetFile ? baseAssetFile.name : "Nenhuma imagem selecionada"}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                onClick={() => generateAssetPack("minimum")}
+                disabled={!baseAssetFile || isGeneratingPack !== null}
+              >
+                {isGeneratingPack === "minimum" ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+                Gerar pacote minimo recomendado
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                onClick={() => generateAssetPack("full")}
+                disabled={!baseAssetFile || isGeneratingPack !== null}
+              >
+                {isGeneratingPack === "full" ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+                Gerar pacote completo
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Observacao: `favicon.ico` continua manual.</p>
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-3">
+            <Label>Upload/URL manual para item selecionado</Label>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Item</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={selectedAssetKey}
+                  onChange={(e) => setSelectedAssetKey(e.target.value as PwaAssetKey)}
+                >
+                  {pwaAssetSpecs.map((item) => (
+                    <option key={item.key} value={item.key}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Arquivo</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => manualAssetRef.current?.click()}
+                  disabled={uploadingAssetKey !== null}
+                >
+                  {uploadingAssetKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Enviar arquivo
+                </Button>
+                <input
+                  ref={manualAssetRef}
+                  type="file"
+                  accept={selectedAssetKey === "favicon_ico" ? ".ico,image/x-icon" : "image/png,image/webp,image/jpeg"}
+                  className="hidden"
+                  onChange={handleAssetUpload}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>URL manual</Label>
+              <div className="flex gap-2">
+                <Input value={manualAssetUrl} onChange={(e) => setManualAssetUrl(e.target.value)} placeholder="https://..." />
+                <Button type="button" variant="outline" onClick={() => applyAssetUrl(selectedAssetKey, manualAssetUrl)}>
+                  Aplicar
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-destructive"
+                  onClick={() => {
+                    applyAssetUrl(selectedAssetKey, "");
+                    setManualAssetUrl("");
+                  }}
+                >
+                  Limpar
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -559,3 +1083,4 @@ const PwaSettingsPage = () => {
 };
 
 export default PwaSettingsPage;
+

@@ -55,6 +55,7 @@ serve(async (req) => {
         ADD COLUMN IF NOT EXISTS pwa_install_image_url TEXT,
         ADD COLUMN IF NOT EXISTS pwa_install_title TEXT DEFAULT 'Instale o app HomeCare Match',
         ADD COLUMN IF NOT EXISTS pwa_install_description TEXT DEFAULT 'Acesse mais rápido pelo seu celular, direto da tela inicial.',
+        ADD COLUMN IF NOT EXISTS pwa_assets_json JSONB DEFAULT '{}'::jsonb,
         ADD COLUMN IF NOT EXISTS pwa_screenshots_json JSONB DEFAULT '[]'::jsonb;
 
       UPDATE public.site_config

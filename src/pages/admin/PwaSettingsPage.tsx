@@ -283,9 +283,35 @@ const PwaSettingsPage = () => {
     setManualAssetUrl(fromMap);
   }, [formData.pwa_assets_json, formData.pwa_icon_192_url, formData.pwa_icon_512_url, formData.pwa_maskable_icon_url, selectedAssetKey]);
 
+  const probePwaStructure = async () => {
+    const { error } = await supabase
+      .from("site_config")
+      .select("id,pwa_app_name,pwa_short_name,pwa_icon_192_url,pwa_assets_json,pwa_screenshots_json")
+      .eq("id", 1)
+      .single();
+
+    if (!error) return { ready: true, reason: "" };
+
+    const reason = String(error.message || "");
+    const missingColumn =
+      /column .* does not exist/i.test(reason) ||
+      /could not find the .* column/i.test(reason) ||
+      /schema cache/i.test(reason);
+
+    if (missingColumn) return { ready: false, reason };
+
+    throw error;
+  };
+
   const syncBaseStructure = async () => {
     setIsSyncing(true);
     try {
+      const beforeProbe = await probePwaStructure();
+      if (beforeProbe.ready) {
+        toast.success("Estrutura PWA ja sincronizada.");
+        return;
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -337,8 +363,19 @@ const PwaSettingsPage = () => {
         (/\b401\b/.test(rawMessage) ? 401 : undefined);
 
       if (statusCode === 401 || /unauthorized|jwt/i.test(rawMessage)) {
+        try {
+          const afterProbe = await probePwaStructure();
+          if (afterProbe.ready) {
+            await queryClient.invalidateQueries({ queryKey: ["site-config"] });
+            toast.success("Estrutura PWA ja sincronizada.");
+            return;
+          }
+        } catch {
+          // noop: keep unauthorized message below
+        }
+
         toast.error("Nao autorizado para sincronizar estrutura PWA.", {
-          description: "Faca login novamente no painel admin e tente de novo.",
+          description: "A funcao de sincronizacao esta bloqueada no backend (HTTP 401).",
         });
         return;
       }

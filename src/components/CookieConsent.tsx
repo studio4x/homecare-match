@@ -4,21 +4,75 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Cookie, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
+
+const CONSENT_KEY = "cookie-consent";
+const PWA_DISMISS_KEY = "hcm-pwa-dismissed";
+const PWA_PROMPT_HANDLED_KEY = "hcm-pwa-prompt-handled";
+const PWA_PROMPT_ACTIVE_KEY = "hcm-pwa-prompt-active";
+const PWA_PROMPT_VISIBLE_EVENT = "hcm-pwa-prompt-visible";
+const PWA_PROMPT_HANDLED_EVENT = "hcm-pwa-prompt-handled";
 
 const CookieConsent = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem("cookie-consent");
-    if (!consent) {
-      const timer = setTimeout(() => setIsVisible(true), 2000);
-      return () => clearTimeout(timer);
+    if (localStorage.getItem(CONSENT_KEY) === "true") return;
+
+    let showTimer: ReturnType<typeof setTimeout> | null = null;
+    let staleGuardTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearShowTimer = () => {
+      if (showTimer) {
+        clearTimeout(showTimer);
+        showTimer = null;
+      }
+    };
+
+    const scheduleShow = (delayMs: number) => {
+      clearShowTimer();
+      showTimer = setTimeout(() => setIsVisible(true), delayMs);
+    };
+
+    const hasResolvedPwaPrompt =
+      localStorage.getItem(PWA_PROMPT_HANDLED_KEY) === "true" ||
+      localStorage.getItem(PWA_DISMISS_KEY) === "true";
+    const isPwaPromptActive = localStorage.getItem(PWA_PROMPT_ACTIVE_KEY) === "true";
+
+    if (hasResolvedPwaPrompt) {
+      scheduleShow(2000);
+    } else if (!isPwaPromptActive) {
+      // Aguarda o prompt PWA aparecer; se nao aparecer, libera o cookie sem sobrepor.
+      scheduleShow(3500);
+    } else {
+      // Protege contra estado preso no localStorage.
+      staleGuardTimer = setTimeout(() => setIsVisible(true), 15000);
     }
+
+    const handlePwaPromptVisible = () => {
+      clearShowTimer();
+    };
+
+    const handlePwaPromptHandled = () => {
+      if (staleGuardTimer) {
+        clearTimeout(staleGuardTimer);
+        staleGuardTimer = null;
+      }
+      scheduleShow(300);
+    };
+
+    window.addEventListener(PWA_PROMPT_VISIBLE_EVENT, handlePwaPromptVisible);
+    window.addEventListener(PWA_PROMPT_HANDLED_EVENT, handlePwaPromptHandled);
+
+    return () => {
+      clearShowTimer();
+      if (staleGuardTimer) clearTimeout(staleGuardTimer);
+      window.removeEventListener(PWA_PROMPT_VISIBLE_EVENT, handlePwaPromptVisible);
+      window.removeEventListener(PWA_PROMPT_HANDLED_EVENT, handlePwaPromptHandled);
+    };
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem("cookie-consent", "true");
+    localStorage.setItem(CONSENT_KEY, "true");
     setIsVisible(false);
     
     // Dispara um evento customizado para que outros componentes (como o PushManager)

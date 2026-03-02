@@ -12,6 +12,10 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISS_KEY = "hcm-pwa-dismissed";
+const HANDLED_KEY = "hcm-pwa-prompt-handled";
+const ACTIVE_KEY = "hcm-pwa-prompt-active";
+const PROMPT_VISIBLE_EVENT = "hcm-pwa-prompt-visible";
+const PROMPT_HANDLED_EVENT = "hcm-pwa-prompt-handled";
 
 const PwaInstallPrompt = () => {
   const { data: config } = useSiteConfig();
@@ -31,6 +35,12 @@ const PwaInstallPrompt = () => {
     return window.matchMedia("(display-mode: standalone)").matches || !!navigatorAsIOS.standalone;
   }, []);
 
+  const markPromptHandled = () => {
+    localStorage.setItem(HANDLED_KEY, "true");
+    localStorage.removeItem(ACTIVE_KEY);
+    window.dispatchEvent(new Event(PROMPT_HANDLED_EVENT));
+  };
+
   useEffect(() => {
     if (isStandalone) return;
     if (localStorage.getItem(DISMISS_KEY) === "true") return;
@@ -38,6 +48,8 @@ const PwaInstallPrompt = () => {
     const onBeforeInstallPrompt = (event: Event) => {
       const promptEvent = event as BeforeInstallPromptEvent;
       promptEvent.preventDefault();
+      localStorage.setItem(ACTIVE_KEY, "true");
+      window.dispatchEvent(new Event(PROMPT_VISIBLE_EVENT));
       setDeferredPrompt(promptEvent);
       setVisible(true);
     };
@@ -46,6 +58,7 @@ const PwaInstallPrompt = () => {
       setVisible(false);
       setDeferredPrompt(null);
       localStorage.setItem(DISMISS_KEY, "true");
+      markPromptHandled();
     };
 
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -62,6 +75,7 @@ const PwaInstallPrompt = () => {
   const dismissPrompt = () => {
     setVisible(false);
     localStorage.setItem(DISMISS_KEY, "true");
+    markPromptHandled();
   };
 
   const handleInstall = async () => {
@@ -77,6 +91,7 @@ const PwaInstallPrompt = () => {
     } finally {
       setInstalling(false);
       setDeferredPrompt(null);
+      markPromptHandled();
     }
   };
 

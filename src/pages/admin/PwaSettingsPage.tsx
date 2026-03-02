@@ -550,14 +550,30 @@ const PwaSettingsPage = () => {
   };
 
   const generateAssetPack = async (mode: "minimum" | "full") => {
-    if (!baseAssetFile) {
-      toast.error("Selecione uma imagem base para gerar os assets.");
-      return;
-    }
-
     setIsGeneratingPack(mode);
     try {
-      const source = await loadImageFromFile(baseAssetFile);
+      let source: HTMLImageElement;
+      if (baseAssetFile) {
+        source = await loadImageFromFile(baseAssetFile);
+      } else {
+        const fallbackBaseUrl = formData.pwa_icon_512_url || formData.pwa_icon_192_url;
+        if (!fallbackBaseUrl) {
+          toast.error("Selecione uma imagem base para gerar os assets.");
+          return;
+        }
+
+        const fallbackResponse = await fetch(fallbackBaseUrl);
+        if (!fallbackResponse.ok) {
+          throw new Error("Nao foi possivel baixar o icone atual para gerar os assets.");
+        }
+
+        const fallbackBlob = await fallbackResponse.blob();
+        const fallbackType = fallbackBlob.type || "image/png";
+        const fallbackExt = fallbackType.includes("jpeg") ? "jpg" : fallbackType.includes("webp") ? "webp" : "png";
+        const fallbackFile = new File([fallbackBlob], `pwa-base.${fallbackExt}`, { type: fallbackType });
+        source = await loadImageFromFile(fallbackFile);
+      }
+
       const batchStamp = Date.now();
       const targets = pwaAssetSpecs.filter((spec) => {
         if (!spec.auto || !spec.width || !spec.height) return false;
@@ -928,7 +944,7 @@ const PwaSettingsPage = () => {
                 variant="outline"
                 className="gap-2"
                 onClick={() => generateAssetPack("minimum")}
-                disabled={!baseAssetFile || isGeneratingPack !== null}
+                disabled={(!baseAssetFile && !formData.pwa_icon_512_url && !formData.pwa_icon_192_url) || isGeneratingPack !== null}
               >
                 {isGeneratingPack === "minimum" ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
                 Gerar pacote minimo recomendado
@@ -938,13 +954,15 @@ const PwaSettingsPage = () => {
                 variant="outline"
                 className="gap-2"
                 onClick={() => generateAssetPack("full")}
-                disabled={!baseAssetFile || isGeneratingPack !== null}
+                disabled={(!baseAssetFile && !formData.pwa_icon_512_url && !formData.pwa_icon_192_url) || isGeneratingPack !== null}
               >
                 {isGeneratingPack === "full" ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
                 Gerar pacote completo
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Observacao: `favicon.ico` continua manual.</p>
+            <p className="text-xs text-muted-foreground">
+              Observacao: `favicon.ico` continua manual. Sem imagem selecionada, usamos o icone 512 atual como base.
+            </p>
           </div>
 
           <div className="rounded-lg border p-3 space-y-3">

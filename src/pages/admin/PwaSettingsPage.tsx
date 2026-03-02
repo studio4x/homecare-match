@@ -122,7 +122,7 @@ const categoryLabels: Record<PwaAssetCategory, string> = {
 const createScreenshot = (): ManifestScreenshot => ({
   id: crypto.randomUUID(),
   src: "",
-  sizes: "1080x1920",
+  sizes: "1080x2400",
   type: "image/png",
   label: "",
   form_factor: "narrow",
@@ -136,7 +136,7 @@ const normalizeScreenshots = (value: unknown): ManifestScreenshot[] => {
     .map((item) => ({
       id: crypto.randomUUID(),
       src: typeof item.src === "string" ? item.src : "",
-      sizes: typeof item.sizes === "string" ? item.sizes : "1080x1920",
+      sizes: typeof item.sizes === "string" ? item.sizes : "1080x2400",
       type: typeof item.type === "string" ? item.type : "image/png",
       label: typeof item.label === "string" ? item.label : "",
       form_factor: item.form_factor === "wide" ? "wide" : "narrow",
@@ -157,6 +157,15 @@ const normalizeAssetsMap = (value: unknown): PwaAssetsMap => {
     }
   }
   return result;
+};
+
+const parseScreenshotSizes = (value: string) => {
+  const match = value.trim().match(/^(\d{2,5})x(\d{2,5})$/i);
+  if (!match) return null;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+  return { width, height };
 };
 
 const loadImageFromFile = (file: File): Promise<HTMLImageElement> =>
@@ -471,13 +480,23 @@ const PwaSettingsPage = () => {
     const filePath = `pwa-screenshots/${fileName}`;
 
     try {
+      const image = await loadImageFromFile(file);
+      const realSizes = `${image.naturalWidth}x${image.naturalHeight}`;
+      const inferredFormFactor: ManifestScreenshot["form_factor"] =
+        image.naturalWidth > image.naturalHeight ? "wide" : "narrow";
       const publicUrl = await uploadToStorage(filePath, file, file.type || "image/png");
 
       setFormData((prev) => ({
         ...prev,
         pwa_screenshots_json: prev.pwa_screenshots_json.map((item) =>
           item.id === screenshotId
-            ? { ...item, src: publicUrl, type: file.type || item.type || "image/png" }
+            ? {
+                ...item,
+                src: publicUrl,
+                type: file.type || item.type || "image/png",
+                sizes: realSizes,
+                form_factor: inferredFormFactor,
+              }
             : item,
         ),
       }));
@@ -596,6 +615,28 @@ const PwaSettingsPage = () => {
           form_factor: item.form_factor,
         }))
         .filter((item) => item.src && item.sizes);
+
+      const invalidSizesItem = screenshotsForManifest.find((item) => !parseScreenshotSizes(item.sizes));
+      if (invalidSizesItem) {
+        toast.error("Formato invalido em 'Sizes' das screenshots.", {
+          description: "Use o padrao LARGURAxALTURA, por exemplo 1080x2400.",
+        });
+        return;
+      }
+
+      const mismatchedFactorItem = screenshotsForManifest.find((item) => {
+        const parsed = parseScreenshotSizes(item.sizes);
+        if (!parsed) return false;
+        if (item.form_factor === "narrow") return parsed.width >= parsed.height;
+        return parsed.width <= parsed.height;
+      });
+
+      if (mismatchedFactorItem) {
+        toast.error("Form Factor nao corresponde ao tamanho informado.", {
+          description: "narrow deve ser vertical (altura maior) e wide deve ser horizontal (largura maior).",
+        });
+        return;
+      }
 
       const assetsMap = Object.entries(formData.pwa_assets_json).reduce<Record<string, string>>((acc, [key, value]) => {
         if (typeof value === "string" && value.trim()) {
@@ -1043,7 +1084,7 @@ const PwaSettingsPage = () => {
             </Button>
           </CardTitle>
           <CardDescription>
-            Essas screenshots ajudam na apresentacao do app instalavel no Android. Informe tamanho real (ex: 1080x1920).
+            Vertical e permitido e recomendado para mobile. Exemplo: 1080x2400 (narrow/retrato) ou 1920x1080 (wide/paisagem).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1065,7 +1106,7 @@ const PwaSettingsPage = () => {
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm font-medium">{screenshot.label || "Screenshot"}</p>
-                      <p className="text-xs text-muted-foreground">{screenshot.sizes || "1080x1920"}</p>
+                      <p className="text-xs text-muted-foreground">{screenshot.sizes || "1080x2400"}</p>
                     </div>
                   </div>
 
@@ -1091,11 +1132,11 @@ const PwaSettingsPage = () => {
                   </div>
                   <div className="space-y-1">
                     <Label>Sizes</Label>
-                    <Input
-                      value={screenshot.sizes}
-                      onChange={(e) => updateScreenshot(screenshot.id, { sizes: e.target.value })}
-                      placeholder="1080x1920"
-                    />
+                      <Input
+                        value={screenshot.sizes}
+                        onChange={(e) => updateScreenshot(screenshot.id, { sizes: e.target.value })}
+                        placeholder="1080x2400"
+                      />
                   </div>
                   <div className="space-y-1">
                     <Label>Tipo</Label>
@@ -1116,8 +1157,8 @@ const PwaSettingsPage = () => {
                       }
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
-                      <option value="narrow">narrow (mobile)</option>
-                      <option value="wide">wide (tablet)</option>
+                      <option value="narrow">narrow (mobile/retrato)</option>
+                      <option value="wide">wide (tablet/paisagem)</option>
                     </select>
                   </div>
                 </div>

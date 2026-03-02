@@ -305,12 +305,14 @@ const PwaSettingsPage = () => {
 
   const syncBaseStructure = async () => {
     setIsSyncing(true);
+    let hadMissingColumnsBeforeCall = false;
     try {
       const beforeProbe = await probePwaStructure();
       if (beforeProbe.ready) {
         toast.success("Estrutura PWA ja sincronizada.");
         return;
       }
+      hadMissingColumnsBeforeCall = true;
 
       const {
         data: { session },
@@ -363,15 +365,17 @@ const PwaSettingsPage = () => {
         (/\b401\b/.test(rawMessage) ? 401 : undefined);
 
       if (statusCode === 401 || /unauthorized|jwt/i.test(rawMessage)) {
-        try {
-          const afterProbe = await probePwaStructure();
-          if (afterProbe.ready) {
-            await queryClient.invalidateQueries({ queryKey: ["site-config"] });
-            toast.success("Estrutura PWA ja sincronizada.");
-            return;
+        if (!hadMissingColumnsBeforeCall) {
+          try {
+            const afterProbe = await probePwaStructure();
+            if (afterProbe.ready) {
+              await queryClient.invalidateQueries({ queryKey: ["site-config"] });
+              toast.success("Estrutura PWA ja sincronizada.");
+              return;
+            }
+          } catch {
+            // noop: keep unauthorized message below
           }
-        } catch {
-          // noop: keep unauthorized message below
         }
 
         toast.error("Nao autorizado para sincronizar estrutura PWA.", {

@@ -1,5 +1,6 @@
 ﻿import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { Client } from "https://deno.land/x/postgres@v0.17.0/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,6 +8,8 @@ const corsHeaders = {
 };
 
 const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL")!;
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") || "").replace(/\/+$/, "");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -15,6 +18,46 @@ serve(async (req) => {
 
   let client: Client | null = null;
   try {
+    if (!SUPABASE_DB_URL) throw new Error("SUPABASE_DB_URL ausente.");
+    if (!SERVICE_ROLE_KEY) throw new Error("SUPABASE_SERVICE_ROLE_KEY ausente.");
+    if (!SUPABASE_URL) throw new Error("SUPABASE_URL ausente.");
+
+    const authHeader = req.headers.get("authorization");
+    const jwtToken = authHeader?.replace("Bearer ", "").trim() || "";
+    if (!jwtToken) {
+      return new Response(JSON.stringify({ error: "Autenticacao ausente." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseAdmin.auth.getUser(jwtToken);
+
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Usuario nao autenticado." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("is_admin, role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    const isAdmin = !!profile?.is_admin || profile?.role === "admin";
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Acesso negado." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     client = new Client(SUPABASE_DB_URL);
     await client.connect();
 
@@ -326,3 +369,6 @@ serve(async (req) => {
     });
   }
 });
+
+
+

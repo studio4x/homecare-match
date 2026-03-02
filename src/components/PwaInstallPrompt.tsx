@@ -22,7 +22,7 @@ const PwaInstallPrompt = () => {
   const appTitle = config?.pwa_install_title || "Instale o app HomeCare Match";
   const appDescription =
     config?.pwa_install_description || "Acesse mais rápido pelo seu celular, direto da tela inicial.";
-  const appImage = config?.pwa_install_image_url || config?.pwa_icon_192_url || config?.favicon_url || "/favicon.png";
+  const appImage = config?.pwa_icon_192_url || config?.pwa_icon_512_url || config?.favicon_url || "/icon-192x192.png";
 
   const isStandalone = useMemo(() => {
     if (typeof window === "undefined") return false;

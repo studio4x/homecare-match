@@ -452,11 +452,28 @@ const PwaSettingsPage = () => {
     setUploadingField(field);
 
     const ext = file.name.split(".").pop() || "png";
-    const fileName = `${field}_${Date.now()}.${ext}`;
+    const iconSizeByField: Partial<Record<ImageField, number>> = {
+      pwa_icon_192_url: 192,
+      pwa_icon_512_url: 512,
+      pwa_maskable_icon_url: 512,
+    };
+    const expectedSize = iconSizeByField[field];
+    const fileName = `${field}_${Date.now()}.${expectedSize ? "png" : ext}`;
     const filePath = `pwa-assets/${fileName}`;
 
     try {
-      const publicUrl = await uploadToStorage(filePath, file, file.type || "image/png");
+      let uploadBlob: Blob = file;
+      let uploadContentType = file.type || "image/png";
+
+      if (expectedSize) {
+        const source = await loadImageFromFile(file);
+        uploadBlob = await drawImageAsset(source, expectedSize, expectedSize, {
+          backgroundColor: formData.pwa_background_color,
+        });
+        uploadContentType = "image/png";
+      }
+
+      const publicUrl = await uploadToStorage(filePath, uploadBlob, uploadContentType);
       setFormData((prev) => ({ ...prev, [field]: publicUrl }));
       if (field === "pwa_icon_192_url") applyAssetUrl("icon_192x192", publicUrl);
       if (field === "pwa_icon_512_url") applyAssetUrl("icon_512x512", publicUrl);
@@ -549,12 +566,12 @@ const PwaSettingsPage = () => {
 
       const newUrls: Partial<Record<PwaAssetKey, string>> = {};
       for (const spec of targets) {
-        const blob =
-          spec.kind === "splash"
-            ? await drawImageAsset(source, spec.width!, spec.height!, { backgroundColor: formData.pwa_background_color })
-            : await drawImageAsset(source, spec.width!, spec.height!, {
-                paddingRatio: spec.kind === "maskable" ? 0.2 : 0,
-              });
+        // Keep generated icons opaque to avoid black background artifacts on some mobile splash implementations.
+        const shouldFillBackground = spec.kind === "splash" || spec.kind === "icon" || spec.kind === "maskable";
+        const blob = await drawImageAsset(source, spec.width!, spec.height!, {
+          backgroundColor: shouldFillBackground ? formData.pwa_background_color : undefined,
+          paddingRatio: spec.kind === "maskable" ? 0.2 : 0,
+        });
         const filePath = `pwa-assets/generated/${spec.fileName.replace(".png", "")}_${batchStamp}.png`;
         newUrls[spec.key] = await uploadToStorage(filePath, blob, "image/png");
       }

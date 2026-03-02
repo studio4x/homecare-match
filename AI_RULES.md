@@ -1,4 +1,4 @@
-# HomeCareMatch AI Rules & Tech Stack
+﻿# HomeCareMatch AI Rules & Tech Stack
 
 This document outlines the technical standards and architectural guidelines for the HomeCareMatch application.
 
@@ -57,6 +57,9 @@ This document outlines the technical standards and architectural guidelines for 
 
 ### 9. Build Version Policy
 - The footer build version (`Build vX.Y.Z`) is defined in `src/components/layout/AppVersion.tsx`.
-- This version must be incremented on every build execution, regardless of chat session or AI agent.
+- This version must be incremented on every local build execution.
+- In CI/deploy (`CI=true`), bump is skipped by default to avoid double increment between local and deploy builds.
+- To force CI bump, set `HCM_BUMP_IN_CI=1`.
 - Do not rely on manual version updates.
 - Build commands must run the automatic bump script before compiling.
+

@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 
-const FALLBACK_ICON = "/favicon.png";
+const FALLBACK_ICON_192 = "/icon-192x192.png";
+const FALLBACK_ICON_512 = "/icon-512x512.png";
 type PwaManifestScreenshot = {
   src: string;
   sizes: string;
@@ -120,11 +121,11 @@ const PwaMetaManager = () => {
     const backgroundColor = config?.pwa_background_color || "#ffffff";
 
     const icon192 =
-      toAbsoluteUrl(config?.pwa_icon_192_url || config?.favicon_url || FALLBACK_ICON, origin) ||
-      (origin ? `${origin}${FALLBACK_ICON}` : FALLBACK_ICON);
+      toAbsoluteUrl(config?.pwa_icon_192_url || config?.favicon_url || FALLBACK_ICON_192, origin) ||
+      (origin ? `${origin}${FALLBACK_ICON_192}` : FALLBACK_ICON_192);
     const icon512 =
-      toAbsoluteUrl(config?.pwa_icon_512_url || config?.favicon_url || FALLBACK_ICON, origin) ||
-      (origin ? `${origin}${FALLBACK_ICON}` : FALLBACK_ICON);
+      toAbsoluteUrl(config?.pwa_icon_512_url || config?.favicon_url || FALLBACK_ICON_512, origin) ||
+      (origin ? `${origin}${FALLBACK_ICON_512}` : FALLBACK_ICON_512);
     const maskable = toAbsoluteUrl(config?.pwa_maskable_icon_url || icon512, origin) || icon512;
     const rawAssets =
       config?.pwa_assets_json && typeof config.pwa_assets_json === "object" && !Array.isArray(config.pwa_assets_json)
@@ -204,7 +205,7 @@ const PwaMetaManager = () => {
 
     const assetMap = manifestPayload.assets as Record<string, string>;
 
-    const apple180 = assetMap.apple_touch_icon_180x180 || manifestPayload.icons[0]?.src || FALLBACK_ICON;
+    const apple180 = assetMap.apple_touch_icon_180x180 || manifestPayload.icons[0]?.src || FALLBACK_ICON_192;
     const apple167 = assetMap.apple_touch_icon_167x167;
     const apple152 = assetMap.apple_touch_icon_152x152;
     const favicon16 = assetMap.favicon_16x16;

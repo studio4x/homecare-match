@@ -323,7 +323,7 @@ serve(async (req) => {
 
         RETURN new;
       END;
-      $function$ LANGUAGE plpgsql SECURITY DEFINER;
+      $function$;
 
       ALTER TABLE public.profiles REPLICA IDENTITY FULL;
 

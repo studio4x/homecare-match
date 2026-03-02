@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, Download, ImagePlus, Loader2, Plus, RefreshCw, Save, Smartphone, Trash2, WandSparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Download, ImagePlus, Loader2, Plus, RefreshCw, Save, Smartphone, Trash2, WandSparkles } from "lucide-react";
 
 type ImageField = "pwa_icon_192_url" | "pwa_icon_512_url" | "pwa_maskable_icon_url" | "pwa_install_image_url";
 type PwaAssetKey =
@@ -252,6 +252,7 @@ const PwaSettingsPage = () => {
   const [baseAssetFile, setBaseAssetFile] = useState<File | null>(null);
   const [selectedAssetKey, setSelectedAssetKey] = useState<PwaAssetKey>("favicon_ico");
   const [manualAssetUrl, setManualAssetUrl] = useState("");
+  const [screenshotsOpen, setScreenshotsOpen] = useState(false);
 
   const icon192Ref = useRef<HTMLInputElement>(null);
   const icon512Ref = useRef<HTMLInputElement>(null);
@@ -594,6 +595,7 @@ const PwaSettingsPage = () => {
       ...prev,
       pwa_screenshots_json: [...prev.pwa_screenshots_json, createScreenshot()],
     }));
+    setScreenshotsOpen(true);
   };
 
   const removeScreenshot = (screenshotId: string) => {
@@ -1076,121 +1078,141 @@ const PwaSettingsPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-2">
+          <CardTitle className="flex flex-wrap items-center justify-between gap-2">
             <span>Screenshots do Manifest</span>
-            <Button type="button" size="sm" variant="outline" className="gap-2" onClick={addScreenshot}>
-              <Plus className="h-4 w-4" />
-              Adicionar
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="button" size="sm" variant="outline" className="gap-2" onClick={addScreenshot}>
+                <Plus className="h-4 w-4" />
+                Adicionar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={() => setScreenshotsOpen((prev) => !prev)}
+              >
+                {screenshotsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {screenshotsOpen ? "Recolher" : "Expandir"}
+              </Button>
+            </div>
           </CardTitle>
           <CardDescription>
             Vertical e permitido e recomendado para mobile. Exemplo: 1080x2400 (narrow/retrato) ou 1920x1080 (wide/paisagem).
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {formData.pwa_screenshots_json.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              Nenhuma screenshot cadastrada.
-            </div>
-          ) : (
-            formData.pwa_screenshots_json.map((screenshot) => (
-              <div key={screenshot.id} className="rounded-lg border p-3 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="h-20 w-12 rounded border bg-muted/30 overflow-hidden">
-                      {screenshot.src ? (
-                        <img src={screenshot.src} alt={screenshot.label || "Screenshot"} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full" />
-                      )}
+        {screenshotsOpen ? (
+          <CardContent className="space-y-3">
+            {formData.pwa_screenshots_json.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                Nenhuma screenshot cadastrada.
+              </div>
+            ) : (
+              formData.pwa_screenshots_json.map((screenshot) => (
+                <div key={screenshot.id} className="rounded-lg border p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="h-20 w-12 rounded border bg-muted/30 overflow-hidden">
+                        {screenshot.src ? (
+                          <img src={screenshot.src} alt={screenshot.label || "Screenshot"} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full" />
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">{screenshot.label || "Screenshot"}</p>
+                        <p className="text-xs text-muted-foreground">{screenshot.sizes || "1080x2400"}</p>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={() => removeScreenshot(screenshot.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Label</Label>
+                      <Input
+                        value={screenshot.label}
+                        onChange={(e) => updateScreenshot(screenshot.id, { label: e.target.value })}
+                        placeholder="Tela inicial"
+                      />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm font-medium">{screenshot.label || "Screenshot"}</p>
-                      <p className="text-xs text-muted-foreground">{screenshot.sizes || "1080x2400"}</p>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive"
-                    onClick={() => removeScreenshot(screenshot.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label>Label</Label>
-                    <Input
-                      value={screenshot.label}
-                      onChange={(e) => updateScreenshot(screenshot.id, { label: e.target.value })}
-                      placeholder="Tela inicial"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Sizes</Label>
+                      <Label>Sizes</Label>
                       <Input
                         value={screenshot.sizes}
                         onChange={(e) => updateScreenshot(screenshot.id, { sizes: e.target.value })}
                         placeholder="1080x2400"
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Tipo</Label>
+                      <Input
+                        value={screenshot.type}
+                        onChange={(e) => updateScreenshot(screenshot.id, { type: e.target.value })}
+                        placeholder="image/png"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Form Factor</Label>
+                      <select
+                        value={screenshot.form_factor}
+                        onChange={(e) =>
+                          updateScreenshot(screenshot.id, {
+                            form_factor: e.target.value === "wide" ? "wide" : "narrow",
+                          })
+                        }
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="narrow">narrow (mobile/retrato)</option>
+                        <option value="wide">wide (tablet/paisagem)</option>
+                      </select>
+                    </div>
                   </div>
+
                   <div className="space-y-1">
-                    <Label>Tipo</Label>
+                    <Label>URL da Screenshot</Label>
                     <Input
-                      value={screenshot.type}
-                      onChange={(e) => updateScreenshot(screenshot.id, { type: e.target.value })}
-                      placeholder="image/png"
+                      value={screenshot.src}
+                      onChange={(e) => updateScreenshot(screenshot.id, { src: e.target.value })}
+                      placeholder="https://..."
                     />
                   </div>
+
                   <div className="space-y-1">
-                    <Label>Form Factor</Label>
-                    <select
-                      value={screenshot.form_factor}
-                      onChange={(e) =>
-                        updateScreenshot(screenshot.id, {
-                          form_factor: e.target.value === "wide" ? "wide" : "narrow",
-                        })
-                      }
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="narrow">narrow (mobile/retrato)</option>
-                      <option value="wide">wide (tablet/paisagem)</option>
-                    </select>
+                    <Label>Upload de arquivo</Label>
+                    <Input
+                      type="file"
+                      accept="image/png,image/webp,image/jpeg"
+                      onChange={(e) => handleScreenshotUpload(e, screenshot.id)}
+                      disabled={uploadingScreenshotId === screenshot.id}
+                    />
+                    {uploadingScreenshotId === screenshot.id ? (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Enviando screenshot...
+                      </p>
+                    ) : null}
                   </div>
                 </div>
-
-                <div className="space-y-1">
-                  <Label>URL da Screenshot</Label>
-                  <Input
-                    value={screenshot.src}
-                    onChange={(e) => updateScreenshot(screenshot.id, { src: e.target.value })}
-                    placeholder="https://..."
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label>Upload de arquivo</Label>
-                  <Input
-                    type="file"
-                    accept="image/png,image/webp,image/jpeg"
-                    onChange={(e) => handleScreenshotUpload(e, screenshot.id)}
-                    disabled={uploadingScreenshotId === screenshot.id}
-                  />
-                  {uploadingScreenshotId === screenshot.id ? (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Enviando screenshot...
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
+              ))
+            )}
+          </CardContent>
+        ) : (
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Secao recolhida. Screenshots cadastradas: {formData.pwa_screenshots_json.length}.
+            </p>
+          </CardContent>
+        )}
       </Card>
 
       <Card>

@@ -29,6 +29,7 @@ import CookiePolicy from "./pages/CookiePolicy";
 import Funcionalidades from "./pages/Funcionalidades";
 import ConversionCourse from "./pages/ConversionCourse"; // New import
 import ConversionSubscription from "./pages/ConversionSubscription"; // New import
+import ResetPassword from "./pages/ResetPassword";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -98,6 +99,7 @@ const App = () => (
               <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
               <Route path="/politica-de-cookies" element={<CookiePolicy />} />
               <Route path="/funcionalidades" element={<Funcionalidades />} />
+              <Route path="/redefinir-senha" element={<ResetPassword />} />
               <Route path="/conversion/course" element={<ConversionCourse />} /> {/* New route */}
               <Route path="/conversion/subscription" element={<ConversionSubscription />} /> {/* New route */}
 

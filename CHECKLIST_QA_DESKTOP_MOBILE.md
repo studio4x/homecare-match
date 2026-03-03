@@ -1,430 +1,292 @@
-# Checklist de QA - Desktop e Mobile
+# Checklist QA - Go Live (Desktop + Mobile)
 
-## Como usar
-- Marque cada item com `OK`, `NOK` ou `NA`.
-- Quando falhar, preencha o bloco de "Notas de falha" abaixo do item.
-- Anexe evidências (print/vídeo) e ambiente (desktop/mobile + navegador).
-- Após correções, reexecute apenas os itens que ficaram `NOK`.
+## Metadados
+- Build/Versao:
+- Data:
+- Responsavel:
+- Ambiente: Homologacao / Producao
 
-## Metadados da execução
-- Release/Versão: 5.8.98
-- Data: 27/02/2026
-- Responsável pelo teste: Rodolfo Medeiros
-- Ambiente: Homologação
-
-## Legenda de status
-- `OK` = validado e aprovado
-- `NOK` = validado e reprovado
-- `NA` = não se aplica
+## Como preencher
+- Em cada item, preencher `Desktop` e `Mobile` com `OK`, `NOK` ou `NA`.
+- `P0` = bloqueador de release: qualquer `NOK` em Desktop ou Mobile = `No-Go`.
+- Registrar falhas no log ao final.
 
 ---
 
-## 1) Escopo e Ambiente
-- [OK] ENV-01 - Produção e homologação validadas
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [OK] ENV-02 - Desktop Chrome e Edge validados
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] ENV-03 - Mobile Android Chrome e iOS Safari validados
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [OK] ENV-04 - Perfis testados: profissional, empresa, família, admin
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] ENV-05 - Cenários testados: com plano ativo, sem plano, plano cancelado
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+## 1) Bloqueadores P0 (obrigatorio 100% OK)
 
-## 2) Autenticação e Sessão
-- [ ] AUTH-01 - Cadastro de profissional
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] AUTH-02 - Cadastro de empresa
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] AUTH-03 - Login com credenciais válidas
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] AUTH-04 - Login com senha inválida exibe mensagem correta
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] AUTH-05 - Fluxo de recuperação de senha
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] AUTH-06 - Logout encerra acesso às rotas protegidas
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] AUTH-07 - URL protegida sem login redireciona para login
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+### 1.1 Autenticacao e Acesso
+- [OK] P0-01 Cadastro de conta funcionando
+  Desktop: Profissional OK, Familia OK, Empresa OK
+  Mobile: Profissional OK, Familia OK,
+  Observacoes:
 
-## 3) Dashboard do Profissional
-- [ ] DASH-PRO-01 - Home do dashboard carrega no desktop
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] DASH-PRO-02 - Home do dashboard carrega no mobile
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] DASH-PRO-03 - Menu lateral funciona no desktop
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] DASH-PRO-04 - Menu mobile abre/fecha e navega corretamente
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] DASH-PRO-05 - Botão `scroll to top` oculto no mobile do dashboard
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] DASH-PRO-06 - Botão `scroll to top` visível e funcional no desktop do dashboard
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [OK] P0-02 Login com credenciais validas funcionando
+  Desktop: Profissional OK, Familia OK, Empresa OK
+  Mobile: Profissional OK, Familia OK, Empresa OK
+  Observacoes:
 
-## 4) Assinatura e Planos
-- [ ] SUB-01 - "Assinar agora" abre modal de planos (sem redirecionar para home)
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-02 - Modal de planos funciona no desktop
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-03 - Modal de planos funciona no mobile
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-04 - Altura do modal não ultrapassa a viewport no desktop
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-05 - Botão de fechar modal funciona
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-06 - Recursos do plano vêm da configuração feita no admin
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-07 - Fluxo de compra de assinatura mensal
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-08 - Fluxo de compra de assinatura anual (12x)
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-09 - Plano ativo exibido corretamente após compra
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-10 - Trial de 30 dias é concedido apenas uma vez após cadastro
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-11 - Botão de cancelamento cancela a assinatura ativa
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-12 - Cancelamento de anual (12x) em até 7 dias trata estorno corretamente
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-13 - Não ocorre erro de estorno individual em fluxo válido de cancelamento
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-14 - Após cancelamento/expiração, rótulo do plano é "nenhum plano definido"
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SUB-15 - Status de pagamento mostra "estornado" quando aplicável
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [OK] P0-03 Logout encerrando sessao corretamente
+  Desktop: Profissional OK, Familia OK, Empresa OK
+  Mobile: Profissional OK, Familia OK, Empresa OK
+  Observacoes:
 
-## 5) Regras de Visibilidade do Profissional
-- [ ] VIS-01 - Sem plano ativo, profissional fica oculto na página de busca
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] VIS-02 - Com plano ativo, profissional aparece na página de busca
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] VIS-03 - Dashboard exibe alerta de perfil não visível por ausência de plano ativo
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] VIS-04 - Alerta não aparece para usuários com plano ativo
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [ ] P0-04 Recuperacao de senha funcionando (envio e redefinicao)
+  Desktop:
+  Mobile:
+  Observacoes:
 
-## 6) Busca e Filtros
-- [ ] SEARCH-01 - Busca por nome/localidade funciona
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SEARCH-02 - Filtros combinados funcionam
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SEARCH-03 - Paginação/infinite scroll funciona no desktop
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SEARCH-04 - Paginação/infinite scroll funciona no mobile
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SEARCH-05 - Profissionais sem plano não aparecem em nenhuma combinação de filtros
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [ ] P0-05 Rota protegida bloqueada para usuario sem login
+  Desktop:
+  Mobile:
+  Observacoes:
 
-## 7) Perfil e Dados
-- [ ] PROFILE-01 - Edição de perfil e salvamento
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] PROFILE-02 - Upload/atualização de avatar
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] PROFILE-03 - Validação de campos obrigatórios
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] PROFILE-04 - Dados persistem após logout/login
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [ ] P0-06 Rota admin bloqueada para usuario nao-admin
+  Desktop:
+  Mobile:
+  Observacoes:
 
-## 8) Contatos, Indicações, Suporte e Notificações
-- [ ] OPS-01 - Lista de contatos carrega
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] OPS-02 - Ações de indicação registram corretamente
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] OPS-03 - Abrir ticket de suporte e enviar resposta
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] OPS-04 - Notificações no dashboard atualizam corretamente (incluindo push quando permitido)
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+### 1.2 Planos e Pagamentos
+- [ ] P0-07 Contratacao do plano mensal funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
 
-## 9) Cursos e Conteúdo
-- [ ] COURSE-01 - Lista de cursos carrega
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] COURSE-02 - Controle de acesso respeita regras de plano ativo
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] COURSE-03 - Salvar/retomar progresso funciona
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] COURSE-04 - Geração de certificados (quando aplicável)
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [ ] P0-08 Ativacao/reflexo do plano mensal no dashboard
+  Desktop:
+  Mobile:
+  Observacoes:
 
-## 10) Pagamentos e Histórico
-- [ ] PAY-01 - Histórico de pagamentos carrega sem erros
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] PAY-02 - Links de detalhe de pagamento abrem parcela/fatura corretas
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] PAY-03 - Valores/datas/status conferem com Asaas
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] PAY-04 - Atualização manual sincroniza sem duplicar registros
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [ ] P0-09 Contratacao do plano anual funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
 
-## 11) Admin
-- [ ] ADM-01 - Login admin e proteção de rotas
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] ADM-02 - Configuração de planos reflete no modal de planos do dashboard
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] ADM-03 - Fluxo de cupons: criar/aplicar/expirar
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] ADM-04 - Ações de gestão de usuários (buscar/editar/status)
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] ADM-05 - Consistência da visão de pagamentos no admin
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [ ] P0-10 Ativacao/reflexo do plano anual no dashboard
+  Desktop:
+  Mobile:
+  Observacoes:
 
-## 12) UX Mobile e Responsividade
-- [ ] MOB-01 - Nenhum modal ultrapassa a altura da viewport
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] MOB-02 - Teclado virtual não bloqueia campos críticos
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] MOB-03 - Alvos de toque são utilizáveis
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] MOB-04 - Navegação inferior/safe area não encobre conteúdo
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [ ] P0-11 Cancelamento atualizando status corretamente
+  Desktop:
+  Mobile:
+  Observacoes:
 
-## 13) Segurança e Regras de Acesso
-- [ ] SEC-01 - Usuário não-admin não acessa rotas admin
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SEC-02 - Usuário sem plano não acessa recursos premium por URL direta
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SEC-03 - Não há exposição de dados de outro usuário por manipulação de URL
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [ ] P0-12 Expiracao atualizando status corretamente
+  Desktop:
+  Mobile:
+  Observacoes:
 
-## 14) Smoke Final (Go/No-Go)
-- [ ] SMOKE-01 - Fluxo completo profissional: cadastro -> trial (uma vez) -> plano pago -> cancelamento
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SMOKE-02 - Fluxo completo empresa: cadastro -> busca -> contato
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SMOKE-03 - Fluxo completo admin: editar plano -> validar reflexo no frontend
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SMOKE-04 - Fluxos críticos validados em desktop e mobile
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+- [ ] P0-13 Valores de pagamento conferem com Asaas
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P0-14 Status de pagamento confere com Asaas
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P0-15 Datas de pagamento conferem com Asaas
+  Desktop:
+  Mobile:
+  Observacoes:
+
+### 1.3 Busca, Contato e Visibilidade
+- [ ] P0-16 Profissional sem plano ativo nao aparece na busca
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P0-17 Busca de profissionais funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P0-18 Fluxo de contato iniciado por empresa funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P0-19 Fluxo de contato iniciado por familia funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
+
+### 1.4 PWA e Estabilidade
+- [ ] P0-20 Instalacao PWA no Android sem erro critico
+  Desktop: NA
+  Mobile:
+  Observacoes:
+
+- [ ] P0-21 Instalacao PWA no iOS sem erro critico
+  Desktop: NA
+  Mobile:
+  Observacoes:
+
+- [ ] P0-22 Console sem erro critico na home publica
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P0-23 Console sem erro critico no dashboard principal
+  Desktop:
+  Mobile:
+  Observacoes:
+
+### Resumo P0
+- Desktop OK:
+- Mobile OK:
+- Itens com NOK:
 
 ---
 
-## Log de defeitos
-| ID | Item do checklist | Prioridade | Ambiente | Descrição | Evidência | Ticket/Link | Status |
-|---|---|---|---|---|---|---|---|
-| | | | | | | | |
+## 2) Validacoes P1 (recomendado para liberar com seguranca)
 
-## Decisão de release
+### 2.1 Dashboards e Navegacao
+- [ ] P1-01 Dashboard do profissional carregando e navegando sem quebra
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-02 Dashboard da empresa carregando e navegando sem quebra
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-03 Dashboard da familia carregando e navegando sem quebra
+  Desktop:
+  Mobile:
+  Observacoes:
+
+### 2.2 UX Mobile e Responsividade
+- [ ] P1-04 Modais respeitando altura da viewport
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-05 Safe area sem cobrir conteudo
+  Desktop: NA
+  Mobile:
+  Observacoes:
+
+- [ ] P1-06 Menu inferior sem cobrir conteudo
+  Desktop: NA
+  Mobile:
+  Observacoes:
+
+### 2.3 Funcionalidades Complementares
+- [ ] P1-07 Upload de avatar funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-08 Upload de documento funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-09 Cursos carregando e liberando acesso corretamente (quando aplicavel)
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-10 Progresso de curso salvando e retomando corretamente (quando aplicavel)
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-11 Certificado gerando corretamente (quando aplicavel)
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-12 Abertura de ticket de suporte funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-13 Resposta em ticket de suporte funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-14 Notificacoes do painel funcionando
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-15 Configuracoes alteradas no admin refletindo no frontend
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-16 Banner de privacidade/cookies sem sobreposicao indevida
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-17 Permissao/prompt de push sem sobreposicao indevida
+  Desktop:
+  Mobile:
+  Observacoes:
+
+### Resumo P1
+- Desktop OK:
+- Mobile OK:
+- Itens com NOK:
+
+---
+
+## 3) Smoke Final (antes de publicar)
+
+- [ ] SMK-01 Fluxo completo do profissional validado
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] SMK-02 Fluxo completo da empresa validado
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] SMK-03 Fluxo completo da familia validado
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] SMK-04 Fluxo completo do admin validado
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] SMK-05 Fluxos criticos validados no Android Chrome
+  Desktop: NA
+  Mobile:
+  Observacoes:
+
+- [ ] SMK-06 Fluxos criticos validados no iOS Safari
+  Desktop: NA
+  Mobile:
+  Observacoes:
+
+---
+
+## 4) Log de Falhas
+
+- ID:
+  Severidade: P0/P1
+  Item:
+  Plataforma: Desktop/Mobile + navegador
+  Descricao curta:
+  Evidencia: Link print/video
+  Status: Aberto/Fechado
+
+---
+
+## 5) Decisao de Release
 - Go/No-Go:
-- Responsável pela decisão:
-- Observações:
+- Motivo da decisao:
+- Itens P0 pendentes:
+- Riscos aceitos:
+- Aprovado por:

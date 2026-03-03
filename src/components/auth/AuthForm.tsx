@@ -95,7 +95,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + "/dashboard/perfil",
+        redirectTo: window.location.origin + "/redefinir-senha",
       });
       if (error) throw error;
       

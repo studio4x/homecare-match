@@ -54,13 +54,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     bootstrapAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       const freshSession = await ensureFreshSession(nextSession);
       if (!isMounted) return;
 
       setSession(freshSession);
       setUser(freshSession?.user ?? null);
       setLoading(false);
+
+      if (event === "PASSWORD_RECOVERY") {
+        navigate("/redefinir-senha", { replace: true });
+      }
     });
 
     return () => {

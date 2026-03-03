@@ -5,6 +5,12 @@ export const translateAuthError = (errorMessage: string): string => {
   if (error.includes("user already registered")) return "Este e-mail já está cadastrado.";
   if (error.includes("email not confirmed")) return "Verifique seu e-mail para confirmar o cadastro.";
   if (error.includes("password should be at least")) return "A senha deve ter pelo menos 6 caracteres.";
+  if (error.includes("new password should be different from the old password")) {
+    return "A nova senha deve ser diferente da senha antiga.";
+  }
+  if (error.includes("new password should be different from old password")) {
+    return "A nova senha deve ser diferente da senha antiga.";
+  }
   if (error.includes("rate limit exceeded")) return "Muitas tentativas. Aguarde um momento.";
   if (error.includes("user not found")) return "Usuário não encontrado.";
   if (error.includes("weak password")) return "A senha é muito fraca.";

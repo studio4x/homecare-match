@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,6 +29,7 @@ import {
   Bot,
   Database,
   Edit2,
+  ExternalLink,
   Loader2,
   Plus,
   RefreshCw,
@@ -89,6 +91,45 @@ type CoverCandidate = {
   photographer_url?: string | null;
   source_page?: string | null;
 };
+
+type BlogResearchResult = {
+  id: string;
+  title: string;
+  url: string;
+  summary?: string;
+  source?: string;
+  source_url?: string | null;
+  published_at?: string | null;
+  provider?: string;
+};
+
+const BLOG_RESEARCH_THEMES: Array<{ id: string; label: string; description: string }> = [
+  {
+    id: "homecare_idosos",
+    label: "Cuidados domiciliares para idosos",
+    description: "Tendencias, boas praticas e noticias sobre assistencia ao idoso em casa.",
+  },
+  {
+    id: "enfermagem_domiciliar",
+    label: "Enfermagem domiciliar e protocolos",
+    description: "Protocolos, tecnicas e melhorias para equipes de enfermagem no atendimento domiciliar.",
+  },
+  {
+    id: "gestao_homecare",
+    label: "Gestao e operacao em Home Care",
+    description: "Eficiência operacional, escala, qualidade e gestao de equipes assistenciais.",
+  },
+  {
+    id: "saude_digital",
+    label: "Saude digital e telemedicina",
+    description: "Inovacoes em monitoramento remoto, teleatendimento e tecnologia em saude.",
+  },
+  {
+    id: "seguranca_paciente",
+    label: "Seguranca do paciente",
+    description: "Prevencao de riscos, qualidade assistencial e segurança em atendimentos a saude.",
+  },
+];
 
 const emptySeoForm: BlogSeoForm = {
   seo_title: "",
@@ -248,6 +289,10 @@ const BlogTab = () => {
   const [rejectedCoverUrls, setRejectedCoverUrls] = useState<string[]>([]);
   const [creatingCategoryInline, setCreatingCategoryInline] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState("");
+  const [researchTheme, setResearchTheme] = useState(BLOG_RESEARCH_THEMES[0]?.id || "homecare_idosos");
+  const [researchingTopics, setResearchingTopics] = useState(false);
+  const [researchResults, setResearchResults] = useState<BlogResearchResult[]>([]);
+  const [generatingFromResearchId, setGeneratingFromResearchId] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
@@ -885,7 +930,19 @@ const BlogTab = () => {
     }
   };
 
-  const requestCoverCandidate = async (excludedUrls: string[] = []) => {
+  const fetchCoverCandidateFromAI = async ({
+    excludedUrls = [],
+    context,
+  }: {
+    excludedUrls?: string[];
+    context?: Partial<{
+      title: string;
+      suggestion: string;
+      excerpt: string;
+      focus_keyword: string;
+      content_html: string;
+    }>;
+  } = {}): Promise<CoverCandidate> => {
     const {
       data: { session: currentSession },
     } = await supabase.auth.getSession();
@@ -904,11 +961,11 @@ const BlogTab = () => {
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        title: articleForm.title,
-        suggestion: aiSuggestion,
-        excerpt: articleForm.excerpt,
-        focus_keyword: articleForm.focus_keyword,
-        content_html: articleForm.content_html,
+        title: context?.title ?? articleForm.title,
+        suggestion: context?.suggestion ?? aiSuggestion,
+        excerpt: context?.excerpt ?? articleForm.excerpt,
+        focus_keyword: context?.focus_keyword ?? articleForm.focus_keyword,
+        content_html: context?.content_html ?? articleForm.content_html,
         excluded_urls: excludedUrls,
       }),
     });
@@ -933,7 +990,7 @@ const BlogTab = () => {
       throw new Error("A IA nao retornou uma URL valida para a imagem.");
     }
 
-    setCoverCandidate({
+    return {
       cover_image_url: imageUrl,
       alt_text: String(payload?.alt_text || "").trim(),
       query_used: String(payload?.query_used || "").trim(),
@@ -941,8 +998,158 @@ const BlogTab = () => {
       photographer: payload?.photographer || null,
       photographer_url: payload?.photographer_url || null,
       source_page: payload?.source_page || null,
-    });
+    };
+  };
+
+  const requestCoverCandidate = async (excludedUrls: string[] = []) => {
+    const candidate = await fetchCoverCandidateFromAI({ excludedUrls });
+    setCoverCandidate(candidate);
     setCoverPreviewOpen(true);
+  };
+
+  const handleSearchResearchTopics = async () => {
+    setResearchingTopics(true);
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+      if (!accessToken) throw new Error("Sessao expirada. Faca login novamente.");
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/discover-blog-topics`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          theme_id: researchTheme,
+          limit: 10,
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      const results = Array.isArray(payload?.results) ? payload.results : [];
+      const normalizedResults: BlogResearchResult[] = results
+        .map((item: any, index: number) => ({
+          id: String(item?.id || `${index}-${item?.url || item?.title || "tema"}`),
+          title: String(item?.title || "").trim(),
+          url: String(item?.url || "").trim(),
+          summary: String(item?.summary || "").trim(),
+          source: String(item?.source || "").trim(),
+          source_url: item?.source_url || null,
+          published_at: item?.published_at || null,
+          provider: item?.provider || "",
+        }))
+        .filter((item: BlogResearchResult) => !!item.title && !!item.url);
+
+      setResearchResults(normalizedResults);
+
+      if (!response.ok) {
+        throw new Error(String(payload?.error || `HTTP ${response.status}`));
+      }
+
+      toast.success(`${normalizedResults.length} temas encontrados para gerar artigo.`);
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao pesquisar temas.");
+    } finally {
+      setResearchingTopics(false);
+    }
+  };
+
+  const handleGenerateArticleFromResearch = async (result: BlogResearchResult) => {
+    setGeneratingFromResearchId(result.id);
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente para usar a IA do blog.");
+      }
+
+      const suggestion = `Tema para artigo: ${result.title}\nFonte de referencia: ${result.url}\nResumo: ${result.summary || ""}`;
+
+      const articleResponse = await fetch(`${SUPABASE_URL}/functions/v1/generate-blog-article`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          mode: "suggestion",
+          suggestion,
+        }),
+      });
+
+      const articlePayload = await articleResponse.json().catch(() => ({}));
+      if (!articleResponse.ok) {
+        throw new Error(String(articlePayload?.error || `HTTP ${articleResponse.status}`));
+      }
+
+      const aiTitle = String(articlePayload.title || "").trim();
+      const aiSlug = generateSlug(String(articlePayload.slug || aiTitle || ""));
+      const aiExcerpt = String(articlePayload.excerpt || "").trim();
+      const aiContent = String(articlePayload.content_html || "").trim();
+      const aiFocusKeyword = String(articlePayload.focus_keyword || "").trim();
+      const aiTagsSuggested = Array.isArray(articlePayload.tags_suggested) ? articlePayload.tags_suggested : [];
+
+      const suggestedTagIds = sortedTags
+        .filter((tag) =>
+          aiTagsSuggested.some(
+            (name: string) =>
+              generateSlug(String(name || "")) === generateSlug(String(tag.slug || "")) ||
+              generateSlug(String(name || "")) === generateSlug(String(tag.name || "")),
+          ),
+        )
+        .map((tag) => String(tag.id));
+
+      let coverImageUrl = "";
+      try {
+        const coverCandidate = await fetchCoverCandidateFromAI({
+          context: {
+            title: aiTitle,
+            suggestion: result.title,
+            excerpt: aiExcerpt,
+            focus_keyword: aiFocusKeyword,
+            content_html: aiContent,
+          },
+        });
+        coverImageUrl = String(coverCandidate.cover_image_url || "").trim();
+      } catch (coverErr: any) {
+        toast.error(coverErr?.message || "Nao foi possivel gerar capa automatica para este tema.");
+      }
+
+      setArticleForm((prev) => ({
+        ...prev,
+        title: aiTitle || prev.title,
+        slug: aiSlug || prev.slug,
+        excerpt: aiExcerpt || prev.excerpt,
+        source_reference_url: result.url || prev.source_reference_url,
+        cover_image_url: coverImageUrl || prev.cover_image_url,
+        content_html: aiContent || prev.content_html,
+        focus_keyword: aiFocusKeyword || prev.focus_keyword,
+        seo_title: String(articlePayload.seo_title || aiTitle || prev.seo_title),
+        seo_description: String(articlePayload.seo_description || aiExcerpt || prev.seo_description),
+        seo_og_title: String(articlePayload.seo_og_title || aiTitle || prev.seo_og_title),
+        seo_og_description: String(articlePayload.seo_og_description || aiExcerpt || prev.seo_og_description),
+        reading_time_minutes:
+          Number(articlePayload.reading_time_minutes || 0) || Math.max(1, estimateReadingTime(aiContent || prev.content_html)),
+        tag_ids: suggestedTagIds.length > 0 ? suggestedTagIds : prev.tag_ids,
+      }));
+
+      setActiveTab("articles");
+      toast.success("Artigo gerado com tema pesquisado, URL de referencia preenchida e capa criada automaticamente.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao gerar artigo com tema pesquisado.");
+    } finally {
+      setGeneratingFromResearchId(null);
+    }
   };
 
   const handleGenerateCoverImage = async () => {
@@ -1027,8 +1234,9 @@ const BlogTab = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-3 md:w-[420px]">
+        <TabsList className="grid grid-cols-4 md:w-[640px]">
           <TabsTrigger value="articles">Artigos</TabsTrigger>
+          <TabsTrigger value="ai-settings">Configurações IA</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
@@ -1384,6 +1592,99 @@ const BlogTab = () => {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ai-settings" className="space-y-5">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pesquisa de Temas com IA</CardTitle>
+              <CardDescription>
+                Selecione um foco e pesquise temas/notícias atuais sobre atendimentos à saúde para gerar artigos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="space-y-3 rounded-xl border border-border/70 bg-secondary/10 p-4">
+                <p className="text-sm font-semibold">Tema da pesquisa</p>
+                <RadioGroup value={researchTheme} onValueChange={setResearchTheme} className="grid gap-3 md:grid-cols-2">
+                  {BLOG_RESEARCH_THEMES.map((theme) => (
+                    <label
+                      key={theme.id}
+                      htmlFor={`research-theme-${theme.id}`}
+                      className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/60 bg-background p-3 hover:border-primary/50"
+                    >
+                      <RadioGroupItem id={`research-theme-${theme.id}`} value={theme.id} className="mt-1" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium">{theme.label}</p>
+                        <p className="text-xs text-muted-foreground">{theme.description}</p>
+                      </div>
+                    </label>
+                  ))}
+                </RadioGroup>
+                <div className="flex justify-end">
+                  <Button type="button" className="gap-2" onClick={handleSearchResearchTopics} disabled={researchingTopics}>
+                    {researchingTopics ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    Pesquisar temas nas redes
+                  </Button>
+                </div>
+              </div>
+
+              <Card className="border-border/70">
+                <CardHeader>
+                  <CardTitle className="text-base">Resultados da pesquisa</CardTitle>
+                  <CardDescription>
+                    Selecione um resultado para gerar artigo com URL de referência e capa automática.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {researchResults.length > 0 ? (
+                    researchResults.slice(0, 10).map((result) => (
+                      <div key={result.id} className="rounded-lg border border-border/60 bg-background p-3">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold leading-snug">{result.title}</p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              {result.source ? <Badge variant="secondary">{result.source}</Badge> : null}
+                              {result.published_at ? (
+                                <span>{new Date(result.published_at).toLocaleDateString("pt-BR")}</span>
+                              ) : null}
+                            </div>
+                            {result.summary ? <p className="text-xs text-muted-foreground">{result.summary}</p> : null}
+                            <a
+                              href={result.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            >
+                              Ver fonte
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="gap-2 md:ml-4"
+                            onClick={() => handleGenerateArticleFromResearch(result)}
+                            disabled={generatingFromResearchId === result.id}
+                          >
+                            {generatingFromResearchId === result.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Bot className="h-4 w-4" />
+                            )}
+                            Gerar artigo com este tema
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+                      Execute a pesquisa para listar ao menos 5 temas e gerar artigos diretamente.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
         </TabsContent>

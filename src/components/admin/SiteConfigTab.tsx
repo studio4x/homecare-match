@@ -31,7 +31,7 @@ import {
   Video,
   Users // Added Users icon for family profile fields
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
@@ -376,28 +376,55 @@ const SiteConfigTab = () => {
     setIsSyncingBlog(true);
     try {
       const {
-        data: { session },
-        error: sessionError,
+        data: { session: currentSession },
       } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
 
-      if (sessionError) throw sessionError;
-      if (!session?.access_token) {
+      if (!accessToken) {
         throw new Error("Sessao expirada. Entre novamente para sincronizar o modulo Blog.");
       }
 
-      const { error } = await supabase.functions.invoke("setup-blog-module", {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/setup-blog-module`, {
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify({}),
       });
-      if (error) throw error;
+
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          const message = typeof payload?.error === "string" ? payload.error : "";
+          const extra = typeof payload?.details === "string" ? payload.details : "";
+          const text = [message, extra].filter(Boolean).join(" - ");
+          if (text) detail = text;
+        } catch {
+          // noop
+        }
+        const error = new Error(detail) as Error & { status?: number };
+        error.status = response.status;
+        throw error;
+      }
+
       toast.success("Modulo Blog sincronizado!");
     } catch (error: any) {
       const message = String(error?.message || "");
-      if (message.includes("401")) {
+      const statusCode =
+        Number(error?.status) ||
+        Number(error?.context?.status) ||
+        (/\b401\b/.test(message) ? 401 : undefined);
+
+      if (statusCode === 401 || /unauthorized|jwt|autenticacao/i.test(message)) {
         toast.error("Nao autorizado. Faca login novamente e tente sincronizar o modulo Blog.");
-      } else if (message.includes("403")) {
+      } else if (statusCode === 403 || /acesso negado|nao autorizado/i.test(message)) {
         toast.error("Apenas administradores podem sincronizar o modulo Blog.");
+      } else if (statusCode === 404 || /not found|nao encontrada/i.test(message)) {
+        toast.error("Funcao setup-blog-module nao encontrada no backend.");
       } else {
         toast.error(message || "Erro ao sincronizar modulo Blog.");
       }

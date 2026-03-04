@@ -224,6 +224,7 @@ const BlogTab = () => {
   const [savingTag, setSavingTag] = useState(false);
   const [savingArticle, setSavingArticle] = useState(false);
   const [generatingAI, setGeneratingAI] = useState<"suggestion" | "automatic" | null>(null);
+  const [generatingCoverImage, setGeneratingCoverImage] = useState(false);
   const [creatingCategoryInline, setCreatingCategoryInline] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState("");
 
@@ -863,6 +864,76 @@ const BlogTab = () => {
     }
   };
 
+  const handleGenerateCoverImage = async () => {
+    const hasContext =
+      !!articleForm.title.trim() ||
+      !!articleForm.excerpt.trim() ||
+      !!articleForm.focus_keyword.trim() ||
+      !!aiSuggestion.trim() ||
+      !!articleForm.content_html.replace(/<[^>]+>/g, " ").trim();
+
+    if (!hasContext) {
+      toast.error("Informe titulo, resumo, palavra-chave ou sugestao para gerar a capa.");
+      return;
+    }
+
+    setGeneratingCoverImage(true);
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente para gerar capa com IA.");
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-blog-cover-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          title: articleForm.title,
+          suggestion: aiSuggestion,
+          excerpt: articleForm.excerpt,
+          focus_keyword: articleForm.focus_keyword,
+          content_html: articleForm.content_html,
+        }),
+      });
+
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          const message = typeof payload?.error === "string" ? payload.error : "";
+          const extra = typeof payload?.details === "string" ? payload.details : "";
+          const text = [message, extra].filter(Boolean).join(" - ");
+          if (text) detail = text;
+        } catch {
+          // noop
+        }
+        throw new Error(detail);
+      }
+
+      const payload = await response.json();
+      const imageUrl = String(payload?.cover_image_url || "").trim();
+      if (!imageUrl) {
+        throw new Error("A IA nao retornou uma URL valida para a imagem.");
+      }
+
+      setArticleForm((prev) => ({ ...prev, cover_image_url: imageUrl }));
+      toast.success("Capa gerada com IA e preenchida no campo.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao gerar capa com IA.");
+    } finally {
+      setGeneratingCoverImage(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[320px] items-center justify-center">
@@ -1060,11 +1131,30 @@ const BlogTab = () => {
 
                 <div className="space-y-2">
                   <Label>Imagem de capa (URL)</Label>
-                  <Input
-                    value={articleForm.cover_image_url}
-                    onChange={(e) => setArticleForm((prev) => ({ ...prev, cover_image_url: e.target.value }))}
-                    placeholder="https://..."
-                  />
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      value={articleForm.cover_image_url}
+                      onChange={(e) => setArticleForm((prev) => ({ ...prev, cover_image_url: e.target.value }))}
+                      placeholder="https://..."
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2 sm:shrink-0"
+                      onClick={handleGenerateCoverImage}
+                      disabled={generatingCoverImage}
+                    >
+                      {generatingCoverImage ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      Gerar capa com IA
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Usa titulo, resumo, palavra-chave e sugestao para buscar a melhor imagem automaticamente.
+                  </p>
                 </div>
 
                 <div className="space-y-2">

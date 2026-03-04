@@ -33,6 +33,7 @@ const BlogArticlePage = () => {
           title,
           slug,
           excerpt,
+          source_reference_url,
           cover_image_url,
           content_html,
           status,
@@ -107,6 +108,7 @@ const BlogArticlePage = () => {
           title,
           slug,
           excerpt,
+          source_reference_url,
           cover_image_url,
           content_html,
           status,
@@ -255,6 +257,8 @@ const BlogArticlePage = () => {
   }
 
   const publishedDate = article.published_at || article.created_at;
+  const referenceUrl = (article.source_reference_url || "").trim();
+  const hasReferenceLink = /^https?:\/\//i.test(referenceUrl);
 
   return (
     <Layout>
@@ -314,6 +318,24 @@ const BlogArticlePage = () => {
             content={article.content_html || ""}
             className="prose-headings:font-bold prose-p:text-foreground/90 prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
           />
+
+          {referenceUrl && (
+            <div className="border-t border-border pt-4 text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">URL de referência: </span>
+              {hasReferenceLink ? (
+                <a
+                  href={referenceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="break-all text-primary hover:underline"
+                >
+                  {referenceUrl}
+                </a>
+              ) : (
+                <span className="break-all">{referenceUrl}</span>
+              )}
+            </div>
+          )}
         </article>
 
         {relatedArticles.length > 0 && (

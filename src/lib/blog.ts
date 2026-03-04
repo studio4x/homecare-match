@@ -37,6 +37,7 @@ export interface BlogArticle {
   title: string;
   slug: string;
   excerpt?: string | null;
+  source_reference_url?: string | null;
   cover_image_url?: string | null;
   content_html?: string | null;
   status: "draft" | "published";
@@ -141,6 +142,7 @@ export const mapBlogArticleRecord = (record: any): BlogArticle => {
     title: record.title || "",
     slug: record.slug || "",
     excerpt: record.excerpt || null,
+    source_reference_url: record.source_reference_url || null,
     cover_image_url: record.cover_image_url || null,
     content_html: record.content_html || null,
     status: record.status === "published" ? "published" : "draft",
@@ -166,4 +168,3 @@ export const mapBlogArticleRecord = (record: any): BlogArticle => {
 };
 
 export const articleUrl = (slug: string) => `/blog/artigo/${slug}`;
-

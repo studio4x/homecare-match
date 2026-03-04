@@ -103,31 +103,113 @@ type BlogResearchResult = {
   provider?: string;
 };
 
-const BLOG_RESEARCH_THEMES: Array<{ id: string; label: string; description: string }> = [
+type BlogResearchTheme = {
+  id: string;
+  label: string;
+  description: string;
+  queries: string[];
+};
+
+const BLOG_RESEARCH_DEFAULT_THEMES: BlogResearchTheme[] = [
   {
     id: "homecare_idosos",
     label: "Cuidados domiciliares para idosos",
     description: "Tendencias, boas praticas e noticias sobre assistencia ao idoso em casa.",
+    queries: [
+      "cuidados domiciliares para idosos",
+      "atendimento home care para idosos no brasil",
+      "boas praticas de cuidado ao idoso em casa",
+    ],
   },
   {
     id: "enfermagem_domiciliar",
     label: "Enfermagem domiciliar e protocolos",
     description: "Protocolos, tecnicas e melhorias para equipes de enfermagem no atendimento domiciliar.",
+    queries: [
+      "protocolos de enfermagem domiciliar",
+      "seguranca do paciente em home care enfermagem",
+      "boas praticas de enfermagem em atendimento domiciliar",
+    ],
   },
   {
     id: "gestao_homecare",
     label: "Gestao e operacao em Home Care",
     description: "Eficiência operacional, escala, qualidade e gestao de equipes assistenciais.",
+    queries: [
+      "gestao operacional em home care",
+      "indicadores de qualidade no atendimento domiciliar",
+      "escala e produtividade em empresas de home care",
+    ],
   },
   {
     id: "saude_digital",
     label: "Saude digital e telemedicina",
     description: "Inovacoes em monitoramento remoto, teleatendimento e tecnologia em saude.",
+    queries: [
+      "telemedicina no atendimento domiciliar",
+      "monitoramento remoto de pacientes em home care",
+      "tecnologia para cuidado domiciliar em saude",
+    ],
   },
   {
     id: "seguranca_paciente",
     label: "Seguranca do paciente",
-    description: "Prevencao de riscos, qualidade assistencial e segurança em atendimentos a saude.",
+    description: "Prevencao de riscos, qualidade assistencial e seguranca em atendimentos a saude.",
+    queries: [
+      "seguranca do paciente em atendimento domiciliar",
+      "prevencao de eventos adversos em home care",
+      "qualidade assistencial em cuidados domiciliares",
+    ],
+  },
+  {
+    id: "cuidador_familiar",
+    label: "Capacitacao de cuidadores familiares",
+    description: "Temas de orientacao, treinamento e suporte para familiares que cuidam em casa.",
+    queries: [
+      "capacitacao para cuidador familiar em casa",
+      "orientacoes para familiares no cuidado de pacientes",
+      "educacao em saude para cuidadores domiciliares",
+    ],
+  },
+  {
+    id: "doencas_cronicas",
+    label: "Manejo de doencas cronicas em casa",
+    description: "Cuidados continuados para pacientes com condicoes cronicas no ambiente domiciliar.",
+    queries: [
+      "manejo de doencas cronicas no atendimento domiciliar",
+      "cuidado continuo para pacientes cronicos em casa",
+      "boas praticas home care para condicoes cronicas",
+    ],
+  },
+  {
+    id: "reabilitacao_domiciliar",
+    label: "Reabilitacao e fisioterapia domiciliar",
+    description: "Estrategias de reabilitacao funcional e recuperacao com equipes multidisciplinares.",
+    queries: [
+      "reabilitacao funcional em domicilio",
+      "fisioterapia domiciliar para idosos e adultos",
+      "equipe multidisciplinar em reabilitacao home care",
+    ],
+  },
+  {
+    id: "cuidados_paliativos",
+    label: "Cuidados paliativos em domicilio",
+    description: "Abordagens humanizadas para conforto, controle de sintomas e suporte familiar.",
+    queries: [
+      "cuidados paliativos no domicilio",
+      "controle de sintomas em pacientes paliativos em casa",
+      "suporte familiar em cuidados paliativos home care",
+    ],
+  },
+  {
+    id: "saude_mental_cuidado",
+    label: "Saude mental de pacientes e cuidadores",
+    description: "Bem-estar emocional, prevencao de sobrecarga e estrategias de apoio psicossocial.",
+    queries: [
+      "saude mental de cuidadores domiciliares",
+      "apoio emocional para pacientes em home care",
+      "prevencao de sobrecarga no cuidado domiciliar",
+    ],
   },
 ];
 
@@ -283,13 +365,16 @@ const BlogTab = () => {
   const [savingTag, setSavingTag] = useState(false);
   const [savingArticle, setSavingArticle] = useState(false);
   const [generatingAI, setGeneratingAI] = useState<"suggestion" | "automatic" | null>(null);
+  const [generatingTagsAI, setGeneratingTagsAI] = useState(false);
   const [generatingCoverImage, setGeneratingCoverImage] = useState(false);
   const [coverPreviewOpen, setCoverPreviewOpen] = useState(false);
   const [coverCandidate, setCoverCandidate] = useState<CoverCandidate | null>(null);
   const [rejectedCoverUrls, setRejectedCoverUrls] = useState<string[]>([]);
   const [creatingCategoryInline, setCreatingCategoryInline] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState("");
-  const [researchTheme, setResearchTheme] = useState(BLOG_RESEARCH_THEMES[0]?.id || "homecare_idosos");
+  const [researchThemes, setResearchThemes] = useState<BlogResearchTheme[]>(BLOG_RESEARCH_DEFAULT_THEMES);
+  const [researchTheme, setResearchTheme] = useState(BLOG_RESEARCH_DEFAULT_THEMES[0]?.id || "homecare_idosos");
+  const [loadingResearchThemes, setLoadingResearchThemes] = useState(false);
   const [researchingTopics, setResearchingTopics] = useState(false);
   const [researchResults, setResearchResults] = useState<BlogResearchResult[]>([]);
   const [generatingFromResearchId, setGeneratingFromResearchId] = useState<string | null>(null);
@@ -353,6 +438,51 @@ const BlogTab = () => {
         }))
         .sort((a, b) => String(a.label || "").localeCompare(String(b.label || ""), "pt-BR")),
     [categories, categoryPathById],
+  );
+
+  const ensureTenResearchThemes = (rawThemes: any[]): BlogResearchTheme[] => {
+    const sanitized = (Array.isArray(rawThemes) ? rawThemes : [])
+      .map((theme: any) => {
+        const baseId = String(theme?.id || theme?.label || "").trim();
+        const id = generateSlug(baseId).replace(/-/g, "_").slice(0, 60) || "";
+        const label = String(theme?.label || "").trim();
+        const description = String(theme?.description || "").trim();
+        const queries = (Array.isArray(theme?.queries) ? theme.queries : [])
+          .map((query: unknown) => String(query || "").trim())
+          .filter(Boolean)
+          .slice(0, 5);
+        return {
+          id,
+          label,
+          description,
+          queries,
+        } as BlogResearchTheme;
+      })
+      .filter((theme: BlogResearchTheme) => theme.id && theme.label && theme.description && theme.queries.length >= 2);
+
+    const deduped: BlogResearchTheme[] = [];
+    const used = new Set<string>();
+
+    for (const theme of sanitized) {
+      if (used.has(theme.id)) continue;
+      used.add(theme.id);
+      deduped.push(theme);
+      if (deduped.length === 10) break;
+    }
+
+    for (const theme of BLOG_RESEARCH_DEFAULT_THEMES) {
+      if (deduped.length >= 10) break;
+      if (used.has(theme.id)) continue;
+      used.add(theme.id);
+      deduped.push(theme);
+    }
+
+    return deduped.slice(0, 10);
+  };
+
+  const selectedResearchTheme = useMemo(
+    () => researchThemes.find((theme) => theme.id === researchTheme) || researchThemes[0] || null,
+    [researchTheme, researchThemes],
   );
 
   const fetchAll = async () => {
@@ -930,6 +1060,83 @@ const BlogTab = () => {
     }
   };
 
+  const handlePopulateTagsWithAI = async () => {
+    if (sortedTags.length === 0) {
+      toast.error("Cadastre tags antes de usar a IA para preencher este campo.");
+      return;
+    }
+
+    const hasMinimumContext = [articleForm.title, articleForm.excerpt, articleForm.focus_keyword, articleForm.content_html]
+      .some((field) => String(field || "").trim().length > 0);
+
+    if (!hasMinimumContext) {
+      toast.error("Preencha ao menos titulo, resumo, palavra-chave ou conteudo do artigo antes de gerar tags.");
+      return;
+    }
+
+    setGeneratingTagsAI(true);
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente para usar a IA.");
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-blog-tags`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          title: articleForm.title,
+          excerpt: articleForm.excerpt,
+          focus_keyword: articleForm.focus_keyword,
+          content_html: articleForm.content_html,
+          available_tags: sortedTags.map((tag) => ({
+            id: String(tag.id),
+            name: String(tag.name || ""),
+            slug: String(tag.slug || ""),
+          })),
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(payload?.error || `HTTP ${response.status}`));
+      }
+
+      const suggestedIds = Array.isArray(payload?.selected_tag_ids)
+        ? payload.selected_tag_ids.map((id: unknown) => String(id || "").trim()).filter(Boolean)
+        : [];
+
+      if (suggestedIds.length === 0) {
+        throw new Error("A IA nao encontrou tags compativeis para este artigo.");
+      }
+
+      setArticleForm((prev) => ({ ...prev, tag_ids: Array.from(new Set(suggestedIds)) }));
+      toast.success(`${suggestedIds.length} tag(s) preenchida(s) com IA.`);
+    } catch (err: any) {
+      const message = String(err?.message || "");
+      if (/not found|nao encontrada|requested function was not found|404/i.test(message)) {
+        toast.error("Funcao generate-blog-tags nao publicada no Supabase.");
+      } else if (/401|unauthorized|jwt|autenticacao/i.test(message)) {
+        toast.error("Nao autorizado para usar IA de tags. Faca login novamente.");
+      } else if (/403|somente administradores|acesso negado/i.test(message)) {
+        toast.error("Apenas administradores podem usar IA para tags.");
+      } else {
+        toast.error(message || "Erro ao preencher tags com IA.");
+      }
+    } finally {
+      setGeneratingTagsAI(false);
+    }
+  };
+
   const fetchCoverCandidateFromAI = async ({
     excludedUrls = [],
     context,
@@ -1007,7 +1214,56 @@ const BlogTab = () => {
     setCoverPreviewOpen(true);
   };
 
+  const handleGenerateResearchThemes = async () => {
+    setLoadingResearchThemes(true);
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+      if (!accessToken) throw new Error("Sessao expirada. Faca login novamente.");
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-blog-research-themes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(payload?.error || `HTTP ${response.status}`));
+      }
+
+      const themes = ensureTenResearchThemes(payload?.themes || []);
+      if (themes.length === 0) {
+        throw new Error("A IA nao retornou temas validos para pesquisa.");
+      }
+
+      setResearchThemes(themes);
+      if (!themes.some((theme) => theme.id === researchTheme)) {
+        setResearchTheme(themes[0].id);
+      }
+      toast.success("IA gerou 10 novos temas de pesquisa para Home Care.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao gerar temas com IA.");
+      setResearchThemes((prev) => (prev.length > 0 ? prev : BLOG_RESEARCH_DEFAULT_THEMES));
+      if (!researchTheme) setResearchTheme(BLOG_RESEARCH_DEFAULT_THEMES[0].id);
+    } finally {
+      setLoadingResearchThemes(false);
+    }
+  };
+
   const handleSearchResearchTopics = async () => {
+    if (!selectedResearchTheme) {
+      toast.error("Selecione um tema de pesquisa.");
+      return;
+    }
+
     setResearchingTopics(true);
     try {
       const {
@@ -1026,6 +1282,7 @@ const BlogTab = () => {
         },
         body: JSON.stringify({
           theme_id: researchTheme,
+          theme_payload: selectedResearchTheme,
           limit: 10,
         }),
       });
@@ -1556,7 +1813,20 @@ const BlogTab = () => {
                 </div>
 
                 <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                  <Label className="text-sm font-semibold">Tags do artigo</Label>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Label className="text-sm font-semibold">Tags do artigo</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={handlePopulateTagsWithAI}
+                      disabled={generatingTagsAI || sortedTags.length === 0}
+                    >
+                      {generatingTagsAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+                      Preencher tags com IA
+                    </Button>
+                  </div>
                   <div className="grid gap-2 md:grid-cols-3">
                     {sortedTags.map((tag) => (
                       <label key={tag.id} className="flex items-center gap-2 text-sm">
@@ -1606,9 +1876,25 @@ const BlogTab = () => {
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-3 rounded-xl border border-border/70 bg-secondary/10 p-4">
-                <p className="text-sm font-semibold">Tema da pesquisa</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold">Tema da pesquisa</p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{researchThemes.length}/10 temas</Badge>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={handleGenerateResearchThemes}
+                      disabled={loadingResearchThemes}
+                    >
+                      {loadingResearchThemes ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      Gerar 10 novos temas com IA
+                    </Button>
+                  </div>
+                </div>
                 <RadioGroup value={researchTheme} onValueChange={setResearchTheme} className="grid gap-3 md:grid-cols-2">
-                  {BLOG_RESEARCH_THEMES.map((theme) => (
+                  {researchThemes.map((theme) => (
                     <label
                       key={theme.id}
                       htmlFor={`research-theme-${theme.id}`}
@@ -1623,7 +1909,7 @@ const BlogTab = () => {
                   ))}
                 </RadioGroup>
                 <div className="flex justify-end">
-                  <Button type="button" className="gap-2" onClick={handleSearchResearchTopics} disabled={researchingTopics}>
+                  <Button type="button" className="gap-2" onClick={handleSearchResearchTopics} disabled={researchingTopics || loadingResearchThemes}>
                     {researchingTopics ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                     Pesquisar temas nas redes
                   </Button>

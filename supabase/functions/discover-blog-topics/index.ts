@@ -58,6 +58,39 @@ const THEMES: Record<string, { label: string; queries: string[] }> = {
   },
 };
 
+type DynamicThemePayload = {
+  id: string;
+  label: string;
+  queries: string[];
+};
+
+const normalizeThemeId = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 60);
+
+const parseDynamicThemePayload = (payload: unknown): DynamicThemePayload | null => {
+  if (!payload || typeof payload !== "object") return null;
+
+  const theme = payload as Record<string, unknown>;
+  const id = normalizeThemeId(theme.id || theme.label);
+  const label = String(theme.label || "").trim();
+  const queries = (Array.isArray(theme.queries) ? theme.queries : [])
+    .map((query) => String(query || "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+
+  if (!id || !label || queries.length < 2) return null;
+  return { id, label, queries };
+};
+
 const decodeHtml = (value: string) =>
   String(value || "")
     .replace(/<!\[CDATA\[/g, "")
@@ -161,12 +194,18 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const requestedThemeId = String(body?.theme_id || "default");
-    const theme = THEMES[requestedThemeId] || THEMES.default;
+    const requestedThemeId = normalizeThemeId(body?.theme_id || "default") || "default";
+    const dynamicTheme = parseDynamicThemePayload(body?.theme_payload);
+    const fallbackTheme = THEMES[requestedThemeId] || THEMES.default;
+    const activeTheme = dynamicTheme || {
+      id: requestedThemeId,
+      label: fallbackTheme.label,
+      queries: fallbackTheme.queries,
+    };
     const limit = Math.max(5, Math.min(Number(body?.limit || 10), 20));
 
     const rssUrls: Array<{ url: string; provider: string }> = [];
-    for (const query of theme.queries) {
+    for (const query of activeTheme.queries) {
       const encoded = encodeURIComponent(query);
       rssUrls.push({
         provider: "google-news",
@@ -220,8 +259,8 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        theme_id: requestedThemeId,
-        theme_label: theme.label,
+        theme_id: activeTheme.id,
+        theme_label: activeTheme.label,
         count: results.length,
         results,
         fetched_at: new Date().toISOString(),

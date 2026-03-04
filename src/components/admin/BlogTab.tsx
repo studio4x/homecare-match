@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -281,9 +281,48 @@ const BlogTab = () => {
   const handleSyncSchema = async () => {
     setSyncing(true);
     try {
-      const { error } = await supabase.functions.invoke("extend-site-config");
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Entre novamente para sincronizar.");
+      }
+
+      const { error } = await supabase.functions.invoke("extend-site-config", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       if (error) throw error;
-      toast.success("Sincronização base concluída. Se necessário, execute também a migration do módulo Blog.");
+
+      const blogResponse = await fetch(`${SUPABASE_URL}/functions/v1/setup-blog-module`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({}),
+      });
+      if (!blogResponse.ok) {
+        let detail = `HTTP ${blogResponse.status}`;
+        try {
+          const payload = await blogResponse.json();
+          const message = typeof payload?.error === "string" ? payload.error : "";
+          const extra = typeof payload?.details === "string" ? payload.details : "";
+          const text = [message, extra].filter(Boolean).join(" - ");
+          if (text) detail = text;
+        } catch {
+          // noop
+        }
+        throw new Error(`Falha ao sincronizar modulo Blog: ${detail}`);
+      }
+
+      toast.success("Sincronizacao concluida (estrutura base + modulo Blog).");
+      fetchAll();
     } catch (err: any) {
       toast.error(err?.message || "Erro ao sincronizar estrutura base.");
     } finally {
@@ -1227,3 +1266,4 @@ const BlogTab = () => {
 };
 
 export default BlogTab;
+

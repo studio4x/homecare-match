@@ -117,13 +117,51 @@ const SiteConfigTab = () => {
   const handleSyncDatabase = async () => {
     setIsSyncing(true);
     try {
-      await supabase.functions.invoke('extend-site-config');
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Entre novamente para sincronizar.");
+      }
+
+      await supabase.functions.invoke('extend-site-config', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       const { error } = await supabase.functions.invoke('setup-reviews-table');
       if (error) throw error;
-      toast.success("Banco de dados sincronizado!");
+
+      const blogResponse = await fetch(`${SUPABASE_URL}/functions/v1/setup-blog-module`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({}),
+      });
+      if (!blogResponse.ok) {
+        let detail = `HTTP ${blogResponse.status}`;
+        try {
+          const payload = await blogResponse.json();
+          const message = typeof payload?.error === "string" ? payload.error : "";
+          const extra = typeof payload?.details === "string" ? payload.details : "";
+          const text = [message, extra].filter(Boolean).join(" - ");
+          if (text) detail = text;
+        } catch {
+          // noop
+        }
+        throw new Error(`Falha ao sincronizar modulo Blog: ${detail}`);
+      }
+
+      toast.success("Banco de dados sincronizado (base + modulo Blog)!");
       queryClient.invalidateQueries({ queryKey: ["site-config"] });
     } catch (error: any) {
-      toast.error("Erro ao sincronizar banco.");
+      toast.error(error?.message || "Erro ao sincronizar banco.");
     } finally {
       setIsSyncing(false);
     }
@@ -385,6 +423,16 @@ const SiteConfigTab = () => {
         throw new Error("Sessao expirada. Entre novamente para sincronizar o modulo Blog.");
       }
 
+      const { error: baseError } = await supabase.functions.invoke("extend-site-config", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (baseError) throw baseError;
+
+      const { error: reviewsError } = await supabase.functions.invoke("setup-reviews-table");
+      if (reviewsError) throw reviewsError;
+
       const response = await fetch(`${SUPABASE_URL}/functions/v1/setup-blog-module`, {
         method: "POST",
         headers: {
@@ -411,7 +459,7 @@ const SiteConfigTab = () => {
         throw error;
       }
 
-      toast.success("Modulo Blog sincronizado!");
+      toast.success("Sincronizacao concluida (base + modulo Blog)!");
     } catch (error: any) {
       const message = String(error?.message || "");
       const statusCode =

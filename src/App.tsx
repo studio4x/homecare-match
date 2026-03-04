@@ -30,6 +30,11 @@ import Funcionalidades from "./pages/Funcionalidades";
 import ConversionCourse from "./pages/ConversionCourse"; // New import
 import ConversionSubscription from "./pages/ConversionSubscription"; // New import
 import ResetPassword from "./pages/ResetPassword";
+import BlogPage from "./pages/Blog";
+import BlogArticlePage from "./pages/BlogArticle";
+import BlogCategoriesPage from "./pages/BlogCategories";
+import BlogTagsPage from "./pages/BlogTags";
+import BlogSearchPage from "./pages/BlogSearch";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -67,6 +72,7 @@ import FeatureVideosPage from "./pages/admin/FeatureVideosPage";
 import ConciergeRequestsPage from "./pages/admin/ConciergeRequestsPage";
 import PaymentsAdminPage from "./pages/admin/PaymentsAdminPage";
 import PwaSettingsPage from "./pages/admin/PwaSettingsPage";
+import BlogAdminPage from "./pages/admin/BlogPage";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +105,11 @@ const App = () => (
               <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
               <Route path="/politica-de-cookies" element={<CookiePolicy />} />
               <Route path="/funcionalidades" element={<Funcionalidades />} />
+              <Route path="/blog" element={<BlogPage />} />
+              <Route path="/blog/artigo/:slug" element={<BlogArticlePage />} />
+              <Route path="/blog/categorias" element={<BlogCategoriesPage />} />
+              <Route path="/blog/tags" element={<BlogTagsPage />} />
+              <Route path="/blog/busca" element={<BlogSearchPage />} />
               <Route path="/redefinir-senha" element={<ResetPassword />} />
               <Route path="/conversion/course" element={<ConversionCourse />} /> {/* New route */}
               <Route path="/conversion/subscription" element={<ConversionSubscription />} /> {/* New route */}
@@ -142,6 +153,7 @@ const App = () => (
                 <Route path="videos-funcionalidades" element={<FeatureVideosPage />} />
                 <Route path="concierge" element={<ConciergeRequestsPage />} />
                 <Route path="pwa" element={<PwaSettingsPage />} />
+                <Route path="blog" element={<BlogAdminPage />} />
               </Route>
 
               {/* 404 */}

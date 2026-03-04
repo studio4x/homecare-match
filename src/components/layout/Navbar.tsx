@@ -15,6 +15,7 @@ import {
   LayoutGrid,
   Search,
   ChevronRight,
+  Newspaper,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -117,6 +118,12 @@ const Navbar = () => {
       description: "Veja os principais recursos",
       icon: LayoutGrid,
     },
+    {
+      to: "/blog",
+      label: "Blog",
+      description: "Conteúdo sobre Home Care",
+      icon: Newspaper,
+    },
     ...(canSeeSearch
       ? [
           {
@@ -174,6 +181,16 @@ const Navbar = () => {
               }`}
             >
               Funcionalidades
+            </Link>
+            <Link
+              to="/blog"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                location.pathname === "/blog" || location.pathname.startsWith("/blog/")
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              Blog
             </Link>
             {canSeeSearch && (
               <Link

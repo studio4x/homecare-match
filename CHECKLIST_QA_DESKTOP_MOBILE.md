@@ -31,19 +31,19 @@
   Mobile: Profissional OK, Familia OK, Empresa OK
   Observacoes:
 
-- [ ] P0-04 Recuperacao de senha funcionando (envio e redefinicao)
+- [OK] P0-04 Recuperacao de senha funcionando (envio e redefinicao)
   Desktop: Profissional OK, Empresa OK, Familia OK
   Mobile: Profissional OK, Empresa OK, Familia OK
   Observacoes: Precisou ajustar o funcionamento da redefinição de senha. Ao clicar no botão do e-mail, não abria a janela para redefinir a senha. Foi necessário fazer a tradução de uma frase que aparece na redefinição de senha.
 
-- [ ] P0-05 Rota protegida bloqueada para usuario sem login
-  Desktop:
-  Mobile:
+- [OK] P0-05 Rota protegida bloqueada para usuario sem login
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P0-06 Rota admin bloqueada para usuario nao-admin
-  Desktop:
-  Mobile:
+- [OK] P0-06 Rota admin bloqueada para usuario nao-admin
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 ### 1.2 Planos e Pagamentos

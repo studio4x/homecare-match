@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
@@ -31,7 +31,8 @@ import {
   PlayCircle,
   UserPlus, // New import
   Headset,
-  Smartphone
+  Smartphone,
+  Newspaper
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -147,6 +148,7 @@ const AdminLayout = () => {
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
     { href: "/admin/videos", label: "Vídeos do Site", icon: Video },
     { href: "/admin/videos-funcionalidades", label: "Vídeos Funcionalidades", icon: PlayCircle },
+    { href: "/admin/blog", label: "Blog", icon: Newspaper },
     { href: "/admin/pwa", label: "PWA Android", icon: Smartphone },
     { href: "/admin/concierge", label: "Solicitações Concierge", icon: Headset },
     { href: "/admin/push", label: "Avisos (Push)", icon: Bell },
@@ -232,3 +234,5 @@ const AdminLayout = () => {
 };
 
 export default AdminLayout;
+
+

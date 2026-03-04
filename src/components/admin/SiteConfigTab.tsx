@@ -83,6 +83,7 @@ const SiteConfigTab = () => {
   const [isSyncingFeatureVideos, setIsSyncingFeatureVideos] = useState(false);
   const [isSyncingFamilyProfileFields, setIsSyncingFamilyProfileFields] = useState(false); // New state for family profile fields
   const [isSyncingCompanyPatients, setIsSyncingCompanyPatients] = useState(false); // New state for company patients
+  const [isSyncingBlog, setIsSyncingBlog] = useState(false);
   const [isSyncingAsaasDescriptions, setIsSyncingAsaasDescriptions] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
@@ -368,6 +369,19 @@ const SiteConfigTab = () => {
       toast.error(message);
     } finally {
       setIsSyncingCompanyPatients(false);
+    }
+  };
+
+  const handleSyncBlog = async () => {
+    setIsSyncingBlog(true);
+    try {
+      const { error } = await supabase.functions.invoke("setup-blog-module");
+      if (error) throw error;
+      toast.success("Modulo Blog sincronizado!");
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao sincronizar modulo Blog.");
+    } finally {
+      setIsSyncingBlog(false);
     }
   };
 
@@ -878,6 +892,18 @@ const SiteConfigTab = () => {
             </div>
             <Button variant="outline" onClick={handleSyncCompanyPatients} disabled={isSyncingCompanyPatients}>
               {isSyncingCompanyPatients ? <Loader2 className="h-4 w-4 animate-spin" /> : <Users className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-amber-900">Sincronizar Módulo Blog</p>
+              <p className="text-xs text-amber-800/70">
+                Cria e atualiza tabelas, índices, triggers e políticas do blog.
+              </p>
+            </div>
+            <Button variant="outline" onClick={handleSyncBlog} disabled={isSyncingBlog}>
+              {isSyncingBlog ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             </Button>
           </div>
 

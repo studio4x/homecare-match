@@ -1,5 +1,5 @@
 ﻿import { Link } from "react-router-dom";
-import { Mail, LifeBuoy, LayoutGrid, ShieldCheck, Search, Building2, Home, UserRound } from "lucide-react";
+import { Mail, LifeBuoy, LayoutGrid, ShieldCheck, Search, Building2, Home, UserRound, Newspaper } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import SuggestionDrawer from "../SuggestionDrawer";
 
@@ -17,6 +17,7 @@ const Footer = () => {
     { to: "/empresas", label: "Empresas", icon: Building2 },
     { to: "/familias", label: "Familias", icon: Home },
     { to: "/buscar", label: "Buscar", icon: Search },
+    { to: "/blog", label: "Blog", icon: Newspaper },
   ];
 
   return (
@@ -106,6 +107,12 @@ const Footer = () => {
           <div className="space-y-4">
             <h4 className="font-semibold text-foreground">Suporte e Contato</h4>
             <ul className="space-y-3">
+              <li>
+                <Link to="/blog" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+                  <Newspaper className="h-4 w-4" />
+                  Blog
+                </Link>
+              </li>
               <li>
                 <Link to="/funcionalidades" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
                   <LayoutGrid className="h-4 w-4" />

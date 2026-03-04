@@ -591,21 +591,52 @@ const BlogTab = () => {
 
   const handleGenerateAI = async (mode: "suggestion" | "automatic") => {
     if (mode === "suggestion" && !aiSuggestion.trim()) {
-      toast.error("Informe uma sugestão para gerar o artigo com IA.");
+      toast.error("Informe uma sugestao para gerar o artigo com IA.");
       return;
     }
 
     setGeneratingAI(mode);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-blog-article", {
-        body: {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente para usar a IA do blog.");
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-blog-article`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
           mode,
           suggestion: mode === "suggestion" ? aiSuggestion : null,
-        },
+        }),
       });
-      if (error) throw error;
 
-      const payload = data || {};
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          const message = typeof payload?.error === "string" ? payload.error : "";
+          const extra = typeof payload?.details === "string" ? payload.details : "";
+          const text = [message, extra].filter(Boolean).join(" - ");
+          if (text) detail = text;
+        } catch {
+          // noop
+        }
+        const error = new Error(detail) as Error & { status?: number };
+        error.status = response.status;
+        throw error;
+      }
+
+      const payload = await response.json();
       const aiTitle = String(payload.title || "").trim();
       const aiSlug = generateSlug(String(payload.slug || aiTitle || ""));
       const aiExcerpt = String(payload.excerpt || "").trim();
@@ -641,7 +672,21 @@ const BlogTab = () => {
 
       toast.success("Artigo gerado com IA. Revise e ajuste antes de publicar.");
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao gerar artigo com IA. Verifique se a função foi publicada no Supabase.");
+      const message = String(err?.message || "");
+      const statusCode =
+        Number(err?.status) ||
+        Number(err?.context?.status) ||
+        (/\b401\b/.test(message) ? 401 : undefined);
+
+      if (statusCode === 404 || /not found|nao encontrada|requested function was not found/i.test(message)) {
+        toast.error("Funcao generate-blog-article nao publicada no Supabase.");
+      } else if (statusCode === 401 || /unauthorized|jwt|autenticacao/i.test(message)) {
+        toast.error("Nao autorizado para usar a IA do blog. Faca login novamente.");
+      } else if (statusCode === 403 || /somente administradores|acesso negado/i.test(message)) {
+        toast.error("Apenas administradores podem gerar artigos com IA.");
+      } else {
+        toast.error(message || "Erro ao gerar artigo com IA.");
+      }
     } finally {
       setGeneratingAI(null);
     }
@@ -1266,4 +1311,5 @@ const BlogTab = () => {
 };
 
 export default BlogTab;
+
 

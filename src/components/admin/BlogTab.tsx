@@ -7,6 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -71,6 +79,16 @@ type BlogArticleForm = {
   tag_ids: string[];
   focus_keyword: string;
 } & BlogSeoForm;
+
+type CoverCandidate = {
+  cover_image_url: string;
+  alt_text?: string;
+  query_used?: string;
+  provider?: string;
+  photographer?: string | null;
+  photographer_url?: string | null;
+  source_page?: string | null;
+};
 
 const emptySeoForm: BlogSeoForm = {
   seo_title: "",
@@ -225,6 +243,9 @@ const BlogTab = () => {
   const [savingArticle, setSavingArticle] = useState(false);
   const [generatingAI, setGeneratingAI] = useState<"suggestion" | "automatic" | null>(null);
   const [generatingCoverImage, setGeneratingCoverImage] = useState(false);
+  const [coverPreviewOpen, setCoverPreviewOpen] = useState(false);
+  const [coverCandidate, setCoverCandidate] = useState<CoverCandidate | null>(null);
+  const [rejectedCoverUrls, setRejectedCoverUrls] = useState<string[]>([]);
   const [creatingCategoryInline, setCreatingCategoryInline] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState("");
 
@@ -864,6 +885,66 @@ const BlogTab = () => {
     }
   };
 
+  const requestCoverCandidate = async (excludedUrls: string[] = []) => {
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+    if (!accessToken) {
+      throw new Error("Sessao expirada. Faca login novamente para gerar capa com IA.");
+    }
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-blog-cover-image`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        title: articleForm.title,
+        suggestion: aiSuggestion,
+        excerpt: articleForm.excerpt,
+        focus_keyword: articleForm.focus_keyword,
+        content_html: articleForm.content_html,
+        excluded_urls: excludedUrls,
+      }),
+    });
+
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const payload = await response.json();
+        const message = typeof payload?.error === "string" ? payload.error : "";
+        const extra = typeof payload?.details === "string" ? payload.details : "";
+        const text = [message, extra].filter(Boolean).join(" - ");
+        if (text) detail = text;
+      } catch {
+        // noop
+      }
+      throw new Error(detail);
+    }
+
+    const payload = await response.json();
+    const imageUrl = String(payload?.cover_image_url || "").trim();
+    if (!imageUrl) {
+      throw new Error("A IA nao retornou uma URL valida para a imagem.");
+    }
+
+    setCoverCandidate({
+      cover_image_url: imageUrl,
+      alt_text: String(payload?.alt_text || "").trim(),
+      query_used: String(payload?.query_used || "").trim(),
+      provider: String(payload?.provider || "").trim(),
+      photographer: payload?.photographer || null,
+      photographer_url: payload?.photographer_url || null,
+      source_page: payload?.source_page || null,
+    });
+    setCoverPreviewOpen(true);
+  };
+
   const handleGenerateCoverImage = async () => {
     const hasContext =
       !!articleForm.title.trim() ||
@@ -878,57 +959,45 @@ const BlogTab = () => {
     }
 
     setGeneratingCoverImage(true);
+    setCoverCandidate(null);
+    setRejectedCoverUrls([]);
+    setCoverPreviewOpen(true);
     try {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
-
-      if (!accessToken) {
-        throw new Error("Sessao expirada. Faca login novamente para gerar capa com IA.");
-      }
-
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-blog-cover-image`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          title: articleForm.title,
-          suggestion: aiSuggestion,
-          excerpt: articleForm.excerpt,
-          focus_keyword: articleForm.focus_keyword,
-          content_html: articleForm.content_html,
-        }),
-      });
-
-      if (!response.ok) {
-        let detail = `HTTP ${response.status}`;
-        try {
-          const payload = await response.json();
-          const message = typeof payload?.error === "string" ? payload.error : "";
-          const extra = typeof payload?.details === "string" ? payload.details : "";
-          const text = [message, extra].filter(Boolean).join(" - ");
-          if (text) detail = text;
-        } catch {
-          // noop
-        }
-        throw new Error(detail);
-      }
-
-      const payload = await response.json();
-      const imageUrl = String(payload?.cover_image_url || "").trim();
-      if (!imageUrl) {
-        throw new Error("A IA nao retornou uma URL valida para a imagem.");
-      }
-
-      setArticleForm((prev) => ({ ...prev, cover_image_url: imageUrl }));
-      toast.success("Capa gerada com IA e preenchida no campo.");
+      await requestCoverCandidate([]);
+      toast.success("Capa gerada. Revise no preview e aprove ou rejeite.");
     } catch (err: any) {
+      setCoverPreviewOpen(false);
       toast.error(err?.message || "Erro ao gerar capa com IA.");
+    } finally {
+      setGeneratingCoverImage(false);
+    }
+  };
+
+  const handleApproveCoverImage = () => {
+    if (!coverCandidate?.cover_image_url) return;
+    setArticleForm((prev) => ({ ...prev, cover_image_url: coverCandidate.cover_image_url }));
+    setCoverPreviewOpen(false);
+    setCoverCandidate(null);
+    setRejectedCoverUrls([]);
+    toast.success("Capa aprovada e aplicada ao artigo.");
+  };
+
+  const handleRejectCoverImage = async () => {
+    if (!coverCandidate?.cover_image_url) return;
+
+    const rejectionKey = String(coverCandidate.source_page || coverCandidate.cover_image_url || "").trim();
+    const canStoreRejection = !!rejectionKey && !rejectionKey.startsWith("data:");
+    const nextExcluded = canStoreRejection
+      ? Array.from(new Set([...rejectedCoverUrls, rejectionKey]))
+      : rejectedCoverUrls;
+
+    setRejectedCoverUrls(nextExcluded);
+    setGeneratingCoverImage(true);
+    try {
+      await requestCoverCandidate(nextExcluded);
+      toast.success("Nova opção de capa gerada.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao gerar nova opção de capa.");
     } finally {
       setGeneratingCoverImage(false);
     }
@@ -1615,6 +1684,66 @@ const BlogTab = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={coverPreviewOpen}
+        onOpenChange={(open) => {
+          if (generatingCoverImage) return;
+          setCoverPreviewOpen(open);
+          if (!open) {
+            setCoverCandidate(null);
+            setRejectedCoverUrls([]);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Pré-visualização da capa</DialogTitle>
+            <DialogDescription>
+              Aprove esta opção ou rejeite para gerar outra imagem automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+
+          {coverCandidate?.cover_image_url ? (
+            <div className="space-y-3">
+              <div className="overflow-hidden rounded-xl border border-border bg-secondary/20">
+                <img
+                  src={coverCandidate.cover_image_url}
+                  alt={coverCandidate.alt_text || "Prévia da capa do artigo"}
+                  className="max-h-[60vh] w-full object-contain"
+                />
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                {coverCandidate.provider ? <p>Fonte: {coverCandidate.provider}</p> : null}
+                {coverCandidate.query_used ? <p>Consulta: {coverCandidate.query_used}</p> : null}
+                {coverCandidate.photographer ? <p>Autor: {coverCandidate.photographer}</p> : null}
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-border bg-secondary/20">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Gerando pré-visualização da capa...
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button variant="outline" onClick={() => setCoverPreviewOpen(false)} disabled={generatingCoverImage}>
+              Fechar
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={handleRejectCoverImage} disabled={generatingCoverImage || !coverCandidate}>
+                {generatingCoverImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Rejeitar e gerar outra
+              </Button>
+              <Button onClick={handleApproveCoverImage} disabled={generatingCoverImage || !coverCandidate}>
+                Aprovar capa
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

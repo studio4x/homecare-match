@@ -61,6 +61,11 @@ serve(async (req) => {
     const excerpt = compactText(body?.excerpt || "", 180);
     const focusKeyword = compactText(body?.focus_keyword || "", 120);
     const contentHtml = String(body?.content_html || "").replace(/<[^>]+>/g, " ");
+    const excludedUrls = new Set(
+      (Array.isArray(body?.excluded_urls) ? body.excluded_urls : [])
+        .map((url: unknown) => String(url || "").trim())
+        .filter(Boolean),
+    );
 
     const seed = [title, suggestion, focusKeyword, excerpt].filter(Boolean).join(" ");
     if (!seed) {
@@ -172,9 +177,28 @@ Regras:
         const photos = Array.isArray(pexelsData?.photos) ? pexelsData.photos : [];
         if (photos.length === 0) continue;
 
+        const validPhotos = photos.filter((photo: any) => {
+          const src = photo?.src || {};
+          const candidateUrls = [
+            photo?.url,
+            src.landscape,
+            src.large2x,
+            src.large,
+            src.original,
+            src.medium,
+            src.small,
+          ]
+            .map((url) => String(url || "").trim())
+            .filter(Boolean);
+
+          return !candidateUrls.some((url) => excludedUrls.has(url));
+        });
+
+        if (validPhotos.length === 0) continue;
+
         selectedPhoto =
-          photos.find((photo: any) => Number(photo?.width || 0) >= 1200 && Number(photo?.height || 0) >= 630) ||
-          photos[0];
+          validPhotos.find((photo: any) => Number(photo?.width || 0) >= 1200 && Number(photo?.height || 0) >= 630) ||
+          validPhotos[0];
         queryUsed = query;
         break;
       }
@@ -226,31 +250,46 @@ Restrições: sem texto embutido, sem logos, sem marcas, sem watermark.
 Composição: formato paisagem amplo, com área limpa para título sobreposto.
 `.trim();
 
-    const openaiResponse = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-image-1",
-        prompt: openaiPrompt,
-        size: "1536x1024",
-      }),
-    });
+    let imageUrl = "";
+    let openaiUrl = "";
+    let generatedOk = false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const openaiResponse = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-image-1",
+          prompt: openaiPrompt,
+          size: "1536x1024",
+        }),
+      });
 
-    const openaiData = await openaiResponse.json();
-    if (!openaiResponse.ok) {
-      throw new Error(openaiData?.error?.message || "Falha ao gerar capa com OpenAI.");
+      const openaiData = await openaiResponse.json();
+      if (!openaiResponse.ok) {
+        throw new Error(openaiData?.error?.message || "Falha ao gerar capa com OpenAI.");
+      }
+
+      const generated = openaiData?.data?.[0] || {};
+      openaiUrl = typeof generated?.url === "string" ? generated.url : "";
+      const b64 = typeof generated?.b64_json === "string" ? generated.b64_json : "";
+      imageUrl = openaiUrl || (b64 ? `data:image/png;base64,${b64}` : "");
+
+      if (!imageUrl) continue;
+      if (excludedUrls.has(imageUrl) || (openaiUrl && excludedUrls.has(openaiUrl))) {
+        imageUrl = "";
+        openaiUrl = "";
+        continue;
+      }
+
+      generatedOk = true;
+      break;
     }
 
-    const generated = openaiData?.data?.[0] || {};
-    const openaiUrl = typeof generated?.url === "string" ? generated.url : "";
-    const b64 = typeof generated?.b64_json === "string" ? generated.b64_json : "";
-    const imageUrl = openaiUrl || (b64 ? `data:image/png;base64,${b64}` : "");
-
-    if (!imageUrl) {
-      throw new Error("OpenAI nao retornou URL nem imagem base64.");
+    if (!generatedOk || !imageUrl) {
+      throw new Error("Nao foi possivel gerar uma nova imagem diferente das opcoes rejeitadas.");
     }
 
     return new Response(

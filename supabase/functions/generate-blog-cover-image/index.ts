@@ -83,8 +83,9 @@ serve(async (req) => {
     }
 
     const PEXELS_API_KEY = Deno.env.get("PEXELS_API_KEY");
-    if (!PEXELS_API_KEY) {
-      throw new Error("PEXELS_API_KEY nao configurada no servidor.");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!PEXELS_API_KEY && !OPENAI_API_KEY) {
+      throw new Error("Configure PEXELS_API_KEY ou OPENAI_API_KEY no servidor.");
     }
 
     const prompt = `
@@ -148,58 +149,119 @@ Regras:
       .filter((value, index, array) => array.indexOf(value) === index)
       .slice(0, 8);
 
+    const altText = compactText(parsed?.alt_text || title || "Imagem de capa do artigo", 180);
     let selectedPhoto: any = null;
     let queryUsed = "";
-    for (const query of queries) {
-      const pexelsResponse = await fetch(
-        `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=15&orientation=landscape&size=large`,
-        {
-          headers: {
-            Authorization: PEXELS_API_KEY,
-          },
-        },
-      );
 
-      if (!pexelsResponse.ok) {
-        continue;
+    if (PEXELS_API_KEY) {
+      for (const query of queries) {
+        const pexelsResponse = await fetch(
+          `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=15&orientation=landscape&size=large`,
+          {
+            headers: {
+              Authorization: PEXELS_API_KEY,
+            },
+          },
+        );
+
+        if (!pexelsResponse.ok) {
+          continue;
+        }
+
+        const pexelsData = await pexelsResponse.json();
+        const photos = Array.isArray(pexelsData?.photos) ? pexelsData.photos : [];
+        if (photos.length === 0) continue;
+
+        selectedPhoto =
+          photos.find((photo: any) => Number(photo?.width || 0) >= 1200 && Number(photo?.height || 0) >= 630) ||
+          photos[0];
+        queryUsed = query;
+        break;
+      }
+    }
+
+    if (selectedPhoto) {
+      const src = selectedPhoto?.src || {};
+      const imageUrl =
+        src.landscape || src.large2x || src.large || src.original || src.medium || src.small || "";
+      if (!imageUrl) {
+        throw new Error("Provedor retornou imagem sem URL valida.");
       }
 
-      const pexelsData = await pexelsResponse.json();
-      const photos = Array.isArray(pexelsData?.photos) ? pexelsData.photos : [];
-      if (photos.length === 0) continue;
-
-      selectedPhoto =
-        photos.find((photo: any) => Number(photo?.width || 0) >= 1200 && Number(photo?.height || 0) >= 630) ||
-        photos[0];
-      queryUsed = query;
-      break;
+      return new Response(
+        JSON.stringify({
+          cover_image_url: imageUrl,
+          alt_text: altText,
+          query_used: queryUsed,
+          provider: "pexels",
+          photographer: selectedPhoto?.photographer || null,
+          photographer_url: selectedPhoto?.photographer_url || null,
+          source_page: selectedPhoto?.url || null,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
-    if (!selectedPhoto) {
-      return new Response(JSON.stringify({ error: "Nenhuma imagem relevante foi encontrada para este tema." }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!OPENAI_API_KEY) {
+      return new Response(
+        JSON.stringify({
+          error: "Nenhuma imagem relevante foi encontrada na Pexels. Configure OPENAI_API_KEY para fallback com GPT.",
+        }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
-    const src = selectedPhoto?.src || {};
-    const imageUrl =
-      src.landscape || src.large2x || src.large || src.original || src.medium || src.small || "";
+    const openaiPrompt = `
+Crie uma imagem de capa horizontal para artigo de blog de Home Care no Brasil.
+Tema base: ${seed}
+Palavra-chave foco: ${focusKeyword || "home care"}
+Estilo: fotografia realista, humana, acolhedora, profissional, iluminação natural.
+Restrições: sem texto embutido, sem logos, sem marcas, sem watermark.
+Composição: formato paisagem amplo, com área limpa para título sobreposto.
+`.trim();
+
+    const openaiResponse = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-image-1",
+        prompt: openaiPrompt,
+        size: "1536x1024",
+      }),
+    });
+
+    const openaiData = await openaiResponse.json();
+    if (!openaiResponse.ok) {
+      throw new Error(openaiData?.error?.message || "Falha ao gerar capa com OpenAI.");
+    }
+
+    const generated = openaiData?.data?.[0] || {};
+    const openaiUrl = typeof generated?.url === "string" ? generated.url : "";
+    const b64 = typeof generated?.b64_json === "string" ? generated.b64_json : "";
+    const imageUrl = openaiUrl || (b64 ? `data:image/png;base64,${b64}` : "");
+
     if (!imageUrl) {
-      throw new Error("Provedor retornou imagem sem URL valida.");
+      throw new Error("OpenAI nao retornou URL nem imagem base64.");
     }
-
-    const altText = compactText(parsed?.alt_text || title || "Imagem de capa do artigo", 180);
 
     return new Response(
       JSON.stringify({
         cover_image_url: imageUrl,
         alt_text: altText,
-        query_used: queryUsed,
-        provider: "pexels",
-        photographer: selectedPhoto?.photographer || null,
-        photographer_url: selectedPhoto?.photographer_url || null,
-        source_page: selectedPhoto?.url || null,
+        query_used: queries[0] || seed,
+        provider: "openai",
+        photographer: null,
+        photographer_url: null,
+        source_page: openaiUrl || null,
       }),
       {
         status: 200,

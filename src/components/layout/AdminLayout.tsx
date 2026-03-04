@@ -184,28 +184,28 @@ const AdminLayout = () => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          <nav className="space-y-1 pb-4">
+        <div className="flex-1 overflow-y-auto px-3 py-3">
+          <nav className="space-y-0.5 pb-2">
             {navItems.map((item) => (
               <NavLink
                 key={item.href}
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) => cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  "flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] leading-tight font-medium transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className="h-3.5 w-3.5 shrink-0" />
                 {item.label}
               </NavLink>
             ))}
           </nav>
         </div>
 
-        <div className="mt-auto border-t px-4 py-4">
+        <div className="mt-auto border-t px-3 py-3">
           <Button variant="outline" className="w-full justify-start gap-2" onClick={signOut}>
             <LogOut className="h-4 w-4" />
             Sair

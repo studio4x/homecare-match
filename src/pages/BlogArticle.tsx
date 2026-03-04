@@ -11,7 +11,7 @@ import SafeHTML from "@/components/SafeHTML";
 import BlogArticleCard from "@/components/blog/BlogArticleCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CalendarDays, Clock3, Loader2, UserRound } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Loader2, UserRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { BlogArticle, articleUrl, getExcerptFromHtml, mapBlogArticleRecord, stripHtml } from "@/lib/blog";
 
@@ -175,6 +175,57 @@ const BlogArticlePage = () => {
     },
   });
 
+  const publishedReference = useMemo(
+    () => article?.published_at || article?.created_at || null,
+    [article?.published_at, article?.created_at],
+  );
+
+  const { data: articleNavigation } = useQuery({
+    queryKey: ["blog", "article", slug, "navigation", article?.id || "", publishedReference || ""],
+    enabled: !!article?.id && !!publishedReference,
+    queryFn: async (): Promise<{ previous: { slug: string; title: string } | null; next: { slug: string; title: string } | null }> => {
+      const sortField = article?.published_at ? "published_at" : "created_at";
+      const referenceValue = publishedReference as string;
+
+      const [previousRes, nextRes] = await Promise.all([
+        supabase
+          .from("blog_articles")
+          .select("id, title, slug")
+          .eq("status", "published")
+          .neq("id", article?.id)
+          .lt(sortField, referenceValue)
+          .order(sortField, { ascending: false })
+          .limit(1),
+        supabase
+          .from("blog_articles")
+          .select("id, title, slug")
+          .eq("status", "published")
+          .neq("id", article?.id)
+          .gt(sortField, referenceValue)
+          .order(sortField, { ascending: true })
+          .limit(1),
+      ]);
+
+      if (previousRes.error) throw previousRes.error;
+      if (nextRes.error) throw nextRes.error;
+
+      const previous = previousRes.data?.[0]
+        ? {
+            slug: String(previousRes.data[0].slug || ""),
+            title: String(previousRes.data[0].title || ""),
+          }
+        : null;
+      const next = nextRes.data?.[0]
+        ? {
+            slug: String(nextRes.data[0].slug || ""),
+            title: String(nextRes.data[0].title || ""),
+          }
+        : null;
+
+      return { previous, next };
+    },
+  });
+
   const canonicalUrl = useMemo(() => {
     if (article?.seo_canonical_url) return article.seo_canonical_url;
     if (typeof window === "undefined") return "";
@@ -272,6 +323,42 @@ const BlogArticlePage = () => {
       />
 
       <div className="container mx-auto space-y-10 px-4">
+        <div className="mx-auto max-w-4xl">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 p-2">
+            {articleNavigation?.previous ? (
+              <Button asChild variant="ghost" className="gap-2">
+                <Link to={`/blog/artigo/${articleNavigation.previous.slug}`} title={articleNavigation.previous.title}>
+                  <ChevronLeft className="h-4 w-4" />
+                  Artigo anterior
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="ghost" className="gap-2" disabled>
+                <ChevronLeft className="h-4 w-4" />
+                Artigo anterior
+              </Button>
+            )}
+
+            <Button asChild variant="outline">
+              <Link to="/blog">Página principal do blog</Link>
+            </Button>
+
+            {articleNavigation?.next ? (
+              <Button asChild variant="ghost" className="gap-2">
+                <Link to={`/blog/artigo/${articleNavigation.next.slug}`} title={articleNavigation.next.title}>
+                  Próximo artigo
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="ghost" className="gap-2" disabled>
+                Próximo artigo
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
         <article className="mx-auto max-w-4xl space-y-6">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">

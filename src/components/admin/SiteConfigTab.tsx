@@ -375,11 +375,32 @@ const SiteConfigTab = () => {
   const handleSyncBlog = async () => {
     setIsSyncingBlog(true);
     try {
-      const { error } = await supabase.functions.invoke("setup-blog-module");
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) {
+        throw new Error("Sessao expirada. Entre novamente para sincronizar o modulo Blog.");
+      }
+
+      const { error } = await supabase.functions.invoke("setup-blog-module", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
       if (error) throw error;
       toast.success("Modulo Blog sincronizado!");
     } catch (error: any) {
-      toast.error(error?.message || "Erro ao sincronizar modulo Blog.");
+      const message = String(error?.message || "");
+      if (message.includes("401")) {
+        toast.error("Nao autorizado. Faca login novamente e tente sincronizar o modulo Blog.");
+      } else if (message.includes("403")) {
+        toast.error("Apenas administradores podem sincronizar o modulo Blog.");
+      } else {
+        toast.error(message || "Erro ao sincronizar modulo Blog.");
+      }
     } finally {
       setIsSyncingBlog(false);
     }

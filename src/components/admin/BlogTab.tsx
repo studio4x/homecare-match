@@ -43,6 +43,7 @@ type BlogCategoryForm = {
   id?: string | null;
   name: string;
   slug: string;
+  parent_id: string;
   description: string;
 } & BlogSeoForm;
 
@@ -58,6 +59,7 @@ type BlogArticleForm = {
   title: string;
   slug: string;
   excerpt: string;
+  source_reference_url: string;
   cover_image_url: string;
   content_html: string;
   status: "draft" | "published";
@@ -85,6 +87,7 @@ const emptyCategoryForm: BlogCategoryForm = {
   id: null,
   name: "",
   slug: "",
+  parent_id: "",
   description: "",
   ...emptySeoForm,
 };
@@ -102,6 +105,7 @@ const emptyArticleForm: BlogArticleForm = {
   title: "",
   slug: "",
   excerpt: "",
+  source_reference_url: "",
   cover_image_url: "",
   content_html: "",
   status: "draft",
@@ -220,6 +224,7 @@ const BlogTab = () => {
   const [savingTag, setSavingTag] = useState(false);
   const [savingArticle, setSavingArticle] = useState(false);
   const [generatingAI, setGeneratingAI] = useState<"suggestion" | "automatic" | null>(null);
+  const [creatingCategoryInline, setCreatingCategoryInline] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState("");
 
   const [categories, setCategories] = useState<any[]>([]);
@@ -233,6 +238,54 @@ const BlogTab = () => {
   const sortedTags = useMemo(
     () => [...tags].sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "pt-BR")),
     [tags],
+  );
+
+  const categoryPathById = useMemo(() => {
+    const pathMap = new Map<string, string>();
+    const byId = new Map<string, any>(categories.map((category) => [String(category.id), category]));
+
+    const resolvePath = (id: string, trail = new Set<string>()): string => {
+      if (pathMap.has(id)) return pathMap.get(id) || "";
+      const category = byId.get(id);
+      if (!category) {
+        pathMap.set(id, "");
+        return "";
+      }
+
+      if (trail.has(id)) {
+        return String(category.name || "").trim();
+      }
+      trail.add(id);
+
+      const name = String(category.name || "").trim();
+      const parentId = category.parent_id ? String(category.parent_id) : "";
+      let path = name;
+
+      if (parentId && byId.has(parentId) && parentId !== id) {
+        const parentPath = resolvePath(parentId, new Set(trail));
+        if (parentPath) path = `${parentPath} > ${name}`;
+      }
+
+      pathMap.set(id, path);
+      return path;
+    };
+
+    for (const category of categories) {
+      resolvePath(String(category.id));
+    }
+
+    return pathMap;
+  }, [categories]);
+
+  const categoryOptions = useMemo(
+    () =>
+      categories
+        .map((category) => ({
+          ...category,
+          label: categoryPathById.get(String(category.id)) || String(category.name || ""),
+        }))
+        .sort((a, b) => String(a.label || "").localeCompare(String(b.label || ""), "pt-BR")),
+    [categories, categoryPathById],
   );
 
   const fetchAll = async () => {
@@ -334,6 +387,91 @@ const BlogTab = () => {
   const resetTagForm = () => setTagForm(emptyTagForm);
   const resetArticleForm = () => setArticleForm(emptyArticleForm);
 
+  const upsertCategoryByName = async (name: string, parentId: string | null) => {
+    const trimmedName = String(name || "").trim();
+    if (!trimmedName) {
+      throw new Error("Nome de categoria invalido.");
+    }
+
+    const slug = generateSlug(trimmedName);
+    if (!slug) {
+      throw new Error("Nao foi possivel gerar slug para a categoria.");
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from("blog_categories")
+      .select("id,parent_id")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (existingError) throw existingError;
+
+    if (existing?.id) {
+      const existingParent = existing.parent_id ? String(existing.parent_id) : null;
+      if (existingParent !== (parentId || null)) {
+        throw new Error(`Ja existe categoria com slug "${slug}" em outro nivel.`);
+      }
+      return { id: String(existing.id), created: false };
+    }
+
+    const { data: created, error: createError } = await supabase
+      .from("blog_categories")
+      .insert({
+        name: trimmedName,
+        slug,
+        parent_id: parentId || null,
+      })
+      .select("id")
+      .single();
+    if (createError) throw createError;
+
+    return { id: String(created.id), created: true };
+  };
+
+  const handleCreateCategoryFromSelector = async () => {
+    const rawInput = window.prompt('Digite "Categoria" ou "Categoria > Subcategoria"');
+    if (rawInput === null) return;
+
+    const parts = String(rawInput)
+      .split(">")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (parts.length === 0) {
+      toast.error("Informe um nome valido para categoria.");
+      return;
+    }
+
+    setCreatingCategoryInline(true);
+    try {
+      let parentId: string | null = null;
+      let lastId = "";
+      let createdCount = 0;
+
+      for (const part of parts) {
+        const result = await upsertCategoryByName(part, parentId);
+        if (result.created) createdCount += 1;
+        lastId = result.id;
+        parentId = result.id;
+      }
+
+      if (!lastId) {
+        throw new Error("Nao foi possivel criar categoria/subcategoria.");
+      }
+
+      await fetchAll();
+      setArticleForm((prev) => ({ ...prev, category_id: lastId }));
+      toast.success(
+        createdCount > 0
+          ? "Categoria/subcategoria criada e selecionada no artigo."
+          : "Categoria/subcategoria existente selecionada no artigo.",
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao criar categoria/subcategoria.");
+    } finally {
+      setCreatingCategoryInline(false);
+    }
+  };
+
   const handleSaveCategory = async (event: FormEvent) => {
     event.preventDefault();
     if (!categoryForm.name.trim()) {
@@ -353,9 +491,40 @@ const BlogTab = () => {
 
     setSavingCategory(true);
     try {
+      if (categoryForm.id && categoryForm.parent_id && categoryForm.parent_id === categoryForm.id) {
+        throw new Error("Uma categoria nao pode ser pai dela mesma.");
+      }
+      if (categoryForm.id && categoryForm.parent_id) {
+        const childrenByParent = new Map<string, string[]>();
+        for (const category of categories) {
+          const parentId = category.parent_id ? String(category.parent_id) : "";
+          if (!parentId) continue;
+          const children = childrenByParent.get(parentId) || [];
+          children.push(String(category.id));
+          childrenByParent.set(parentId, children);
+        }
+
+        const descendants = new Set<string>();
+        const queue = [String(categoryForm.id)];
+        while (queue.length > 0) {
+          const current = queue.shift() as string;
+          const children = childrenByParent.get(current) || [];
+          for (const childId of children) {
+            if (descendants.has(childId)) continue;
+            descendants.add(childId);
+            queue.push(childId);
+          }
+        }
+
+        if (descendants.has(String(categoryForm.parent_id))) {
+          throw new Error("Selecione uma categoria pai valida. Nao e permitido criar ciclo de subcategorias.");
+        }
+      }
+
       const payload = {
         name: categoryForm.name.trim(),
         slug: generateSlug(categoryForm.slug),
+        parent_id: categoryForm.parent_id || null,
         description: categoryForm.description || null,
         seo_title: categoryForm.seo_title || null,
         seo_description: categoryForm.seo_description || null,
@@ -475,6 +644,7 @@ const BlogTab = () => {
         title: articleForm.title.trim(),
         slug: generateSlug(articleForm.slug),
         excerpt: articleForm.excerpt || null,
+        source_reference_url: articleForm.source_reference_url || null,
         cover_image_url: articleForm.cover_image_url || null,
         content_html: articleForm.content_html,
         status: articleForm.status,
@@ -567,6 +737,7 @@ const BlogTab = () => {
       title: article.title || "",
       slug: article.slug || "",
       excerpt: article.excerpt || "",
+      source_reference_url: article.source_reference_url || "",
       cover_image_url: article.cover_image_url || "",
       content_html: article.content_html || "",
       status: article.status === "published" ? "published" : "draft",
@@ -879,6 +1050,15 @@ const BlogTab = () => {
                 </div>
 
                 <div className="space-y-2">
+                  <Label>URL de referencia do artigo</Label>
+                  <Input
+                    value={articleForm.source_reference_url}
+                    onChange={(e) => setArticleForm((prev) => ({ ...prev, source_reference_url: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label>Imagem de capa (URL)</Label>
                   <Input
                     value={articleForm.cover_image_url}
@@ -963,18 +1143,25 @@ const BlogTab = () => {
                     <Label>Categoria</Label>
                     <Select
                       value={articleForm.category_id || "__none__"}
-                      onValueChange={(value) =>
-                        setArticleForm((prev) => ({ ...prev, category_id: value === "__none__" ? "" : value }))
-                      }
+                      onValueChange={(value) => {
+                        if (value === "__create__") {
+                          void handleCreateCategoryFromSelector();
+                          return;
+                        }
+                        setArticleForm((prev) => ({ ...prev, category_id: value === "__none__" ? "" : value }));
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Sem categoria" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">Sem categoria</SelectItem>
-                        {categories.map((category) => (
+                        <SelectItem value="__create__">
+                          {creatingCategoryInline ? "Criando..." : "+ Criar categoria/subcategoria"}
+                        </SelectItem>
+                        {categoryOptions.map((category) => (
                           <SelectItem key={category.id} value={category.id}>
-                            {category.name}
+                            {category.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1053,6 +1240,7 @@ const BlogTab = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
+                    <TableHead>Hierarquia</TableHead>
                     <TableHead>Slug</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
@@ -1062,6 +1250,9 @@ const BlogTab = () => {
                     categories.map((category) => (
                       <TableRow key={category.id}>
                         <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {categoryPathById.get(String(category.id)) || category.name}
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{category.slug}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
@@ -1073,6 +1264,7 @@ const BlogTab = () => {
                                   id: category.id,
                                   name: category.name || "",
                                   slug: category.slug || "",
+                                  parent_id: category.parent_id || "",
                                   description: category.description || "",
                                   seo_title: category.seo_title || "",
                                   seo_description: category.seo_description || "",
@@ -1101,7 +1293,7 @@ const BlogTab = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                         Nenhuma categoria cadastrada.
                       </TableCell>
                     </TableRow>
@@ -1147,6 +1339,33 @@ const BlogTab = () => {
                     />
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>Categoria pai (opcional)</Label>
+                  <Select
+                    value={categoryForm.parent_id || "__none__"}
+                    onValueChange={(value) =>
+                      setCategoryForm((prev) => ({ ...prev, parent_id: value === "__none__" ? "" : value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sem categoria pai" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem categoria pai</SelectItem>
+                      {categoryOptions
+                        .filter((option) => String(option.id) !== String(categoryForm.id || ""))
+                        .map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Se selecionar uma categoria pai, esta categoria sera salva como subcategoria.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label>Descrição</Label>
                   <Textarea
@@ -1311,5 +1530,3 @@ const BlogTab = () => {
 };
 
 export default BlogTab;
-
-

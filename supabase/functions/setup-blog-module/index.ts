@@ -66,6 +66,7 @@ serve(async (req) => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
         slug TEXT NOT NULL UNIQUE,
+        parent_id UUID REFERENCES public.blog_categories(id) ON DELETE SET NULL,
         description TEXT,
         seo_title TEXT,
         seo_description TEXT,
@@ -101,6 +102,7 @@ serve(async (req) => {
         title TEXT NOT NULL,
         slug TEXT NOT NULL UNIQUE,
         excerpt TEXT,
+        source_reference_url TEXT,
         cover_image_url TEXT,
         content_html TEXT NOT NULL DEFAULT '',
         status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
@@ -130,6 +132,27 @@ serve(async (req) => {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         PRIMARY KEY (article_id, tag_id)
       );
+
+      ALTER TABLE public.blog_categories
+      ADD COLUMN IF NOT EXISTS parent_id UUID;
+
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'blog_categories_parent_id_fkey'
+            AND conrelid = 'public.blog_categories'::regclass
+        ) THEN
+          ALTER TABLE public.blog_categories
+          ADD CONSTRAINT blog_categories_parent_id_fkey
+          FOREIGN KEY (parent_id) REFERENCES public.blog_categories(id) ON DELETE SET NULL;
+        END IF;
+      END
+      $$;
+
+      ALTER TABLE public.blog_articles
+      ADD COLUMN IF NOT EXISTS source_reference_url TEXT;
 
       CREATE OR REPLACE FUNCTION public.set_blog_updated_at()
       RETURNS TRIGGER
@@ -186,6 +209,7 @@ serve(async (req) => {
       CREATE INDEX IF NOT EXISTS idx_blog_articles_category_id ON public.blog_articles(category_id);
       CREATE INDEX IF NOT EXISTS idx_blog_article_tags_tag_id ON public.blog_article_tags(tag_id);
       CREATE INDEX IF NOT EXISTS idx_blog_categories_slug ON public.blog_categories(slug);
+      CREATE INDEX IF NOT EXISTS idx_blog_categories_parent_id ON public.blog_categories(parent_id);
       CREATE INDEX IF NOT EXISTS idx_blog_tags_slug ON public.blog_tags(slug);
       CREATE INDEX IF NOT EXISTS idx_blog_articles_search ON public.blog_articles
       USING GIN (to_tsvector('portuguese', coalesce(title, '') || ' ' || coalesce(excerpt, '') || ' ' || coalesce(content_html, '')));

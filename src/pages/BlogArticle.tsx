@@ -324,34 +324,34 @@ const BlogArticlePage = () => {
 
       <div className="container mx-auto space-y-10 px-4">
         <div className="mx-auto max-w-4xl">
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-border/70 bg-card/60 p-2">
+          <div className="flex flex-col gap-2 rounded-xl border border-border/70 bg-card/60 p-2 sm:flex-row sm:items-center sm:justify-between">
             {articleNavigation?.previous ? (
-              <Button asChild variant="ghost" className="gap-2">
+              <Button asChild variant="ghost" className="w-full justify-center gap-2 whitespace-normal text-center text-xs leading-tight sm:w-auto sm:text-sm">
                 <Link to={`/blog/artigo/${articleNavigation.previous.slug}`} title={articleNavigation.previous.title}>
                   <ChevronLeft className="h-4 w-4" />
                   Artigo anterior
                 </Link>
               </Button>
             ) : (
-              <Button variant="ghost" className="gap-2" disabled>
+              <Button variant="ghost" className="w-full justify-center gap-2 whitespace-normal text-center text-xs leading-tight sm:w-auto sm:text-sm" disabled>
                 <ChevronLeft className="h-4 w-4" />
                 Artigo anterior
               </Button>
             )}
 
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="w-full whitespace-normal text-center text-xs leading-tight sm:w-auto sm:text-sm">
               <Link to="/blog">Página principal do blog</Link>
             </Button>
 
             {articleNavigation?.next ? (
-              <Button asChild variant="ghost" className="gap-2">
+              <Button asChild variant="ghost" className="w-full justify-center gap-2 whitespace-normal text-center text-xs leading-tight sm:w-auto sm:text-sm">
                 <Link to={`/blog/artigo/${articleNavigation.next.slug}`} title={articleNavigation.next.title}>
                   Próximo artigo
                   <ChevronRight className="h-4 w-4" />
                 </Link>
               </Button>
             ) : (
-              <Button variant="ghost" className="gap-2" disabled>
+              <Button variant="ghost" className="w-full justify-center gap-2 whitespace-normal text-center text-xs leading-tight sm:w-auto sm:text-sm" disabled>
                 Próximo artigo
                 <ChevronRight className="h-4 w-4" />
               </Button>

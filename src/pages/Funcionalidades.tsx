@@ -27,7 +27,11 @@ import {
   PlayCircle,
   FileCheck,
   LifeBuoy, // Added import for LifeBuoy icon
-  HelpCircle // Added import for HelpCircle icon
+  HelpCircle, // Added import for HelpCircle icon
+  Newspaper,
+  Smartphone,
+  KeyRound,
+  SlidersHorizontal
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,223 +43,268 @@ import { supabase } from "@/integrations/supabase/client";
 import FeatureVideoModal from "@/components/FeatureVideoModal"; 
 import { toast } from "sonner"; // Added import
 
-export const features = [ 
-    {
-      title: "Busca Inteligente de Profissionais",
-      description: "Filtre especialistas por bairro, cidade, especialidade e disponibilidade imediata.",
-      icon: Search,
-      profiles: ["company", "family"],
-      color: "text-blue-500",
-      bg: "bg-blue-50",
-      feature_key: "busca-inteligente-de-profissionais"
-    },
-    {
-      title: "Perfil Profissional Completo",
-      description: "Exibição de currículo, formações, experiências e biografia humanizada.",
-      icon: UserCheck,
-      profiles: ["professional"],
-      color: "text-primary",
-      bg: "bg-primary/5",
-      feature_key: "perfil-profissional-completo"
-    },
-    {
-      title: "Selo de Verificação Profissional",
-      description: "Análise manual de documentos e registros profissionais para garantir segurança.",
-      icon: ShieldCheck,
-      profiles: ["professional"],
-      color: "text-success",
-      bg: "bg-success/5",
-      feature_key: "selo-de-verificacao-profissional"
-    },
-    {
-      title: "Academy (Cursos de Capacitação)",
-      description: "Acesso a conteúdos educativos exclusivos com emissão de selos de conquista.",
-      icon: BookOpen,
-      profiles: ["professional"],
-      color: "text-purple-500",
-      bg: "bg-purple-50",
-      feature_key: "academy-cursos-de-capacitacao"
-    },
-    {
-      title: "Validação Pública de Conquistas",
-      description: "Página dedicada para validar a autenticidade dos seus selos da Academy por terceiros.",
-      icon: FileCheck,
-      profiles: ["professional"],
-      color: "text-indigo-600",
-      bg: "bg-indigo-50",
-      feature_key: "validacao-publica-de-conquistas"
-    },
-    {
-      title: "Programa de Indicações (Embaixador)",
-      description: "Indique colegas e suba no ranking de visibilidade da plataforma.",
-      icon: Award,
-      profiles: ["professional"],
-      color: "text-amber-500",
-      bg: "bg-amber-50",
-      feature_key: "programa-de-indicacoes-embaixador"
-    },
-    {
-      title: "Mural de Avisos e Comunicados",
-      description: "Central de notícias e atualizações importantes diretamente no seu painel.",
-      icon: Bell,
-      profiles: ["professional", "company", "family"],
-      color: "text-rose-500",
-      bg: "bg-rose-50",
-      feature_key: "mural-de-avisos-e-comunicados"
-    },
-    {
-      title: "Notificações em Tempo Real",
-      description: "Receba avisos instantâneos sobre novos contatos e mensagens no seu dispositivo.",
-      icon: Zap,
-      profiles: ["professional", "company", "family"],
-      color: "text-yellow-600",
-      bg: "bg-yellow-50",
-      feature_key: "notificacoes-em-tempo-real"
-    },
-    {
-      title: "IA para Biografia Profissional",
-      description: "Crie uma biografia humanizada e profissional em segundos com ajuda da nossa IA.",
-      icon: Sparkles,
-      profiles: ["professional"],
-      color: "text-cyan-600",
-      bg: "bg-cyan-50",
-      feature_key: "ia-para-biografia-profissional"
-    },
-    {
-      title: "Gestão de Pagamentos e Faturas",
-      description: "Histórico completo de recibos e controle total sobre suas assinaturas.",
-      icon: CreditCard,
-      profiles: ["professional"],
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-      feature_key: "gestao-de-pagamentos-e-faturas"
-    },
-    {
-      title: "Destaque Premium na Busca",
-      description: "Assinantes anuais recebem selo de Destaque Premium e maior prioridade nos resultados.",
-      icon: Star,
-      profiles: ["professional"],
-      color: "text-amber-500",
-      bg: "bg-amber-50",
-      feature_key: "destaque-premium-na-busca"
-    },
-    {
-      title: "Controle de Visibilidade nas Buscas",
-      description: "Gerencie sua visibilidade para empresas e famílias de acordo com o status da sua assinatura.",
-      icon: CheckCircle2,
-      profiles: ["professional"],
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-      feature_key: "controle-de-visibilidade-nas-buscas"
-    },
-    {
-      title: "Contato Direto via WhatsApp",
-      description: "Inicie conversas sem intermediários e sem taxas de agenciamento.",
-      icon: MessageSquare,
-      profiles: ["company", "family"],
-      color: "text-green-600",
-      bg: "bg-green-50",
-      feature_key: "contato-direto-via-whatsapp"
-    },
-    {
-      title: "Cadastro de Pacientes para Empresas",
-      description: "Permite cadastrar e organizar pacientes atendidos para facilitar a contratação alinhada ao perfil de cuidado.",
-      icon: Users,
-      profiles: ["company"],
-      color: "text-sky-600",
-      bg: "bg-sky-50",
-      feature_key: "cadastro-de-pacientes-para-empresas"
-    },
-    {
-      title: "Perfil Público de Recrutador",
-      description: "Exibe informações da empresa/família e os pacientes visíveis para facilitar o alinhamento com profissionais.",
-      icon: Users,
-      profiles: ["company", "family", "professional"],
-      color: "text-violet-600",
-      bg: "bg-violet-50",
-      feature_key: "perfil-publico-de-recrutador"
-    },
-    {
-      title: "Gestão de Contatos",
-      description: "Histórico centralizado de todos os profissionais ou recrutadores contatados.",
-      icon: LayoutGrid,
-      profiles: ["professional", "company", "family"],
-      color: "text-slate-600",
-      bg: "bg-slate-50",
-      feature_key: "gestao-de-contatos"
-    },
-    {
-      title: "Sistema de Avaliações",
-      description: "Deixe feedbacks e leia depoimentos reais sobre atendimentos realizados.",
-      icon: Star,
-      profiles: ["professional", "company", "family"],
-      color: "text-yellow-500",
-      bg: "bg-yellow-50",
-      feature_key: "sistema-de-avaliacoes"
-    },
-    {
-      title: "Busca por Geolocalização",
-      description: "Visualize no mapa os profissionais que estão mais próximos da sua residência.",
-      icon: MapPin,
-      profiles: ["company", "family"],
-      color: "text-rose-500",
-      bg: "bg-rose-50",
-      feature_key: "busca-por-geolocalizacao"
-    },
-    {
-      title: "Tutorial de Boas-vindas",
-      description: "Guia interativo para ajudar você a extrair o máximo da plataforma desde o início.",
-      icon: PlayCircle,
-      profiles: ["professional", "company", "family"],
-      color: "text-blue-600",
-      bg: "bg-blue-50",
-      feature_key: "tutorial-de-boas-vindas"
-    },
-    {
-      title: "Suporte via Ticket",
-      description: "Abra chamados diretamente com nossa equipe para resolver dúvidas e problemas.",
-      icon: LifeBuoy,
-      profiles: ["professional", "company", "family"],
-      color: "text-indigo-500",
-      bg: "bg-indigo-50",
-      feature_key: "suporte-via-ticket"
-    },
-    {
-      title: "Página de Dúvidas Frequentes (FAQ)",
-      description: "Consulte nossa base de conhecimento para encontrar respostas rápidas e tutoriais.",
-      icon: HelpCircle,
-      profiles: ["professional", "company", "family"],
-      color: "text-teal-500",
-      bg: "bg-teal-50",
-      feature_key: "pagina-de-duvidas-frequentes"
-    },
-    {
-      title: "Segurança e Denúncias",
-      description: "Ferramentas para reportar comportamentos inadequados e manter a comunidade segura.",
-      icon: ShieldAlert,
-      profiles: ["professional", "company", "family"],
-      color: "text-destructive",
-      bg: "bg-destructive/5",
-      feature_key: "seguranca-e-denuncias"
-    },
-    {
-      title: "Canal de Sugestões",
-      description: "Envie suas ideias de melhorias diretamente para nossa equipe de desenvolvimento.",
-      icon: Lightbulb,
-      profiles: ["professional", "company", "family"],
-      color: "text-amber-600",
-      bg: "bg-amber-100",
-      feature_key: "canal-de-sugestoes"
-    },
-    {
-      title: "Serviço de Concierge",
-      description: "Busca manual e personalizada realizada por nossa equipe para casos urgentes.",
-      icon: Headset,
-      profiles: ["company", "family"],
-      color: "text-cyan-600",
-      bg: "bg-cyan-50",
-      feature_key: "servico-de-concierge"
-    }
+export const features = [
+  {
+    title: "Busca Inteligente de Profissionais",
+    description: "Filtre especialistas por bairro, cidade, especialidade e disponibilidade imediata.",
+    icon: Search,
+    profiles: ["company", "family"],
+    color: "text-blue-500",
+    bg: "bg-blue-50",
+    feature_key: "busca-inteligente-de-profissionais"
+  },
+  {
+    title: "Perfil Profissional Completo",
+    description: "Exibicao de curriculo, formacoes, experiencias e biografia humanizada.",
+    icon: UserCheck,
+    profiles: ["professional"],
+    color: "text-primary",
+    bg: "bg-primary/5",
+    feature_key: "perfil-profissional-completo"
+  },
+  {
+    title: "Selo de Verificacao Profissional",
+    description: "Analise manual de documentos e registros profissionais para garantir seguranca.",
+    icon: ShieldCheck,
+    profiles: ["professional"],
+    color: "text-success",
+    bg: "bg-success/5",
+    feature_key: "selo-de-verificacao-profissional"
+  },
+  {
+    title: "Academy (Cursos de Capacitacao)",
+    description: "Acesso a conteudos educativos exclusivos com emissao de selos de conquista.",
+    icon: BookOpen,
+    profiles: ["professional"],
+    color: "text-purple-500",
+    bg: "bg-purple-50",
+    feature_key: "academy-cursos-de-capacitacao"
+  },
+  {
+    title: "Validacao Publica de Conquistas",
+    description: "Pagina dedicada para validar a autenticidade dos selos da Academy por terceiros.",
+    icon: FileCheck,
+    profiles: ["professional"],
+    color: "text-indigo-600",
+    bg: "bg-indigo-50",
+    feature_key: "validacao-publica-de-conquistas"
+  },
+  {
+    title: "Programa de Indicacoes (Embaixador)",
+    description: "Indique colegas e suba no ranking de visibilidade da plataforma.",
+    icon: Award,
+    profiles: ["professional"],
+    color: "text-amber-500",
+    bg: "bg-amber-50",
+    feature_key: "programa-de-indicacoes-embaixador"
+  },
+  {
+    title: "Mural de Avisos e Comunicados",
+    description: "Central de noticias e atualizacoes importantes diretamente no seu painel.",
+    icon: Bell,
+    profiles: ["professional", "company", "family"],
+    color: "text-rose-500",
+    bg: "bg-rose-50",
+    feature_key: "mural-de-avisos-e-comunicados"
+  },
+  {
+    title: "Notificacoes em Tempo Real",
+    description: "Receba avisos instantaneos sobre novos contatos e mensagens no seu dispositivo.",
+    icon: Zap,
+    profiles: ["professional", "company", "family"],
+    color: "text-yellow-600",
+    bg: "bg-yellow-50",
+    feature_key: "notificacoes-em-tempo-real"
+  },
+  {
+    title: "IA para Biografia Profissional",
+    description: "Crie uma biografia humanizada e profissional em segundos com ajuda da IA.",
+    icon: Sparkles,
+    profiles: ["professional"],
+    color: "text-cyan-600",
+    bg: "bg-cyan-50",
+    feature_key: "ia-para-biografia-profissional"
+  },
+  {
+    title: "Gestao de Pagamentos e Faturas",
+    description: "Historico completo de recibos e controle total sobre suas assinaturas.",
+    icon: CreditCard,
+    profiles: ["professional"],
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    feature_key: "gestao-de-pagamentos-e-faturas"
+  },
+  {
+    title: "Destaque Premium na Busca",
+    description: "Assinantes anuais recebem selo de destaque premium e maior prioridade nos resultados.",
+    icon: Star,
+    profiles: ["professional"],
+    color: "text-amber-500",
+    bg: "bg-amber-50",
+    feature_key: "destaque-premium-na-busca"
+  },
+  {
+    title: "Controle de Visibilidade nas Buscas",
+    description: "Gerencie sua visibilidade para empresas e familias de acordo com o status da assinatura.",
+    icon: CheckCircle2,
+    profiles: ["professional"],
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    feature_key: "controle-de-visibilidade-nas-buscas"
+  },
+  {
+    title: "Contato Direto via WhatsApp",
+    description: "Inicie conversas sem intermediarios e sem taxas de agenciamento.",
+    icon: MessageSquare,
+    profiles: ["company", "family"],
+    color: "text-green-600",
+    bg: "bg-green-50",
+    feature_key: "contato-direto-via-whatsapp"
+  },
+  {
+    title: "Cadastro de Pacientes para Empresas",
+    description: "Permite cadastrar e organizar pacientes atendidos para facilitar contratacoes.",
+    icon: Users,
+    profiles: ["company"],
+    color: "text-sky-600",
+    bg: "bg-sky-50",
+    feature_key: "cadastro-de-pacientes-para-empresas"
+  },
+  {
+    title: "Perfil Publico de Recrutador",
+    description: "Exibe informacoes da empresa/familia e pacientes visiveis para melhor alinhamento.",
+    icon: Users,
+    profiles: ["company", "family", "professional"],
+    color: "text-violet-600",
+    bg: "bg-violet-50",
+    feature_key: "perfil-publico-de-recrutador"
+  },
+  {
+    title: "Gestao de Contatos",
+    description: "Historico centralizado de todos os profissionais ou recrutadores contatados.",
+    icon: LayoutGrid,
+    profiles: ["professional", "company", "family"],
+    color: "text-slate-600",
+    bg: "bg-slate-50",
+    feature_key: "gestao-de-contatos"
+  },
+  {
+    title: "Sistema de Avaliacoes",
+    description: "Deixe feedbacks e leia depoimentos reais sobre atendimentos realizados.",
+    icon: Star,
+    profiles: ["professional", "company", "family"],
+    color: "text-yellow-500",
+    bg: "bg-yellow-50",
+    feature_key: "sistema-de-avaliacoes"
+  },
+  {
+    title: "Busca por Geolocalizacao",
+    description: "Visualize no mapa os profissionais mais proximos da sua localizacao.",
+    icon: MapPin,
+    profiles: ["company", "family"],
+    color: "text-rose-500",
+    bg: "bg-rose-50",
+    feature_key: "busca-por-geolocalizacao"
+  },
+  {
+    title: "Tutorial de Boas-vindas",
+    description: "Guia interativo para ajudar voce a extrair o maximo da plataforma desde o inicio.",
+    icon: PlayCircle,
+    profiles: ["professional", "company", "family"],
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+    feature_key: "tutorial-de-boas-vindas"
+  },
+  {
+    title: "Blog de Conteudo Especializado",
+    description: "Acesse artigos sobre Home Care com foco em boas praticas, gestao e atualizacoes do setor.",
+    icon: Newspaper,
+    profiles: ["professional", "company", "family"],
+    color: "text-indigo-600",
+    bg: "bg-indigo-50",
+    feature_key: "blog-de-conteudo-especializado"
+  },
+  {
+    title: "Busca no Blog por Categorias e Tags",
+    description: "Encontre conteudos rapidamente usando pesquisa, categorias e tags na central de artigos.",
+    icon: Search,
+    profiles: ["professional", "company", "family"],
+    color: "text-sky-600",
+    bg: "bg-sky-50",
+    feature_key: "busca-no-blog-por-categorias-e-tags"
+  },
+  {
+    title: "Instalacao do App (PWA)",
+    description: "Instale a plataforma no celular como aplicativo, com acesso rapido e experiencia otimizada.",
+    icon: Smartphone,
+    profiles: ["professional", "company", "family"],
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    feature_key: "instalacao-do-app-pwa"
+  },
+  {
+    title: "Recuperacao de Senha Segura",
+    description: "Fluxo de redefinicao por e-mail para recuperar acesso com seguranca quando necessario.",
+    icon: KeyRound,
+    profiles: ["professional", "company", "family"],
+    color: "text-amber-700",
+    bg: "bg-amber-50",
+    feature_key: "recuperacao-de-senha-segura"
+  },
+  {
+    title: "Painel Meus Dados por Etapas",
+    description: "Perfil organizado por secoes com verificacao, dados essenciais, seguranca e zona de perigo.",
+    icon: SlidersHorizontal,
+    profiles: ["professional", "company", "family"],
+    color: "text-violet-600",
+    bg: "bg-violet-50",
+    feature_key: "painel-meus-dados-por-etapas"
+  },
+  {
+    title: "Suporte via Ticket",
+    description: "Abra chamados diretamente com nossa equipe para resolver duvidas e problemas.",
+    icon: LifeBuoy,
+    profiles: ["professional", "company", "family"],
+    color: "text-indigo-500",
+    bg: "bg-indigo-50",
+    feature_key: "suporte-via-ticket"
+  },
+  {
+    title: "Pagina de Duvidas Frequentes (FAQ)",
+    description: "Consulte nossa base de conhecimento para encontrar respostas rapidas e tutoriais.",
+    icon: HelpCircle,
+    profiles: ["professional", "company", "family"],
+    color: "text-teal-500",
+    bg: "bg-teal-50",
+    feature_key: "pagina-de-duvidas-frequentes"
+  },
+  {
+    title: "Seguranca e Denuncias",
+    description: "Ferramentas para reportar comportamentos inadequados e manter a comunidade segura.",
+    icon: ShieldAlert,
+    profiles: ["professional", "company", "family"],
+    color: "text-destructive",
+    bg: "bg-destructive/5",
+    feature_key: "seguranca-e-denuncias"
+  },
+  {
+    title: "Canal de Sugestoes",
+    description: "Envie ideias de melhorias diretamente para nossa equipe de desenvolvimento.",
+    icon: Lightbulb,
+    profiles: ["professional", "company", "family"],
+    color: "text-amber-600",
+    bg: "bg-amber-100",
+    feature_key: "canal-de-sugestoes"
+  },
+  {
+    title: "Servico de Concierge",
+    description: "Busca manual e personalizada realizada pela equipe para casos urgentes.",
+    icon: Headset,
+    profiles: ["company", "family"],
+    color: "text-cyan-600",
+    bg: "bg-cyan-50",
+    feature_key: "servico-de-concierge"
+  }
 ];
 
 const Funcionalidades = () => {

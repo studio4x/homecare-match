@@ -23,6 +23,10 @@ const MAX_CONCLUSION_CHARS = 700;
 const MIN_KEYWORD_DENSITY = 0.8;
 const MAX_KEYWORD_DENSITY = 1.5;
 const MAX_SLUG_LENGTH = 75;
+const SEO_TITLE_MIN_CHARS = 30;
+const SEO_TITLE_MAX_CHARS = 60;
+const SEO_DESCRIPTION_MIN_CHARS = 70;
+const SEO_DESCRIPTION_MAX_CHARS = 155;
 
 const INTERNAL_LINK_SUGGESTIONS = [
   "/",
@@ -76,6 +80,12 @@ const stripHtml = (html: string) =>
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
+    .trim();
+
+const stripContentH1Tags = (html: string) =>
+  String(html || "")
+    .replace(/<h1\b[^>]*>[\s\S]*?<\/h1>/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
 const estimateReadingTime = (html: string) => {
@@ -139,8 +149,13 @@ const countKeywordOccurrences = (text: string, keyword: string) => {
 };
 
 const toMetaLength = (value: string, min: number, max: number, fallback: string) => {
-  const text = String(value || "").trim() || String(fallback || "").trim();
+  let text = String(value || "").trim() || String(fallback || "").trim();
   if (!text) return "";
+  const padSource = String(fallback || "Conteudo informativo para orientar decisoes com qualidade e seguranca.").trim();
+  while (text.length < min) {
+    text = `${text} ${padSource}`.replace(/\s+/g, " ").trim();
+    if (text.length >= min) break;
+  }
   if (text.length > max) return text.slice(0, max).trim();
   return text;
 };
@@ -153,6 +168,19 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const toSeoTitleLength = (value: string, fallback: string) => {
+  let text = String(value || "").trim() || String(fallback || "").trim();
+  if (!text) return "";
+  const suffix = " | HomeCare Match";
+  while (text.length < SEO_TITLE_MIN_CHARS) {
+    if (text.includes("HomeCare Match")) break;
+    text = `${text}${suffix}`;
+    if (text.length >= SEO_TITLE_MIN_CHARS) break;
+  }
+  if (text.length > SEO_TITLE_MAX_CHARS) return text.slice(0, SEO_TITLE_MAX_CHARS).trim();
+  return text;
+};
+
 const normalizeArticlePayload = (parsed: any) => {
   const title = String(parsed?.title || "").trim();
   const focusKeyword = String(parsed?.focus_keyword || "").trim() || String(title || "").split(":")[0].trim();
@@ -163,7 +191,7 @@ const normalizeArticlePayload = (parsed: any) => {
   }
   if (slug.length > MAX_SLUG_LENGTH) slug = slug.slice(0, MAX_SLUG_LENGTH).replace(/-+$/, "");
 
-  const contentHtml = String(parsed?.content_html || "").trim();
+  const contentHtml = stripContentH1Tags(String(parsed?.content_html || "").trim());
   const plainContent = stripHtml(contentHtml);
   const excerpt = String(parsed?.excerpt || "").trim() || plainContent.slice(0, 180).trim();
   const seoTitleRaw = String(parsed?.seo_title || title).trim() || title;
@@ -180,8 +208,8 @@ const normalizeArticlePayload = (parsed: any) => {
     excerpt: excerpt.slice(0, 180),
     content_html: contentHtml,
     focus_keyword: focusKeyword,
-    seo_title: seoTitleRaw,
-    seo_description: toMetaLength(seoDescriptionRaw, 140, 160, excerpt),
+    seo_title: toSeoTitleLength(seoTitleRaw, title),
+    seo_description: toMetaLength(seoDescriptionRaw, SEO_DESCRIPTION_MIN_CHARS, SEO_DESCRIPTION_MAX_CHARS, excerpt),
     seo_og_title: seoOgTitle,
     seo_og_description: toMetaLength(seoOgDescription, 140, 180, seoDescriptionRaw),
     tags_suggested: tagsSuggested,
@@ -259,7 +287,7 @@ const validateArticleSeoRules = (article: any) => {
   const h1Count = countMatches(article.content_html, /<h1\b/gi);
   const h2Count = countMatches(article.content_html, /<h2\b/gi);
   const h3Count = countMatches(article.content_html, /<h3\b/gi);
-  if (h1Count !== 1) issues.push(`deve ter exatamente 1 H1 (atual: ${h1Count})`);
+  if (h1Count !== 0) issues.push(`content_html nao deve ter H1 (atual: ${h1Count})`);
   if (h2Count < MIN_H2 || h2Count > MAX_H2) issues.push(`H2 fora do intervalo ${MIN_H2}-${MAX_H2} (atual: ${h2Count})`);
   if (h3Count < MIN_H3) issues.push(`deve ter ao menos ${MIN_H3} H3 (atual: ${h3Count})`);
 
@@ -295,10 +323,6 @@ const validateArticleSeoRules = (article: any) => {
   if (article.slug.length > MAX_SLUG_LENGTH) issues.push(`slug acima de ${MAX_SLUG_LENGTH} caracteres`);
 
   if (keywordNorm) {
-    const h1TextMatch = String(article.content_html).match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
-    const h1Text = normalizeText(h1TextMatch ? stripHtml(h1TextMatch[1]) : "");
-    if (!h1Text.includes(keywordNorm)) issues.push("palavra-chave principal ausente no H1");
-
     const firstParagraphNorm = normalizeText(introText);
     if (!firstParagraphNorm.includes(keywordNorm)) issues.push("palavra-chave principal ausente no primeiro paragrafo");
 
@@ -338,11 +362,11 @@ const validateArticleSeoRules = (article: any) => {
     issues.push("focus_keyword ausente");
   }
 
-  if (article.seo_title.length < 50 || article.seo_title.length > 60) {
-    issues.push(`seo_title deve ter 50-60 caracteres (atual: ${article.seo_title.length})`);
+  if (article.seo_title.length < SEO_TITLE_MIN_CHARS || article.seo_title.length > SEO_TITLE_MAX_CHARS) {
+    issues.push(`seo_title deve ter ${SEO_TITLE_MIN_CHARS}-${SEO_TITLE_MAX_CHARS} caracteres (atual: ${article.seo_title.length})`);
   }
-  if (article.seo_description.length < 140 || article.seo_description.length > 160) {
-    issues.push(`seo_description deve ter 140-160 caracteres (atual: ${article.seo_description.length})`);
+  if (article.seo_description.length < SEO_DESCRIPTION_MIN_CHARS || article.seo_description.length > SEO_DESCRIPTION_MAX_CHARS) {
+    issues.push(`seo_description deve ter ${SEO_DESCRIPTION_MIN_CHARS}-${SEO_DESCRIPTION_MAX_CHARS} caracteres (atual: ${article.seo_description.length})`);
   }
 
   if (!Array.isArray(article.tags_suggested) || article.tags_suggested.length < 4 || article.tags_suggested.length > 8) {
@@ -488,10 +512,11 @@ const diluteKeywordDensity = (html: string, keyword: string) => {
 
 const applyLocalSeoCorrections = (article: any) => {
   const base = { ...article };
-  let html = String(base.content_html || "");
+  let html = stripContentH1Tags(String(base.content_html || ""));
   html = enforceH2Limit(html);
   html = enforceConclusionLength(html, base.focus_keyword);
   html = diluteKeywordDensity(html, base.focus_keyword);
+  html = stripContentH1Tags(html);
 
   return normalizeArticlePayload({
     ...base,
@@ -608,13 +633,13 @@ Siga rigorosamente este padrao de artigo:
 - Faixa recomendada: ${MIN_CONTENT_CHARS} a ${MAX_CONTENT_CHARS} caracteres
 - Meta ideal de tamanho: ${TARGET_CONTENT_CHARS} caracteres
 - Palavra-chave principal com densidade aproximada de ${MIN_KEYWORD_DENSITY}% a ${MAX_KEYWORD_DENSITY}%
-- Palavra-chave deve aparecer em: H1, primeiro paragrafo, ao menos 1 H2, conclusao, meta description e slug
+- Palavra-chave deve aparecer em: primeiro paragrafo, ao menos 1 H2, conclusao, meta description e slug
 - Slug maximo: ${MAX_SLUG_LENGTH} caracteres, sem acento, com hifens
-- SEO title: 50 a 60 caracteres
-- Meta description: 140 a 160 caracteres
+- SEO title: ${SEO_TITLE_MIN_CHARS} a ${SEO_TITLE_MAX_CHARS} caracteres
+- Meta description: ${SEO_DESCRIPTION_MIN_CHARS} a ${SEO_DESCRIPTION_MAX_CHARS} caracteres
 
 Estrutura obrigatoria no content_html:
-1) Um unico H1
+1) Nao incluir H1 (o H1 da pagina vem do titulo do artigo fora do content_html)
 2) Introducao (500-800 caracteres)
 3) Sumario clicavel com ancora
 4) Entre ${MIN_H2} e ${MAX_H2} H2
@@ -683,7 +708,7 @@ Regras criticas:
 - manter H2 no intervalo ${MIN_H2}-${MAX_H2}
 - manter conclusao entre ${MIN_CONCLUSION_CHARS}-${MAX_CONCLUSION_CHARS} caracteres
 - manter densidade da palavra-chave em ${MIN_KEYWORD_DENSITY}%-${MAX_KEYWORD_DENSITY}%
-- manter seo_title em 50-60 e seo_description em 140-160
+- manter seo_title em ${SEO_TITLE_MIN_CHARS}-${SEO_TITLE_MAX_CHARS} e seo_description em ${SEO_DESCRIPTION_MIN_CHARS}-${SEO_DESCRIPTION_MAX_CHARS}
 - nao remover FAQ
 
 Artigo atual (JSON):

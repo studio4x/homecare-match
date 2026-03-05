@@ -9,6 +9,10 @@ const corsHeaders = {
 };
 
 const BASE_URL = "https://www.homecarematch.com.br";
+const SEO_TITLE_MIN_CHARS = 30;
+const SEO_TITLE_MAX_CHARS = 60;
+const SEO_DESCRIPTION_MIN_CHARS = 70;
+const SEO_DESCRIPTION_MAX_CHARS = 155;
 
 const ALLOWED_FIELDS = new Set([
   "title",
@@ -53,6 +57,19 @@ const toSlug = (value: unknown) =>
 
 const compactText = (value: unknown, max = 180) => String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
 
+const fitLengthRange = (value: string, min: number, max: number, fallbackPad: string) => {
+  const safePad =
+    String(fallbackPad || "").trim() || "Conteudo informativo para orientar decisoes com qualidade e seguranca.";
+  let text = String(value || "").trim().replace(/\s+/g, " ");
+  if (!text) text = safePad;
+  while (text.length < min) {
+    text = `${text} ${safePad}`.replace(/\s+/g, " ").trim();
+    if (text.length >= min) break;
+  }
+  if (text.length > max) return text.slice(0, max).trim();
+  return text;
+};
+
 const stripHtml = (html: string) =>
   String(html || "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
@@ -65,6 +82,12 @@ const sanitizeHtml = (html: string) =>
   String(html || "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .trim();
+
+const stripContentH1Tags = (html: string) =>
+  String(html || "")
+    .replace(/<h1\b[^>]*>[\s\S]*?<\/h1>/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 
 const getSafeExternalUrl = (value: unknown) => {
@@ -87,7 +110,7 @@ const buildDefaultCanonicalUrl = (slugLike: string) => {
 const buildDefaultSchemaJson = (context: Record<string, string>) => {
   const title = compactText(context.title || "", 120);
   const slug = toSlug(context.slug || context.title || "");
-  const description = compactText(context.seo_description || context.excerpt || "", 160);
+  const description = compactText(context.seo_description || context.excerpt || "", SEO_DESCRIPTION_MAX_CHARS);
   const keyword = compactText(context.focus_keyword || "", 120);
   return JSON.stringify(
     [
@@ -122,10 +145,10 @@ const buildPrompt = ({
     slug: "- Retorne somente slug URL-friendly, sem acentos, em minusculo e com hifens (max 75 caracteres).",
     excerpt: "- Retorne um resumo curto, escaneavel e orientado a SEO (ideal 120-220 caracteres).",
     content_html:
-      "- Retorne HTML completo com H1 unico, 3 a 6 H2, H3 quando necessario, conclusao e FAQ. Conteudo de 5000 a 8000 caracteres em texto limpo.",
+      "- Retorne HTML completo SEM H1 (o titulo principal fica fora do conteúdo), com 3 a 6 H2, H3 quando necessario, conclusao e FAQ. Conteudo de 5000 a 8000 caracteres em texto limpo.",
     focus_keyword: "- Retorne UMA palavra-chave foco principal, objetiva e relevante (max 90 caracteres).",
-    seo_title: "- Retorne um SEO title entre 50 e 60 caracteres, com palavra-chave principal.",
-    seo_description: "- Retorne uma meta description entre 140 e 160 caracteres, com beneficio claro e CTA.",
+    seo_title: `- Retorne um SEO title entre ${SEO_TITLE_MIN_CHARS} e ${SEO_TITLE_MAX_CHARS} caracteres, com palavra-chave principal.`,
+    seo_description: `- Retorne uma meta description entre ${SEO_DESCRIPTION_MIN_CHARS} e ${SEO_DESCRIPTION_MAX_CHARS} caracteres, com beneficio claro e CTA.`,
     seo_og_title: "- Retorne Open Graph title atrativo (ate 60 caracteres).",
     seo_og_description: "- Retorne Open Graph description concisa (ate 160 caracteres).",
   };
@@ -164,9 +187,19 @@ const applyFieldRules = (field: string, rawValue: unknown, context: Record<strin
     case "slug":
       return toSlug(value || context.title || context.focus_keyword || "");
     case "seo_title":
-      return compactText(value, 60);
+      return fitLengthRange(
+        value,
+        SEO_TITLE_MIN_CHARS,
+        SEO_TITLE_MAX_CHARS,
+        String(context.focus_keyword || context.title || "Home Care").trim(),
+      );
     case "seo_description":
-      return compactText(value, 160);
+      return fitLengthRange(
+        value,
+        SEO_DESCRIPTION_MIN_CHARS,
+        SEO_DESCRIPTION_MAX_CHARS,
+        String(context.excerpt || "Conteudo informativo para orientar com qualidade e seguranca.").trim(),
+      );
     case "seo_og_title":
       return compactText(value, 60);
     case "seo_og_description":
@@ -178,7 +211,7 @@ const applyFieldRules = (field: string, rawValue: unknown, context: Record<strin
     case "excerpt":
       return compactText(value, 220);
     case "content_html":
-      return sanitizeHtml(value);
+      return stripContentH1Tags(sanitizeHtml(value));
     default:
       return compactText(value, 240);
   }

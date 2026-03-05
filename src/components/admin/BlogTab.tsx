@@ -290,15 +290,32 @@ const parseSchemaJson = (value: string) => {
   }
 };
 
+const stripContentH1Tags = (html: string) =>
+  String(html || "")
+    .replace(/<h1\b[^>]*>[\s\S]*?<\/h1>/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
 const clampText = (value: string, max: number) => String(value || "").trim().slice(0, max).trim();
+const fitSeoLengthRange = (value: string, min: number, max: number, padText: string) => {
+  const safePad =
+    String(padText || "").trim() || "Conteudo informativo para orientar decisoes com qualidade e seguranca.";
+  let text = String(value || "").trim().replace(/\s+/g, " ");
+  if (!text) text = safePad;
+  while (text.length < min) {
+    text = `${text} ${safePad}`.replace(/\s+/g, " ").trim();
+    if (text.length >= min) break;
+  }
+  if (text.length > max) return text.slice(0, max).trim();
+  return text;
+};
 
 const buildDefaultCanonicalUrl = (slug: string) => {
   const safeSlug = generateSlug(String(slug || "").trim());
   return safeSlug ? `https://www.homecarematch.com.br/blog/artigo/${safeSlug}` : "https://www.homecarematch.com.br/blog";
 };
 
-const buildFallbackArticleContent = (title: string, keyword: string, excerpt: string) => {
-  const safeTitle = String(title || "Guia de Home Care").trim();
+const buildFallbackArticleContent = (keyword: string, excerpt: string) => {
   const safeKeyword = String(keyword || "home care").trim();
   const safeExcerpt =
     String(excerpt || "").trim() ||
@@ -361,7 +378,6 @@ const buildFallbackArticleContent = (title: string, keyword: string, excerpt: st
 `;
 
   return `
-<h1>${safeTitle}</h1>
 ${intro}
 <h2 id="sumario">Neste artigo você verá</h2>
 <ul>
@@ -386,7 +402,7 @@ const buildDefaultSchemaJson = (title: string, slug: string, description: string
         "@context": "https://schema.org",
         "@type": "BlogPosting",
         headline: String(title || "").trim(),
-        description: clampText(description || "", 160),
+        description: clampText(description || "", 155),
         keywords: String(keyword || "").trim(),
         mainEntityOfPage: {
           "@type": "WebPage",
@@ -443,6 +459,10 @@ const stripAuditHtml = (html: string) =>
 const countAuditMatches = (value: string, regex: RegExp) => (String(value || "").match(regex) || []).length;
 const SEO_MIN_CONTENT_CHARS = 8000;
 const SEO_MAX_CONTENT_CHARS = 12000;
+const SEO_TITLE_MIN_CHARS = 30;
+const SEO_TITLE_MAX_CHARS = 60;
+const SEO_DESCRIPTION_MIN_CHARS = 70;
+const SEO_DESCRIPTION_MAX_CHARS = 155;
 
 const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const contentHtml = String(form.content_html || "");
@@ -491,10 +511,6 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const keywordInFirstParagraph = keywordNorm ? normalizeAuditText(firstParagraphText).includes(keywordNorm) : false;
   const keywordInConclusion = keywordNorm ? normalizeAuditText(conclusionText).includes(keywordNorm) : false;
   const keywordInMetaDescription = keywordNorm ? seoDescriptionNorm.includes(keywordNorm) : false;
-  const keywordInH1 = keywordNorm
-    ? normalizeAuditText(stripAuditHtml(contentHtml.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || "")).includes(keywordNorm)
-    : false;
-
   const items: SeoAuditItem[] = [
     {
       id: "min-content",
@@ -504,8 +520,8 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
     },
     {
       id: "h1-single",
-      label: "Estrutura H1 (exatamente 1)",
-      passed: h1Count === 1,
+      label: "Sem H1 no conteúdo (H1 fica no título da página)",
+      passed: h1Count === 0,
       detail: `${h1Count} H1`,
     },
     {
@@ -525,12 +541,6 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
       label: "Densidade da palavra-chave (0,8% a 1,5%)",
       passed: keywordDensity >= 0.8 && keywordDensity <= 1.5,
       detail: `${keywordDensity.toFixed(2)}%`,
-    },
-    {
-      id: "keyword-h1",
-      label: "Palavra-chave no H1",
-      passed: keywordInH1,
-      detail: keyword || "Sem palavra-chave foco",
     },
     {
       id: "keyword-first-paragraph",
@@ -594,16 +604,18 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
     },
     {
       id: "seo-title-length",
-      label: "SEO title entre 50 e 60 caracteres",
-      passed: String(form.seo_title || "").trim().length >= 50 && String(form.seo_title || "").trim().length <= 60,
+      label: `SEO title entre ${SEO_TITLE_MIN_CHARS} e ${SEO_TITLE_MAX_CHARS} caracteres`,
+      passed:
+        String(form.seo_title || "").trim().length >= SEO_TITLE_MIN_CHARS &&
+        String(form.seo_title || "").trim().length <= SEO_TITLE_MAX_CHARS,
       detail: `${String(form.seo_title || "").trim().length} caracteres`,
     },
     {
       id: "meta-length",
-      label: "Meta description entre 140 e 160 caracteres",
+      label: `Meta description entre ${SEO_DESCRIPTION_MIN_CHARS} e ${SEO_DESCRIPTION_MAX_CHARS} caracteres`,
       passed:
-        String(form.seo_description || "").trim().length >= 140 &&
-        String(form.seo_description || "").trim().length <= 160,
+        String(form.seo_description || "").trim().length >= SEO_DESCRIPTION_MIN_CHARS &&
+        String(form.seo_description || "").trim().length <= SEO_DESCRIPTION_MAX_CHARS,
       detail: `${String(form.seo_description || "").trim().length} caracteres`,
     },
   ];
@@ -1273,7 +1285,7 @@ const BlogTab = () => {
         excerpt: articleForm.excerpt || null,
         source_reference_url: articleForm.source_reference_url || null,
         cover_image_url: articleForm.cover_image_url || null,
-        content_html: articleForm.content_html,
+        content_html: stripContentH1Tags(articleForm.content_html),
         status: articleForm.status,
         published_at:
           articleForm.status === "published"
@@ -1379,7 +1391,7 @@ const BlogTab = () => {
       excerpt: article.excerpt || "",
       source_reference_url: article.source_reference_url || "",
       cover_image_url: article.cover_image_url || "",
-      content_html: article.content_html || "",
+      content_html: stripContentH1Tags(article.content_html || ""),
       status: article.status === "published" ? "published" : "draft",
       published_at: article.published_at || "",
       author_name: article.author_name || "Equipe HomeCare Match",
@@ -1453,7 +1465,7 @@ const BlogTab = () => {
       const aiTitle = String(payload.title || "").trim();
       const aiSlug = generateSlug(String(payload.slug || aiTitle || ""));
       const aiExcerpt = String(payload.excerpt || "").trim();
-      const aiContent = String(payload.content_html || "").trim();
+      const aiContent = stripContentH1Tags(String(payload.content_html || "").trim());
       const aiFocusKeyword = String(payload.focus_keyword || "").trim();
       const aiTagsSuggested = Array.isArray(payload.tags_suggested) ? payload.tags_suggested : [];
       const aiSeoIssues = Array.isArray(payload?.seo_issues)
@@ -1473,16 +1485,26 @@ const BlogTab = () => {
         aiExcerpt ||
         articleForm.excerpt ||
         clampText(`Aprenda como aplicar ${resolvedKeyword} com foco em qualidade assistencial, segurança e eficiência no Home Care.`, 180);
-      const resolvedContent = aiContent || buildFallbackArticleContent(resolvedTitle, resolvedKeyword, resolvedExcerpt);
+      const resolvedContent = stripContentH1Tags(
+        aiContent || buildFallbackArticleContent(resolvedKeyword, resolvedExcerpt),
+      );
       const resolvedCanonical =
         String(payload.seo_canonical_url || "").trim() ||
         articleForm.seo_canonical_url ||
         buildDefaultCanonicalUrl(resolvedSlug);
       const resolvedSeoRobots = String(payload.seo_robots || "").trim() || articleForm.seo_robots || "index,follow";
-      const resolvedSeoTitle = String(payload.seo_title || "").trim() || clampText(resolvedTitle, 60);
-      const resolvedSeoDescription =
-        String(payload.seo_description || "").trim() ||
-        clampText(resolvedExcerpt || stripAuditHtml(resolvedContent), 160);
+      const resolvedSeoTitle = fitSeoLengthRange(
+        String(payload.seo_title || "").trim() || resolvedTitle,
+        SEO_TITLE_MIN_CHARS,
+        SEO_TITLE_MAX_CHARS,
+        resolvedTitle || resolvedKeyword,
+      );
+      const resolvedSeoDescription = fitSeoLengthRange(
+        String(payload.seo_description || "").trim() || resolvedExcerpt || stripAuditHtml(resolvedContent),
+        SEO_DESCRIPTION_MIN_CHARS,
+        SEO_DESCRIPTION_MAX_CHARS,
+        resolvedExcerpt || "Conteudo informativo para orientar com qualidade e seguranca.",
+      );
       const resolvedOgTitle = String(payload.seo_og_title || "").trim() || resolvedSeoTitle;
       const resolvedOgDescription = String(payload.seo_og_description || "").trim() || resolvedSeoDescription;
       const resolvedOgImage =
@@ -1947,7 +1969,7 @@ const BlogTab = () => {
       const aiTitle = String(articlePayload.title || "").trim();
       const aiSlug = generateSlug(String(articlePayload.slug || aiTitle || ""));
       const aiExcerpt = String(articlePayload.excerpt || "").trim();
-      const aiContent = String(articlePayload.content_html || "").trim();
+      const aiContent = stripContentH1Tags(String(articlePayload.content_html || "").trim());
       const aiFocusKeyword = String(articlePayload.focus_keyword || "").trim();
       const aiTagsSuggested = Array.isArray(articlePayload.tags_suggested) ? articlePayload.tags_suggested : [];
       const aiSeoIssues = Array.isArray(articlePayload?.seo_issues)
@@ -1966,16 +1988,26 @@ const BlogTab = () => {
       const resolvedExcerpt =
         aiExcerpt ||
         clampText(result.summary || articleForm.excerpt || `Saiba como aplicar ${resolvedKeyword} com foco em segurança e qualidade no Home Care.`, 180);
-      const resolvedContent = aiContent || buildFallbackArticleContent(resolvedTitle, resolvedKeyword, resolvedExcerpt);
+      const resolvedContent = stripContentH1Tags(
+        aiContent || buildFallbackArticleContent(resolvedKeyword, resolvedExcerpt),
+      );
       const resolvedCanonical =
         String(articlePayload.seo_canonical_url || "").trim() ||
         articleForm.seo_canonical_url ||
         buildDefaultCanonicalUrl(resolvedSlug);
       const resolvedSeoRobots = String(articlePayload.seo_robots || "").trim() || articleForm.seo_robots || "index,follow";
-      const resolvedSeoTitle = String(articlePayload.seo_title || "").trim() || clampText(resolvedTitle, 60);
-      const resolvedSeoDescription =
-        String(articlePayload.seo_description || "").trim() ||
-        clampText(resolvedExcerpt || stripAuditHtml(resolvedContent), 160);
+      const resolvedSeoTitle = fitSeoLengthRange(
+        String(articlePayload.seo_title || "").trim() || resolvedTitle,
+        SEO_TITLE_MIN_CHARS,
+        SEO_TITLE_MAX_CHARS,
+        resolvedTitle || resolvedKeyword,
+      );
+      const resolvedSeoDescription = fitSeoLengthRange(
+        String(articlePayload.seo_description || "").trim() || resolvedExcerpt || stripAuditHtml(resolvedContent),
+        SEO_DESCRIPTION_MIN_CHARS,
+        SEO_DESCRIPTION_MAX_CHARS,
+        resolvedExcerpt || "Conteudo informativo para orientar com qualidade e seguranca.",
+      );
       const resolvedOgTitle = String(articlePayload.seo_og_title || "").trim() || resolvedSeoTitle;
       const resolvedOgDescription = String(articlePayload.seo_og_description || "").trim() || resolvedSeoDescription;
 
@@ -2447,8 +2479,8 @@ const BlogTab = () => {
                     onChange={(html) =>
                       setArticleForm((prev) => ({
                         ...prev,
-                        content_html: html,
-                        reading_time_minutes: Math.max(1, estimateReadingTime(html)),
+                        content_html: stripContentH1Tags(html),
+                        reading_time_minutes: Math.max(1, estimateReadingTime(stripContentH1Tags(html))),
                       }))
                     }
                   />

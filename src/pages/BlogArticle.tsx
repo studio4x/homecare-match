@@ -15,6 +15,12 @@ import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Loader2, UserRound } f
 import { supabase } from "@/integrations/supabase/client";
 import { BlogArticle, articleUrl, getExcerptFromHtml, mapBlogArticleRecord, stripHtml } from "@/lib/blog";
 
+const stripContentH1Tags = (html: string) =>
+  String(html || "")
+    .replace(/<h1\b[^>]*>[\s\S]*?<\/h1>/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
 const BlogArticlePage = () => {
   const { slug = "" } = useParams();
 
@@ -232,11 +238,12 @@ const BlogArticlePage = () => {
     return `${window.location.origin}${articleUrl(article?.slug || slug)}`;
   }, [article?.seo_canonical_url, article?.slug, slug]);
 
+  const contentHtmlWithoutH1 = useMemo(() => stripContentH1Tags(article?.content_html || ""), [article?.content_html]);
   const seoTitle = article?.seo_title || article?.title || "Artigo";
   const seoDescription =
     article?.seo_description ||
     article?.excerpt ||
-    getExcerptFromHtml(article?.content_html || "", 170) ||
+    getExcerptFromHtml(contentHtmlWithoutH1 || "", 170) ||
     "Conteúdo do blog HomeCare Match.";
 
   const articleSchema = useMemo(() => {
@@ -270,14 +277,14 @@ const BlogArticlePage = () => {
         "@id": canonicalUrl,
       },
       keywords: article.tags.map((tag) => tag.name).join(", "),
-      articleBody: stripHtml(article.content_html || "").slice(0, 4000),
+      articleBody: stripHtml(contentHtmlWithoutH1 || "").slice(0, 4000),
     };
 
     const extraSchema =
       article.schema_json && typeof article.schema_json === "object" ? article.schema_json : null;
 
     return extraSchema ? [primarySchema, extraSchema] : primarySchema;
-  }, [article, canonicalUrl, seoDescription]);
+  }, [article, canonicalUrl, seoDescription, contentHtmlWithoutH1]);
 
   if (isLoading) {
     return (
@@ -402,9 +409,17 @@ const BlogArticlePage = () => {
           )}
 
           <SafeHTML
-            content={article.content_html || ""}
+            content={contentHtmlWithoutH1}
             className="prose-headings:font-bold prose-p:text-foreground/90 prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
           />
+
+          <div className="rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p>
+              <strong>Aviso Importante:</strong> Este artigo foi desenvolvido com o auxílio de Inteligência Artificial e pode conter
+              imprecisões. Este conteúdo é estritamente informativo e não substitui a orientação profissional. Um profissional sempre
+              deverá ser consultado. Para dúvidas ou suporte especializado, entre em contato com nosso atendimento.
+            </p>
+          </div>
 
           {referenceUrl && (
             <div className="border-t border-border pt-4 text-sm text-muted-foreground">

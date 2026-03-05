@@ -1231,8 +1231,11 @@ const BlogTab = () => {
     }
   };
 
-  const handleSaveArticle = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleSaveArticle = async (
+    event?: FormEvent,
+    action: "close" | "continue" = "continue",
+  ) => {
+    event?.preventDefault();
 
     if (!articleForm.title.trim()) {
       toast.error("Informe o título do artigo.");
@@ -1327,7 +1330,20 @@ const BlogTab = () => {
       }
 
       toast.success(articleForm.id ? "Artigo atualizado." : "Artigo criado.");
-      resetArticleForm();
+      if (action === "close") {
+        resetArticleForm();
+      } else {
+        setArticleForm((prev) => ({
+          ...prev,
+          id: articleId || prev.id,
+          slug: generateSlug(prev.slug),
+          reading_time_minutes: estimatedReadingTime,
+          published_at:
+            prev.status === "published"
+              ? prev.published_at || new Date().toISOString()
+              : prev.published_at,
+        }));
+      }
       fetchAll();
     } catch (err: any) {
       toast.error(err?.message || "Erro ao salvar artigo.");
@@ -2250,7 +2266,7 @@ const BlogTab = () => {
                 </div>
               </div>
 
-              <form onSubmit={handleSaveArticle} className="space-y-5">
+              <form onSubmit={(event) => void handleSaveArticle(event, "continue")} className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -2666,9 +2682,24 @@ const BlogTab = () => {
                   <Button type="button" variant="outline" onClick={resetArticleForm}>
                     Limpar
                   </Button>
-                  <Button type="submit" disabled={savingArticle} className="gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={savingArticle}
+                    className="gap-2"
+                    onClick={() => void handleSaveArticle(undefined, "close")}
+                  >
                     {savingArticle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Salvar artigo
+                    Salvar e fechar
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={savingArticle}
+                    className="gap-2"
+                    onClick={() => void handleSaveArticle(undefined, "continue")}
+                  >
+                    {savingArticle ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Salvar e continuar edição
                   </Button>
                 </div>
               </form>

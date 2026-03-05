@@ -16,7 +16,6 @@ import {
   Search,
   ChevronRight,
   Newspaper,
-  CircleHelp,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -49,17 +48,7 @@ const Navbar = () => {
     is_admin: boolean | null;
   } | null>(null);
 
-  const isProfessionalLanding = location.pathname === "/";
-  const isAdmin = profile?.is_admin || profile?.role === "admin";
-  const dashboardPath = isAdmin ? "/admin" : "/dashboard";
-
-  const isActive = (path: string) => {
-    if (path.includes("#")) {
-      const [pathname, hashFragment] = path.split("#");
-      return location.pathname === pathname && location.hash === `#${hashFragment}`;
-    }
-    return location.pathname === path;
-  };
+  const isActive = (path: string) => location.pathname === path;
 
   useEffect(() => {
     if (!user) {
@@ -82,98 +71,70 @@ const Navbar = () => {
 
   useEffect(() => {
     setMobileMenuOpen(false);
-  }, [location.pathname, location.hash]);
+  }, [location.pathname]);
 
   useEffect(() => {
     setPortalReady(true);
   }, []);
 
-  const canSeeSearch = !session || (session && profile && profile.role !== "professional" && !isAdmin);
   const initials = profile?.full_name
     ? profile.full_name
         .split(" ")
-        .map((name) => name[0])
+        .map((n) => n[0])
         .join("")
         .slice(0, 2)
         .toUpperCase()
     : "??";
 
+  const isAdmin = profile?.is_admin || profile?.role === "admin";
+  const canSeeSearch = !session || (session && profile && profile.role !== "professional" && !isAdmin);
+
   const logoUrl = config?.logo_url || DEFAULT_LOGO;
   const logoHeight = config?.logo_height_px || 48;
+  const dashboardPath = isAdmin ? "/admin" : "/dashboard";
 
-  const trackLandingHeaderCta = () => {
-    if (!isProfessionalLanding) return;
-    window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({
-      event: "hcm_lp_profissionais_cta_click",
-      cta_location: "header",
-      page_variant: "profissionais",
-    });
-  };
-
-  const mobileMenuLinks = isProfessionalLanding
-    ? [
-        {
-          to: "/#como-funciona",
-          label: "Como funciona",
-          description: "Veja o passo a passo",
-          icon: LayoutGrid,
-        },
-        {
-          to: "/#planos",
-          label: "Planos",
-          description: "Compare opcoes",
-          icon: Building2,
-        },
-        {
-          to: "/#duvidas",
-          label: "Duvidas",
-          description: "Perguntas frequentes",
-          icon: CircleHelp,
-        },
-      ]
-    : [
-        {
-          to: "/",
-          label: "Profissionais",
-          description: "Conheca a versao para profissionais",
-          icon: Home,
-        },
-        {
-          to: "/empresas",
-          label: "Empresas",
-          description: "Fluxo dedicado para recrutadores",
-          icon: Building2,
-        },
-        {
-          to: "/familias",
-          label: "Familias",
-          description: "Busca para cuidado domiciliar",
-          icon: Users,
-        },
-        {
-          to: "/funcionalidades",
-          label: "Funcionalidades",
-          description: "Veja os principais recursos",
-          icon: LayoutGrid,
-        },
-        {
-          to: "/blog",
-          label: "Blog",
-          description: "Conteudo sobre Home Care",
-          icon: Newspaper,
-        },
-        ...(canSeeSearch
-          ? [
-              {
-                to: "/buscar",
-                label: "Buscar Profissionais",
-                description: "Encontre profissionais verificados",
-                icon: Search,
-              },
-            ]
-          : []),
-      ];
+  const mobileMenuLinks = [
+    {
+      to: "/",
+      label: "Profissionais",
+      description: "Conheca a versao para profissionais",
+      icon: Home,
+    },
+    {
+      to: "/empresas",
+      label: "Empresas",
+      description: "Fluxo dedicado para recrutadores",
+      icon: Building2,
+    },
+    {
+      to: "/familias",
+      label: "Familias",
+      description: "Busca para cuidado domiciliar",
+      icon: Users,
+    },
+    {
+      to: "/funcionalidades",
+      label: "Funcionalidades",
+      description: "Veja os principais recursos",
+      icon: LayoutGrid,
+    },
+    {
+      to: "/blog",
+      label: "Blog",
+      description: "Conteúdo sobre Home Care",
+      icon: Newspaper,
+    },
+    ...(canSeeSearch
+      ? [
+          {
+            to: "/buscar",
+            label: "Buscar Profissionais",
+            description: "Encontre profissionais verificados",
+            icon: Search,
+          },
+        ]
+      : []),
+  ];
 
   return (
     <nav className="sticky top-0 z-[160] border-b border-border/70 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/70">
@@ -189,87 +150,65 @@ const Navbar = () => {
           </Link>
 
           <div className="hidden items-center gap-6 md:flex">
-            {isProfessionalLanding ? (
-              <>
-                <Link to="/#como-funciona" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-                  Como funciona
-                </Link>
-                <Link to="/#planos" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-                  Planos
-                </Link>
-                <Link to="/#duvidas" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-                  Duvidas
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  to="/"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive("/") ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  Para Profissionais
-                </Link>
-                <Link
-                  to="/empresas"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive("/empresas") ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  Para Empresas
-                </Link>
-                <Link
-                  to="/familias"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive("/familias") ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  Para Familias
-                </Link>
-                <Link
-                  to="/funcionalidades"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    isActive("/funcionalidades") ? "text-primary" : "text-muted-foreground"
-                  }`}
-                >
-                  Funcionalidades
-                </Link>
-                <Link
-                  to="/blog"
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
-                    location.pathname === "/blog" || location.pathname.startsWith("/blog/")
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  Blog
-                </Link>
-                {canSeeSearch && (
-                  <Link
-                    to="/buscar"
-                    className={`text-sm font-medium transition-colors hover:text-primary ${
-                      isActive("/buscar") ? "text-primary" : "text-muted-foreground"
-                    }`}
-                  >
-                    Buscar Profissionais
-                  </Link>
-                )}
-              </>
+            <Link
+              to="/"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive("/") ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              Para Profissionais
+            </Link>
+            <Link
+              to="/empresas"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive("/empresas") ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              Para Empresas
+            </Link>
+            <Link
+              to="/familias"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive("/familias") ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              Para Familias
+            </Link>
+            <Link
+              to="/funcionalidades"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                isActive("/funcionalidades") ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              Funcionalidades
+            </Link>
+            <Link
+              to="/blog"
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                location.pathname === "/blog" || location.pathname.startsWith("/blog/")
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              }`}
+            >
+              Blog
+            </Link>
+            {canSeeSearch && (
+              <Link
+                to="/buscar"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  isActive("/buscar") ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                Buscar Profissionais
+              </Link>
             )}
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
-            {isProfessionalLanding ? (
-              <Button asChild size="sm" onClick={trackLandingHeaderCta}>
-                <Link to={session ? dashboardPath : "/login#auth-sign-up"}>
-                  {session ? "Meu Painel" : "Criar perfil"}
-                </Link>
-              </Button>
-            ) : session ? (
+            {session ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="group flex items-center gap-3 outline-none transition-opacity hover:opacity-80">
+                  <button className="group flex items-center gap-3 transition-opacity hover:opacity-80 outline-none">
                     <div className="flex flex-col items-end">
                       <span className="text-xs font-medium leading-none text-foreground transition-colors group-hover:text-primary">
                         Minha Conta
@@ -328,7 +267,7 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
-            {!session && !isProfessionalLanding && (
+            {!session && (
               <Button size="sm" variant="outline" asChild>
                 <Link to="/login">Entrar</Link>
               </Button>
@@ -348,102 +287,89 @@ const Navbar = () => {
       {portalReady &&
         mobileMenuOpen &&
         createPortal(
-          <div className="fixed inset-0 z-[1000] md:hidden">
-            <button
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-              onClick={() => setMobileMenuOpen(false)}
-              aria-label="Fechar menu"
-            />
+        <div className="fixed inset-0 z-[1000] md:hidden">
+          <button
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Fechar menu"
+          />
 
-            <div className="absolute inset-x-2 bottom-2 top-20 overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
-              <div className="flex h-full flex-col">
-                <div className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-background to-success/10 p-4">
-                  {session ? (
-                    <Link
-                      to={dashboardPath}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 rounded-2xl border border-border bg-background/90 p-3"
-                    >
-                      <Avatar className="h-10 w-10 border border-border">
-                        <AvatarImage src={profile?.avatar_url || ""} />
-                        <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">{initials}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">{profile?.full_name || "Minha Conta"}</p>
-                        <p className="truncate text-xs text-muted-foreground">{isAdmin ? "Painel administrativo" : "Abrir meu painel"}</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </Link>
-                  ) : isProfessionalLanding ? (
-                    <Button asChild className="h-11 w-full">
-                      <Link
-                        to="/login#auth-sign-up"
-                        onClick={() => {
-                          trackLandingHeaderCta();
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        Criar perfil
+          <div className="absolute inset-x-2 bottom-2 top-20 overflow-hidden rounded-3xl border border-border bg-card shadow-2xl">
+            <div className="flex h-full flex-col">
+              <div className="border-b border-border/70 bg-gradient-to-r from-primary/10 via-background to-success/10 p-4">
+                {session ? (
+                  <Link
+                    to={dashboardPath}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-background/90 p-3"
+                  >
+                    <Avatar className="h-10 w-10 border border-border">
+                      <AvatarImage src={profile?.avatar_url || ""} />
+                      <AvatarFallback className="bg-primary/10 text-xs font-bold text-primary">{initials}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{profile?.full_name || "Minha Conta"}</p>
+                      <p className="truncate text-xs text-muted-foreground">{isAdmin ? "Painel administrativo" : "Abrir meu painel"}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Link>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button asChild variant="outline" className="h-11">
+                      <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                        Entrar
                       </Link>
                     </Button>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button asChild variant="outline" className="h-11">
-                        <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
-                          Entrar
-                        </Link>
-                      </Button>
-                      <Button asChild className="h-11">
-                        <Link to="/login#auth-sign-up" onClick={() => setMobileMenuOpen(false)}>
-                          Assinar
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 space-y-2 overflow-y-auto p-4">
-                  {mobileMenuLinks.map((item) => (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 rounded-2xl border p-3 transition-colors ${
-                        isActive(item.to) ? "border-primary/40 bg-primary/10" : "border-border bg-background hover:border-primary/20"
-                      }`}
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
-                        <item.icon className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground">{item.label}</p>
-                        <p className="truncate text-xs text-muted-foreground">{item.description}</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </Link>
-                  ))}
-                </div>
-
-                {session && (
-                  <div className="border-t border-border p-4">
-                    <Button
-                      variant="ghost"
-                      className="h-11 w-full justify-start gap-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        signOut();
-                      }}
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sair da conta
+                    <Button asChild className="h-11">
+                      <Link to="/login#auth-sign-up" onClick={() => setMobileMenuOpen(false)}>
+                        Assinar
+                      </Link>
                     </Button>
                   </div>
                 )}
               </div>
+
+              <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                {mobileMenuLinks.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 rounded-2xl border p-3 transition-colors ${
+                      isActive(item.to) ? "border-primary/40 bg-primary/10" : "border-border bg-background hover:border-primary/20"
+                    }`}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
+                      <item.icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{item.label}</p>
+                      <p className="truncate text-xs text-muted-foreground">{item.description}</p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                ))}
+              </div>
+
+              {session && (
+                <div className="border-t border-border p-4">
+                  <Button
+                    variant="ghost"
+                    className="h-11 w-full justify-start gap-3 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      signOut();
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sair da conta
+                  </Button>
+                </div>
+              )}
             </div>
-          </div>,
-          document.body,
-        )}
+          </div>
+        </div>
+        , document.body)}
     </nav>
   );
 };

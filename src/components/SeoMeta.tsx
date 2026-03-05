@@ -9,7 +9,6 @@ interface SeoMetaProps {
   imageUrl?: string;
   robots?: string;
   jsonLd?: Record<string, unknown> | Array<Record<string, unknown>>;
-  appendSiteName?: boolean;
 }
 
 const SITE_NAME = "HomeCare Match";
@@ -37,23 +36,11 @@ const ensureCanonical = () => {
   return link;
 };
 
-const SeoMeta = ({
-  title,
-  description,
-  canonicalUrl,
-  imageUrl,
-  robots,
-  jsonLd,
-  appendSiteName = true,
-}: SeoMetaProps) => {
+const SeoMeta = ({ title, description, canonicalUrl, imageUrl, robots, jsonLd }: SeoMetaProps) => {
   useEffect(() => {
     const previousTitle = document.title;
 
-    const finalTitle = title
-      ? appendSiteName
-        ? `${title} | ${SITE_NAME}`
-        : title
-      : SITE_NAME;
+    const finalTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME;
     const finalDescription = description || DEFAULT_DESCRIPTION;
     const finalRobots = robots || "index,follow";
     const finalCanonical =
@@ -118,7 +105,7 @@ const SeoMeta = ({
         .querySelectorAll('script[data-seo-jsonld="true"]')
         .forEach((node) => node.parentElement?.removeChild(node));
     };
-  }, [appendSiteName, canonicalUrl, description, imageUrl, jsonLd, robots, title]);
+  }, [canonicalUrl, description, imageUrl, jsonLd, robots, title]);
 
   return null;
 };

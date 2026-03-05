@@ -330,6 +330,7 @@ const stripAuditHtml = (html: string) =>
 const countAuditMatches = (value: string, regex: RegExp) => (String(value || "").match(regex) || []).length;
 const SEO_MIN_CONTENT_CHARS = 8000;
 const SEO_MAX_CONTENT_CHARS = 12000;
+const DRAFT_STAGE_MIN_CHARS = 1800;
 
 const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const contentHtml = String(form.content_html || "");
@@ -739,6 +740,18 @@ const BlogTab = () => {
     [articleForm.cover_image_url],
   );
   const seoAuditReport = useMemo(() => computeSeoAuditReport(articleForm), [articleForm]);
+  const draftPlainChars = useMemo(
+    () => stripAuditHtml(String(articleForm.content_html || "")).length,
+    [articleForm.content_html],
+  );
+  const stage1Ready = useMemo(
+    () => !!String(articleForm.title || "").trim() && draftPlainChars >= DRAFT_STAGE_MIN_CHARS,
+    [articleForm.title, draftPlainChars],
+  );
+  const stage2Ready = useMemo(() => {
+    const contentAudit = seoAuditReport.items.find((item) => item.id === "min-content");
+    return !!contentAudit?.passed;
+  }, [seoAuditReport]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -1944,6 +1957,35 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                     <p className="text-xs text-muted-foreground">
                       Gere um artigo por sugestão ou deixe a IA escolher um tema estratégico para a plataforma.
                     </p>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border/70 bg-background/80 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fluxo recomendado</p>
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    <div className="rounded-md border border-border/70 bg-background p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium">Etapa 1: Rascunho principal</p>
+                        <Badge variant={stage1Ready ? "default" : "secondary"}>
+                          {generatingAI === "suggestion" || generatingAI === "automatic"
+                            ? "Em andamento"
+                            : stage1Ready
+                              ? "Concluida"
+                              : "Pendente"}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">Gere as informacoes principais de forma rapida.</p>
+                    </div>
+                    <div className="rounded-md border border-border/70 bg-background p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium">Etapa 2: Completar SEO 8k-12k</p>
+                        <Badge variant={stage2Ready ? "default" : "outline"}>
+                          {generatingAI === "enhance" ? "Em andamento" : stage2Ready ? "Concluida" : "Pendente"}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Use "Completar artigo com IA" para finalizar o artigo completo.
+                      </p>
+                    </div>
                   </div>
                 </div>
                 <Textarea

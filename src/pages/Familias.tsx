@@ -93,7 +93,7 @@ const Familias = () => {
 
   // Determine video URL for LandingVideoPlayer
   const landingVideoUrl = config?.video_storage_path_families
-    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/site-videos/${config.video_storage_path_families}`
+    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/uploads/${config.video_storage_path_families}`
     : config?.video_url_families;
 
   return (

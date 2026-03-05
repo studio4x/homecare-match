@@ -376,7 +376,7 @@ const Index = () => {
   const CardIcon = cardContent.icon;
 
   const landingVideoUrl = config?.video_storage_path_professionals
-    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/site-videos/${config.video_storage_path_professionals}`
+    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/uploads/${config.video_storage_path_professionals}`
     : config?.video_url_professionals;
 
   if (authLoading) {

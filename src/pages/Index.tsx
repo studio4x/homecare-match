@@ -342,9 +342,9 @@ const Index = () => {
   const getAcademyCardContent = () => {
     if (!session) {
       return {
-        title: "E muito mais...",
+        title: "Destaque seu perfil agora",
         description:
-          "Se você atua com atendimento domiciliar, pode criar seu perfil e aumentar sua visibilidade profissional.",
+          "Crie seu cadastro e deixe seu perfil visível para empresas e famílias que buscam profissionais na sua região.",
         buttonText: "Criar meu perfil",
         link: "/login#auth-sign-up",
         icon: GraduationCap,
@@ -353,9 +353,9 @@ const Index = () => {
 
     if (profile?.role === "professional") {
       return {
-        title: "E muito mais...",
+        title: "Mantenha seu perfil ativo",
         description:
-          "Se você atua com atendimento domiciliar, mantenha seu perfil ativo para receber novas oportunidades.",
+          "Atualize suas informações para continuar recebendo contatos e novas oportunidades de atendimento.",
         buttonText: "Ir para meu painel",
         link: "/dashboard",
         icon: GraduationCap,
@@ -414,11 +414,26 @@ const Index = () => {
             <p className="animate-slide-up mx-auto mt-2 max-w-2xl text-lg text-muted-foreground" style={{ animationDelay: "0.12s" }}>
               Aumente sua visibilidade profissional e receba oportunidades de atendimento na sua região.
             </p>
-            <ul className="animate-slide-up mx-auto mt-6 max-w-2xl space-y-2 text-left text-base text-muted-foreground" style={{ animationDelay: "0.14s" }}>
-              <li>• Perfil profissional completo</li>
-              <li>• Visibilidade por região e especialidade</li>
-              <li>• Contato direto com empresas e famílias</li>
-              <li>• Você escolhe quando aceitar novos atendimentos</li>
+            <ul
+              className="animate-slide-up mx-auto mt-6 grid max-w-3xl gap-x-8 gap-y-3 text-left text-base text-muted-foreground sm:grid-cols-2"
+              style={{ animationDelay: "0.14s" }}
+            >
+              <li className="flex items-start gap-2">
+                <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>Perfil profissional completo</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Search className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>Visibilidade por região e especialidade</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Users className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>Contato direto com empresas e famílias</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Star className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>Você escolhe quando aceitar novos atendimentos</span>
+              </li>
             </ul>
 
             <div className="animate-slide-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.2s" }}>
@@ -624,69 +639,6 @@ const Index = () => {
         </div>
       </section>
 
-      <section className="bg-primary py-16 md:py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-primary-foreground">
-            Escolha o plano ideal para você
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-primary-foreground/80">
-            Com sua assinatura você mantém seu perfil ativo na plataforma e aumenta suas chances de receber oportunidades de atendimento.
-          </p>
-          <ul className="mx-auto mt-6 max-w-2xl space-y-2 text-left text-primary-foreground/90">
-            <li>• Perfil profissional completo</li>
-            <li>• Visibilidade para empresas e famílias</li>
-            <li>• Mais oportunidades de atendimento</li>
-            <li>• Plataforma dedicada a profissionais de Home Care</li>
-          </ul>
-          <Button size="lg" variant="secondary" className="mt-8 w-full gap-2 sm:w-auto" asChild>
-            <a href="#planos">
-              Escolher plano e começar
-              <ArrowRight className="h-4 w-4" />
-            </a>
-          </Button>
-        </div>
-      </section>
-
-      <section className="bg-secondary/10 py-14 md:py-20">
-        <div className="container mx-auto px-4 max-w-3xl">
-          <div className="mb-12 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <HelpCircle className="h-6 w-6 text-primary" />
-            </div>
-            <h2 className="text-3xl font-bold text-foreground">Dúvidas frequentes</h2>
-            <p className="mt-4 text-muted-foreground">
-              Respostas rápidas para você começar com mais confiança.
-            </p>
-          </div>
-
-          <Accordion type="single" collapsible className="mobile-stagger w-full space-y-4">
-            {faqs.map((faq, index) => (
-              <AccordionItem
-                key={index}
-                value={`item-${index}`}
-                className="rounded-xl border border-primary/5 bg-card px-4 shadow-sm md:px-6"
-              >
-                <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-
-          <div className="mt-10 text-center">
-            <Button variant="outline" asChild className="gap-2">
-              <Link to="/suporte">
-                Ver todas as dúvidas
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
       <section id="planos" className="scroll-mt-20 py-20 bg-secondary/30">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
@@ -733,6 +685,46 @@ const Index = () => {
               <CarouselNext className="relative" />
             </div>
           </Carousel>
+        </div>
+      </section>
+
+      <section className="bg-secondary/10 py-14 md:py-20">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="mb-12 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <HelpCircle className="h-6 w-6 text-primary" />
+            </div>
+            <h2 className="text-3xl font-bold text-foreground">Dúvidas frequentes</h2>
+            <p className="mt-4 text-muted-foreground">
+              Respostas rápidas para você começar com mais confiança.
+            </p>
+          </div>
+
+          <Accordion type="single" collapsible className="mobile-stagger w-full space-y-4">
+            {faqs.map((faq, index) => (
+              <AccordionItem
+                key={index}
+                value={`item-${index}`}
+                className="rounded-xl border border-primary/5 bg-card px-4 shadow-sm md:px-6"
+              >
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-4">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+
+          <div className="mt-10 text-center">
+            <Button variant="outline" asChild className="gap-2">
+              <Link to="/suporte">
+                Ver todas as dúvidas
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 

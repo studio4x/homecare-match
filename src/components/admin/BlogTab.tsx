@@ -968,6 +968,47 @@ const BlogTab = () => {
     [articleForm.cover_image_url],
   );
   const seoAuditReport = useMemo(() => computeSeoAuditReport(articleForm), [articleForm]);
+  const articleSeoScoreById = useMemo(() => {
+    const scoreMap = new Map<string, number>();
+    for (const article of articles) {
+      const tagIds = (Array.isArray(article?.blog_article_tags) ? article.blog_article_tags : [])
+        .map((link: any) => String(link?.tag?.id || "").trim())
+        .filter(Boolean);
+
+      const auditForm: BlogArticleForm = {
+        id: article?.id || null,
+        title: String(article?.title || ""),
+        slug: String(article?.slug || ""),
+        excerpt: String(article?.excerpt || ""),
+        source_reference_url: String(article?.source_reference_url || ""),
+        cover_image_url: String(article?.cover_image_url || ""),
+        content_html: stripContentH1Tags(String(article?.content_html || "")),
+        status: article?.status === "published" ? "published" : "draft",
+        published_at: String(article?.published_at || ""),
+        author_name: String(article?.author_name || "Equipe HomeCare Match"),
+        reading_time_minutes: Number(article?.reading_time_minutes || 1),
+        featured: !!article?.featured,
+        category_id: String(article?.category_id || ""),
+        tag_ids: tagIds,
+        focus_keyword: String(article?.focus_keyword || ""),
+        seo_title: String(article?.seo_title || ""),
+        seo_description: String(article?.seo_description || ""),
+        seo_canonical_url: String(article?.seo_canonical_url || ""),
+        seo_robots: String(article?.seo_robots || "index,follow"),
+        seo_og_title: String(article?.seo_og_title || ""),
+        seo_og_description: String(article?.seo_og_description || ""),
+        seo_og_image_url: String(article?.seo_og_image_url || ""),
+        schema_json:
+          article?.schema_json && typeof article.schema_json === "object"
+            ? JSON.stringify(article.schema_json, null, 2)
+            : String(article?.schema_json || "{}"),
+      };
+
+      const score = computeSeoAuditReport(auditForm).score;
+      scoreMap.set(String(article?.id || ""), score);
+    }
+    return scoreMap;
+  }, [articles]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -2235,6 +2276,7 @@ const BlogTab = () => {
                   <TableRow>
                     <TableHead>Título</TableHead>
                     <TableHead>Slug</TableHead>
+                    <TableHead>Score SEO</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -2244,8 +2286,26 @@ const BlogTab = () => {
                   {articles.length > 0 ? (
                     articles.map((article) => (
                       <TableRow key={article.id}>
-                        <TableCell className="font-medium">{article.title}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{article.slug}</TableCell>
+                        {(() => {
+                          const score = articleSeoScoreById.get(String(article.id)) ?? 0;
+                          const scoreTone =
+                            score >= 85
+                              ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                              : score >= 70
+                                ? "bg-amber-100 text-amber-700 border border-amber-200"
+                                : "bg-rose-100 text-rose-700 border border-rose-200";
+                          return (
+                            <>
+                              <TableCell className="font-medium">{article.title}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">{article.slug}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={scoreTone}>
+                                  {score}%
+                                </Badge>
+                              </TableCell>
+                            </>
+                          );
+                        })()}
                         <TableCell>
                           <Badge variant={article.status === "published" ? "default" : "secondary"}>
                             {article.status === "published" ? "Publicado" : "Rascunho"}
@@ -2271,7 +2331,7 @@ const BlogTab = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                         Nenhum artigo cadastrado.
                       </TableCell>
                     </TableRow>

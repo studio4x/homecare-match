@@ -58,7 +58,7 @@
   Observacoes:
 
 - [ ] P0-09 Contratacao do plano anual funcionando
-  Desktop: 
+  Desktop: OK
   Mobile:
   Observacoes:
 

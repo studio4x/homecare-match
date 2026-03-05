@@ -44,8 +44,16 @@ const statusToDisplay = (status?: string) => {
 
 const normalizeStatus = (status?: string | null) => String(status || "").trim().toUpperCase();
 
+const isDateOnly = (value?: string | null) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim());
+
 const parseDateToMs = (value?: string | null) => {
   if (!value) return Date.now();
+  const trimmed = String(value).trim();
+  if (isDateOnly(trimmed)) {
+    // Keep calendar day stable across timezones when provider sends only YYYY-MM-DD.
+    const parsedDateOnly = Date.parse(`${trimmed}T12:00:00Z`);
+    return Number.isFinite(parsedDateOnly) ? parsedDateOnly : Date.now();
+  }
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : Date.now();
 };
@@ -224,6 +232,29 @@ const resolveInstallmentGroupKeyFromApiPayment = (
   return `fallback:${installments.total}|${currency}|${amount}|${fallbackLabel}`;
 };
 
+const resolveProviderDateField = (payment: any) => {
+  const withTimeCandidates = [
+    payment?.clientPaymentDate,
+    payment?.confirmedDate,
+    payment?.dateCreated,
+    payment?.creditDate,
+  ];
+  for (const candidate of withTimeCandidates) {
+    const raw = String(candidate || "").trim();
+    if (!raw) continue;
+    return { raw, hasTime: !isDateOnly(raw) };
+  }
+
+  const dateOnlyCandidates = [payment?.paymentDate, payment?.dueDate];
+  for (const candidate of dateOnlyCandidates) {
+    const raw = String(candidate || "").trim();
+    if (!raw) continue;
+    return { raw, hasTime: !isDateOnly(raw) };
+  }
+
+  return { raw: null as string | null, hasTime: false };
+};
+
 const fetchAsaasPaymentsForCustomer = async (supabaseAdmin: any, userId: string) => {
   const { data: config } = await supabaseAdmin
     .from("site_config")
@@ -350,13 +381,11 @@ serve(async (req) => {
         if (!providerPayment) return payment;
 
         const providerInstallments = resolveInstallmentsFromApiPayment(providerPayment);
-        const providerDateRaw =
-          providerPayment?.paymentDate ||
-          providerPayment?.clientPaymentDate ||
-          providerPayment?.dateCreated ||
-          providerPayment?.dueDate ||
-          null;
-        const mergedDate = providerDateRaw ? parseDateToMs(providerDateRaw) : payment.date;
+        const providerDate = resolveProviderDateField(providerPayment);
+        const mergedDate =
+          providerDate.raw && providerDate.hasTime
+            ? parseDateToMs(providerDate.raw)
+            : payment.date;
 
         return {
           ...payment,
@@ -390,9 +419,10 @@ serve(async (req) => {
 
     const mappedApiPayments = asaasPayments.map((p: any) => {
       const installments = resolveInstallmentsFromApiPayment(p);
+      const providerDate = resolveProviderDateField(p);
       return {
         id: p.id,
-        date: parseDateToMs(p.paymentDate || p.clientPaymentDate || p.dateCreated || p.dueDate),
+        date: parseDateToMs(providerDate.raw || null),
         amount: Number(p.value || 0),
         currency: String(p.currency || "BRL").toLowerCase(),
         status: statusToDisplay(p.status),

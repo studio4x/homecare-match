@@ -495,10 +495,19 @@ const OverviewPage = () => {
       const baseList = annualFeatures.length > 0 ? annualFeatures : monthlyFeatures;
       const seen = new Set(baseList.map((feature) => normalizeFeatureKey(feature)));
       const monthlyExtras = monthlyFeatures.filter((feature) => !seen.has(normalizeFeatureKey(feature)));
-      return [...baseList, ...monthlyExtras].map((feature) => ({
+      const comparisonList = [...baseList, ...monthlyExtras].filter(
+        (feature) => normalizeFeatureKey(feature) !== normalizeFeatureKey("Tudo do plano Mensal"),
+      );
+
+      const rows = comparisonList.map((feature) => ({
         label: feature,
         available: activeFeatureKeys.has(normalizeFeatureKey(feature)),
       }));
+
+      return [
+        ...rows.filter((row) => row.available),
+        ...rows.filter((row) => !row.available),
+      ];
     }
 
     if (normalizedCurrentPlanId === "free_trial") {

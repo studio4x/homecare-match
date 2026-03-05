@@ -42,6 +42,8 @@ const statusToDisplay = (status?: string) => {
   return value.toLowerCase() || "unknown";
 };
 
+const normalizeStatus = (status?: string | null) => String(status || "").trim().toUpperCase();
+
 const parseDateToMs = (value?: string | null) => {
   if (!value) return Date.now();
   const parsed = Date.parse(value);
@@ -98,6 +100,169 @@ const normalizeAsaasDescription = (rawDescription: unknown) => {
   return `Plano: ${getPlanDisplayName(planId)}`;
 };
 
+const extractInstallmentsFromText = (value?: string | null) => {
+  const text = String(value || "");
+  const match = text.match(/parcela\s+(\d+)\s+de\s*(\d+)/i);
+  if (!match) return { current: null, total: null };
+
+  const current = Number(match[1]);
+  const total = Number(match[2]);
+  if (!Number.isFinite(current) || !Number.isFinite(total) || current <= 0 || total <= 1) {
+    return { current: null, total: null };
+  }
+  return { current, total };
+};
+
+const stripInstallmentInfo = (text: string) => {
+  const stripped = String(text || "")
+    .replace(/parcela\s+\d+\s+de\s*\d+\.?/gi, "")
+    .replace(/parcelamento\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*[-:]*\s*/gi, "")
+    .replace(/\s*[-:]\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return stripped || "Plano Anual";
+};
+
+const extractPaymentPayload = (rawPayload: any) => {
+  if (!rawPayload || typeof rawPayload !== "object") return {};
+  return rawPayload?.payment || rawPayload?.data?.payment || rawPayload?.data || rawPayload;
+};
+
+const resolveInstallmentsFromTx = (tx: any) => {
+  const payload = extractPaymentPayload(tx?.raw_payload);
+
+  const currentRaw =
+    payload?.installmentNumber ||
+    payload?.installment?.installmentNumber ||
+    payload?.installment_index ||
+    null;
+
+  const totalRaw =
+    payload?.installmentCount ||
+    payload?.installment?.installmentCount ||
+    payload?.installment_count ||
+    null;
+
+  const current = Number(currentRaw);
+  const total = Number(totalRaw);
+  if (Number.isFinite(current) && Number.isFinite(total) && current > 0 && total > 1) {
+    return { current, total };
+  }
+
+  return extractInstallmentsFromText(tx?.description);
+};
+
+const resolveInstallmentGroupKeyFromTx = (tx: any, installments: { current: number | null; total: number | null }) => {
+  if (!installments.total || installments.total <= 1) return null;
+
+  const payload = extractPaymentPayload(tx?.raw_payload);
+  const checkoutId =
+    tx?.asaas_checkout_id ||
+    payload?.checkout ||
+    payload?.checkoutSession ||
+    payload?.paymentLink ||
+    null;
+  if (checkoutId) return `checkout:${String(checkoutId)}`;
+
+  const subscriptionId =
+    payload?.subscription ||
+    tx?.raw_payload?.data?.subscription ||
+    tx?.raw_payload?.subscription?.id ||
+    null;
+  if (subscriptionId) return `subscription:${String(subscriptionId)}`;
+
+  const installmentId = payload?.installment || payload?.installmentId || null;
+  if (installmentId) return `installment:${String(installmentId)}`;
+
+  const externalReference = payload?.externalReference || payload?.reference || null;
+  if (externalReference) return `reference:${String(externalReference)}|${installments.total}`;
+
+  const fallbackLabel = stripInstallmentInfo(String(tx?.description || "")).toLowerCase();
+  const amount = Number(tx?.amount || 0).toFixed(2);
+  const currency = String(tx?.currency || "BRL").toLowerCase();
+  const planId = normalizePlanId(tx?.plan_id);
+  return `fallback:${tx?.user_id || ""}|${planId}|${installments.total}|${currency}|${amount}|${fallbackLabel}`;
+};
+
+const resolveInstallmentsFromApiPayment = (payment: any) => {
+  const currentRaw =
+    payment?.installmentNumber ||
+    payment?.installment?.installmentNumber ||
+    payment?.installment_index ||
+    null;
+  const totalRaw =
+    payment?.installmentCount ||
+    payment?.installment?.installmentCount ||
+    payment?.installment_count ||
+    null;
+
+  const current = Number(currentRaw);
+  const total = Number(totalRaw);
+  if (Number.isFinite(current) && Number.isFinite(total) && current > 0 && total > 1) {
+    return { current, total };
+  }
+
+  return extractInstallmentsFromText(payment?.description);
+};
+
+const resolveInstallmentGroupKeyFromApiPayment = (
+  payment: any,
+  installments: { current: number | null; total: number | null },
+) => {
+  if (!installments.total || installments.total <= 1) return null;
+
+  const checkoutId = payment?.checkout || payment?.checkoutSession || payment?.paymentLink || null;
+  if (checkoutId) return `checkout:${String(checkoutId)}`;
+
+  if (payment?.subscription) return `subscription:${String(payment.subscription)}`;
+  if (payment?.installment) return `installment:${String(payment.installment)}`;
+  if (payment?.externalReference) return `reference:${String(payment.externalReference)}|${installments.total}`;
+
+  const fallbackLabel = stripInstallmentInfo(String(payment?.description || "")).toLowerCase();
+  const amount = Number(payment?.value || 0).toFixed(2);
+  const currency = String(payment?.currency || "BRL").toLowerCase();
+  return `fallback:${installments.total}|${currency}|${amount}|${fallbackLabel}`;
+};
+
+const fetchAsaasPaymentsForCustomer = async (supabaseAdmin: any, userId: string) => {
+  const { data: config } = await supabaseAdmin
+    .from("site_config")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("asaas_customer_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (!profile?.asaas_customer_id) return [];
+
+  const asaasEnv = asaasEnvFromConfig(config) as "sandbox" | "production";
+  const asaasApiKey = getAsaasApiKey(asaasEnv);
+  if (!asaasApiKey) return [];
+
+  const asaasApiBaseUrl = getAsaasApiBaseUrl(asaasEnv);
+  const params = new URLSearchParams({
+    customer: profile.asaas_customer_id,
+    limit: "100",
+    offset: "0",
+  });
+
+  const res = await fetch(`${asaasApiBaseUrl}/payments?${params.toString()}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      access_token: asaasApiKey,
+    },
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) return [];
+  return Array.isArray(json?.data) ? json.data : [];
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -150,89 +315,97 @@ serve(async (req) => {
       );
     }
 
-    const mappedDbPayments = (transactions || []).map((t: any) => ({
-      id: t.payment_id || t.id,
-      date: parseDateToMs(t.confirmed_at || t.payment_date || t.created_at),
-      amount: Number(t.amount || 0),
-      currency: String(t.currency || "BRL").toLowerCase(),
-      status: statusToDisplay(t.status),
-      description:
-        t.transaction_type === "course"
-          ? t.description || `Curso: ${t.course_slug || "HomeCare Match"}`
-          : normalizeSubscriptionDescription(t.description, t.plan_id, plansById),
-      pdf_url: t.invoice_url || null,
-      type: t.transaction_type === "course" ? "one_time" : "subscription",
-    }));
+    const mappedDbPayments = (transactions || []).map((t: any) => {
+      const installments = resolveInstallmentsFromTx(t);
+      return {
+        id: t.payment_id || t.id,
+        date: parseDateToMs(t.confirmed_at || t.payment_date || t.created_at),
+        amount: Number(t.amount || 0),
+        currency: String(t.currency || "BRL").toLowerCase(),
+        status: statusToDisplay(t.status),
+        raw_status: normalizeStatus(t.status) || null,
+        description:
+          t.transaction_type === "course"
+            ? t.description || `Curso: ${t.course_slug || "HomeCare Match"}`
+            : normalizeSubscriptionDescription(t.description, t.plan_id, plansById),
+        pdf_url: t.invoice_url || null,
+        type: t.transaction_type === "course" ? "one_time" : "subscription",
+        asaas_checkout_id: t.asaas_checkout_id || null,
+        installment_current: installments.current,
+        installment_total: installments.total,
+        installment_group_key: resolveInstallmentGroupKeyFromTx(t, installments),
+      };
+    });
+
+    const asaasPayments = await fetchAsaasPaymentsForCustomer(supabaseAdmin, user.id);
+    const asaasPaymentsById = new Map<string, any>();
+    asaasPayments.forEach((payment: any) => {
+      const id = String(payment?.id || "").trim();
+      if (id) asaasPaymentsById.set(id, payment);
+    });
 
     if (mappedDbPayments.length > 0) {
-      return new Response(JSON.stringify({ payments: mappedDbPayments }), {
+      const mergedPayments = mappedDbPayments.map((payment: any) => {
+        const providerPayment = asaasPaymentsById.get(String(payment.id || "").trim());
+        if (!providerPayment) return payment;
+
+        const providerInstallments = resolveInstallmentsFromApiPayment(providerPayment);
+        const providerDateRaw =
+          providerPayment?.paymentDate ||
+          providerPayment?.clientPaymentDate ||
+          providerPayment?.dateCreated ||
+          providerPayment?.dueDate ||
+          null;
+        const mergedDate = providerDateRaw ? parseDateToMs(providerDateRaw) : payment.date;
+
+        return {
+          ...payment,
+          date: mergedDate,
+          status: statusToDisplay(providerPayment?.status || payment?.raw_status || payment?.status),
+          raw_status: normalizeStatus(providerPayment?.status) || payment?.raw_status || null,
+          pdf_url: providerPayment?.invoiceUrl || providerPayment?.bankSlipUrl || payment?.pdf_url || null,
+          asaas_checkout_id:
+            providerPayment?.checkout || providerPayment?.checkoutSession || payment?.asaas_checkout_id || null,
+          installment_current: providerInstallments.current ?? payment?.installment_current ?? null,
+          installment_total: providerInstallments.total ?? payment?.installment_total ?? null,
+          installment_group_key:
+            resolveInstallmentGroupKeyFromApiPayment(providerPayment, providerInstallments) ||
+            payment?.installment_group_key ||
+            null,
+        };
+      });
+
+      return new Response(JSON.stringify({ payments: mergedPayments }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    const { data: config } = await supabaseAdmin
-      .from("site_config")
-      .select("*")
-      .eq("id", 1)
-      .maybeSingle();
-
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("asaas_customer_id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (!profile?.asaas_customer_id) {
+    if (asaasPayments.length === 0) {
       return new Response(JSON.stringify({ payments: [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
     }
 
-    const asaasEnv = asaasEnvFromConfig(config) as "sandbox" | "production";
-    const asaasApiKey = getAsaasApiKey(asaasEnv);
-    if (!asaasApiKey) {
-      return new Response(JSON.stringify({ payments: [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
-    const asaasApiBaseUrl = getAsaasApiBaseUrl(asaasEnv);
-    const params = new URLSearchParams({
-      customer: profile.asaas_customer_id,
-      limit: "100",
-      offset: "0",
+    const mappedApiPayments = asaasPayments.map((p: any) => {
+      const installments = resolveInstallmentsFromApiPayment(p);
+      return {
+        id: p.id,
+        date: parseDateToMs(p.paymentDate || p.clientPaymentDate || p.dateCreated || p.dueDate),
+        amount: Number(p.value || 0),
+        currency: String(p.currency || "BRL").toLowerCase(),
+        status: statusToDisplay(p.status),
+        raw_status: normalizeStatus(p.status) || null,
+        description: normalizeAsaasDescription(p.description),
+        pdf_url: p.invoiceUrl || p.bankSlipUrl || null,
+        type: p.subscription ? "subscription" : "one_time",
+        asaas_checkout_id: p.checkout || p.checkoutSession || null,
+        installment_current: installments.current,
+        installment_total: installments.total,
+        installment_group_key: resolveInstallmentGroupKeyFromApiPayment(p, installments),
+      };
     });
-
-    const res = await fetch(`${asaasApiBaseUrl}/payments?${params.toString()}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        access_token: asaasApiKey,
-      },
-    });
-
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      return new Response(JSON.stringify({ payments: [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
-    const apiPayments = Array.isArray(json?.data) ? json.data : [];
-    const mappedApiPayments = apiPayments.map((p: any) => ({
-      id: p.id,
-      date: parseDateToMs(p.paymentDate || p.clientPaymentDate || p.dateCreated || p.dueDate),
-      amount: Number(p.value || 0),
-      currency: String(p.currency || "BRL").toLowerCase(),
-      status: statusToDisplay(p.status),
-      description: normalizeAsaasDescription(p.description),
-      pdf_url: p.invoiceUrl || p.bankSlipUrl || null,
-      type: p.subscription ? "subscription" : "one_time",
-    }));
 
     return new Response(JSON.stringify({ payments: mappedApiPayments }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

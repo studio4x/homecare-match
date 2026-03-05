@@ -36,9 +36,14 @@ interface PaymentRecord {
   amount: number;
   currency: string;
   status: string;
+  raw_status?: string | null;
   description: string;
   pdf_url: string | null;
   type: "subscription" | "one_time";
+  asaas_checkout_id?: string | null;
+  installment_current?: number | null;
+  installment_total?: number | null;
+  installment_group_key?: string | null;
 }
 
 interface CancellationState {
@@ -59,6 +64,7 @@ interface RenewalAlert {
 }
 
 interface InstallmentInfo {
+  current: number;
   total: number;
 }
 
@@ -68,6 +74,8 @@ interface InstallmentGroup {
   items: PaymentRecord[];
   currency: string;
   totalAmount: number;
+  summaryDateMs: number;
+  sortDateMs: number;
 }
 
 type PaymentDisplayRow =
@@ -111,9 +119,28 @@ const extractInstallmentInfo = (description: string): InstallmentInfo | null => 
 
   const current = Number(match[1]);
   const total = Number(match[2]);
-  if (!Number.isFinite(current) || !Number.isFinite(total) || total <= 1) return null;
+  if (!Number.isFinite(current) || !Number.isFinite(total) || current <= 0 || total <= 1) return null;
 
-  return { total };
+  return { current, total };
+};
+
+const stripInstallmentInfo = (text: string) => {
+  const stripped = String(text || "")
+    .replace(/parcela\s+\d+\s+de\s*\d+\.?/gi, "")
+    .replace(/parcelamento\s*\(\s*\d+\s*\/\s*\d+\s*\)\s*[-:]*\s*/gi, "")
+    .replace(/\s*[-:]\s*$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return stripped || "Plano Anual";
+};
+
+const getInstallmentInfoFromPayment = (payment: PaymentRecord): InstallmentInfo | null => {
+  const current = Number(payment.installment_current);
+  const total = Number(payment.installment_total);
+  if (Number.isFinite(current) && Number.isFinite(total) && current > 0 && total > 1) {
+    return { current, total };
+  }
+  return extractInstallmentInfo(payment.description);
 };
 
 const PaymentsPage = () => {
@@ -211,61 +238,93 @@ const PaymentsPage = () => {
 
   const displayRows = useMemo<PaymentDisplayRow[]>(() => {
     const groupedItemsById = new Map<string, string>();
-    const groupsBySignature = new Map<string, InstallmentGroup[]>();
+    const installmentCandidateIds = new Set<string>();
+    const groupsByKey = new Map<
+      string,
+      InstallmentGroup & { itemsByInstallment: Map<number, PaymentRecord> }
+    >();
 
     payments.forEach((payment) => {
       if (payment.type !== "subscription") return;
 
-      const installmentInfo = extractInstallmentInfo(payment.description);
+      const installmentInfo = getInstallmentInfoFromPayment(payment);
       if (!installmentInfo) return;
 
-      const signature = [
+      installmentCandidateIds.add(payment.id);
+      const fallbackLabel = stripInstallmentInfo(payment.description).toLowerCase();
+      const fallbackGroupKey = [
+        "fallback",
         installmentInfo.total,
         payment.currency.toLowerCase(),
         Number(payment.amount || 0).toFixed(2),
+        fallbackLabel,
       ].join("|");
 
-      const existingGroups = groupsBySignature.get(signature) || [];
-      let targetGroup = existingGroups.find((group) => group.items.length < group.totalInstallments);
+      const groupKey =
+        String(payment.installment_group_key || "").trim() ||
+        (payment.asaas_checkout_id ? `checkout:${payment.asaas_checkout_id}` : fallbackGroupKey);
 
-      if (!targetGroup) {
-        targetGroup = {
-          id: `installments-${signature}-${existingGroups.length + 1}`,
+      let group = groupsByKey.get(groupKey);
+      if (!group) {
+        group = {
+          id: `installments-${groupKey}`,
           totalInstallments: installmentInfo.total,
           items: [],
           currency: payment.currency,
           totalAmount: 0,
+          summaryDateMs: payment.date,
+          sortDateMs: payment.date,
+          itemsByInstallment: new Map<number, PaymentRecord>(),
         };
-        existingGroups.push(targetGroup);
-        groupsBySignature.set(signature, existingGroups);
+        groupsByKey.set(groupKey, group);
       }
 
-      targetGroup.items.push(payment);
-      targetGroup.totalAmount += Number(payment.amount || 0);
-      groupedItemsById.set(payment.id, targetGroup.id);
+      group.totalInstallments = Math.max(group.totalInstallments, installmentInfo.total);
+      group.sortDateMs = Math.max(group.sortDateMs, payment.date);
+
+      const existingInstallment = group.itemsByInstallment.get(installmentInfo.current);
+      if (!existingInstallment || payment.date > existingInstallment.date) {
+        group.itemsByInstallment.set(installmentInfo.current, payment);
+      }
     });
 
-    groupsBySignature.forEach((groups) => {
-      groups.forEach((group) => {
-        group.items.sort((a, b) => b.date - a.date);
+    groupsByKey.forEach((group) => {
+      const items = Array.from(group.itemsByInstallment.values());
+      items.sort((a, b) => {
+        const aCurrent = getInstallmentInfoFromPayment(a)?.current ?? Number.MAX_SAFE_INTEGER;
+        const bCurrent = getInstallmentInfoFromPayment(b)?.current ?? Number.MAX_SAFE_INTEGER;
+        if (aCurrent !== bCurrent) return aCurrent - bCurrent;
+        return a.date - b.date;
       });
+
+      group.items = items;
+      group.totalAmount = items.reduce((acc, item) => acc + Number(item.amount || 0), 0);
+
+      const firstInstallment = items.find((item) => (getInstallmentInfoFromPayment(item)?.current || 0) === 1);
+      group.summaryDateMs = firstInstallment
+        ? firstInstallment.date
+        : items.reduce((latest, item) => Math.max(latest, item.date), group.sortDateMs);
+
+      items.forEach((item) => groupedItemsById.set(item.id, group.id));
     });
 
     const groupsForRendering = new Map<string, InstallmentGroup>();
-    groupsBySignature.forEach((groups) => {
-      groups.forEach((group) => {
-        if (group.items.length > 1) {
-          groupsForRendering.set(group.id, group);
-        } else {
-          group.items.forEach((item) => groupedItemsById.delete(item.id));
-        }
-      });
+    groupsByKey.forEach((group) => {
+      if (group.items.length > 1) {
+        groupsForRendering.set(group.id, group);
+      } else {
+        group.items.forEach((item) => groupedItemsById.delete(item.id));
+      }
     });
 
     const emittedGroups = new Set<string>();
     const rows: PaymentDisplayRow[] = [];
 
     payments.forEach((payment) => {
+      if (installmentCandidateIds.has(payment.id) && !groupedItemsById.has(payment.id)) {
+        return;
+      }
+
       const groupId = groupedItemsById.get(payment.id);
       if (!groupId) {
         rows.push({ kind: "payment", payment });
@@ -535,7 +594,7 @@ const PaymentsPage = () => {
 
                       const group = row.group;
                       const isExpanded = !!expandedInstallmentGroups[group.id];
-                      const latestDate = group.items[0]?.date ?? Date.now();
+                      const latestDate = group.summaryDateMs || Date.now();
                       const paidInstallments = group.items.filter((item) => {
                         const status = item.status.toLowerCase();
                         return status === "paid" || status === "succeeded";

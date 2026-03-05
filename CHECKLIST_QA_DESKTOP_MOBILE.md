@@ -93,14 +93,14 @@
   Observacoes:
 
 ### 1.3 Busca, Contato e Visibilidade
-- [ ] P0-16 Profissional sem plano ativo nao aparece na busca
-  Desktop:
-  Mobile:
+- [OK] P0-16 Profissional sem plano ativo nao aparece na busca
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P0-17 Busca de profissionais funcionando
-  Desktop:
-  Mobile:
+- [OK] P0-17 Busca de profissionais funcionando
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [ ] P0-18 Fluxo de contato iniciado por empresa funcionando

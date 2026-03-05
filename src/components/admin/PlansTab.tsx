@@ -38,6 +38,13 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
 
   const dbFreeTrial = plans.find((p) => p.id === "free_trial");
 
+  const parseFreeTrialDays = (periodValue: string | null | undefined) => {
+    const text = String(periodValue || "").toLowerCase();
+    const match = text.match(/\d+/);
+    const value = match ? Number(match[0]) : 30;
+    return Number.isFinite(value) && value > 0 ? value : 30;
+  };
+
   const getTierLabel = (tier: string) => {
     switch (tier.toLowerCase()) {
       case "monthly":
@@ -57,6 +64,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
         ...dbFreeTrial,
         features: Array.isArray(dbFreeTrial.features) ? dbFreeTrial.features.join("\n") : "",
         asaas_installment_max: dbFreeTrial.asaas_installment_max ?? 1,
+        free_trial_days: parseFreeTrialDays(dbFreeTrial.period),
       });
     } else {
       setSelectedPlan({
@@ -67,6 +75,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
         description: "Plano padrão de cadastro",
         features: "Perfil básico\nVisibilidade limitada\nSuporte por email",
         asaas_installment_max: 1,
+        free_trial_days: 30,
       });
     }
     setPlanModalOpen(true);
@@ -79,11 +88,12 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
     setIsSavingPlan(true);
     try {
       const normalizedId = String(selectedPlan.id || "").trim();
+      const freeTrialDays = Math.max(1, Number(selectedPlan.free_trial_days || parseFreeTrialDays(selectedPlan.period)));
       const payload = {
         id: normalizedId,
         name: String(selectedPlan.name || "").trim(),
         price: selectedPlan.price ?? "",
-        period: selectedPlan.period ?? "",
+        period: normalizedId === "free_trial" ? `${freeTrialDays} dias` : selectedPlan.period ?? "",
         description: selectedPlan.description ?? "",
         popular: !!selectedPlan.popular,
         asaas_installment_max: Number(selectedPlan.asaas_installment_max || 1),
@@ -283,11 +293,32 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Período</Label>
-                <Input
-                  value={selectedPlan?.period || ""}
-                  onChange={(e) => setSelectedPlan({ ...selectedPlan, period: e.target.value })}
-                />
+                {selectedPlan?.id === "free_trial" ? (
+                  <>
+                    <Label>Dias grátis ativos</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={selectedPlan?.free_trial_days || parseFreeTrialDays(selectedPlan?.period)}
+                      onChange={(e) =>
+                        setSelectedPlan({
+                          ...selectedPlan,
+                          free_trial_days: Math.max(1, Number(e.target.value || 30)),
+                          period: `${Math.max(1, Number(e.target.value || 30))} dias`,
+                        })
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Label>Período</Label>
+                    <Input
+                      value={selectedPlan?.period || ""}
+                      onChange={(e) => setSelectedPlan({ ...selectedPlan, period: e.target.value })}
+                    />
+                  </>
+                )}
               </div>
             </div>
 

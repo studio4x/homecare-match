@@ -14,6 +14,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Loader2,
   CreditCard,
   ExternalLink,
@@ -25,6 +33,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { differenceInCalendarDays, format, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -143,6 +152,19 @@ const getInstallmentInfoFromPayment = (payment: PaymentRecord): InstallmentInfo 
   return extractInstallmentInfo(payment.description);
 };
 
+const getSubscriptionTierLabel = (tier?: string | null) => {
+  const value = String(tier || "").toLowerCase();
+  if (value === "monthly") return "Plano Mensal";
+  if (value === "yearly" || value === "annual") return "Plano Anual";
+  if (value === "free_trial") return "Teste Grátis";
+  return "Nenhum plano ativo";
+};
+
+const normalizeTier = (tier?: string | null) => {
+  const value = String(tier || "").toLowerCase();
+  return value === "annual" ? "yearly" : value;
+};
+
 const PaymentsPage = () => {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -151,6 +173,8 @@ const PaymentsPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [subscriptionSnapshot, setSubscriptionSnapshot] = useState<SubscriptionSnapshot | null>(null);
   const [expandedInstallmentGroups, setExpandedInstallmentGroups] = useState<Record<string, boolean>>({});
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [planFeaturesById, setPlanFeaturesById] = useState<Record<string, string[]>>({});
 
   const fetchHistory = async (silent = false) => {
     if (!silent) {
@@ -207,6 +231,31 @@ const PaymentsPage = () => {
     fetchHistory();
   }, []);
 
+  useEffect(() => {
+    const fetchPlanFeatures = async () => {
+      try {
+        const { data } = await supabase
+          .from("plans")
+          .select("id,features")
+          .in("id", ["free_trial", "monthly", "yearly", "annual"]);
+
+        const next: Record<string, string[]> = {};
+        for (const plan of data || []) {
+          const id = String(plan?.id || "").toLowerCase();
+          if (!id) continue;
+          next[id] = Array.isArray(plan?.features)
+            ? plan.features.map((feature) => String(feature || "").trim()).filter(Boolean)
+            : [];
+        }
+        setPlanFeaturesById(next);
+      } catch (err) {
+        console.error("[PaymentsPage] Erro ao carregar recursos dos planos:", err);
+      }
+    };
+
+    fetchPlanFeatures();
+  }, []);
+
   const renewalAlert = useMemo<RenewalAlert | null>(() => {
     if (!subscriptionSnapshot?.tier || !subscriptionSnapshot.endAt) return null;
     if (!["monthly", "yearly"].includes(subscriptionSnapshot.tier)) return null;
@@ -235,6 +284,41 @@ const PaymentsPage = () => {
           : `Seu plano anual vence em ${daysRemaining} dia(s). A renovação é manual e pode ser feita com parcelamento em até 12x.`,
     };
   }, [subscriptionSnapshot]);
+
+  const currentPlanTier = normalizeTier(subscriptionSnapshot?.tier);
+
+  const currentPlanBenefits = useMemo(() => {
+    const unique = (items: string[]) => {
+      const seen = new Set<string>();
+      const values: string[] = [];
+      for (const item of items) {
+        const normalized = String(item || "").trim().toLowerCase();
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+        values.push(item);
+      }
+      return values;
+    };
+
+    if (!currentPlanTier) return [];
+    if (currentPlanTier === "yearly") {
+      return unique([...(planFeaturesById.yearly || []), ...(planFeaturesById.annual || [])]);
+    }
+    return unique(planFeaturesById[currentPlanTier] || []);
+  }, [currentPlanTier, planFeaturesById]);
+
+  const retentionCopy = useMemo(() => {
+    if (currentPlanTier === "monthly") {
+      return "Seu plano mensal mantém seu perfil visível e pronto para receber novos contatos.";
+    }
+    if (currentPlanTier === "yearly") {
+      return "Seu plano anual garante o melhor custo-benefício e acesso completo aos recursos do perfil.";
+    }
+    if (currentPlanTier === "free_trial") {
+      return "No teste grátis, você já está ganhando visibilidade e construindo histórico de contatos.";
+    }
+    return "Sua assinatura mantém seu perfil ativo para novas oportunidades.";
+  }, [currentPlanTier]);
 
   const displayRows = useMemo<PaymentDisplayRow[]>(() => {
     const groupedItemsById = new Map<string, string>();
@@ -379,13 +463,13 @@ const PaymentsPage = () => {
     };
   }, [payments]);
 
+  const handleOpenCancelModal = () => {
+    if (!cancellationState.canCancel || isCancelling) return;
+    setIsCancelModalOpen(true);
+  };
+
   const handleCancelSubscription = async () => {
     if (!cancellationState.canCancel || isCancelling) return;
-
-    const confirmed = window.confirm(
-      "Deseja cancelar sua assinatura? Essa ação é irreversível e será aplicada também no Asaas.",
-    );
-    if (!confirmed) return;
 
     setIsCancelling(true);
     const toastId = toast.loading("Cancelando assinatura...");
@@ -394,11 +478,12 @@ const PaymentsPage = () => {
       const { data, error: funcError } = await supabase.functions.invoke("cancel-user-subscription");
 
       if (funcError) {
-        const message = await readFunctionErrorMessage(funcError, "Não foi possível cancelar a assinatura.");
+        const message = await readFunctionErrorMessage(funcError, "Nao foi possivel cancelar a assinatura.");
         throw new Error(message);
       }
 
       toast.success(data?.message || "Assinatura cancelada com sucesso.", { id: toastId });
+      setIsCancelModalOpen(false);
       await fetchHistory(true);
       requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -717,6 +802,12 @@ const PaymentsPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <p className="text-sm text-foreground">
+            Plano ativo: <strong>{getSubscriptionTierLabel(subscriptionSnapshot?.tier)}</strong>
+          </p>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
+            <p className="text-xs font-medium text-emerald-900">{retentionCopy}</p>
+          </div>
           <p className="text-sm text-muted-foreground">{cancellationState.message}</p>
           {cancellationState.deadline && (
             <p className="text-xs text-muted-foreground">
@@ -726,7 +817,7 @@ const PaymentsPage = () => {
           <Button
             variant="destructive"
             size="sm"
-            onClick={handleCancelSubscription}
+            onClick={handleOpenCancelModal}
             disabled={!cancellationState.canCancel || isCancelling || loading}
             className="w-full sm:w-auto"
           >
@@ -735,6 +826,56 @@ const PaymentsPage = () => {
           </Button>
         </CardContent>
       </Card>
+
+      <Dialog open={isCancelModalOpen} onOpenChange={setIsCancelModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Antes de cancelar, veja o que você mantém com o seu plano</DialogTitle>
+            <DialogDescription>
+              Seu {getSubscriptionTierLabel(subscriptionSnapshot?.tier).toLowerCase()} continua dando visibilidade e acesso a recursos que ajudam a gerar novos atendimentos.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{retentionCopy}</p>
+            <div className="rounded-lg border bg-secondary/20 p-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Benefícios do seu plano atual
+              </p>
+              <ul className="space-y-1.5">
+                {(currentPlanBenefits.length > 0 ? currentPlanBenefits : ["Seu perfil permanece ativo para novas oportunidades."])
+                  .slice(0, 8)
+                  .map((benefit) => (
+                    <li key={benefit} className="flex items-start gap-2 text-sm">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+                      <span>{benefit}</span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsCancelModalOpen(false)}
+              disabled={isCancelling}
+            >
+              Continuar com meu plano
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleCancelSubscription}
+              disabled={!cancellationState.canCancel || isCancelling || loading}
+            >
+              {isCancelling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Confirmar cancelamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

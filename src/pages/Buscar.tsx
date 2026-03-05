@@ -206,7 +206,26 @@ const Buscar = () => {
         return;
       }
 
-      const trialLimitDate = subDays(new Date(), 30).toISOString();
+      const parsePeriodToDays = (periodValue?: string | null, fallbackDays = 30) => {
+        const period = String(periodValue || "").toLowerCase();
+        if (!period) return fallbackDays;
+        const numberMatch = period.match(/\d+/);
+        const amount = numberMatch ? Number(numberMatch[0]) : 1;
+        const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 1;
+        if (period.includes("dia")) return safeAmount;
+        if (period.includes("ano")) return safeAmount * 365;
+        if (period.includes("mes") || period.includes("mês")) return safeAmount * 30;
+        return fallbackDays;
+      };
+
+      const { data: freeTrialPlan } = await supabase
+        .from("plans")
+        .select("period")
+        .eq("id", "free_trial")
+        .maybeSingle();
+
+      const freeTrialDays = parsePeriodToDays(freeTrialPlan?.period, 30);
+      const trialLimitDate = subDays(new Date(), freeTrialDays).toISOString();
       const nowIso = new Date().toISOString();
 
       // ALTERAÇÃO DE SEGURANÇA: consultamos a VIEW 'professional_discovery',

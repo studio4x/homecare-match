@@ -67,22 +67,36 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
 
   const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
 
-  const getPlanDurationDays = (planId: string) => {
-    if (planId === "free_trial") return 30;
-    if (planId === "monthly") return 30;
-    if (planId === "yearly") return 365;
-
-    const selectedPlan = plans.find((p) => p.id === planId);
-    const period = String(selectedPlan?.period || "").toLowerCase();
-    if (!period) return 30;
+  const getDaysFromPeriod = (periodValue: string | null | undefined, fallbackDays = 30) => {
+    const period = String(periodValue || "").toLowerCase();
+    if (!period) return fallbackDays;
 
     const numberMatch = period.match(/\d+/);
     const amount = numberMatch ? Number(numberMatch[0]) : 1;
+    const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 1;
 
-    if (period.includes("dia")) return Math.max(1, amount);
-    if (period.includes("ano")) return Math.max(1, amount) * 365;
-    if (period.includes("mes") || period.includes("mês")) return Math.max(1, amount) * 30;
-    return 30;
+    if (period.includes("dia")) return safeAmount;
+    if (period.includes("ano")) return safeAmount * 365;
+    if (period.includes("mes") || period.includes("mês")) return safeAmount * 30;
+    return fallbackDays;
+  };
+
+  const getPlanConfig = (planId: string) => plans.find((p) => String(p?.id || "").toLowerCase() === planId);
+
+  const getPlanDurationDays = (planId: string) => {
+    if (planId === "yearly") {
+      const yearlyPlan = getPlanConfig("yearly") || getPlanConfig("annual");
+      return getDaysFromPeriod(yearlyPlan?.period, 365);
+    }
+
+    const selectedPlan = getPlanConfig(planId);
+    const fallback =
+      planId === "free_trial" || planId === "monthly"
+        ? 30
+        : planId === "annual"
+          ? 365
+          : 30;
+    return getDaysFromPeriod(selectedPlan?.period, fallback);
   };
 
   const getTierLabel = (tier?: string | null) => {
@@ -91,6 +105,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     switch (tier.toLowerCase()) {
       case 'monthly': return 'Plano Mensal';
       case 'yearly': return 'Plano Anual';
+      case 'annual': return 'Plano Anual';
       case 'free_trial': return 'Teste Grátis (Sistema)';
       default: return tier;
     }
@@ -123,11 +138,6 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const handleUpdatePlan = async (profileId: string, newPlan: string) => {
     if (newPlan === "no_plan") return;
 
-    if (newPlan === "free_trial") {
-      toast.error("O plano de 30 dias gratuitos só pode ser ativado no cadastro inicial.");
-      return;
-    }
-
     setIsUpdatingPlan(profileId);
     try {
       const now = new Date();
@@ -137,6 +147,9 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       updateData.subscription_end_at = addDays(now, durationDays).toISOString();
       updateData.coupon_days = null;
       updateData.cancel_at_period_end = false;
+      if (newPlan === "free_trial") {
+        updateData.trial_started_at = now.toISOString();
+      }
 
       const { error } = await supabase
         .from("profiles")
@@ -248,7 +261,8 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     if (u.subscription_tier === 'free_trial' && u.trial_started_at) {
       const startDate = parseISO(u.trial_started_at);
       if (isValid(startDate)) {
-        const endDate = addDays(startDate, 30);
+        const trialDays = getPlanDurationDays("free_trial");
+        const endDate = addDays(startDate, trialDays);
         return differenceInDays(endDate, new Date());
       }
     }
@@ -269,9 +283,19 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     if (!u.full_name) return false;
     if (!u.email_confirmed) return false;
     
-    const isPaid = ['monthly', 'yearly'].includes(u.subscription_tier);
-    const trialLimitDate = subDays(new Date(), 30);
-    const isTrialActive = u.subscription_tier === 'free_trial' && u.trial_started_at && isAfter(new Date(u.trial_started_at), trialLimitDate);
+    const isPaid = ['monthly', 'yearly', 'annual'].includes(String(u.subscription_tier || '').toLowerCase());
+    const now = new Date();
+    let isTrialActive = false;
+    if (u.subscription_tier === 'free_trial') {
+      if (u.subscription_end_at) {
+        const trialEndDate = parseISO(u.subscription_end_at);
+        isTrialActive = isValid(trialEndDate) && isAfter(trialEndDate, now);
+      } else if (u.trial_started_at) {
+        const trialDays = getPlanDurationDays("free_trial");
+        const trialLimitDate = subDays(now, trialDays);
+        isTrialActive = isAfter(new Date(u.trial_started_at), trialLimitDate);
+      }
+    }
     
     return isPaid || isTrialActive;
   };
@@ -365,7 +389,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="no_plan" disabled>Nenhum plano definido</SelectItem>
-                            {plans.filter(p => p.id !== 'free_trial').map(plan => (
+                            {plans.map(plan => (
                               <SelectItem key={plan.id} value={plan.id}>
                                 {u.coupon_days && plan.id === 'monthly' ? "Plano Mensal (Via Cupom)" : getTierLabel(plan.id)}
                               </SelectItem>

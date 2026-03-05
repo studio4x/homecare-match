@@ -68,6 +68,7 @@ const normalizeFeatureKey = (value: string) =>
 type PlanCatalogItem = {
   id: string;
   name: string | null;
+  period: string | null;
   features: string[];
 };
 
@@ -90,13 +91,14 @@ const OverviewPage = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("plans")
-        .select("id, name, features")
+        .select("id, name, period, features")
         .in("id", ["free_trial", "monthly", "yearly", "annual"]);
 
       return (data || [])
         .map((plan) => ({
           id: String(plan.id || "").toLowerCase(),
           name: plan.name ? String(plan.name) : null,
+          period: plan.period ? String(plan.period) : null,
           features: Array.isArray(plan.features)
             ? plan.features.map((feature) => String(feature || "").trim()).filter(Boolean)
             : String(plan.features || "")
@@ -253,14 +255,33 @@ const OverviewPage = () => {
     };
   };
 
+  const getPlanDurationDays = (periodValue: string | null | undefined, fallbackDays: number) => {
+    const period = String(periodValue || "").toLowerCase();
+    if (!period) return fallbackDays;
+
+    const numberMatch = period.match(/\d+/);
+    const amount = numberMatch ? Number(numberMatch[0]) : 1;
+    const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 1;
+
+    if (period.includes("dia")) return safeAmount;
+    if (period.includes("ano")) return safeAmount * 365;
+    if (period.includes("mes") || period.includes("mês")) return safeAmount * 30;
+    return fallbackDays;
+  };
+
+  const freeTrialDurationDays = useMemo(() => {
+    const freeTrialPlan = planCatalog.find((plan) => plan.id === "free_trial");
+    return getPlanDurationDays(freeTrialPlan?.period, 30);
+  }, [planCatalog]);
+
   const getTrialInfo = () => {
     if (profile?.subscription_tier !== 'free_trial' || !profile?.trial_started_at || profile?.cancel_at_period_end) return null;
     const start = parseISO(profile.trial_started_at);
     const startDate = isValid(start) ? start : new Date(profile.trial_started_at);
-    const endDate = addDays(startDate, 30);
+    const endDate = addDays(startDate, freeTrialDurationDays);
     const rawDaysRemaining = differenceInDays(endDate, new Date());
     const daysRemaining = Math.max(0, rawDaysRemaining);
-    const progress = Math.min(100, Math.max(0, ((30 - daysRemaining) / 30) * 100));
+    const progress = Math.min(100, Math.max(0, ((freeTrialDurationDays - daysRemaining) / freeTrialDurationDays) * 100));
     return { daysRemaining, progress, isExpired: daysRemaining <= 0, endDate };
   };
 
@@ -415,7 +436,7 @@ const OverviewPage = () => {
     if (tier === 'monthly') return 'Plano Mensal';
     if (tier === 'yearly') return 'Plano Anual';
     if (tier === 'annual') return 'Plano Anual';
-    if (tier === 'free_trial') return 'Período de 30 dias Gratuitos';
+    if (tier === 'free_trial') return `Período de ${freeTrialDurationDays} dias Gratuitos`;
     return tier;
   };
 

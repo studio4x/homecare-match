@@ -854,6 +854,7 @@ const BlogTab = () => {
   const [generatingFromResearchId, setGeneratingFromResearchId] = useState<string | null>(null);
   const [showSeoAudit, setShowSeoAudit] = useState(false);
   const [autoFixingSeo, setAutoFixingSeo] = useState(false);
+  const [resolvingSeoItemId, setResolvingSeoItemId] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
@@ -1666,83 +1667,159 @@ const BlogTab = () => {
     }
   };
 
-  const handleOptimizeSeoField = async (field: SeoAiOptimizableField) => {
-    const getAiAccessToken = async () => {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
-      if (!accessToken) {
-        throw new Error("Sessao expirada. Faca login novamente para usar a IA.");
-      }
-      return accessToken;
-    };
+  const getAiAccessToken = async () => {
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+    if (!accessToken) {
+      throw new Error("Sessao expirada. Faca login novamente para usar a IA.");
+    }
+    return accessToken;
+  };
 
-    const requestOptimizedSeoField = async (
-      targetField: SeoAiOptimizableField,
-      sourceForm: BlogArticleForm,
-      accessToken: string,
-    ) => {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/optimize-blog-seo-field`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${accessToken}`,
+  const requestOptimizedSeoField = async (
+    targetField: SeoAiOptimizableField,
+    sourceForm: BlogArticleForm,
+    accessToken: string,
+  ) => {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/optimize-blog-seo-field`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        field: targetField,
+        current_value: String(sourceForm[targetField] || ""),
+        context: {
+          title: sourceForm.title,
+          slug: sourceForm.slug,
+          excerpt: sourceForm.excerpt,
+          focus_keyword: sourceForm.focus_keyword,
+          content_html: sourceForm.content_html,
+          cover_image_url: sourceForm.cover_image_url,
+          seo_title: sourceForm.seo_title,
+          seo_description: sourceForm.seo_description,
+          seo_canonical_url: sourceForm.seo_canonical_url,
+          seo_robots: sourceForm.seo_robots,
+          seo_og_title: sourceForm.seo_og_title,
+          seo_og_description: sourceForm.seo_og_description,
+          seo_og_image_url: sourceForm.seo_og_image_url,
+          source_reference_url: sourceForm.source_reference_url,
         },
-        body: JSON.stringify({
-          field: targetField,
-          current_value: String(sourceForm[targetField] || ""),
-          context: {
-            title: sourceForm.title,
-            slug: sourceForm.slug,
-            excerpt: sourceForm.excerpt,
-            focus_keyword: sourceForm.focus_keyword,
-            content_html: sourceForm.content_html,
-            cover_image_url: sourceForm.cover_image_url,
-            seo_title: sourceForm.seo_title,
-            seo_description: sourceForm.seo_description,
-            seo_canonical_url: sourceForm.seo_canonical_url,
-            seo_robots: sourceForm.seo_robots,
-            seo_og_title: sourceForm.seo_og_title,
-            seo_og_description: sourceForm.seo_og_description,
-            seo_og_image_url: sourceForm.seo_og_image_url,
-            source_reference_url: sourceForm.source_reference_url,
-          },
-        }),
-      });
+      }),
+    });
 
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(String(payload?.error || `HTTP ${response.status}`));
-      }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(String(payload?.error || `HTTP ${response.status}`));
+    }
 
-      const optimized = String(payload?.value || "").trim();
-      if (!optimized) throw new Error("A IA nao retornou valor para este campo.");
-      return optimized;
-    };
+    const optimized = String(payload?.value || "").trim();
+    if (!optimized) throw new Error("A IA nao retornou valor para este campo.");
+    return optimized;
+  };
 
-    const applyOptimizedField = (
-      sourceForm: BlogArticleForm,
-      targetField: SeoAiOptimizableField,
-      optimizedValue: string,
-    ) => {
-      const next = { ...sourceForm };
-      if (targetField === "slug") {
-        next.slug = generateSlug(optimizedValue);
-        return next;
-      }
-      if (targetField === "content_html") {
-        const normalizedHtml = stripContentH1Tags(optimizedValue);
-        next.content_html = normalizedHtml;
-        next.reading_time_minutes = Math.max(1, estimateReadingTime(normalizedHtml));
-        return next;
-      }
-      (next as any)[targetField] = optimizedValue;
+  const applyOptimizedField = (
+    sourceForm: BlogArticleForm,
+    targetField: SeoAiOptimizableField,
+    optimizedValue: string,
+  ) => {
+    const next = { ...sourceForm };
+    if (targetField === "slug") {
+      next.slug = generateSlug(optimizedValue);
       return next;
-    };
+    }
+    if (targetField === "content_html") {
+      const normalizedHtml = stripContentH1Tags(optimizedValue);
+      next.content_html = normalizedHtml;
+      next.reading_time_minutes = Math.max(1, estimateReadingTime(normalizedHtml));
+      return next;
+    }
+    (next as any)[targetField] = optimizedValue;
+    return next;
+  };
 
+  const handleSeoAiError = (err: any, fallbackMessage: string) => {
+    const message = String(err?.message || "");
+    if (/not found|nao encontrada|requested function was not found|404/i.test(message)) {
+      toast.error("Funcao optimize-blog-seo-field nao publicada no Supabase.");
+    } else if (/401|unauthorized|jwt|autenticacao/i.test(message)) {
+      toast.error("Nao autorizado para otimizar com IA. Faca login novamente.");
+    } else if (/403|somente administradores|acesso negado/i.test(message)) {
+      toast.error("Apenas administradores podem usar IA de SEO.");
+    } else {
+      toast.error(message || fallbackMessage);
+    }
+  };
+
+  const buildSeoOptimizationQueue = (
+    pendingIdsInput: string[],
+    sourceForm: BlogArticleForm,
+    mode: "single" | "bulk" = "single",
+  ) => {
+    const pendingIds = new Set(pendingIdsInput);
+    const contentDrivenIds = new Set([
+      "min-content",
+      "h1-single",
+      "h2-range",
+      "h3-min",
+      "keyword-density",
+      "keyword-first-paragraph",
+      "keyword-h2",
+      "keyword-conclusion",
+      "intro-size",
+      "conclusion-size",
+      "faq",
+      "links-internal",
+      "links-external",
+    ]);
+    const keywordDependentIds = new Set([
+      "keyword-density",
+      "keyword-first-paragraph",
+      "keyword-h2",
+      "keyword-conclusion",
+      "keyword-meta",
+      "keyword-slug",
+    ]);
+
+    const queue: SeoAiOptimizableField[] = [];
+    const hasKeywordDependentPending = Array.from(pendingIds).some((id) => keywordDependentIds.has(id));
+
+    if (hasKeywordDependentPending && !sourceForm.focus_keyword.trim()) {
+      queue.push("focus_keyword");
+    }
+    if (Array.from(pendingIds).some((id) => contentDrivenIds.has(id))) {
+      queue.push("content_html");
+    }
+    if (pendingIds.has("keyword-slug")) {
+      queue.push("slug");
+    }
+    if (pendingIds.has("seo-title-length")) {
+      queue.push("seo_title");
+    }
+    if (pendingIds.has("meta-length") || pendingIds.has("keyword-meta")) {
+      queue.push("seo_description");
+    }
+
+    if (mode === "bulk") {
+      if (!queue.includes("seo_title")) queue.push("seo_title");
+      if (!queue.includes("seo_description")) queue.push("seo_description");
+      if (!queue.includes("seo_og_title")) queue.push("seo_og_title");
+      if (!queue.includes("seo_og_description")) queue.push("seo_og_description");
+    }
+
+    const uniqueQueue = Array.from(new Set(queue));
+    if (uniqueQueue.length === 0) {
+      uniqueQueue.push("content_html");
+    }
+    return uniqueQueue;
+  };
+
+  const handleOptimizeSeoField = async (field: SeoAiOptimizableField) => {
     setOptimizingSeoField(field);
     try {
       const accessToken = await getAiAccessToken();
@@ -1750,23 +1827,53 @@ const BlogTab = () => {
       setArticleForm((prev) => applyOptimizedField(prev, field, optimized));
       toast.success("Campo otimizado com IA.");
     } catch (err: any) {
-      const message = String(err?.message || "");
-      if (/not found|nao encontrada|requested function was not found|404/i.test(message)) {
-        toast.error("Funcao optimize-blog-seo-field nao publicada no Supabase.");
-      } else if (/401|unauthorized|jwt|autenticacao/i.test(message)) {
-        toast.error("Nao autorizado para otimizar este campo. Faca login novamente.");
-      } else if (/403|somente administradores|acesso negado/i.test(message)) {
-        toast.error("Apenas administradores podem usar IA de SEO.");
-      } else {
-        toast.error(message || "Erro ao otimizar campo com IA.");
-      }
+      handleSeoAiError(err, "Erro ao otimizar campo com IA.");
     } finally {
       setOptimizingSeoField(null);
     }
   };
 
+  const handleResolveSingleSeoItem = async (itemId: string) => {
+    if (autoFixingSeo || savingArticle || !!optimizingSeoField || !!resolvingSeoItemId) return;
+
+    const currentItem = seoAuditReport.items.find((item) => item.id === itemId);
+    if (!currentItem) return;
+    if (currentItem.passed) {
+      toast.success("Este item ja esta conforme.");
+      return;
+    }
+
+    setResolvingSeoItemId(itemId);
+    setShowSeoAudit(true);
+    try {
+      const accessToken = await getAiAccessToken();
+      let workingForm: BlogArticleForm = { ...articleForm };
+      const queue = buildSeoOptimizationQueue([itemId], workingForm, "single");
+
+      for (const field of queue) {
+        setOptimizingSeoField(field);
+        const optimized = await requestOptimizedSeoField(field, workingForm, accessToken);
+        workingForm = applyOptimizedField(workingForm, field, optimized);
+        setArticleForm(workingForm);
+      }
+
+      const updatedReport = computeSeoAuditReport(workingForm);
+      const updatedItem = updatedReport.items.find((item) => item.id === itemId);
+      if (updatedItem?.passed) {
+        toast.success("Pendencia resolvida com IA.");
+      } else {
+        toast.warning("A IA aplicou ajustes, mas esta pendencia ainda precisa revisao manual.");
+      }
+    } catch (err: any) {
+      handleSeoAiError(err, "Erro ao resolver pendencia com IA.");
+    } finally {
+      setOptimizingSeoField(null);
+      setResolvingSeoItemId(null);
+    }
+  };
+
   const handleAutoFixSeoPendencies = async () => {
-    if (autoFixingSeo || savingArticle || !!optimizingSeoField) return;
+    if (autoFixingSeo || savingArticle || !!optimizingSeoField || !!resolvingSeoItemId) return;
 
     const pending = seoAuditReport.items.filter((item) => !item.passed);
     if (pending.length === 0) {
@@ -1774,117 +1881,18 @@ const BlogTab = () => {
       return;
     }
 
-    const getAiAccessToken = async () => {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
-      if (!accessToken) {
-        throw new Error("Sessao expirada. Faca login novamente para usar a IA.");
-      }
-      return accessToken;
-    };
-
-    const requestOptimizedSeoField = async (
-      targetField: SeoAiOptimizableField,
-      sourceForm: BlogArticleForm,
-      accessToken: string,
-    ) => {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/optimize-blog-seo-field`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          field: targetField,
-          current_value: String(sourceForm[targetField] || ""),
-          context: {
-            title: sourceForm.title,
-            slug: sourceForm.slug,
-            excerpt: sourceForm.excerpt,
-            focus_keyword: sourceForm.focus_keyword,
-            content_html: sourceForm.content_html,
-            cover_image_url: sourceForm.cover_image_url,
-            seo_title: sourceForm.seo_title,
-            seo_description: sourceForm.seo_description,
-            seo_canonical_url: sourceForm.seo_canonical_url,
-            seo_robots: sourceForm.seo_robots,
-            seo_og_title: sourceForm.seo_og_title,
-            seo_og_description: sourceForm.seo_og_description,
-            seo_og_image_url: sourceForm.seo_og_image_url,
-            source_reference_url: sourceForm.source_reference_url,
-          },
-        }),
-      });
-
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(String(payload?.error || `HTTP ${response.status}`));
-      }
-      const optimized = String(payload?.value || "").trim();
-      if (!optimized) throw new Error("A IA nao retornou valor para este campo.");
-      return optimized;
-    };
-
-    const applyOptimizedField = (
-      sourceForm: BlogArticleForm,
-      targetField: SeoAiOptimizableField,
-      optimizedValue: string,
-    ) => {
-      const next = { ...sourceForm };
-      if (targetField === "slug") {
-        next.slug = generateSlug(optimizedValue);
-        return next;
-      }
-      if (targetField === "content_html") {
-        const normalizedHtml = stripContentH1Tags(optimizedValue);
-        next.content_html = normalizedHtml;
-        next.reading_time_minutes = Math.max(1, estimateReadingTime(normalizedHtml));
-        return next;
-      }
-      (next as any)[targetField] = optimizedValue;
-      return next;
-    };
-
     setAutoFixingSeo(true);
     setShowSeoAudit(true);
     try {
       const accessToken = await getAiAccessToken();
       let workingForm: BlogArticleForm = { ...articleForm };
-      const pendingIds = new Set(pending.map((item) => item.id));
+      const queue = buildSeoOptimizationQueue(
+        pending.map((item) => item.id),
+        workingForm,
+        "bulk",
+      );
 
-      const contentDrivenIds = new Set([
-        "min-content",
-        "h2-range",
-        "h3-min",
-        "keyword-density",
-        "keyword-first-paragraph",
-        "keyword-h2",
-        "keyword-conclusion",
-        "intro-size",
-        "conclusion-size",
-        "faq",
-        "links-internal",
-        "links-external",
-      ]);
-
-      const queue: SeoAiOptimizableField[] = [];
-      if (!workingForm.focus_keyword.trim()) queue.push("focus_keyword");
-      if (Array.from(pendingIds).some((id) => contentDrivenIds.has(id))) queue.push("content_html");
-      if (pendingIds.has("keyword-slug")) queue.push("slug");
-      if (pendingIds.has("seo-title-length")) queue.push("seo_title");
-      if (pendingIds.has("meta-length") || pendingIds.has("keyword-meta")) queue.push("seo_description");
-
-      if (!queue.includes("seo_title")) queue.push("seo_title");
-      if (!queue.includes("seo_description")) queue.push("seo_description");
-      if (!queue.includes("seo_og_title")) queue.push("seo_og_title");
-      if (!queue.includes("seo_og_description")) queue.push("seo_og_description");
-
-      const uniqueQueue = Array.from(new Set(queue));
-      for (const field of uniqueQueue) {
+      for (const field of queue) {
         setOptimizingSeoField(field);
         const optimized = await requestOptimizedSeoField(field, workingForm, accessToken);
         workingForm = applyOptimizedField(workingForm, field, optimized);
@@ -1899,16 +1907,7 @@ const BlogTab = () => {
         toast.warning(`IA aplicou correcoes. Restaram ${remaining} pendencia(s) para ajuste manual.`);
       }
     } catch (err: any) {
-      const message = String(err?.message || "");
-      if (/not found|nao encontrada|requested function was not found|404/i.test(message)) {
-        toast.error("Funcao optimize-blog-seo-field nao publicada no Supabase.");
-      } else if (/401|unauthorized|jwt|autenticacao/i.test(message)) {
-        toast.error("Nao autorizado para otimizar com IA. Faca login novamente.");
-      } else if (/403|somente administradores|acesso negado/i.test(message)) {
-        toast.error("Apenas administradores podem usar IA de SEO.");
-      } else {
-        toast.error(message || "Erro ao resolver pendencias SEO com IA.");
-      }
+      handleSeoAiError(err, "Erro ao resolver pendencias SEO com IA.");
     } finally {
       setOptimizingSeoField(null);
       setAutoFixingSeo(false);
@@ -2975,7 +2974,7 @@ const BlogTab = () => {
                           variant="outline"
                           className="gap-2"
                           onClick={handleAutoFixSeoPendencies}
-                          disabled={autoFixingSeo || savingArticle || !!optimizingSeoField}
+                          disabled={autoFixingSeo || savingArticle || !!optimizingSeoField || !!resolvingSeoItemId}
                         >
                           {autoFixingSeo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
                           Resolver pendencias com IA
@@ -3007,7 +3006,31 @@ const BlogTab = () => {
                           }`}
                         >
                           <span>{item.passed ? "OK" : "Revisar"} - {item.label}</span>
-                          <span className="font-medium">{item.detail}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{item.detail}</span>
+                            {!item.passed ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1 text-[11px]"
+                                onClick={() => handleResolveSingleSeoItem(item.id)}
+                                disabled={
+                                  autoFixingSeo ||
+                                  savingArticle ||
+                                  !!optimizingSeoField ||
+                                  !!resolvingSeoItemId
+                                }
+                              >
+                                {resolvingSeoItemId === item.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Sparkles className="h-3 w-3" />
+                                )}
+                                IA Resolve
+                              </Button>
+                            ) : null}
+                          </div>
                         </div>
                       ))}
                     </div>

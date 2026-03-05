@@ -77,19 +77,19 @@
   Mobile:
   Observacoes:
 
-- [ ] P0-13 Valores de pagamento conferem com Asaas
-  Desktop:
-  Mobile:
+- [OK] P0-13 Valores de pagamento conferem com Asaas
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P0-14 Status de pagamento confere com Asaas
-  Desktop:
-  Mobile:
+- [OK] P0-14 Status de pagamento confere com Asaas
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P0-15 Datas de pagamento conferem com Asaas
-  Desktop:
-  Mobile:
+- [OK] P0-15 Datas de pagamento conferem com Asaas
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 ### 1.3 Busca, Contato e Visibilidade

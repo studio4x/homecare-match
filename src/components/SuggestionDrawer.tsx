@@ -125,7 +125,11 @@ const SuggestionDrawer = ({
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       {trigger ? <SheetTrigger asChild>{trigger}</SheetTrigger> : null}
-      <SheetContent side="left" className="w-full sm:max-w-md">
+      <SheetContent
+        side="left"
+        overlayClassName="z-[350]"
+        className="z-[360] h-[100dvh] w-screen max-w-none overflow-y-auto border-0 p-4 sm:h-full sm:max-w-md sm:border-r sm:p-6"
+      >
         <SheetHeader className="mb-6">
           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
             <MessageSquarePlus className="h-6 w-6 text-primary" />

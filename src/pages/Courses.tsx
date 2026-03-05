@@ -36,6 +36,7 @@ import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { createCheckoutSession } from "@/lib/checkout";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
+import CourseAIDisclaimer from "@/components/CourseAIDisclaimer";
 
 type CourseLevel = "iniciante" | "basico" | "intermediario" | "avancado";
 
@@ -400,6 +401,8 @@ const Courses = () => {
             </Button>
           </div>
         </div>
+
+        <CourseAIDisclaimer className="mb-6" />
 
         {/* Barra de Filtros */}
         <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-sm">

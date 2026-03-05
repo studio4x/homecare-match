@@ -285,6 +285,236 @@ const parseSchemaJson = (value: string) => {
   }
 };
 
+type SeoAuditItem = {
+  id: string;
+  label: string;
+  passed: boolean;
+  detail: string;
+};
+
+type SeoAuditReport = {
+  passed: number;
+  total: number;
+  score: number;
+  metrics: {
+    chars: number;
+    words: number;
+    keywordDensity: number;
+    h1Count: number;
+    h2Count: number;
+    h3Count: number;
+    internalLinks: number;
+    externalLinks: number;
+    faqQuestions: number;
+  };
+  items: SeoAuditItem[];
+};
+
+const normalizeAuditText = (value: string) =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const stripAuditHtml = (html: string) =>
+  String(html || "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const countAuditMatches = (value: string, regex: RegExp) => (String(value || "").match(regex) || []).length;
+
+const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
+  const contentHtml = String(form.content_html || "");
+  const plain = stripAuditHtml(contentHtml);
+  const words = plain ? plain.split(" ").filter(Boolean).length : 0;
+
+  const keyword = String(form.focus_keyword || "").trim();
+  const keywordNorm = normalizeAuditText(keyword);
+  const keywordSlug = generateSlug(keyword);
+  const plainNorm = normalizeAuditText(plain);
+  const keywordOccurrences =
+    keywordNorm && plainNorm
+      ? countAuditMatches(plainNorm, new RegExp(`\\b${keywordNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"))
+      : 0;
+  const keywordDensity = words > 0 ? (keywordOccurrences / words) * 100 : 0;
+
+  const h1Count = countAuditMatches(contentHtml, /<h1\b/gi);
+  const h2Count = countAuditMatches(contentHtml, /<h2\b/gi);
+  const h3Count = countAuditMatches(contentHtml, /<h3\b/gi);
+
+  const firstParagraphText = stripAuditHtml((contentHtml.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1] || "").trim());
+  const introLength = firstParagraphText.length;
+
+  const conclusionMatch = contentHtml.match(/<h2\b[^>]*>[\s\S]*?(conclusao|conclusão)[\s\S]*?<\/h2>([\s\S]*?)(?=<h2\b|$)/i);
+  const conclusionText = stripAuditHtml(conclusionMatch?.[2] || "");
+  const conclusionLength = conclusionText.length;
+
+  const hasFaqHeading = /<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>/i.test(contentHtml);
+  const faqMatch = contentHtml.match(/<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>([\s\S]*?)(?=<h2\b|$)/i);
+  const faqBlock = faqMatch?.[2] || "";
+  const faqQuestions = countAuditMatches(faqBlock, /<h3\b/gi);
+
+  const hrefs = Array.from(contentHtml.matchAll(/href\s*=\s*["']([^"']+)["']/gi))
+    .map((entry) => String(entry?.[1] || "").trim())
+    .filter(Boolean);
+  const internalLinks = hrefs.filter((href) => href.startsWith("/") || href.startsWith("#") || href.includes("homecarematch.com.br")).length;
+  const externalLinks = hrefs.filter(
+    (href) => (href.startsWith("http://") || href.startsWith("https://")) && !href.includes("homecarematch.com.br"),
+  ).length;
+
+  const h2Texts = Array.from(contentHtml.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)).map((entry) => normalizeAuditText(stripAuditHtml(entry[1] || "")));
+  const hasKeywordInH2 = keywordNorm ? h2Texts.some((text) => text.includes(keywordNorm)) : false;
+
+  const seoDescriptionNorm = normalizeAuditText(form.seo_description || "");
+  const slugContainsKeyword = keywordSlug ? String(form.slug || "").includes(keywordSlug) : false;
+  const keywordInFirstParagraph = keywordNorm ? normalizeAuditText(firstParagraphText).includes(keywordNorm) : false;
+  const keywordInConclusion = keywordNorm ? normalizeAuditText(conclusionText).includes(keywordNorm) : false;
+  const keywordInMetaDescription = keywordNorm ? seoDescriptionNorm.includes(keywordNorm) : false;
+  const keywordInH1 = keywordNorm
+    ? normalizeAuditText(stripAuditHtml(contentHtml.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || "")).includes(keywordNorm)
+    : false;
+
+  const items: SeoAuditItem[] = [
+    {
+      id: "min-content",
+      label: "Conteudo minimo (>= 6000 caracteres)",
+      passed: plain.length >= 6000,
+      detail: `${plain.length} caracteres`,
+    },
+    {
+      id: "h1-single",
+      label: "Estrutura H1 (exatamente 1)",
+      passed: h1Count === 1,
+      detail: `${h1Count} H1`,
+    },
+    {
+      id: "h2-range",
+      label: "Estrutura H2 (entre 3 e 8)",
+      passed: h2Count >= 3 && h2Count <= 8,
+      detail: `${h2Count} H2`,
+    },
+    {
+      id: "h3-min",
+      label: "Estrutura H3 (minimo 3)",
+      passed: h3Count >= 3,
+      detail: `${h3Count} H3`,
+    },
+    {
+      id: "keyword-density",
+      label: "Densidade da palavra-chave (0,8% a 1,5%)",
+      passed: keywordDensity >= 0.8 && keywordDensity <= 1.5,
+      detail: `${keywordDensity.toFixed(2)}%`,
+    },
+    {
+      id: "keyword-h1",
+      label: "Palavra-chave no H1",
+      passed: keywordInH1,
+      detail: keyword || "Sem palavra-chave foco",
+    },
+    {
+      id: "keyword-first-paragraph",
+      label: "Palavra-chave no primeiro paragrafo",
+      passed: keywordInFirstParagraph,
+      detail: keyword || "Sem palavra-chave foco",
+    },
+    {
+      id: "keyword-h2",
+      label: "Palavra-chave em pelo menos um H2",
+      passed: hasKeywordInH2,
+      detail: keyword || "Sem palavra-chave foco",
+    },
+    {
+      id: "keyword-conclusion",
+      label: "Palavra-chave na conclusao",
+      passed: keywordInConclusion,
+      detail: keyword || "Sem palavra-chave foco",
+    },
+    {
+      id: "keyword-meta",
+      label: "Palavra-chave na meta description",
+      passed: keywordInMetaDescription,
+      detail: `${(form.seo_description || "").length} caracteres`,
+    },
+    {
+      id: "keyword-slug",
+      label: "Palavra-chave na slug",
+      passed: slugContainsKeyword,
+      detail: form.slug || "-",
+    },
+    {
+      id: "intro-size",
+      label: "Introducao entre 500 e 800 caracteres",
+      passed: introLength >= 500 && introLength <= 800,
+      detail: `${introLength} caracteres`,
+    },
+    {
+      id: "conclusion-size",
+      label: "Conclusao entre 400 e 700 caracteres",
+      passed: conclusionLength >= 400 && conclusionLength <= 700,
+      detail: `${conclusionLength} caracteres`,
+    },
+    {
+      id: "faq",
+      label: "FAQ com 3 a 5 perguntas",
+      passed: hasFaqHeading && faqQuestions >= 3 && faqQuestions <= 5,
+      detail: `${faqQuestions} perguntas`,
+    },
+    {
+      id: "links-internal",
+      label: "Links internos (minimo 3)",
+      passed: internalLinks >= 3,
+      detail: `${internalLinks} links`,
+    },
+    {
+      id: "links-external",
+      label: "Links externos (2 a 3)",
+      passed: externalLinks >= 2 && externalLinks <= 3,
+      detail: `${externalLinks} links`,
+    },
+    {
+      id: "seo-title-length",
+      label: "SEO title entre 50 e 60 caracteres",
+      passed: String(form.seo_title || "").trim().length >= 50 && String(form.seo_title || "").trim().length <= 60,
+      detail: `${String(form.seo_title || "").trim().length} caracteres`,
+    },
+    {
+      id: "meta-length",
+      label: "Meta description entre 140 e 160 caracteres",
+      passed:
+        String(form.seo_description || "").trim().length >= 140 &&
+        String(form.seo_description || "").trim().length <= 160,
+      detail: `${String(form.seo_description || "").trim().length} caracteres`,
+    },
+  ];
+
+  const passed = items.filter((item) => item.passed).length;
+  const total = items.length;
+
+  return {
+    passed,
+    total,
+    score: total > 0 ? Math.round((passed / total) * 100) : 0,
+    metrics: {
+      chars: plain.length,
+      words,
+      keywordDensity,
+      h1Count,
+      h2Count,
+      h3Count,
+      internalLinks,
+      externalLinks,
+      faqQuestions,
+    },
+    items,
+  };
+};
+
 const BlogSeoFields = ({
   value,
   onChange,
@@ -391,6 +621,7 @@ const BlogTab = () => {
   const [researchingTopics, setResearchingTopics] = useState(false);
   const [researchResults, setResearchResults] = useState<BlogResearchResult[]>([]);
   const [generatingFromResearchId, setGeneratingFromResearchId] = useState<string | null>(null);
+  const [showSeoAudit, setShowSeoAudit] = useState(false);
 
   const [categories, setCategories] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
@@ -505,6 +736,7 @@ const BlogTab = () => {
     () => getSafeExternalUrl(articleForm.cover_image_url),
     [articleForm.cover_image_url],
   );
+  const seoAuditReport = useMemo(() => computeSeoAuditReport(articleForm), [articleForm]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -603,7 +835,10 @@ const BlogTab = () => {
 
   const resetCategoryForm = () => setCategoryForm(emptyCategoryForm);
   const resetTagForm = () => setTagForm(emptyTagForm);
-  const resetArticleForm = () => setArticleForm(emptyArticleForm);
+  const resetArticleForm = () => {
+    setArticleForm(emptyArticleForm);
+    setShowSeoAudit(false);
+  };
 
   const upsertCategoryByName = async (name: string, parentId: string | null) => {
     const trimmedName = String(name || "").trim();
@@ -1065,6 +1300,7 @@ const BlogTab = () => {
         schema_json: aiSchemaJson || prev.schema_json,
       }));
 
+      setShowSeoAudit(true);
       toast.success("Artigo gerado com IA. Revise e ajuste antes de publicar.");
     } catch (err: any) {
       const message = String(err?.message || "");
@@ -1460,6 +1696,7 @@ const BlogTab = () => {
       }));
 
       setActiveTab("articles");
+      setShowSeoAudit(true);
       toast.success("Artigo gerado com tema pesquisado, URL de referencia preenchida e capa criada automaticamente.");
     } catch (err: any) {
       toast.error(err?.message || "Erro ao gerar artigo com tema pesquisado.");
@@ -1958,7 +2195,52 @@ const BlogTab = () => {
                   onChange={(patch) => setArticleForm((prev) => ({ ...prev, ...patch }))}
                 />
 
+                {showSeoAudit ? (
+                  <div className="space-y-3 rounded-xl border border-border/70 bg-secondary/10 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold">Relatorio SEO do artigo</p>
+                        <p className="text-xs text-muted-foreground">
+                          Use este checklist para aprovar o artigo antes de salvar/publicar.
+                        </p>
+                      </div>
+                      <Badge variant={seoAuditReport.score >= 85 ? "default" : "secondary"}>
+                        Score SEO: {seoAuditReport.score}% ({seoAuditReport.passed}/{seoAuditReport.total})
+                      </Badge>
+                    </div>
+
+                    <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-4">
+                      <span>Caracteres: {seoAuditReport.metrics.chars}</span>
+                      <span>Palavras: {seoAuditReport.metrics.words}</span>
+                      <span>Densidade KW: {seoAuditReport.metrics.keywordDensity.toFixed(2)}%</span>
+                      <span>H1/H2/H3: {seoAuditReport.metrics.h1Count}/{seoAuditReport.metrics.h2Count}/{seoAuditReport.metrics.h3Count}</span>
+                      <span>Links internos: {seoAuditReport.metrics.internalLinks}</span>
+                      <span>Links externos: {seoAuditReport.metrics.externalLinks}</span>
+                      <span>FAQ (H3): {seoAuditReport.metrics.faqQuestions}</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {seoAuditReport.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs ${
+                            item.passed
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-amber-200 bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          <span>{item.passed ? "OK" : "Revisar"} - {item.label}</span>
+                          <span className="font-medium">{item.detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="flex flex-wrap justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowSeoAudit(true)}>
+                    Ver relatorio SEO
+                  </Button>
                   <Button type="button" variant="outline" onClick={resetArticleForm}>
                     Limpar
                   </Button>

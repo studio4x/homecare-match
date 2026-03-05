@@ -7,6 +7,7 @@ import CourseSummaryList from "@/components/CourseSummaryList";
 import { Button } from "@/components/ui/button";
 import { BookOpen, ArrowRight, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import CourseAIDisclaimer from "@/components/CourseAIDisclaimer";
 
 interface EnrollmentRow {
   course_slug: string;
@@ -181,6 +182,8 @@ const AcademyPage = () => {
           <Link to="/cursos">Catálogo de Cursos <ArrowRight className="h-4 w-4" /></Link>
         </Button>
       </div>
+
+      <CourseAIDisclaimer compact />
 
       <div className="grid gap-8">
         <div className="bg-card rounded-2xl border p-6 shadow-sm">

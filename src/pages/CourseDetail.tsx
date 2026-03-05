@@ -45,6 +45,7 @@ import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import Land
 import { createCheckoutSession } from "@/lib/checkout";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
+import CourseAIDisclaimer from "@/components/CourseAIDisclaimer";
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -412,6 +413,8 @@ const CourseDetail = () => {
         <Button variant="ghost" asChild className="mb-6 gap-2">
           <Link to="/cursos"><ArrowLeft size={16} /> Voltar para Cursos</Link>
         </Button>
+
+        <CourseAIDisclaimer className="mb-6" />
 
         <div className="grid gap-8 md:grid-cols-3">
           <div className="space-y-6">

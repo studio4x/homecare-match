@@ -27,6 +27,8 @@ const SEO_TITLE_MIN_CHARS = 30;
 const SEO_TITLE_MAX_CHARS = 60;
 const SEO_DESCRIPTION_MIN_CHARS = 70;
 const SEO_DESCRIPTION_MAX_CHARS = 155;
+const REFERENCE_FETCH_TIMEOUT_MS = 15000;
+const REFERENCE_MAX_PROMPT_CHARS = 5000;
 
 const INTERNAL_LINK_SUGGESTIONS = [
   "/",
@@ -50,6 +52,38 @@ const cleanJsonText = (text: string) =>
     .replace(/^```/i, "")
     .replace(/```$/i, "")
     .trim();
+
+const compactText = (value: string, max = 240) => String(value || "").replace(/\s+/g, " ").trim().slice(0, max);
+
+const getSafeExternalUrl = (value: string) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+};
+
+const extractFirstUrlFromText = (value: string) => {
+  const text = String(value || "");
+  const match = text.match(/https?:\/\/[^\s<>"')]+/i);
+  return getSafeExternalUrl(match?.[0] || "");
+};
+
+const normalizeComparableUrl = (value: string) => {
+  const safe = getSafeExternalUrl(value);
+  if (!safe) return "";
+  try {
+    const parsed = new URL(safe);
+    const pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    return `${parsed.origin}${pathname}`.toLowerCase();
+  } catch {
+    return "";
+  }
+};
 
 const toSlug = (text: string) =>
   String(text || "")
@@ -315,6 +349,75 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
+const fetchReferenceContext = async (referenceUrl: string) => {
+  const safeUrl = getSafeExternalUrl(referenceUrl);
+  if (!safeUrl) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REFERENCE_FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(safeUrl, {
+      method: "GET",
+      signal: controller.signal,
+      headers: {
+        "user-agent":
+          "Mozilla/5.0 (compatible; HomeCareMatchBot/1.0; +https://www.homecarematch.com.br)",
+        accept: "text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.7",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Falha ao ler URL de referencia (HTTP ${response.status}).`);
+    }
+
+    const rawHtml = await response.text();
+    const titleMatch = rawHtml.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+    const metaDescMatch = rawHtml.match(
+      /<meta[^>]+name=["']description["'][^>]+content=["']([\s\S]*?)["'][^>]*>/i,
+    );
+
+    const title = compactText(stripHtml(titleMatch?.[1] || ""), 180);
+    const description = compactText(metaDescMatch?.[1] || "", 300);
+    const plainContent = stripHtml(rawHtml);
+    const excerpt = compactText(plainContent, REFERENCE_MAX_PROMPT_CHARS);
+
+    if (!excerpt || excerpt.length < 300) {
+      throw new Error("A URL de referencia nao possui conteudo textual suficiente.");
+    }
+
+    return {
+      url: safeUrl,
+      title,
+      description,
+      excerpt,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const ensureReferenceLinkInContent = (html: string, referenceUrl: string, referenceTitle: string) => {
+  const safeUrl = getSafeExternalUrl(referenceUrl);
+  if (!safeUrl) return stripContentH1Tags(html);
+
+  const normalizedSource = normalizeComparableUrl(safeUrl);
+  const existingLinks = extractHrefList(html);
+  const hasReferenceLink = existingLinks.some((href) => {
+    const normalizedHref = normalizeComparableUrl(href);
+    return !!normalizedHref && (normalizedHref === normalizedSource || normalizedHref.startsWith(normalizedSource));
+  });
+
+  if (hasReferenceLink) return stripContentH1Tags(html);
+
+  const anchorLabel = compactText(referenceTitle || "fonte de referencia", 120) || "fonte de referencia";
+  const sourceBlock =
+    `<p><strong>Fonte consultada:</strong> ` +
+    `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer nofollow">${escapeHtml(anchorLabel)}</a>.</p>`;
+
+  return stripContentH1Tags(`${String(html || "").trim()}\n${sourceBlock}`);
+};
+
 const toSeoTitleLength = (value: string, fallback: string) => {
   let text = String(value || "").trim() || String(fallback || "").trim();
   if (!text) return "";
@@ -330,6 +433,8 @@ const toSeoTitleLength = (value: string, fallback: string) => {
 
 const normalizeArticlePayload = (parsed: any) => {
   const title = String(parsed?.title || "").trim();
+  const sourceReferenceUrl = getSafeExternalUrl(String(parsed?.source_reference_url || "").trim());
+  const sourceReferenceTitle = compactText(String(parsed?.source_reference_title || "").trim(), 180);
   const focusKeyword = String(parsed?.focus_keyword || "").trim() || String(title || "").split(":")[0].trim();
   const normalizedKeywordSlug = toSlug(focusKeyword);
   let slug = toSlug(String(parsed?.slug || title || focusKeyword));
@@ -362,6 +467,8 @@ const normalizeArticlePayload = (parsed: any) => {
     seo_og_description: toMetaLength(seoOgDescription, 140, 180, seoDescriptionRaw),
     tags_suggested: tagsSuggested,
     reading_time_minutes: Number(parsed?.reading_time_minutes || 0) || estimateReadingTime(contentHtml),
+    source_reference_url: sourceReferenceUrl || null,
+    source_reference_title: sourceReferenceTitle || null,
   };
 };
 
@@ -411,6 +518,7 @@ const validateArticleSeoRules = (article: any) => {
   const keyword = String(article.focus_keyword || "").trim();
   const keywordNorm = normalizeText(keyword);
   const slugKeyword = toSlug(keyword);
+  const sourceReferenceUrl = getSafeExternalUrl(String(article?.source_reference_url || "").trim());
 
   if (!article.title) issues.push("title ausente");
   if (!article.slug) issues.push("slug ausente");
@@ -458,8 +566,20 @@ const validateArticleSeoRules = (article: any) => {
   const internalLinks = links.filter(isInternalLink).length;
   const externalLinks = links.filter(isExternalLink).length;
   if (internalLinks < MIN_INTERNAL_LINKS) issues.push(`deve ter ao menos ${MIN_INTERNAL_LINKS} links internos`);
-  if (externalLinks < MIN_EXTERNAL_LINKS || externalLinks > MAX_EXTERNAL_LINKS) {
-    issues.push(`links externos fora do intervalo ${MIN_EXTERNAL_LINKS}-${MAX_EXTERNAL_LINKS}`);
+  const maxExternalLinksAllowed = sourceReferenceUrl ? MAX_EXTERNAL_LINKS + 1 : MAX_EXTERNAL_LINKS;
+  if (externalLinks < MIN_EXTERNAL_LINKS || externalLinks > maxExternalLinksAllowed) {
+    issues.push(`links externos fora do intervalo ${MIN_EXTERNAL_LINKS}-${maxExternalLinksAllowed}`);
+  }
+
+  if (sourceReferenceUrl) {
+    const normalizedSource = normalizeComparableUrl(sourceReferenceUrl);
+    const hasReferenceLink = links.some((href) => {
+      const normalizedHref = normalizeComparableUrl(href);
+      return !!normalizedHref && (normalizedHref === normalizedSource || normalizedHref.startsWith(normalizedSource));
+    });
+    if (!hasReferenceLink) {
+      issues.push("link da fonte de referencia ausente no content_html");
+    }
   }
 
   if (article.slug.length > MAX_SLUG_LENGTH) issues.push(`slug acima de ${MAX_SLUG_LENGTH} caracteres`);
@@ -658,6 +778,7 @@ const applyLocalSeoCorrections = (article: any) => {
   html = enforceH2Limit(html);
   html = enforceConclusionLength(html, base.focus_keyword);
   html = diluteKeywordDensity(html, base.focus_keyword);
+  html = ensureReferenceLinkInContent(html, base.source_reference_url, base.source_reference_title || base.title);
   html = stripContentH1Tags(html);
 
   return normalizeArticlePayload({
@@ -739,15 +860,29 @@ serve(async (req) => {
       });
     }
 
-    const { mode, suggestion } = await req.json();
+    const requestBody = await req.json();
+    const { mode, suggestion, source_reference_url: sourceReferenceUrlRaw } = requestBody || {};
     const normalizedMode = mode === "automatic" ? "automatic" : "suggestion";
     const normalizedSuggestion = String(suggestion || "").trim();
+    const explicitSourceReferenceUrl = getSafeExternalUrl(String(sourceReferenceUrlRaw || "").trim());
+    const sourceReferenceUrlFromSuggestion = extractFirstUrlFromText(normalizedSuggestion);
+    const normalizedSourceReferenceUrl = explicitSourceReferenceUrl || sourceReferenceUrlFromSuggestion;
 
     if (normalizedMode === "suggestion" && !normalizedSuggestion) {
       return new Response(JSON.stringify({ error: "Informe uma sugestao para gerar o artigo." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (normalizedMode === "suggestion" && !normalizedSourceReferenceUrl) {
+      return new Response(
+        JSON.stringify({ error: "Informe uma URL de referencia valida para gerar o artigo com base na fonte." }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const { data: config } = await supabaseAdmin
@@ -766,6 +901,42 @@ serve(async (req) => {
       normalizedMode === "automatic"
         ? "Escolha um tema estrategico e atual para Home Care no Brasil, com foco em valor pratico para profissionais, empresas e familias."
         : `Tema sugerido pelo usuario: ${normalizedSuggestion}`;
+
+    const referenceContext = normalizedSourceReferenceUrl
+      ? await fetchReferenceContext(normalizedSourceReferenceUrl)
+      : null;
+
+    if (normalizedMode === "suggestion" && !referenceContext) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Nao foi possivel ler o conteudo da URL de referencia. Verifique se o link esta acessivel e tente novamente.",
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const externalLinkSuggestions = normalizedSourceReferenceUrl
+      ? [normalizedSourceReferenceUrl, ...EXTERNAL_LINK_SUGGESTIONS.filter((url) => url !== normalizedSourceReferenceUrl)]
+      : EXTERNAL_LINK_SUGGESTIONS;
+
+    const referencePromptBlock = referenceContext
+      ? `
+Fonte de referencia obrigatoria (base principal do artigo):
+- URL: ${referenceContext.url}
+- Titulo da fonte: ${referenceContext.title || "(nao informado)"}
+- Descricao da fonte: ${referenceContext.description || "(nao informada)"}
+- Trecho extraido da fonte:
+"""${referenceContext.excerpt}"""
+
+Regra critica:
+- O artigo deve ser construido com base no conteudo acima, mantendo aderencia tematica e factual.
+- Inclua obrigatoriamente no content_html ao menos um link para a URL da fonte de referencia.
+`
+      : "";
 
     const generationPrompt = `
 Voce e um redator senior de SEO especializado em saude Home Care.
@@ -796,10 +967,12 @@ Sugestoes de links internos (use pelo menos 3 no artigo):
 ${INTERNAL_LINK_SUGGESTIONS.join("\n")}
 
 Sugestoes de links externos de referencia (use 2 a 3):
-${EXTERNAL_LINK_SUGGESTIONS.join("\n")}
+${externalLinkSuggestions.join("\n")}
 
 Tema:
 ${topicInstruction}
+
+${referencePromptBlock}
 
 Retorne APENAS JSON valido, sem markdown:
 {
@@ -813,7 +986,9 @@ Retorne APENAS JSON valido, sem markdown:
   "seo_og_title": "string",
   "seo_og_description": "string",
   "tags_suggested": ["string", "string"],
-  "reading_time_minutes": 1
+  "reading_time_minutes": 1,
+  "source_reference_url": "string (URL da fonte principal, quando houver)",
+  "source_reference_title": "string (titulo da fonte principal)"
 }
 
 Regras adicionais:
@@ -822,14 +997,27 @@ Regras adicionais:
 - Paragrafos curtos para boa escaneabilidade
 `.trim();
 
-    let article = normalizeArticlePayload(
-      await callGeminiJson({
-        apiKey: GEMINI_API_KEY,
-        modelName,
-        prompt: generationPrompt,
-        temperature: 0.55,
-      }),
-    );
+    const generatedRaw = await callGeminiJson({
+      apiKey: GEMINI_API_KEY,
+      modelName,
+      prompt: generationPrompt,
+      temperature: 0.55,
+    });
+
+    let article = normalizeArticlePayload({
+      ...generatedRaw,
+      source_reference_url: normalizedSourceReferenceUrl || generatedRaw?.source_reference_url,
+      source_reference_title:
+        referenceContext?.title || generatedRaw?.source_reference_title || generatedRaw?.source_reference_url || "",
+    });
+    article = normalizeArticlePayload({
+      ...article,
+      content_html: ensureReferenceLinkInContent(
+        article.content_html,
+        article.source_reference_url,
+        article.source_reference_title || article.title,
+      ),
+    });
 
     const MAX_REPAIR_ATTEMPTS = 2;
     let issues = validateArticleSeoRules(article);
@@ -852,6 +1040,7 @@ Regras criticas:
 - manter densidade da palavra-chave em ${MIN_KEYWORD_DENSITY}%-${MAX_KEYWORD_DENSITY}%
 - manter seo_title em ${SEO_TITLE_MIN_CHARS}-${SEO_TITLE_MAX_CHARS} e seo_description em ${SEO_DESCRIPTION_MIN_CHARS}-${SEO_DESCRIPTION_MAX_CHARS}
 - nao remover FAQ
+- manter o artigo aderente ao tema da fonte de referencia e com link para a URL principal, quando informada
 
 Artigo atual (JSON):
 ${JSON.stringify(article)}
@@ -860,14 +1049,27 @@ Retorne APENAS JSON valido com os mesmos campos e com todos os problemas corrigi
 Lembre-se: conteudo deve ficar entre ${MIN_CONTENT_CHARS} e ${MAX_CONTENT_CHARS} caracteres.
 `.trim();
 
-      article = normalizeArticlePayload(
-        await callGeminiJson({
-          apiKey: GEMINI_API_KEY,
-          modelName,
-          prompt: repairPrompt,
-          temperature: 0.35,
-        }),
-      );
+      const repairedRaw = await callGeminiJson({
+        apiKey: GEMINI_API_KEY,
+        modelName,
+        prompt: repairPrompt,
+        temperature: 0.35,
+      });
+
+      article = normalizeArticlePayload({
+        ...repairedRaw,
+        source_reference_url: article.source_reference_url || normalizedSourceReferenceUrl,
+        source_reference_title:
+          article.source_reference_title || referenceContext?.title || repairedRaw?.source_reference_title || "",
+      });
+      article = normalizeArticlePayload({
+        ...article,
+        content_html: ensureReferenceLinkInContent(
+          article.content_html,
+          article.source_reference_url,
+          article.source_reference_title || article.title,
+        ),
+      });
 
       issues = validateArticleSeoRules(article);
     }

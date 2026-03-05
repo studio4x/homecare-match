@@ -1647,6 +1647,10 @@ const BlogTab = () => {
       toast.error("Informe uma sugestao para gerar o artigo com IA.");
       return;
     }
+    if (mode === "suggestion" && !sourceReferenceExternalUrl) {
+      toast.error("Informe a URL de referencia do artigo para gerar o conteudo com base na fonte.");
+      return;
+    }
 
     setGeneratingAI(mode);
     try {
@@ -1670,6 +1674,7 @@ const BlogTab = () => {
         body: JSON.stringify({
           mode,
           suggestion: mode === "suggestion" ? effectiveSuggestion : null,
+          source_reference_url: sourceReferenceExternalUrl || null,
         }),
       });
 
@@ -1757,6 +1762,8 @@ const BlogTab = () => {
         title: resolvedTitle || prev.title,
         slug: resolvedSlug || prev.slug,
         excerpt: resolvedExcerpt || prev.excerpt,
+        source_reference_url:
+          String(payload.source_reference_url || "").trim() || sourceReferenceExternalUrl || prev.source_reference_url,
         content_html: resolvedContent || prev.content_html,
         focus_keyword: resolvedKeyword || prev.focus_keyword,
         seo_title: resolvedSeoTitle || prev.seo_title,
@@ -2365,6 +2372,7 @@ const BlogTab = () => {
         body: JSON.stringify({
           mode: "suggestion",
           suggestion,
+          source_reference_url: result.url || null,
         }),
       });
 

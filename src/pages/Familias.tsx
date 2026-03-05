@@ -24,6 +24,7 @@ import {
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
+import { resolveLandingVideoUrl } from "@/lib/landing-video";
 
 const Familias = () => {
   const { data: config } = useSiteConfig();
@@ -92,9 +93,10 @@ const Familias = () => {
   const canUseSpecialtySearch = (stats?.total ?? 0) >= 10;
 
   // Determine video URL for LandingVideoPlayer
-  const landingVideoUrl = config?.video_storage_path_families
-    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/uploads/${config.video_storage_path_families}`
-    : config?.video_url_families;
+  const landingVideoUrl = resolveLandingVideoUrl(
+    config?.video_storage_path_families,
+    config?.video_url_families,
+  );
 
   return (
     <Layout>
@@ -151,22 +153,6 @@ const Familias = () => {
         </div>
       </section>
 
-      {/* Seção de Vídeo de Apresentação */}
-      {landingVideoUrl && (
-        <section className="py-12 bg-secondary/10">
-          <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto">
-              <LandingVideoPlayer 
-                url={landingVideoUrl} 
-                title="Apresentação para Famílias"
-                autoplay={false} // Desativar autoplay
-                deferLoad={true}
-              />
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Features Section */}
       <section className="py-14 md:py-20">
         <div className="container mx-auto px-4">
@@ -192,6 +178,22 @@ const Familias = () => {
           </div>
         </div>
       </section>
+
+      {/* How it Works */}
+      {landingVideoUrl && (
+        <section className="bg-secondary/10 py-12">
+          <div className="container mx-auto px-4">
+            <div className="mx-auto max-w-4xl">
+              <LandingVideoPlayer
+                url={landingVideoUrl}
+                title="Apresentação para Famílias"
+                autoplay={false}
+                deferLoad={true}
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* How it Works */}
       <section className="bg-secondary/30 py-14 md:py-20">

@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
+import { resolveLandingVideoUrl } from "@/lib/landing-video";
 
 const Empresas = () => {
   const { data: config } = useSiteConfig();
@@ -126,9 +127,10 @@ const Empresas = () => {
   const showLocationCard = !isLoadingLocations && (locationData?.total || 0) >= 10;
 
   // Determine video URL for LandingVideoPlayer
-  const landingVideoUrl = config?.video_storage_path_companies
-    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/uploads/${config.video_storage_path_companies}`
-    : config?.video_url_companies;
+  const landingVideoUrl = resolveLandingVideoUrl(
+    config?.video_storage_path_companies,
+    config?.video_url_companies,
+  );
 
   return (
     <Layout>
@@ -174,22 +176,6 @@ const Empresas = () => {
           </div>
         </div>
       </section>
-
-      {/* Seção de Vídeo de Apresentação */}
-      {landingVideoUrl && (
-        <section className="py-12 bg-secondary/10">
-          <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto">
-              <LandingVideoPlayer 
-                url={landingVideoUrl} 
-                title="Apresentação para Empresas"
-                autoplay={false} // Desativar autoplay
-                deferLoad={true}
-              />
-            </div>
-          </div>
-        </section>
-      )}
 
       {/* Features Section */}
       <section className="py-14 md:py-20">
@@ -295,6 +281,22 @@ const Empresas = () => {
           </div>
         </div>
       </section>
+
+      {/* How it Works */}
+      {landingVideoUrl && (
+        <section className="bg-secondary/10 py-12">
+          <div className="container mx-auto px-4">
+            <div className="mx-auto max-w-4xl">
+              <LandingVideoPlayer
+                url={landingVideoUrl}
+                title="Apresentação para Empresas"
+                autoplay={false}
+                deferLoad={true}
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* How it Works */}
       <section className="py-14 md:py-20">

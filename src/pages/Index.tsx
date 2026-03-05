@@ -35,6 +35,7 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { createCheckoutSession } from "@/lib/checkout";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
+import { resolveLandingVideoUrl } from "@/lib/landing-video";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -375,9 +376,10 @@ const Index = () => {
   const cardContent = getAcademyCardContent();
   const CardIcon = cardContent.icon;
 
-  const landingVideoUrl = config?.video_storage_path_professionals
-    ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/uploads/${config.video_storage_path_professionals}`
-    : config?.video_url_professionals;
+  const landingVideoUrl = resolveLandingVideoUrl(
+    config?.video_storage_path_professionals,
+    config?.video_url_professionals,
+  );
 
   if (authLoading) {
     return (

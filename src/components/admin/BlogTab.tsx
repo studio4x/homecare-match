@@ -456,6 +456,139 @@ const stripAuditHtml = (html: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const FAQ_HEADING_KEYWORDS = ["perguntas frequentes", "duvidas frequentes", "faq"];
+
+const extractFaqAuditData = (contentHtml: string) => {
+  const source = String(contentHtml || "");
+  const headingRegex = /<h([2-5])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
+  const headings: Array<{ level: number; start: number; end: number; text: string }> = [];
+
+  let match: RegExpExecArray | null = null;
+  while ((match = headingRegex.exec(source))) {
+    headings.push({
+      level: Number(match[1] || 0),
+      start: match.index,
+      end: headingRegex.lastIndex,
+      text: normalizeAuditText(stripAuditHtml(match[2] || "")),
+    });
+  }
+
+  const faqHeadingIndex = headings.findIndex((heading) =>
+    FAQ_HEADING_KEYWORDS.some((keyword) => heading.text.includes(keyword)),
+  );
+
+  if (faqHeadingIndex < 0) {
+    return { hasFaqSection: false, faqQuestions: 0 };
+  }
+
+  const faqHeading = headings[faqHeadingIndex];
+  let sectionEnd = source.length;
+  for (let i = faqHeadingIndex + 1; i < headings.length; i += 1) {
+    if (headings[i].level <= faqHeading.level) {
+      sectionEnd = headings[i].start;
+      break;
+    }
+  }
+
+  const faqBlock = source.slice(faqHeading.end, sectionEnd);
+  const headingQuestions = countAuditMatches(faqBlock, /<h([3-6])\b[^>]*>[\s\S]*?<\/h\1>/gi);
+
+  const listQuestions = Array.from(faqBlock.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)).filter((item) =>
+    stripAuditHtml(String(item?.[1] || "")).includes("?"),
+  ).length;
+
+  const paragraphQuestions = Array.from(faqBlock.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)).filter((item) =>
+    stripAuditHtml(String(item?.[1] || "")).includes("?"),
+  ).length;
+
+  return {
+    hasFaqSection: true,
+    faqQuestions: headingQuestions || listQuestions || paragraphQuestions,
+  };
+};
+
+const VOID_HTML_TAGS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
+
+const clampContentHtmlByPlainChars = (html: string, maxChars: number) => {
+  const safeMax = Math.max(1, Number(maxChars || 0));
+  const source = stripContentH1Tags(String(html || ""));
+  const plainLength = stripAuditHtml(source).length;
+
+  if (plainLength <= safeMax) {
+    return { html: source, chars: plainLength, wasTrimmed: false };
+  }
+
+  const tokens = source.split(/(<[^>]+>)/g).filter(Boolean);
+  let remaining = safeMax;
+  let output = "";
+  const openTags: string[] = [];
+
+  for (const token of tokens) {
+    if (remaining <= 0) break;
+
+    if (token.startsWith("<")) {
+      output += token;
+
+      const closingMatch = token.match(/^<\s*\/\s*([a-zA-Z0-9:-]+)\s*>$/);
+      if (closingMatch) {
+        const closingTag = String(closingMatch[1] || "").toLowerCase();
+        for (let i = openTags.length - 1; i >= 0; i -= 1) {
+          if (openTags[i] === closingTag) {
+            openTags.splice(i, 1);
+            break;
+          }
+        }
+        continue;
+      }
+
+      if (token.endsWith("/>")) continue;
+      const openingMatch = token.match(/^<\s*([a-zA-Z0-9:-]+)\b[^>]*>$/);
+      const openingTag = String(openingMatch?.[1] || "").toLowerCase();
+      if (!openingTag || VOID_HTML_TAGS.has(openingTag) || token.startsWith("<!")) continue;
+      openTags.push(openingTag);
+      continue;
+    }
+
+    if (token.length <= remaining) {
+      output += token;
+      remaining -= token.length;
+      continue;
+    }
+
+    output += token.slice(0, remaining);
+    remaining = 0;
+    break;
+  }
+
+  for (let i = openTags.length - 1; i >= 0; i -= 1) {
+    output += `</${openTags[i]}>`;
+  }
+
+  const normalized = stripContentH1Tags(output).trim();
+  const normalizedChars = stripAuditHtml(normalized).length;
+
+  return {
+    html: normalized,
+    chars: normalizedChars,
+    wasTrimmed: normalizedChars < plainLength,
+  };
+};
+
 const countAuditMatches = (value: string, regex: RegExp) => (String(value || "").match(regex) || []).length;
 const SEO_MIN_CONTENT_CHARS = 8000;
 const SEO_MAX_CONTENT_CHARS = 12000;
@@ -534,10 +667,9 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const conclusionText = stripAuditHtml(conclusionMatch?.[2] || "");
   const conclusionLength = conclusionText.length;
 
-  const hasFaqHeading = /<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>/i.test(contentHtml);
-  const faqMatch = contentHtml.match(/<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>([\s\S]*?)(?=<h2\b|$)/i);
-  const faqBlock = faqMatch?.[2] || "";
-  const faqQuestions = countAuditMatches(faqBlock, /<h3\b/gi);
+  const faqAudit = extractFaqAuditData(contentHtml);
+  const hasFaqHeading = faqAudit.hasFaqSection;
+  const faqQuestions = faqAudit.faqQuestions;
 
   const hrefs = Array.from(contentHtml.matchAll(/href\s*=\s*["']([^"']+)["']/gi))
     .map((entry) => String(entry?.[1] || "").trim())
@@ -632,7 +764,7 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
       id: "faq",
       label: "FAQ com 3 a 5 perguntas",
       passed: hasFaqHeading && faqQuestions >= 3 && faqQuestions <= 5,
-      detail: `${faqQuestions} perguntas`,
+      detail: hasFaqHeading ? `${faqQuestions} perguntas` : "Secao FAQ nao encontrada",
     },
     {
       id: "links-internal",
@@ -1358,11 +1490,17 @@ const BlogTab = () => {
       return;
     }
 
+    const boundedContent = clampContentHtmlByPlainChars(articleForm.content_html, SEO_MAX_CONTENT_CHARS);
+    if (boundedContent.wasTrimmed) {
+      setArticleForm((prev) => ({ ...prev, content_html: boundedContent.html }));
+      toast.warning(`Conteúdo ajustado automaticamente para no máximo ${SEO_MAX_CONTENT_CHARS} caracteres.`);
+    }
+
     setSavingArticle(true);
     try {
       const estimatedReadingTime = Math.max(
         1,
-        Number(articleForm.reading_time_minutes || estimateReadingTime(articleForm.content_html)),
+        Number(articleForm.reading_time_minutes || estimateReadingTime(boundedContent.html)),
       );
 
       const {
@@ -1375,7 +1513,7 @@ const BlogTab = () => {
         excerpt: articleForm.excerpt || null,
         source_reference_url: articleForm.source_reference_url || null,
         cover_image_url: articleForm.cover_image_url || null,
-        content_html: stripContentH1Tags(articleForm.content_html),
+        content_html: boundedContent.html,
         status: articleForm.status,
         published_at:
           articleForm.status === "published"
@@ -1575,9 +1713,11 @@ const BlogTab = () => {
         aiExcerpt ||
         articleForm.excerpt ||
         clampText(`Aprenda como aplicar ${resolvedKeyword} com foco em qualidade assistencial, segurança e eficiência no Home Care.`, 180);
-      const resolvedContent = stripContentH1Tags(
+      const limitedContent = clampContentHtmlByPlainChars(
         aiContent || buildFallbackArticleContent(resolvedKeyword, resolvedExcerpt),
+        SEO_MAX_CONTENT_CHARS,
       );
+      const resolvedContent = limitedContent.html;
       const resolvedCanonical =
         String(payload.seo_canonical_url || "").trim() ||
         articleForm.seo_canonical_url ||
@@ -1635,6 +1775,9 @@ const BlogTab = () => {
       setShowSeoAudit(true);
       if (!aiContent) {
         toast.warning("A IA não retornou o conteúdo completo na primeira resposta. Preenchemos um conteúdo-base otimizado para você revisar.");
+      }
+      if (limitedContent.wasTrimmed) {
+        toast.warning(`Conteúdo ajustado automaticamente para no máximo ${SEO_MAX_CONTENT_CHARS} caracteres.`);
       }
       if (aiSeoPassed) {
         toast.success("Artigo gerado com IA dentro da faixa SEO de conteudo.");
@@ -1734,7 +1877,7 @@ const BlogTab = () => {
         return next;
       }
       if (targetField === "content_html") {
-        const normalizedHtml = stripContentH1Tags(optimizedValue);
+        const normalizedHtml = clampContentHtmlByPlainChars(optimizedValue, SEO_MAX_CONTENT_CHARS).html;
         next.content_html = normalizedHtml;
         next.reading_time_minutes = Math.max(1, estimateReadingTime(normalizedHtml));
         return next;
@@ -1840,7 +1983,7 @@ const BlogTab = () => {
         return next;
       }
       if (targetField === "content_html") {
-        const normalizedHtml = stripContentH1Tags(optimizedValue);
+        const normalizedHtml = clampContentHtmlByPlainChars(optimizedValue, SEO_MAX_CONTENT_CHARS).html;
         next.content_html = normalizedHtml;
         next.reading_time_minutes = Math.max(1, estimateReadingTime(normalizedHtml));
         return next;
@@ -2255,9 +2398,11 @@ const BlogTab = () => {
       const resolvedExcerpt =
         aiExcerpt ||
         clampText(result.summary || articleForm.excerpt || `Saiba como aplicar ${resolvedKeyword} com foco em segurança e qualidade no Home Care.`, 180);
-      const resolvedContent = stripContentH1Tags(
+      const limitedContent = clampContentHtmlByPlainChars(
         aiContent || buildFallbackArticleContent(resolvedKeyword, resolvedExcerpt),
+        SEO_MAX_CONTENT_CHARS,
       );
+      const resolvedContent = limitedContent.html;
       const resolvedCanonical =
         String(articlePayload.seo_canonical_url || "").trim() ||
         articleForm.seo_canonical_url ||
@@ -2333,6 +2478,9 @@ const BlogTab = () => {
       setShowSeoAudit(true);
       if (!aiContent) {
         toast.warning("A IA não retornou o conteúdo completo na primeira resposta. Preenchemos um conteúdo-base otimizado para você revisar.");
+      }
+      if (limitedContent.wasTrimmed) {
+        toast.warning(`Conteúdo ajustado automaticamente para no máximo ${SEO_MAX_CONTENT_CHARS} caracteres.`);
       }
       if (aiSeoPassed) toast.success("Artigo gerado com tema pesquisado e preenchido no editor.");
       else toast.warning("Artigo gerado com pendencias SEO. Revise com o checklist antes de publicar.");
@@ -2993,7 +3141,7 @@ const BlogTab = () => {
                       <span>H1/H2/H3: {seoAuditReport.metrics.h1Count}/{seoAuditReport.metrics.h2Count}/{seoAuditReport.metrics.h3Count}</span>
                       <span>Links internos: {seoAuditReport.metrics.internalLinks}</span>
                       <span>Links externos: {seoAuditReport.metrics.externalLinks}</span>
-                      <span>FAQ (H3): {seoAuditReport.metrics.faqQuestions}</span>
+                      <span>FAQ (perguntas): {seoAuditReport.metrics.faqQuestions}</span>
                     </div>
 
                     <div className="space-y-2">
@@ -3516,4 +3664,3 @@ const BlogTab = () => {
 };
 
 export default BlogTab;
-

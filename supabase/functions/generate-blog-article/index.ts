@@ -88,6 +88,87 @@ const stripContentH1Tags = (html: string) =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
+const VOID_HTML_TAGS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
+
+const clampContentHtmlByPlainChars = (html: string, maxChars: number) => {
+  const safeMax = Math.max(1, Number(maxChars || 0));
+  const source = stripContentH1Tags(String(html || ""));
+  const originalPlainLength = stripHtml(source).length;
+
+  if (originalPlainLength <= safeMax) {
+    return { html: source, chars: originalPlainLength, wasTrimmed: false };
+  }
+
+  const tokens = source.split(/(<[^>]+>)/g).filter(Boolean);
+  let remaining = safeMax;
+  let output = "";
+  const openTags: string[] = [];
+
+  for (const token of tokens) {
+    if (remaining <= 0) break;
+
+    if (token.startsWith("<")) {
+      output += token;
+
+      const closingMatch = token.match(/^<\s*\/\s*([a-zA-Z0-9:-]+)\s*>$/);
+      if (closingMatch) {
+        const closingTag = String(closingMatch[1] || "").toLowerCase();
+        for (let i = openTags.length - 1; i >= 0; i -= 1) {
+          if (openTags[i] === closingTag) {
+            openTags.splice(i, 1);
+            break;
+          }
+        }
+        continue;
+      }
+
+      if (token.endsWith("/>")) continue;
+      const openingMatch = token.match(/^<\s*([a-zA-Z0-9:-]+)\b[^>]*>$/);
+      const openingTag = String(openingMatch?.[1] || "").toLowerCase();
+      if (!openingTag || VOID_HTML_TAGS.has(openingTag) || token.startsWith("<!")) continue;
+      openTags.push(openingTag);
+      continue;
+    }
+
+    if (token.length <= remaining) {
+      output += token;
+      remaining -= token.length;
+      continue;
+    }
+
+    output += token.slice(0, remaining);
+    remaining = 0;
+    break;
+  }
+
+  for (let i = openTags.length - 1; i >= 0; i -= 1) {
+    output += `</${openTags[i]}>`;
+  }
+
+  const normalized = stripContentH1Tags(output).trim();
+  const normalizedPlainLength = stripHtml(normalized).length;
+  return {
+    html: normalized,
+    chars: normalizedPlainLength,
+    wasTrimmed: normalizedPlainLength < originalPlainLength,
+  };
+};
+
 const estimateReadingTime = (html: string) => {
   const plain = stripHtml(html);
   const words = plain ? plain.split(" ").filter(Boolean).length : 0;
@@ -191,7 +272,8 @@ const normalizeArticlePayload = (parsed: any) => {
   }
   if (slug.length > MAX_SLUG_LENGTH) slug = slug.slice(0, MAX_SLUG_LENGTH).replace(/-+$/, "");
 
-  const contentHtml = stripContentH1Tags(String(parsed?.content_html || "").trim());
+  const boundedContent = clampContentHtmlByPlainChars(String(parsed?.content_html || "").trim(), MAX_CONTENT_CHARS);
+  const contentHtml = boundedContent.html;
   const plainContent = stripHtml(contentHtml);
   const excerpt = String(parsed?.excerpt || "").trim() || plainContent.slice(0, 180).trim();
   const seoTitleRaw = String(parsed?.seo_title || title).trim() || title;

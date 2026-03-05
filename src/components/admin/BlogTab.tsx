@@ -463,6 +463,50 @@ const SEO_TITLE_MIN_CHARS = 30;
 const SEO_TITLE_MAX_CHARS = 60;
 const SEO_DESCRIPTION_MIN_CHARS = 70;
 const SEO_DESCRIPTION_MAX_CHARS = 155;
+const SEO_SLUG_MAX_CHARS = 75;
+const SEO_EXCERPT_MIN_CHARS = 70;
+const SEO_EXCERPT_MAX_CHARS = 180;
+const SEO_FOCUS_KEYWORD_MIN_CHARS = 3;
+const SEO_FOCUS_KEYWORD_MAX_CHARS = 90;
+
+const getLengthHintTone = (length: number, min: number, max: number) => {
+  if (length === 0) return "text-muted-foreground";
+  if (length < min || length > max) return "text-amber-700";
+  return "text-emerald-700";
+};
+
+const SeoLengthHint = ({
+  value,
+  min,
+  max,
+}: {
+  value: string;
+  min: number;
+  max: number;
+}) => {
+  const length = String(value || "").trim().length;
+  return (
+    <p className={`text-[11px] ${getLengthHintTone(length, min, max)}`}>
+      {length}/{max} caracteres (ideal: {min}-{max})
+    </p>
+  );
+};
+
+const SeoMaxLengthHint = ({
+  value,
+  max,
+}: {
+  value: string;
+  max: number;
+}) => {
+  const length = String(value || "").trim().length;
+  const tone = length === 0 ? "text-muted-foreground" : length > max ? "text-amber-700" : "text-emerald-700";
+  return (
+    <p className={`text-[11px] ${tone}`}>
+      {length}/{max} caracteres (máximo recomendado: {max})
+    </p>
+  );
+};
 
 const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const contentHtml = String(form.content_html || "");
@@ -686,6 +730,7 @@ const BlogSeoFields = ({
           ) : null}
         </div>
         <Input value={value.seo_title} onChange={(e) => onChange({ seo_title: e.target.value })} />
+        <SeoLengthHint value={value.seo_title} min={SEO_TITLE_MIN_CHARS} max={SEO_TITLE_MAX_CHARS} />
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -712,6 +757,7 @@ const BlogSeoFields = ({
         ) : null}
       </div>
       <Textarea value={value.seo_description} onChange={(e) => onChange({ seo_description: e.target.value })} rows={3} />
+      <SeoLengthHint value={value.seo_description} min={SEO_DESCRIPTION_MIN_CHARS} max={SEO_DESCRIPTION_MAX_CHARS} />
     </div>
 
     <div className="space-y-2">
@@ -739,6 +785,7 @@ const BlogSeoFields = ({
           ) : null}
         </div>
         <Input value={value.seo_og_title} onChange={(e) => onChange({ seo_og_title: e.target.value })} />
+        <SeoLengthHint value={value.seo_og_title} min={SEO_TITLE_MIN_CHARS} max={SEO_TITLE_MAX_CHARS} />
       </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -765,6 +812,7 @@ const BlogSeoFields = ({
         ) : null}
       </div>
       <Textarea value={value.seo_og_description} onChange={(e) => onChange({ seo_og_description: e.target.value })} rows={2} />
+      <SeoLengthHint value={value.seo_og_description} min={SEO_DESCRIPTION_MIN_CHARS} max={SEO_DESCRIPTION_MAX_CHARS} />
     </div>
 
     <div className="space-y-2">
@@ -2329,6 +2377,7 @@ const BlogTab = () => {
                         }))
                       }
                     />
+                    <SeoLengthHint value={articleForm.title} min={SEO_TITLE_MIN_CHARS} max={SEO_TITLE_MAX_CHARS} />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
@@ -2353,6 +2402,7 @@ const BlogTab = () => {
                       value={articleForm.slug}
                       onChange={(e) => setArticleForm((prev) => ({ ...prev, slug: generateSlug(e.target.value) }))}
                     />
+                    <SeoMaxLengthHint value={articleForm.slug} max={SEO_SLUG_MAX_CHARS} />
                   </div>
                 </div>
 
@@ -2380,6 +2430,7 @@ const BlogTab = () => {
                     onChange={(e) => setArticleForm((prev) => ({ ...prev, excerpt: e.target.value }))}
                     rows={3}
                   />
+                  <SeoLengthHint value={articleForm.excerpt} min={SEO_EXCERPT_MIN_CHARS} max={SEO_EXCERPT_MAX_CHARS} />
                 </div>
 
                 <div className="space-y-2">
@@ -2595,6 +2646,11 @@ const BlogTab = () => {
                       value={articleForm.focus_keyword}
                       onChange={(e) => setArticleForm((prev) => ({ ...prev, focus_keyword: e.target.value }))}
                       placeholder="Ex: cuidador de idosos"
+                    />
+                    <SeoLengthHint
+                      value={articleForm.focus_keyword}
+                      min={SEO_FOCUS_KEYWORD_MIN_CHARS}
+                      max={SEO_FOCUS_KEYWORD_MAX_CHARS}
                     />
                   </div>
                 </div>

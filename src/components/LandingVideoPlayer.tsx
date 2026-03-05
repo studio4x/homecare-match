@@ -67,7 +67,7 @@ const LandingVideoPlayer = ({
         <button
           type="button"
           onClick={() => setIsActivated(true)}
-          className="absolute inset-0 flex items-center justify-center bg-black/70 text-white transition-opacity hover:bg-black/60"
+          className="group absolute inset-0 flex items-center justify-center bg-black/70 text-white transition-opacity hover:bg-black/60"
           style={
             resolvedPosterUrl
               ? {
@@ -80,9 +80,19 @@ const LandingVideoPlayer = ({
           aria-label={title ? `Reproduzir ${title}` : "Reproduzir vídeo"}
         >
           {resolvedPosterUrl ? <span className="absolute inset-0 bg-black/55" /> : null}
-          <span className="relative z-10 flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium">
-            <PlayCircle className="h-5 w-5" />
-            Reproduzir vídeo
+          <span className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/75 to-transparent" />
+
+          <span className="relative z-10 flex flex-col items-center gap-3">
+            <span className="absolute -z-10 h-16 w-44 rounded-full bg-primary/40 blur-xl motion-safe:animate-pulse" />
+            <span className="inline-flex items-center gap-3 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-2xl ring-4 ring-white/30 transition-transform group-hover:scale-105 md:text-lg">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-foreground/20">
+                <PlayCircle className="h-5 w-5" />
+              </span>
+              Reproduzir vídeo
+            </span>
+            <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white/95 md:text-sm">
+              Clique para assistir agora
+            </span>
           </span>
         </button>
       )}

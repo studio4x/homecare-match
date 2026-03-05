@@ -47,27 +47,27 @@
   Observacoes:
 
 ### 1.2 Planos e Pagamentos
-- [ ] P0-07 Contratacao do plano mensal funcionando
+- [OK] P0-07 Contratacao do plano mensal funcionando
   Desktop: OK
   Mobile: OK
   Observacoes:
 
-- [ ] P0-08 Ativacao/reflexo do plano mensal no dashboard
+- [OK] P0-08 Ativacao/reflexo do plano mensal no dashboard
   Desktop: OK
   Mobile: OK
   Observacoes:
 
-- [ ] P0-09 Contratacao do plano anual funcionando
+- [OK] P0-09 Contratacao do plano anual funcionando
   Desktop: OK
   Mobile: OK
   Observacoes:
 
-- [ ] P0-10 Ativacao/reflexo do plano anual no dashboard
+- [OK] P0-10 Ativacao/reflexo do plano anual no dashboard
   Desktop: OK
   Mobile: OK
   Observacoes:
 
-- [ ] P0-11 Cancelamento atualizando status corretamente
+- [OK] P0-11 Cancelamento atualizando status corretamente
   Desktop: OK
   Mobile: OK
   Observacoes: Ajuste para fazer a tela voltar ao topo ao ser feito o cancelamento

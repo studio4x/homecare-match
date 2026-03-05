@@ -639,7 +639,7 @@ const Index = () => {
         </div>
       </section>
 
-      <section id="planos" className="scroll-mt-20 py-20 bg-secondary/30">
+      <section id="planos" className="scroll-mt-20 bg-white py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">

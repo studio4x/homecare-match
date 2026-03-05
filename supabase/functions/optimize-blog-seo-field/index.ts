@@ -104,14 +104,60 @@ const stripContentH1Tags = (html: string) =>
 
 const normalizeSeoContentHtml = (html: string) => stripContentH1Tags(sanitizeHtml(html || ""));
 
+const FAQ_HEADING_KEYWORDS = ["perguntas frequentes", "duvidas frequentes", "faq"];
+
+const extractFaqSectionData = (html: string) => {
+  const source = String(html || "");
+  const headingRegex = /<h([2-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
+  const headings: Array<{ level: number; start: number; end: number; text: string }> = [];
+
+  let match: RegExpExecArray | null = null;
+  while ((match = headingRegex.exec(source))) {
+    headings.push({
+      level: Number(match[1] || 0),
+      start: match.index,
+      end: headingRegex.lastIndex,
+      text: normalizeText(stripHtml(match[2] || "")),
+    });
+  }
+
+  const faqHeadingIndex = headings.findIndex((heading) =>
+    FAQ_HEADING_KEYWORDS.some((keyword) => heading.text.includes(keyword)),
+  );
+  if (faqHeadingIndex < 0) return { hasFaqSection: false, faqQuestions: 0 };
+
+  const faqHeading = headings[faqHeadingIndex];
+  let sectionEnd = source.length;
+  for (let i = faqHeadingIndex + 1; i < headings.length; i += 1) {
+    if (headings[i].level <= faqHeading.level) {
+      sectionEnd = headings[i].start;
+      break;
+    }
+  }
+
+  const faqBlock = source.slice(faqHeading.end, sectionEnd);
+  const headingQuestions = countMatches(faqBlock, /<h([3-6])\b[^>]*>[\s\S]*?<\/h\1>/gi);
+  const listQuestions = Array.from(faqBlock.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi)).filter((item) =>
+    stripHtml(String(item?.[1] || "")).includes("?"),
+  ).length;
+  const paragraphQuestions = Array.from(faqBlock.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)).filter((item) =>
+    stripHtml(String(item?.[1] || "")).includes("?"),
+  ).length;
+
+  return {
+    hasFaqSection: true,
+    faqQuestions: headingQuestions || listQuestions || paragraphQuestions,
+  };
+};
+
 const hasRequiredSeoStructure = (html: string) => {
   const source = String(html || "");
   const h2Count = countMatches(source, /<h2\b/gi);
   const h3Count = countMatches(source, /<h3\b/gi);
   const pCount = countMatches(source, /<p\b/gi);
   const listCount = countMatches(source, /<(ul|ol)\b/gi);
-  const faqHeading = /<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>/i.test(source);
-  return h2Count >= 3 && h3Count >= 3 && pCount >= 10 && listCount >= 1 && faqHeading;
+  const faqData = extractFaqSectionData(source);
+  return h2Count >= 3 && h3Count >= 3 && pCount >= 10 && listCount >= 1 && faqData.hasFaqSection && faqData.faqQuestions >= 3;
 };
 
 const splitIntoParagraphs = (plain: string) => {

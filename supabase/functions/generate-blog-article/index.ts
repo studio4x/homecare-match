@@ -88,6 +88,72 @@ const stripContentH1Tags = (html: string) =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
+const FAQ_HEADING_KEYWORDS = ["perguntas frequentes", "duvidas frequentes", "faq"];
+
+const extractFaqSectionData = (html: string) => {
+  const source = String(html || "");
+  const headingRegex = /<h([2-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
+  const headings: Array<{ level: number; start: number; end: number; text: string }> = [];
+
+  let match: RegExpExecArray | null = null;
+  while ((match = headingRegex.exec(source))) {
+    headings.push({
+      level: Number(match[1] || 0),
+      start: match.index,
+      end: headingRegex.lastIndex,
+      text: normalizeText(stripHtml(match[2] || "")),
+    });
+  }
+
+  const faqHeadingIndex = headings.findIndex((heading) =>
+    FAQ_HEADING_KEYWORDS.some((keyword) => heading.text.includes(keyword)),
+  );
+  if (faqHeadingIndex < 0) {
+    return {
+      hasFaqSection: false,
+      faqQuestions: 0,
+      faqQuestionsList: [] as string[],
+      faqBlock: "",
+    };
+  }
+
+  const faqHeading = headings[faqHeadingIndex];
+  let sectionEnd = source.length;
+  for (let i = faqHeadingIndex + 1; i < headings.length; i += 1) {
+    if (headings[i].level <= faqHeading.level) {
+      sectionEnd = headings[i].start;
+      break;
+    }
+  }
+
+  const faqBlock = source.slice(faqHeading.end, sectionEnd);
+  const questionHeadings = Array.from(faqBlock.matchAll(/<h([3-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi))
+    .map((entry) => stripHtml(entry[2] || "").slice(0, 220).trim())
+    .filter(Boolean);
+
+  const listQuestions = Array.from(faqBlock.matchAll(/<li\b[^>]*>([\s\S]*?)<\/li>/gi))
+    .map((entry) => stripHtml(entry[1] || "").slice(0, 220).trim())
+    .filter((question) => question.includes("?"));
+
+  const paragraphQuestions = Array.from(faqBlock.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi))
+    .map((entry) => stripHtml(entry[1] || "").slice(0, 220).trim())
+    .filter((question) => question.includes("?"));
+
+  const faqQuestionsList =
+    questionHeadings.length > 0
+      ? questionHeadings
+      : listQuestions.length > 0
+      ? listQuestions
+      : paragraphQuestions;
+
+  return {
+    hasFaqSection: true,
+    faqQuestions: faqQuestionsList.length,
+    faqQuestionsList,
+    faqBlock,
+  };
+};
+
 const VOID_HTML_TAGS = new Set([
   "area",
   "base",
@@ -300,20 +366,12 @@ const normalizeArticlePayload = (parsed: any) => {
 };
 
 const extractFaqQuestions = (html: string) => {
-  const result: string[] = [];
-  const regex = /<h3\b[^>]*>([\s\S]*?)<\/h3>/gi;
-  let match: RegExpExecArray | null = null;
-  while ((match = regex.exec(String(html || "")))) {
-    const question = stripHtml(match[1]);
-    if (!question) continue;
-    result.push(question.slice(0, 220));
-    if (result.length >= 5) break;
-  }
-  return result;
+  return extractFaqSectionData(html).faqQuestionsList.slice(0, 5);
 };
 
 const buildSchemaJson = (article: any) => {
   const faqQuestions = extractFaqQuestions(article.content_html);
+  const faqData = extractFaqSectionData(article.content_html);
   const schemas: any[] = [
     {
       "@context": "https://schema.org",
@@ -329,8 +387,7 @@ const buildSchemaJson = (article: any) => {
     },
   ];
 
-  const hasFaqHeading = /<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>/i.test(article.content_html);
-  if (hasFaqHeading && faqQuestions.length >= 3) {
+  if (faqData.hasFaqSection && faqQuestions.length >= 3) {
     schemas.push({
       "@context": "https://schema.org",
       "@type": "FAQPage",
@@ -373,8 +430,11 @@ const validateArticleSeoRules = (article: any) => {
   if (h2Count < MIN_H2 || h2Count > MAX_H2) issues.push(`H2 fora do intervalo ${MIN_H2}-${MAX_H2} (atual: ${h2Count})`);
   if (h3Count < MIN_H3) issues.push(`deve ter ao menos ${MIN_H3} H3 (atual: ${h3Count})`);
 
-  const faqHeading = /<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>/i.test(article.content_html);
-  if (!faqHeading) issues.push("secao FAQ/Perguntas Frequentes ausente");
+  const faqData = extractFaqSectionData(article.content_html);
+  if (!faqData.hasFaqSection) issues.push("secao FAQ/Perguntas Frequentes ausente");
+  if (faqData.hasFaqSection && (faqData.faqQuestions < 3 || faqData.faqQuestions > 5)) {
+    issues.push(`FAQ deve ter entre 3 e 5 perguntas (atual: ${faqData.faqQuestions})`);
+  }
 
   const introText = extractFirstParagraphText(article.content_html);
   if (introText.length < MIN_INTRO_CHARS || introText.length > MAX_INTRO_CHARS) {

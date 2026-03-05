@@ -7,8 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MIN_CONTENT_CHARS = 6000;
-const TARGET_CONTENT_CHARS = 9000;
+const MIN_CONTENT_CHARS = 8000;
+const MAX_CONTENT_CHARS = 12000;
+const TARGET_CONTENT_CHARS = 10000;
 const MIN_H2 = 3;
 const MAX_H2 = 8;
 const MIN_H3 = 3;
@@ -250,6 +251,9 @@ const validateArticleSeoRules = (article: any) => {
 
   if (plain.length < MIN_CONTENT_CHARS) {
     issues.push(`conteudo abaixo do minimo (${plain.length} < ${MIN_CONTENT_CHARS} caracteres)`);
+  }
+  if (plain.length > MAX_CONTENT_CHARS) {
+    issues.push(`conteudo acima do maximo (${plain.length} > ${MAX_CONTENT_CHARS} caracteres)`);
   }
 
   const h1Count = countMatches(article.content_html, /<h1\b/gi);
@@ -600,8 +604,8 @@ serve(async (req) => {
 Voce e um redator senior de SEO especializado em saude Home Care.
 Siga rigorosamente este padrao de artigo:
 
-- Minimo absoluto de conteudo: ${MIN_CONTENT_CHARS} caracteres de texto limpo
-- Faixa recomendada: 8000 a 12000 caracteres
+- Faixa obrigatoria de conteudo: ${MIN_CONTENT_CHARS} a ${MAX_CONTENT_CHARS} caracteres de texto limpo
+- Meta ideal de tamanho: ${TARGET_CONTENT_CHARS} caracteres
 - Palavra-chave principal com densidade aproximada de ${MIN_KEYWORD_DENSITY}% a ${MAX_KEYWORD_DENSITY}%
 - Palavra-chave deve aparecer em: H1, primeiro paragrafo, ao menos 1 H2, conclusao, meta description e slug
 - Slug maximo: ${MAX_SLUG_LENGTH} caracteres, sem acento, com hifens
@@ -685,7 +689,7 @@ Artigo atual (JSON):
 ${JSON.stringify(article)}
 
 Retorne APENAS JSON valido com os mesmos campos e com todos os problemas corrigidos.
-Lembre-se: conteudo minimo ${MIN_CONTENT_CHARS} caracteres.
+Lembre-se: conteudo deve ficar entre ${MIN_CONTENT_CHARS} e ${MAX_CONTENT_CHARS} caracteres.
 `.trim();
 
       article = normalizeArticlePayload(

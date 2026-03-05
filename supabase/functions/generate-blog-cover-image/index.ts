@@ -17,6 +17,97 @@ const cleanJsonText = (text: string) =>
 
 const compactText = (value: string, max = 220) => String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
 
+const normalizeText = (value: string) =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const BEAUTY_TERMS = [
+  "beauty",
+  "estetica",
+  "estetico",
+  "skincare",
+  "spa",
+  "cosmetic",
+  "cosmetico",
+  "maquiagem",
+  "makeup",
+  "cabelo",
+  "hair",
+  "salon",
+  "nails",
+  "manicure",
+  "pedicure",
+  "depilacao",
+  "barbearia",
+];
+
+const HEALTHCARE_TERMS = [
+  "saude",
+  "saude domiciliar",
+  "home healthcare",
+  "enfermagem",
+  "nurse",
+  "paciente",
+  "patient",
+  "cuidador",
+  "caregiver",
+  "idoso",
+  "elderly",
+  "clinico",
+  "medical",
+  "medico",
+];
+
+const hasAnyTerm = (text: string, terms: string[]) => {
+  const normalized = normalizeText(text);
+  if (!normalized) return false;
+  return terms.some((term) => normalized.includes(normalizeText(term)));
+};
+
+const isAmbiguousHomeCare = (text: string) => {
+  const normalized = normalizeText(text);
+  if (!normalized) return false;
+  return (
+    normalized.includes("home care") ||
+    normalized.includes("homecare") ||
+    normalized.includes("cuidados domiciliares") ||
+    normalized.includes("atendimento domiciliar")
+  );
+};
+
+const forceHealthcareIntent = (query: string) => {
+  const raw = compactText(query, 150);
+  if (!raw) return "";
+  const normalized = normalizeText(raw);
+  const hasHealthcareHint = hasAnyTerm(normalized, HEALTHCARE_TERMS);
+  if (hasHealthcareHint) return raw;
+  if (isAmbiguousHomeCare(normalized)) {
+    return compactText(`${raw} enfermagem domiciliar paciente idoso saude`, 150);
+  }
+  return compactText(`${raw} saude domiciliar paciente`, 150);
+};
+
+const isLikelyBeautyPhoto = (photo: any) => {
+  const bag = [
+    photo?.alt,
+    photo?.url,
+    photo?.photographer,
+    photo?.photographer_url,
+    photo?.src?.original,
+    photo?.src?.large,
+    photo?.src?.medium,
+  ]
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return hasAnyTerm(bag, BEAUTY_TERMS);
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -114,7 +205,9 @@ Retorne APENAS JSON valido:
 
 Regras:
 - evite termos de marcas, logos, textos na imagem
-- prefira cenas humanas, cuidado domiciliar, saude, bem-estar
+- prefira cenas humanas de saude domiciliar, enfermagem, paciente, cuidador e contexto clinico real
+- NUNCA use contexto de estetica, salao, spa, maquiagem, skincare ou beleza
+- quando houver "home care", trate como assistencia de saude domiciliar (nao estetica)
 - termos devem ser objetivos para busca de foto
 `.trim();
 
@@ -141,7 +234,7 @@ Regras:
     if (!rawText) throw new Error("Resposta vazia da IA para capa.");
 
     const parsed = JSON.parse(cleanJsonText(rawText));
-    const queries = [
+    const rawQueries = [
       compactText(parsed?.primary_query_en || "", 120),
       compactText(parsed?.primary_query_pt || "", 120),
       ...(Array.isArray(parsed?.secondary_queries)
@@ -149,10 +242,15 @@ Regras:
         : []),
       compactText(`${focusKeyword} home care`, 120),
       compactText(title, 120),
-    ]
+      "home healthcare nurse caregiver patient elderly at home",
+      "enfermagem domiciliar cuidado de paciente idoso em casa",
+    ];
+
+    const queries = rawQueries
+      .map((query) => forceHealthcareIntent(query))
       .filter(Boolean)
       .filter((value, index, array) => array.indexOf(value) === index)
-      .slice(0, 8);
+      .slice(0, 10);
 
     const altText = compactText(parsed?.alt_text || title || "Imagem de capa do artigo", 180);
     let selectedPhoto: any = null;
@@ -191,7 +289,9 @@ Regras:
             .map((url) => String(url || "").trim())
             .filter(Boolean);
 
-          return !candidateUrls.some((url) => excludedUrls.has(url));
+          if (candidateUrls.some((url) => excludedUrls.has(url))) return false;
+          if (isLikelyBeautyPhoto(photo)) return false;
+          return true;
         });
 
         if (validPhotos.length === 0) continue;

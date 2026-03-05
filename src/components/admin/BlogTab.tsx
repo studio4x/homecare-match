@@ -328,6 +328,8 @@ const stripAuditHtml = (html: string) =>
     .trim();
 
 const countAuditMatches = (value: string, regex: RegExp) => (String(value || "").match(regex) || []).length;
+const SEO_MIN_CONTENT_CHARS = 8000;
+const SEO_MAX_CONTENT_CHARS = 12000;
 
 const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const contentHtml = String(form.content_html || "");
@@ -383,8 +385,8 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const items: SeoAuditItem[] = [
     {
       id: "min-content",
-      label: "Conteudo minimo (>= 6000 caracteres)",
-      passed: plain.length >= 6000,
+      label: `Conteudo entre ${SEO_MIN_CONTENT_CHARS} e ${SEO_MAX_CONTENT_CHARS} caracteres`,
+      passed: plain.length >= SEO_MIN_CONTENT_CHARS && plain.length <= SEO_MAX_CONTENT_CHARS,
       detail: `${plain.length} caracteres`,
     },
     {
@@ -1267,6 +1269,10 @@ const BlogTab = () => {
       const aiContent = String(payload.content_html || "").trim();
       const aiFocusKeyword = String(payload.focus_keyword || "").trim();
       const aiTagsSuggested = Array.isArray(payload.tags_suggested) ? payload.tags_suggested : [];
+      const aiSeoIssues = Array.isArray(payload?.seo_issues)
+        ? payload.seo_issues.map((item: unknown) => String(item || "").trim()).filter(Boolean)
+        : [];
+      const aiSeoPassed = payload?.seo_validation_passed !== false && aiSeoIssues.length === 0;
       const aiSchemaJsonRaw = payload?.schema_json;
       const aiSchemaJson =
         aiSchemaJsonRaw && typeof aiSchemaJsonRaw === "object"
@@ -1301,7 +1307,13 @@ const BlogTab = () => {
       }));
 
       setShowSeoAudit(true);
-      toast.success("Artigo gerado com IA. Revise e ajuste antes de publicar.");
+      if (aiSeoPassed) {
+        toast.success("Artigo gerado com IA dentro da faixa SEO de conteudo.");
+      } else {
+        toast.warning(
+          `Artigo gerado com pendencias SEO: ${aiSeoIssues.slice(0, 3).join(" | ") || "revise checklist de SEO."}`,
+        );
+      }
     } catch (err: any) {
       const message = String(err?.message || "");
       const statusCode =
@@ -1644,6 +1656,10 @@ const BlogTab = () => {
       const aiContent = String(articlePayload.content_html || "").trim();
       const aiFocusKeyword = String(articlePayload.focus_keyword || "").trim();
       const aiTagsSuggested = Array.isArray(articlePayload.tags_suggested) ? articlePayload.tags_suggested : [];
+      const aiSeoIssues = Array.isArray(articlePayload?.seo_issues)
+        ? articlePayload.seo_issues.map((item: unknown) => String(item || "").trim()).filter(Boolean)
+        : [];
+      const aiSeoPassed = articlePayload?.seo_validation_passed !== false && aiSeoIssues.length === 0;
       const aiSchemaJsonRaw = articlePayload?.schema_json;
       const aiSchemaJson =
         aiSchemaJsonRaw && typeof aiSchemaJsonRaw === "object"
@@ -1697,7 +1713,13 @@ const BlogTab = () => {
 
       setActiveTab("articles");
       setShowSeoAudit(true);
-      toast.success("Artigo gerado com tema pesquisado, URL de referencia preenchida e capa criada automaticamente.");
+      if (aiSeoPassed) {
+        toast.success("Artigo gerado com tema pesquisado e dentro da faixa SEO de conteudo.");
+      } else {
+        toast.warning(
+          `Artigo gerado com pendencias SEO: ${aiSeoIssues.slice(0, 3).join(" | ") || "revise checklist de SEO."}`,
+        );
+      }
     } catch (err: any) {
       toast.error(err?.message || "Erro ao gerar artigo com tema pesquisado.");
     } finally {
@@ -2025,6 +2047,8 @@ const BlogTab = () => {
                   <Label>Conteúdo do artigo</Label>
                   <RichTextEditor
                     content={articleForm.content_html}
+                    enableHtmlModeToggle
+                    showHeadingHints
                     onChange={(html) =>
                       setArticleForm((prev) => ({
                         ...prev,

@@ -30,8 +30,7 @@ import {
   HelpCircle, // Added import for HelpCircle icon
   Newspaper,
   Smartphone,
-  KeyRound,
-  SlidersHorizontal
+  KeyRound
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -250,15 +249,6 @@ export const features = [
     color: "text-amber-700",
     bg: "bg-amber-50",
     feature_key: "recuperacao-de-senha-segura"
-  },
-  {
-    title: "Painel Meus Dados por Etapas",
-    description: "Perfil organizado por secoes com verificacao, dados essenciais, seguranca e zona de perigo.",
-    icon: SlidersHorizontal,
-    profiles: ["professional", "company", "family"],
-    color: "text-violet-600",
-    bg: "bg-violet-50",
-    feature_key: "painel-meus-dados-por-etapas"
   },
   {
     title: "Suporte via Ticket",

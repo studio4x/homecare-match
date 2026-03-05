@@ -24,7 +24,7 @@ import {
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
-import { resolveLandingVideoUrl } from "@/lib/landing-video";
+import { resolveLandingVideoAssets } from "@/lib/landing-video";
 
 const Familias = () => {
   const { data: config } = useSiteConfig();
@@ -93,10 +93,11 @@ const Familias = () => {
   const canUseSpecialtySearch = (stats?.total ?? 0) >= 10;
 
   // Determine video URL for LandingVideoPlayer
-  const landingVideoUrl = resolveLandingVideoUrl(
+  const landingVideo = resolveLandingVideoAssets(
     config?.video_storage_path_families,
     config?.video_url_families,
   );
+  const landingVideoUrl = landingVideo.videoUrl;
 
   return (
     <Layout>
@@ -189,6 +190,7 @@ const Familias = () => {
                 title="Apresentação para Famílias"
                 autoplay={false}
                 deferLoad={true}
+                posterUrl={landingVideo.posterUrl}
               />
             </div>
           </div>

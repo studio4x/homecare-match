@@ -27,7 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
-import { resolveLandingVideoUrl } from "@/lib/landing-video";
+import { resolveLandingVideoAssets } from "@/lib/landing-video";
 
 const Empresas = () => {
   const { data: config } = useSiteConfig();
@@ -127,10 +127,11 @@ const Empresas = () => {
   const showLocationCard = !isLoadingLocations && (locationData?.total || 0) >= 10;
 
   // Determine video URL for LandingVideoPlayer
-  const landingVideoUrl = resolveLandingVideoUrl(
+  const landingVideo = resolveLandingVideoAssets(
     config?.video_storage_path_companies,
     config?.video_url_companies,
   );
+  const landingVideoUrl = landingVideo.videoUrl;
 
   return (
     <Layout>
@@ -292,6 +293,7 @@ const Empresas = () => {
                 title="Apresentação para Empresas"
                 autoplay={false}
                 deferLoad={true}
+                posterUrl={landingVideo.posterUrl}
               />
             </div>
           </div>

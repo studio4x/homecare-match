@@ -12,6 +12,12 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
 import LandingVideoPlayer from "../LandingVideoPlayer"; // Import LandingVideoPlayer
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import utility
+import {
+  buildLandingVideoPosterPath,
+  getLandingVideoPublicUrl,
+  resolveLandingVideoAssets,
+} from "@/lib/landing-video";
+import { generatePosterFromVideoFile } from "@/lib/video-poster";
 
 const VIDEO_STORAGE_BUCKET = "uploads";
 const VIDEO_STORAGE_FOLDER = "site-videos";
@@ -75,6 +81,34 @@ const VideosTab = () => {
       const { data: { publicUrl } } = supabase.storage
         .from(VIDEO_STORAGE_BUCKET)
         .getPublicUrl(filePath);
+      let coverGenerated = false;
+      let coverGenerationError = "";
+      const posterPath = buildLandingVideoPosterPath(filePath);
+
+      if (posterPath) {
+        try {
+          const posterBlob = await generatePosterFromVideoFile(file);
+          const posterFileName = posterPath.split("/").pop() || `${activeField}_poster.jpg`;
+          const posterFile = new File([posterBlob], posterFileName, {
+            type: posterBlob.type || "image/jpeg",
+          });
+
+          const { error: posterUploadError } = await supabase.storage
+            .from(VIDEO_STORAGE_BUCKET)
+            .upload(posterPath, posterFile, {
+              cacheControl: "31536000",
+              upsert: true,
+              contentType: posterFile.type,
+            });
+
+          if (posterUploadError) {
+            throw posterUploadError;
+          }
+          coverGenerated = true;
+        } catch (posterError: any) {
+          coverGenerationError = String(posterError?.message || "Falha ao gerar capa automática.");
+        }
+      }
 
       const fieldConfig = videoFields.find(f => f.id === activeField);
       if (!fieldConfig) throw new Error("Configuração de campo não encontrada.");
@@ -98,7 +132,14 @@ const VideosTab = () => {
       }
 
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
-      toast.success("Vídeo atualizado com sucesso!");
+      if (coverGenerated) {
+        toast.success("Vídeo atualizado com sucesso! Capa gerada automaticamente.");
+      } else {
+        toast.success("Vídeo atualizado com sucesso!");
+        if (coverGenerationError) {
+          toast.warning(`Vídeo salvo, mas a capa não foi gerada: ${coverGenerationError}`);
+        }
+      }
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Erro ao enviar vídeo.");
@@ -118,6 +159,12 @@ const VideosTab = () => {
         [storageId]: null,
         [mimeId]: null
       };
+
+      const currentStoragePath = String((config as any)?.[storageId] || "").trim();
+      const posterPath = buildLandingVideoPosterPath(currentStoragePath);
+      if (posterPath) {
+        await supabase.storage.from(VIDEO_STORAGE_BUCKET).remove([posterPath]);
+      }
 
       const { error } = await supabase
         .from('site_config')
@@ -161,11 +208,10 @@ const VideosTab = () => {
           const currentUrl = (config as any)?.[field.id];
           const currentStoragePath = (config as any)?.[field.storageId];
           const currentMimeType = (config as any)?.[field.mimeId];
-          
-          // Prioritize storage path for custom player
-          const videoSourceUrl = currentStoragePath 
-            ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/${VIDEO_STORAGE_BUCKET}/${currentStoragePath}` // Direct public URL for storage
-            : currentUrl;
+          const videoAssets = resolveLandingVideoAssets(currentStoragePath, currentUrl);
+          const videoSourceUrl = videoAssets.videoUrl;
+          const videoPosterUrl = videoAssets.posterUrl;
+          const posterPath = buildLandingVideoPosterPath(currentStoragePath);
 
           return (
             <Card key={field.id} className="overflow-hidden">
@@ -193,6 +239,7 @@ const VideosTab = () => {
                       <LandingVideoPlayer 
                         url={videoSourceUrl}
                         title={field.label}
+                        posterUrl={videoPosterUrl}
                       />
                     </div>
                     <div className="space-y-4">
@@ -203,6 +250,12 @@ const VideosTab = () => {
                         {currentStoragePath && (
                           <p className="text-xs text-muted-foreground break-all mt-1">
                             <span className="font-bold text-foreground">Storage Path:</span> {currentStoragePath}
+                          </p>
+                        )}
+                        {posterPath && (
+                          <p className="text-xs text-muted-foreground break-all mt-1">
+                            <span className="font-bold text-foreground">Capa (auto):</span>{" "}
+                            {getLandingVideoPublicUrl(posterPath) || posterPath}
                           </p>
                         )}
                       </div>

@@ -18,3 +18,17 @@ export function getYouTubeEmbedUrl(url: string, autoplay: boolean = false): stri
   }
   return url;
 }
+
+export function getYouTubeVideoId(url: string): string {
+  if (!url) return "";
+  const youtubeRegex =
+    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|shorts\/|)([\w-]{11})(?:\S+)?/;
+  const match = url.match(youtubeRegex);
+  return match?.[1] || "";
+}
+
+export function getYouTubeThumbnailUrl(url: string, quality: "default" | "mqdefault" | "hqdefault" | "sddefault" | "maxresdefault" = "hqdefault"): string {
+  const videoId = getYouTubeVideoId(url);
+  if (!videoId) return "";
+  return `https://img.youtube.com/vi/${videoId}/${quality}.jpg`;
+}

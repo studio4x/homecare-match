@@ -35,7 +35,7 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { createCheckoutSession } from "@/lib/checkout";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
-import { resolveLandingVideoUrl } from "@/lib/landing-video";
+import { resolveLandingVideoAssets } from "@/lib/landing-video";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -376,10 +376,11 @@ const Index = () => {
   const cardContent = getAcademyCardContent();
   const CardIcon = cardContent.icon;
 
-  const landingVideoUrl = resolveLandingVideoUrl(
+  const landingVideo = resolveLandingVideoAssets(
     config?.video_storage_path_professionals,
     config?.video_url_professionals,
   );
+  const landingVideoUrl = landingVideo.videoUrl;
 
   if (authLoading) {
     return (
@@ -474,6 +475,7 @@ const Index = () => {
                 title="Apresentação para profissionais"
                 autoplay={false}
                 deferLoad={true}
+                posterUrl={landingVideo.posterUrl}
               />
             </div>
           </div>

@@ -30,20 +30,28 @@ const LandingVideoPlayer = ({
   const resolvedPosterUrl = String(posterUrl || "").trim() || (isYouTubeUrl ? getYouTubeThumbnailUrl(url) : "");
   const shouldDefer = deferLoad && !autoplay;
   const [isActivated, setIsActivated] = useState(!shouldDefer);
+  const [playOnActivate, setPlayOnActivate] = useState(false);
 
   useEffect(() => {
     setIsActivated(!shouldDefer);
+    setPlayOnActivate(false);
   }, [url, shouldDefer]);
 
-  // Adiciona autoplay=1 apenas se a prop autoplay for verdadeira
-  const youtubeEmbedUrl = isYouTubeUrl ? getYouTubeEmbedUrl(url, autoplay) : processedUrl;
+  const effectiveAutoplay = autoplay || playOnActivate;
+  const embeddedVideoUrl = (() => {
+    if (isYouTubeUrl) return getYouTubeEmbedUrl(url, effectiveAutoplay);
+    if (processedUrl.includes("vimeo.com/video") && effectiveAutoplay) {
+      return `${processedUrl}${processedUrl.includes("?") ? "&" : "?"}autoplay=1`;
+    }
+    return processedUrl;
+  })();
 
   return (
     <div className={cn("relative w-full h-full overflow-hidden bg-black shadow-2xl border border-border/50", className)}>
       {isActivated ? (
         isEmbeddedVideo ? (
         <iframe
-          src={youtubeEmbedUrl}
+          src={embeddedVideoUrl}
           title={title || "Vídeo"}
           className="absolute inset-0 w-full h-full border-0"
           loading="lazy"
@@ -58,7 +66,7 @@ const LandingVideoPlayer = ({
           controls
           preload="metadata"
           playsInline
-          autoPlay={autoplay} // Usando a prop autoplay aqui
+          autoPlay={effectiveAutoplay}
           muted={autoplay} // Muta se for autoplay para melhor UX
           poster={resolvedPosterUrl || undefined}
         />
@@ -66,7 +74,10 @@ const LandingVideoPlayer = ({
       ) : (
         <button
           type="button"
-          onClick={() => setIsActivated(true)}
+          onClick={() => {
+            setPlayOnActivate(true);
+            setIsActivated(true);
+          }}
           className="group absolute inset-0 flex items-center justify-center bg-black/70 text-white transition-opacity hover:bg-black/60"
           style={
             resolvedPosterUrl

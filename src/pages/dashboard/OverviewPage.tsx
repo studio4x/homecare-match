@@ -50,42 +50,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label";
 
-const FALLBACK_PLAN_FEATURES: Record<string, string[]> = {
-  free_trial: [
-    "Perfil profissional completo",
-    "Visibilidade para empresas e famílias",
-    "Mais oportunidades de atendimento",
-    "Plataforma dedicada a profissionais de Home Care",
-  ],
-  monthly: [
-    "Perfil profissional completo",
-    "Visibilidade para empresas e famílias",
-    "Mais oportunidades de atendimento",
-    "Plataforma dedicada a profissionais de Home Care",
-  ],
-  yearly: [
-    "Perfil profissional completo",
-    "Visibilidade para empresas e famílias",
-    "Mais oportunidades de atendimento",
-    "Plataforma dedicada a profissionais de Home Care",
-    "Destaque no topo das buscas",
-    "Selo dourado de verificação",
-    "Acesso grátis aos cursos Academy",
-    "Suporte prioritário",
-  ],
-  no_plan: [],
+const PLAN_DISPLAY_ORDER = ["free_trial", "monthly", "yearly", "annual"];
+const getPlanDisplayPriority = (planId: string) => {
+  const index = PLAN_DISPLAY_ORDER.indexOf(planId);
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 };
-
-const FEATURE_PREFERRED_ORDER = [
-  "Perfil profissional completo",
-  "Visibilidade para empresas e famílias",
-  "Mais oportunidades de atendimento",
-  "Plataforma dedicada a profissionais de Home Care",
-  "Destaque no topo das buscas",
-  "Selo dourado de verificação",
-  "Acesso grátis aos cursos Academy",
-  "Suporte prioritário",
-];
 
 const normalizeFeatureKey = (value: string) =>
   String(value || "")
@@ -122,7 +91,7 @@ const OverviewPage = () => {
       const { data } = await supabase
         .from("plans")
         .select("id, name, features")
-        .in("id", ["free_trial", "monthly", "yearly"]);
+        .in("id", ["free_trial", "monthly", "yearly", "annual"]);
 
       return (data || [])
         .map((plan) => ({
@@ -130,7 +99,10 @@ const OverviewPage = () => {
           name: plan.name ? String(plan.name) : null,
           features: Array.isArray(plan.features)
             ? plan.features.map((feature) => String(feature || "").trim()).filter(Boolean)
-            : [],
+            : String(plan.features || "")
+                .split("\n")
+                .map((feature) => feature.trim())
+                .filter(Boolean),
         }))
         .filter((plan) => plan.id.length > 0);
     }
@@ -442,6 +414,7 @@ const OverviewPage = () => {
     if (!tier) return 'Nenhum plano definido';
     if (tier === 'monthly') return 'Plano Mensal';
     if (tier === 'yearly') return 'Plano Anual';
+    if (tier === 'annual') return 'Plano Anual';
     if (tier === 'free_trial') return 'Período de 30 dias Gratuitos';
     return tier;
   };
@@ -451,52 +424,68 @@ const OverviewPage = () => {
   const showNoPlanLabel =
     !!profile?.cancel_at_period_end &&
     isExpiredSubscriptionEnd &&
-    !['monthly', 'yearly'].includes(String(profile?.subscription_tier || '').toLowerCase());
+    !['monthly', 'yearly', 'annual'].includes(String(profile?.subscription_tier || '').toLowerCase());
   const displayedPlanLabel = showNoPlanLabel ? 'Nenhum plano definido' : getPlanLabel(profile?.subscription_tier);
   const currentPlanId = showNoPlanLabel
     ? "no_plan"
     : String(profile?.subscription_tier || "no_plan").toLowerCase();
+  const normalizedCurrentPlanId = currentPlanId === "annual" ? "yearly" : currentPlanId;
 
   const annualPlanFeatures = useMemo(() => {
-    const yearlyPlan = planCatalog.find((plan) => plan.id === "yearly");
-    const dbFeatures = yearlyPlan?.features || [];
-    return dbFeatures.length > 0 ? dbFeatures : FALLBACK_PLAN_FEATURES.yearly;
+    const yearlyPlan = planCatalog.find((plan) => plan.id === "yearly" || plan.id === "annual");
+    return yearlyPlan?.features || [];
   }, [planCatalog]);
 
   const planFeatureMatrix = useMemo(() => {
+    const normalizedCatalog = [...planCatalog]
+      .map((plan) => ({
+        ...plan,
+        id: String(plan.id || "").toLowerCase(),
+        features: (plan.features || []).map((feature) => String(feature || "").trim()).filter(Boolean),
+      }))
+      .sort((a, b) => {
+        const priorityDiff = getPlanDisplayPriority(a.id) - getPlanDisplayPriority(b.id);
+        if (priorityDiff !== 0) return priorityDiff;
+        return String(a.name || a.id).localeCompare(String(b.name || b.id), "pt-BR");
+      });
+
     const dbFeaturesByPlan = new Map<string, string[]>();
-    for (const plan of planCatalog) {
-      const planId = String(plan.id || "").toLowerCase();
-      if (!planId) continue;
-      const features = plan.features;
-      if (features.length > 0) {
-        dbFeaturesByPlan.set(planId, features);
+    for (const plan of normalizedCatalog) {
+      if (!plan.id || plan.features.length === 0) continue;
+      dbFeaturesByPlan.set(plan.id, plan.features);
+    }
+
+    const activePlanIds = new Set<string>();
+    if (normalizedCurrentPlanId && normalizedCurrentPlanId !== "no_plan") {
+      activePlanIds.add(normalizedCurrentPlanId);
+      if (normalizedCurrentPlanId === "yearly") activePlanIds.add("annual");
+      if (normalizedCurrentPlanId === "annual") activePlanIds.add("yearly");
+    }
+
+    const activeFeatureKeys = new Set<string>();
+    for (const planId of activePlanIds) {
+      const features = dbFeaturesByPlan.get(planId) || [];
+      for (const feature of features) {
+        activeFeatureKeys.add(normalizeFeatureKey(feature));
       }
     }
 
-    const activeFeaturesSource =
-      dbFeaturesByPlan.get(currentPlanId) || FALLBACK_PLAN_FEATURES[currentPlanId] || [];
-    const activeFeatureKeys = new Set(activeFeaturesSource.map((feature) => normalizeFeatureKey(feature)));
+    const seenFeatureKeys = new Set<string>();
+    const orderedFeatureLabels: string[] = [];
+    for (const plan of normalizedCatalog) {
+      for (const feature of plan.features) {
+        const featureKey = normalizeFeatureKey(feature);
+        if (!featureKey || seenFeatureKeys.has(featureKey)) continue;
+        seenFeatureKeys.add(featureKey);
+        orderedFeatureLabels.push(feature);
+      }
+    }
 
-    const orderedCatalog = FEATURE_PREFERRED_ORDER.map((feature) => feature.trim()).filter(Boolean);
-    const dynamicCatalog = Array.from(
-      new Set(
-        [
-          ...Object.values(FALLBACK_PLAN_FEATURES).flat(),
-          ...Array.from(dbFeaturesByPlan.values()).flat(),
-        ]
-          .map((feature) => String(feature || "").trim())
-          .filter(Boolean),
-      ),
-    ).filter((feature) => !orderedCatalog.includes(feature));
-
-    const allFeatureLabels = [...orderedCatalog, ...dynamicCatalog];
-
-    return allFeatureLabels.map((feature) => ({
+    return orderedFeatureLabels.map((feature) => ({
       label: feature,
       available: activeFeatureKeys.has(normalizeFeatureKey(feature)),
     }));
-  }, [planCatalog, currentPlanId]);
+  }, [planCatalog, normalizedCurrentPlanId]);
 
   const getPatientCode = (patient: any) => {
     const rawCode = (patient?.patient_name ?? "").toString().trim();
@@ -964,39 +953,45 @@ const OverviewPage = () => {
                       {displayedPlanLabel}
                     </Badge>
                     <div className={cn("space-y-2", !isPlanFeaturesOpen && "hidden sm:block")}>
-                      {planFeatureMatrix.map((feature) => (
-                        <div
-                          key={feature.label}
-                          className={cn(
-                            "flex items-center justify-between rounded-lg border px-3 py-2",
-                            feature.available
-                              ? "border-emerald-200 bg-emerald-50/70"
-                              : "border-slate-200 bg-slate-50/80",
-                          )}
-                        >
-                          <div className="flex items-center gap-2">
-                            {feature.available ? (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                            ) : (
-                              <XCircle className="h-4 w-4 text-slate-400" />
-                            )}
-                            <span className={cn("text-xs", feature.available ? "text-emerald-900" : "text-slate-600")}>
-                              {feature.label}
-                            </span>
-                          </div>
-                          <Badge
-                            variant="outline"
+                      {planFeatureMatrix.length > 0 ? (
+                        planFeatureMatrix.map((feature) => (
+                          <div
+                            key={feature.label}
                             className={cn(
-                              "text-[10px]",
+                              "flex items-center justify-between rounded-lg border px-3 py-2",
                               feature.available
-                                ? "border-emerald-300 text-emerald-700"
-                                : "border-slate-300 text-slate-500",
+                                ? "border-emerald-200 bg-emerald-50/70"
+                                : "border-slate-200 bg-slate-50/80",
                             )}
                           >
-                            {feature.available ? "Disponível" : "Indisponível"}
-                          </Badge>
-                        </div>
-                      ))}
+                            <div className="flex items-center gap-2">
+                              {feature.available ? (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-slate-400" />
+                              )}
+                              <span className={cn("text-xs", feature.available ? "text-emerald-900" : "text-slate-600")}>
+                                {feature.label}
+                              </span>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[10px]",
+                                feature.available
+                                  ? "border-emerald-300 text-emerald-700"
+                                  : "border-slate-300 text-slate-500",
+                              )}
+                            >
+                              {feature.available ? "Disponível" : "Indisponível"}
+                            </Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Recursos do plano ainda não configurados em <strong>/admin/planos</strong>.
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1032,12 +1027,9 @@ const OverviewPage = () => {
                                         </li>
                                       ))
                                     ) : (
-                                      <>
-                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Destaque no topo das buscas</li>
-                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Selo dourado de verificação</li>
-                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Acesso grátis aos cursos Academy</li>
-                                        <li className="flex items-center gap-2 text-[10px]"><CheckCircle2 className="h-3 w-3 text-success" /> Suporte prioritário</li>
-                                      </>
+                                      <li className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                        Recursos do plano anual não configurados.
+                                      </li>
                                     )}
                                   </ul>
                                 </TooltipContent>

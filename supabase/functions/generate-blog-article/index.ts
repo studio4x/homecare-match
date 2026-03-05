@@ -7,11 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MIN_CONTENT_CHARS = 8000;
-const MAX_CONTENT_CHARS = 12000;
-const TARGET_CONTENT_CHARS = 10000;
-const DRAFT_MIN_CONTENT_CHARS = 1800;
-const DRAFT_MAX_CONTENT_CHARS = 5000;
+const MIN_CONTENT_CHARS = 3000;
+const MAX_CONTENT_CHARS = 8000;
+const TARGET_CONTENT_CHARS = 6500;
 const MIN_H2 = 3;
 const MAX_H2 = 8;
 const MIN_H3 = 3;
@@ -354,26 +352,6 @@ const validateArticleSeoRules = (article: any) => {
   return issues;
 };
 
-const validateDraftArticle = (article: any) => {
-  const issues: string[] = [];
-  const plain = stripHtml(article?.content_html || "");
-
-  if (!String(article?.title || "").trim()) issues.push("title ausente");
-  if (!String(article?.slug || "").trim()) issues.push("slug ausente");
-  if (!String(article?.focus_keyword || "").trim()) issues.push("focus_keyword ausente");
-  if (!String(article?.seo_title || "").trim()) issues.push("seo_title ausente");
-  if (!String(article?.seo_description || "").trim()) issues.push("seo_description ausente");
-
-  if (plain.length < DRAFT_MIN_CONTENT_CHARS) {
-    issues.push(`rascunho muito curto (${plain.length} < ${DRAFT_MIN_CONTENT_CHARS})`);
-  }
-  if (plain.length > DRAFT_MAX_CONTENT_CHARS) {
-    issues.push(`rascunho muito longo (${plain.length} > ${DRAFT_MAX_CONTENT_CHARS})`);
-  }
-
-  return issues;
-};
-
 const enforceH2Limit = (html: string) => {
   const source = String(html || "");
   const regex = /<h2(\b[^>]*)>([\s\S]*?)<\/h2>/gi;
@@ -594,10 +572,9 @@ serve(async (req) => {
       });
     }
 
-    const { mode, suggestion, generation_profile } = await req.json();
+    const { mode, suggestion } = await req.json();
     const normalizedMode = mode === "automatic" ? "automatic" : "suggestion";
     const normalizedSuggestion = String(suggestion || "").trim();
-    const generationProfile = generation_profile === "base" ? "base" : "full";
 
     if (normalizedMode === "suggestion" && !normalizedSuggestion) {
       return new Response(JSON.stringify({ error: "Informe uma sugestao para gerar o artigo." }), {
@@ -623,69 +600,12 @@ serve(async (req) => {
         ? "Escolha um tema estrategico e atual para Home Care no Brasil, com foco em valor pratico para profissionais, empresas e familias."
         : `Tema sugerido pelo usuario: ${normalizedSuggestion}`;
 
-    if (generationProfile === "base") {
-      const draftPrompt = `
-Voce e um redator de conteudo para Home Care no Brasil.
-Gere um RASCUNHO INICIAL rapido do artigo com informacoes principais.
-
-Regras do rascunho:
-- tamanho entre ${DRAFT_MIN_CONTENT_CHARS} e ${DRAFT_MAX_CONTENT_CHARS} caracteres de texto limpo
-- criar base de estrutura com: H1, introducao, 2 a 4 H2, pelo menos 1 H3 e uma conclusao curta
-- linguagem profissional e clara
-- nao inventar dados sem contexto
-- manter foco no tema solicitado
-
-Tema:
-${topicInstruction}
-
-Retorne APENAS JSON valido, sem markdown:
-{
-  "title": "string",
-  "slug": "string",
-  "excerpt": "string curta ate 180 caracteres",
-  "content_html": "string em HTML sem script",
-  "focus_keyword": "string",
-  "seo_title": "string",
-  "seo_description": "string",
-  "seo_og_title": "string",
-  "seo_og_description": "string",
-  "tags_suggested": ["string", "string"],
-  "reading_time_minutes": 1
-}
-`.trim();
-
-      const draftArticle = normalizeArticlePayload(
-        await callGeminiJson({
-          apiKey: GEMINI_API_KEY,
-          modelName,
-          prompt: draftPrompt,
-          temperature: 0.45,
-        }),
-      );
-
-      const draftIssues = validateDraftArticle(draftArticle);
-      const schemaJson = buildSchemaJson(draftArticle);
-
-      return new Response(
-        JSON.stringify({
-          ...draftArticle,
-          schema_json: schemaJson,
-          generation_profile: "base",
-          seo_validation_passed: draftIssues.length === 0,
-          seo_issues: draftIssues,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
     const generationPrompt = `
 Voce e um redator senior de SEO especializado em saude Home Care.
 Siga rigorosamente este padrao de artigo:
 
-- Faixa obrigatoria de conteudo: ${MIN_CONTENT_CHARS} a ${MAX_CONTENT_CHARS} caracteres de texto limpo
+- Conteudo com no maximo ${MAX_CONTENT_CHARS} caracteres de texto limpo
+- Faixa recomendada: ${MIN_CONTENT_CHARS} a ${MAX_CONTENT_CHARS} caracteres
 - Meta ideal de tamanho: ${TARGET_CONTENT_CHARS} caracteres
 - Palavra-chave principal com densidade aproximada de ${MIN_KEYWORD_DENSITY}% a ${MAX_KEYWORD_DENSITY}%
 - Palavra-chave deve aparecer em: H1, primeiro paragrafo, ao menos 1 H2, conclusao, meta description e slug
@@ -796,7 +716,6 @@ Lembre-se: conteudo deve ficar entre ${MIN_CONTENT_CHARS} e ${MAX_CONTENT_CHARS}
       JSON.stringify({
         ...article,
         schema_json: schemaJson,
-        generation_profile: "full",
         seo_validation_passed: seoValidationPassed,
         seo_issues: issues,
       }),

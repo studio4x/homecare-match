@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/client";
@@ -134,7 +134,7 @@ const BLOG_RESEARCH_DEFAULT_THEMES: BlogResearchTheme[] = [
   {
     id: "gestao_homecare",
     label: "Gestao e operacao em Home Care",
-    description: "Eficiência operacional, escala, qualidade e gestao de equipes assistenciais.",
+    description: "EficiÃªncia operacional, escala, qualidade e gestao de equipes assistenciais.",
     queries: [
       "gestao operacional em home care",
       "indicadores de qualidade no atendimento domiciliar",
@@ -277,11 +277,11 @@ const parseSchemaJson = (value: string) => {
   try {
     const parsed = JSON.parse(clean);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return { error: "O Schema JSON deve ser um objeto JSON válido." };
+      return { error: "O Schema JSON deve ser um objeto JSON vÃ¡lido." };
     }
     return { value: parsed };
   } catch {
-    return { error: "Schema JSON inválido. Verifique a sintaxe." };
+    return { error: "Schema JSON invÃ¡lido. Verifique a sintaxe." };
   }
 };
 
@@ -330,7 +330,6 @@ const stripAuditHtml = (html: string) =>
 const countAuditMatches = (value: string, regex: RegExp) => (String(value || "").match(regex) || []).length;
 const SEO_MIN_CONTENT_CHARS = 8000;
 const SEO_MAX_CONTENT_CHARS = 12000;
-const DRAFT_STAGE_MIN_CHARS = 1800;
 
 const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const contentHtml = String(form.content_html || "");
@@ -354,7 +353,7 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const firstParagraphText = stripAuditHtml((contentHtml.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1] || "").trim());
   const introLength = firstParagraphText.length;
 
-  const conclusionMatch = contentHtml.match(/<h2\b[^>]*>[\s\S]*?(conclusao|conclusão)[\s\S]*?<\/h2>([\s\S]*?)(?=<h2\b|$)/i);
+  const conclusionMatch = contentHtml.match(/<h2\b[^>]*>[\s\S]*?(conclusao|conclusÃ£o)[\s\S]*?<\/h2>([\s\S]*?)(?=<h2\b|$)/i);
   const conclusionText = stripAuditHtml(conclusionMatch?.[2] || "");
   const conclusionLength = conclusionText.length;
 
@@ -518,90 +517,108 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   };
 };
 
+type SeoAiOptimizableField =
+  | "title"
+  | "slug"
+  | "excerpt"
+  | "focus_keyword"
+  | "seo_title"
+  | "seo_description"
+  | "seo_og_title"
+  | "seo_og_description";
+
 const BlogSeoFields = ({
   value,
   onChange,
+  onOptimizeField,
+  optimizingField,
 }: {
   value: BlogSeoForm;
   onChange: (patch: Partial<BlogSeoForm>) => void;
+  onOptimizeField?: (field: SeoAiOptimizableField) => void;
+  optimizingField?: string | null;
 }) => (
   <div className="space-y-4 rounded-xl border border-border/70 bg-secondary/10 p-4">
     <div>
       <p className="text-sm font-semibold">SEO e Schema</p>
-      <p className="text-xs text-muted-foreground">
-        Configure metadata para Google e redes sociais, além de schema customizado.
-      </p>
+      <p className="text-xs text-muted-foreground">Configure metadata para Google e redes sociais.</p>
     </div>
 
     <div className="grid gap-4 md:grid-cols-2">
       <div className="space-y-2">
-        <Label>Título SEO</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label>Titulo SEO</Label>
+          {onOptimizeField ? (
+            <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onOptimizeField("seo_title")} disabled={optimizingField === "seo_title"}>
+              {optimizingField === "seo_title" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              IA SEO
+            </Button>
+          ) : null}
+        </div>
         <Input value={value.seo_title} onChange={(e) => onChange({ seo_title: e.target.value })} />
       </div>
       <div className="space-y-2">
         <Label>Robots</Label>
-        <Input
-          value={value.seo_robots}
-          onChange={(e) => onChange({ seo_robots: e.target.value })}
-          placeholder="index,follow"
-        />
+        <Input value={value.seo_robots} onChange={(e) => onChange({ seo_robots: e.target.value })} placeholder="index,follow" />
       </div>
     </div>
 
     <div className="space-y-2">
-      <Label>Descrição SEO</Label>
-      <Textarea
-        value={value.seo_description}
-        onChange={(e) => onChange({ seo_description: e.target.value })}
-        rows={3}
-      />
+      <div className="flex items-center justify-between gap-2">
+        <Label>Descricao SEO</Label>
+        {onOptimizeField ? (
+          <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onOptimizeField("seo_description")} disabled={optimizingField === "seo_description"}>
+            {optimizingField === "seo_description" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            IA SEO
+          </Button>
+        ) : null}
+      </div>
+      <Textarea value={value.seo_description} onChange={(e) => onChange({ seo_description: e.target.value })} rows={3} />
     </div>
 
     <div className="space-y-2">
       <Label>Canonical URL</Label>
-      <Input
-        value={value.seo_canonical_url}
-        onChange={(e) => onChange({ seo_canonical_url: e.target.value })}
-        placeholder="https://www.homecarematch.com.br/blog/..."
-      />
+      <Input value={value.seo_canonical_url} onChange={(e) => onChange({ seo_canonical_url: e.target.value })} placeholder="https://www.homecarematch.com.br/blog/..." />
     </div>
 
     <div className="grid gap-4 md:grid-cols-2">
       <div className="space-y-2">
-        <Label>Open Graph Título</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label>Open Graph Titulo</Label>
+          {onOptimizeField ? (
+            <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onOptimizeField("seo_og_title")} disabled={optimizingField === "seo_og_title"}>
+              {optimizingField === "seo_og_title" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              IA SEO
+            </Button>
+          ) : null}
+        </div>
         <Input value={value.seo_og_title} onChange={(e) => onChange({ seo_og_title: e.target.value })} />
       </div>
       <div className="space-y-2">
         <Label>Open Graph Imagem (URL)</Label>
-        <Input
-          value={value.seo_og_image_url}
-          onChange={(e) => onChange({ seo_og_image_url: e.target.value })}
-          placeholder="https://..."
-        />
+        <Input value={value.seo_og_image_url} onChange={(e) => onChange({ seo_og_image_url: e.target.value })} placeholder="https://..." />
       </div>
     </div>
 
     <div className="space-y-2">
-      <Label>Open Graph Descrição</Label>
-      <Textarea
-        value={value.seo_og_description}
-        onChange={(e) => onChange({ seo_og_description: e.target.value })}
-        rows={2}
-      />
+      <div className="flex items-center justify-between gap-2">
+        <Label>Open Graph Descricao</Label>
+        {onOptimizeField ? (
+          <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onOptimizeField("seo_og_description")} disabled={optimizingField === "seo_og_description"}>
+            {optimizingField === "seo_og_description" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            IA SEO
+          </Button>
+        ) : null}
+      </div>
+      <Textarea value={value.seo_og_description} onChange={(e) => onChange({ seo_og_description: e.target.value })} rows={2} />
     </div>
 
     <div className="space-y-2">
       <Label>Schema JSON (opcional)</Label>
-      <Textarea
-        value={value.schema_json}
-        onChange={(e) => onChange({ schema_json: e.target.value })}
-        rows={5}
-        className="font-mono text-xs"
-      />
+      <Textarea value={value.schema_json} onChange={(e) => onChange({ schema_json: e.target.value })} rows={5} className="font-mono text-xs" />
     </div>
   </div>
 );
-
 const BlogTab = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("articles");
@@ -609,7 +626,8 @@ const BlogTab = () => {
   const [savingCategory, setSavingCategory] = useState(false);
   const [savingTag, setSavingTag] = useState(false);
   const [savingArticle, setSavingArticle] = useState(false);
-  const [generatingAI, setGeneratingAI] = useState<"suggestion" | "automatic" | "enhance" | null>(null);
+  const [generatingAI, setGeneratingAI] = useState<"suggestion" | "automatic" | null>(null);
+  const [optimizingSeoField, setOptimizingSeoField] = useState<string | null>(null);
   const [generatingTagsAI, setGeneratingTagsAI] = useState(false);
   const [creatingTagsAI, setCreatingTagsAI] = useState(false);
   const [generatingCoverImage, setGeneratingCoverImage] = useState(false);
@@ -740,18 +758,6 @@ const BlogTab = () => {
     [articleForm.cover_image_url],
   );
   const seoAuditReport = useMemo(() => computeSeoAuditReport(articleForm), [articleForm]);
-  const draftPlainChars = useMemo(
-    () => stripAuditHtml(String(articleForm.content_html || "")).length,
-    [articleForm.content_html],
-  );
-  const stage1Ready = useMemo(
-    () => !!String(articleForm.title || "").trim() && draftPlainChars >= DRAFT_STAGE_MIN_CHARS,
-    [articleForm.title, draftPlainChars],
-  );
-  const stage2Ready = useMemo(() => {
-    const contentAudit = seoAuditReport.items.find((item) => item.id === "min-content");
-    return !!contentAudit?.passed;
-  }, [seoAuditReport]);
 
   const fetchAll = async () => {
     setLoading(true);
@@ -784,7 +790,7 @@ const BlogTab = () => {
       console.error("[BlogTab] fetchAll error:", err);
       toast.error(
         err?.message?.includes("relation")
-          ? "Estrutura de blog ainda não existe. Execute a migration antes de usar este painel."
+          ? "Estrutura de blog ainda nÃ£o existe. Execute a migration antes de usar este painel."
           : "Erro ao carregar dados do blog.",
       );
     } finally {
@@ -1079,7 +1085,7 @@ const BlogTab = () => {
     event.preventDefault();
 
     if (!articleForm.title.trim()) {
-      toast.error("Informe o título do artigo.");
+      toast.error("Informe o tÃ­tulo do artigo.");
       return;
     }
     if (!articleForm.slug.trim()) {
@@ -1087,7 +1093,7 @@ const BlogTab = () => {
       return;
     }
     if (!articleForm.content_html.trim()) {
-      toast.error("Informe o conteúdo do artigo.");
+      toast.error("Informe o conteÃºdo do artigo.");
       return;
     }
 
@@ -1228,20 +1234,15 @@ const BlogTab = () => {
     setActiveTab("articles");
   };
 
-  const handleGenerateAI = async (
-    mode: "suggestion" | "automatic",
-    generationProfile: "base" | "full" = "full",
-    forcedSuggestion?: string,
-    loadingKey?: "suggestion" | "automatic" | "enhance",
-  ) => {
-    const effectiveSuggestion = mode === "suggestion" ? String((forcedSuggestion ?? aiSuggestion) || "").trim() : "";
+  const handleGenerateAI = async (mode: "suggestion" | "automatic") => {
+    const effectiveSuggestion = mode === "suggestion" ? String(aiSuggestion || "").trim() : "";
 
     if (mode === "suggestion" && !effectiveSuggestion) {
       toast.error("Informe uma sugestao para gerar o artigo com IA.");
       return;
     }
 
-    setGeneratingAI(loadingKey || mode);
+    setGeneratingAI(mode);
     try {
       const {
         data: { session: currentSession },
@@ -1263,7 +1264,6 @@ const BlogTab = () => {
         body: JSON.stringify({
           mode,
           suggestion: mode === "suggestion" ? effectiveSuggestion : null,
-          generation_profile: generationProfile,
         }),
       });
 
@@ -1349,9 +1349,7 @@ const BlogTab = () => {
       } else if (statusCode === 403 || /somente administradores|acesso negado/i.test(message)) {
         toast.error("Apenas administradores podem gerar artigos com IA.");
       } else if (statusCode === 546 || /http 546|timeout|time-out|upstream/i.test(message)) {
-        toast.error(
-          "A geracao demorou demais no servidor. Tente primeiro um rascunho (informacoes principais) e depois clique em completar artigo.",
-        );
+        toast.error("A geracao demorou demais no servidor. Tente novamente com uma sugestao mais objetiva.");
       } else {
         toast.error(message || "Erro ao gerar artigo com IA.");
       }
@@ -1360,29 +1358,72 @@ const BlogTab = () => {
     }
   };
 
-  const handleEnhanceCurrentDraft = async () => {
-    const hasDraftContext =
-      !!String(articleForm.title || "").trim() ||
-      !!String(articleForm.excerpt || "").trim() ||
-      !!String(articleForm.focus_keyword || "").trim() ||
-      !!String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").trim();
+  const handleOptimizeSeoField = async (field: SeoAiOptimizableField) => {
+    setOptimizingSeoField(field);
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
 
-    if (!hasDraftContext) {
-      toast.error("Preencha ao menos titulo, resumo, palavra-chave ou conteudo para completar com IA.");
-      return;
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente para usar a IA.");
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/optimize-blog-seo-field`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          field,
+          current_value: String(articleForm[field] || ""),
+          context: {
+            title: articleForm.title,
+            slug: articleForm.slug,
+            excerpt: articleForm.excerpt,
+            focus_keyword: articleForm.focus_keyword,
+            content_html: articleForm.content_html,
+            seo_title: articleForm.seo_title,
+            seo_description: articleForm.seo_description,
+            seo_og_title: articleForm.seo_og_title,
+            seo_og_description: articleForm.seo_og_description,
+            source_reference_url: articleForm.source_reference_url,
+          },
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(payload?.error || `HTTP ${response.status}`));
+      }
+
+      const optimized = String(payload?.value || "").trim();
+      if (!optimized) throw new Error("A IA nao retornou valor para este campo.");
+
+      if (field === "slug") {
+        setArticleForm((prev) => ({ ...prev, slug: generateSlug(optimized) }));
+      } else {
+        setArticleForm((prev) => ({ ...prev, [field]: optimized }));
+      }
+      toast.success("Campo otimizado com IA.");
+    } catch (err: any) {
+      const message = String(err?.message || "");
+      if (/not found|nao encontrada|requested function was not found|404/i.test(message)) {
+        toast.error("Funcao optimize-blog-seo-field nao publicada no Supabase.");
+      } else if (/401|unauthorized|jwt|autenticacao/i.test(message)) {
+        toast.error("Nao autorizado para otimizar este campo. Faca login novamente.");
+      } else if (/403|somente administradores|acesso negado/i.test(message)) {
+        toast.error("Apenas administradores podem usar IA de SEO.");
+      } else {
+        toast.error(message || "Erro ao otimizar campo com IA.");
+      }
+    } finally {
+      setOptimizingSeoField(null);
     }
-
-    const enhanceSuggestion = `
-Complete e refine este rascunho para SEO completo (8000 a 12000 caracteres).
-Titulo atual: ${articleForm.title || ""}
-Palavra-chave foco: ${articleForm.focus_keyword || ""}
-Resumo atual: ${articleForm.excerpt || ""}
-URL de referencia: ${articleForm.source_reference_url || ""}
-Rascunho atual:
-${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)}
-`.trim();
-
-    await handleGenerateAI("suggestion", "full", enhanceSuggestion, "enhance");
   };
 
   const runTagAI = async (createMissingTags: boolean) => {
@@ -1692,7 +1733,6 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
         body: JSON.stringify({
           mode: "suggestion",
           suggestion,
-          generation_profile: "base",
         }),
       });
 
@@ -1767,8 +1807,8 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
 
       setActiveTab("articles");
       setShowSeoAudit(true);
-      if (aiSeoPassed) toast.success("Rascunho principal gerado com tema pesquisado. Agora clique em 'Completar artigo com IA'.");
-      else toast.warning("Rascunho principal gerado com pendencias leves. Use 'Completar artigo com IA' para finalizar.");
+      if (aiSeoPassed) toast.success("Artigo gerado com tema pesquisado e preenchido no editor.");
+      else toast.warning("Artigo gerado com pendencias SEO. Revise com o checklist antes de publicar.");
     } catch (err: any) {
       const message = String(err?.message || "");
       const statusCode =
@@ -1777,7 +1817,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
         (/\b546\b/.test(message) ? 546 : undefined);
 
       if (statusCode === 546 || /http 546|timeout|time-out|upstream/i.test(message)) {
-        toast.error("A geracao estourou tempo no servidor. Tente novamente; agora esta em modo de rascunho rapido.");
+        toast.error("A geracao estourou tempo no servidor. Tente novamente com um tema mais objetivo.");
       } else {
         toast.error(message || "Erro ao gerar artigo com tema pesquisado.");
       }
@@ -1836,9 +1876,9 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
     setGeneratingCoverImage(true);
     try {
       await requestCoverCandidate(nextExcluded);
-      toast.success("Nova opção de capa gerada.");
+      toast.success("Nova opÃ§Ã£o de capa gerada.");
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao gerar nova opção de capa.");
+      toast.error(err?.message || "Erro ao gerar nova opÃ§Ã£o de capa.");
     } finally {
       setGeneratingCoverImage(false);
     }
@@ -1870,7 +1910,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid grid-cols-4 md:w-[640px]">
           <TabsTrigger value="articles">Artigos</TabsTrigger>
-          <TabsTrigger value="ai-settings">Configurações IA</TabsTrigger>
+          <TabsTrigger value="ai-settings">ConfiguraÃ§Ãµes IA</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
@@ -1879,17 +1919,17 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
           <Card>
             <CardHeader>
               <CardTitle>Artigos</CardTitle>
-              <CardDescription>Gerencie conteúdos do blog e status de publicação.</CardDescription>
+              <CardDescription>Gerencie conteÃºdos do blog e status de publicaÃ§Ã£o.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Título</TableHead>
+                    <TableHead>TÃ­tulo</TableHead>
                     <TableHead>Slug</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Categoria</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead className="text-right">AÃ§Ãµes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1939,7 +1979,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                 <div>
                   <CardTitle>{articleForm.id ? "Editar artigo" : "Novo artigo"}</CardTitle>
                   <CardDescription>
-                    Conteúdo, SEO completo e schema otimizado para Google.
+                    ConteÃºdo, SEO completo e schema otimizado para Google.
                   </CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={resetArticleForm} className="gap-2">
@@ -1955,43 +1995,14 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                   <div>
                     <p className="text-sm font-semibold">Assistente de IA para Artigos</p>
                     <p className="text-xs text-muted-foreground">
-                      Gere um artigo por sugestão ou deixe a IA escolher um tema estratégico para a plataforma.
+                      Gere um artigo por sugestÃ£o ou deixe a IA escolher um tema estratÃ©gico para a plataforma.
                     </p>
-                  </div>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-background/80 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fluxo recomendado</p>
-                  <div className="mt-2 grid gap-2 md:grid-cols-2">
-                    <div className="rounded-md border border-border/70 bg-background p-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium">Etapa 1: Rascunho principal</p>
-                        <Badge variant={stage1Ready ? "default" : "secondary"}>
-                          {generatingAI === "suggestion" || generatingAI === "automatic"
-                            ? "Em andamento"
-                            : stage1Ready
-                              ? "Concluida"
-                              : "Pendente"}
-                        </Badge>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">Gere as informacoes principais de forma rapida.</p>
-                    </div>
-                    <div className="rounded-md border border-border/70 bg-background p-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium">Etapa 2: Completar SEO 8k-12k</p>
-                        <Badge variant={stage2Ready ? "default" : "outline"}>
-                          {generatingAI === "enhance" ? "Em andamento" : stage2Ready ? "Concluida" : "Pendente"}
-                        </Badge>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Use "Completar artigo com IA" para finalizar o artigo completo.
-                      </p>
-                    </div>
                   </div>
                 </div>
                 <Textarea
                   value={aiSuggestion}
                   onChange={(e) => setAiSuggestion(e.target.value)}
-                  placeholder="Sugestão opcional: Ex. Como reduzir turnover em equipes de Home Care"
+                  placeholder="SugestÃ£o opcional: Ex. Como reduzir turnover em equipes de Home Care"
                   rows={3}
                 />
                 <div className="flex flex-wrap gap-2">
@@ -2007,7 +2018,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                     ) : (
                       <Sparkles className="h-4 w-4" />
                     )}
-                    Gerar com sugestão
+                    Gerar com sugestÃ£o
                   </Button>
                   <Button
                     type="button"
@@ -2024,28 +2035,30 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                     )}
                     IA escolhe tema relevante
                   </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="gap-2"
-                    onClick={handleEnhanceCurrentDraft}
-                    disabled={!!generatingAI}
-                  >
-                    {generatingAI === "enhance" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                    Completar artigo com IA (SEO 8k-12k)
-                  </Button>
                 </div>
               </div>
 
               <form onSubmit={handleSaveArticle} className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Título</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>TÃ­tulo</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-xs"
+                        onClick={() => handleOptimizeSeoField("title")}
+                        disabled={optimizingSeoField === "title"}
+                      >
+                        {optimizingSeoField === "title" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        IA SEO
+                      </Button>
+                    </div>
                     <Input
                       value={articleForm.title}
                       onChange={(e) =>
@@ -2058,7 +2071,24 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Slug</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>Slug</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-xs"
+                        onClick={() => handleOptimizeSeoField("slug")}
+                        disabled={optimizingSeoField === "slug"}
+                      >
+                        {optimizingSeoField === "slug" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        IA SEO
+                      </Button>
+                    </div>
                     <Input
                       value={articleForm.slug}
                       onChange={(e) => setArticleForm((prev) => ({ ...prev, slug: generateSlug(e.target.value) }))}
@@ -2067,7 +2097,24 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Resumo (excerpt)</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>Resumo (excerpt)</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1 text-xs"
+                      onClick={() => handleOptimizeSeoField("excerpt")}
+                      disabled={optimizingSeoField === "excerpt"}
+                    >
+                      {optimizingSeoField === "excerpt" ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3" />
+                      )}
+                      IA SEO
+                    </Button>
+                  </div>
                   <Textarea
                     value={articleForm.excerpt}
                     onChange={(e) => setArticleForm((prev) => ({ ...prev, excerpt: e.target.value }))}
@@ -2147,7 +2194,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Conteúdo do artigo</Label>
+                  <Label>ConteÃºdo do artigo</Label>
                   <RichTextEditor
                     content={articleForm.content_html}
                     enableHtmlModeToggle
@@ -2186,7 +2233,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Data de publicação (ISO)</Label>
+                    <Label>Data de publicaÃ§Ã£o (ISO)</Label>
                     <Input
                       value={articleForm.published_at}
                       onChange={(e) => setArticleForm((prev) => ({ ...prev, published_at: e.target.value }))}
@@ -2249,7 +2296,24 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Palavra-chave foco</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>Palavra-chave foco</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-xs"
+                        onClick={() => handleOptimizeSeoField("focus_keyword")}
+                        disabled={optimizingSeoField === "focus_keyword"}
+                      >
+                        {optimizingSeoField === "focus_keyword" ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3" />
+                        )}
+                        IA SEO
+                      </Button>
+                    </div>
                     <Input
                       value={articleForm.focus_keyword}
                       onChange={(e) => setArticleForm((prev) => ({ ...prev, focus_keyword: e.target.value }))}
@@ -2261,7 +2325,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                 <div className="flex items-center justify-between rounded-xl border border-border/70 p-3">
                   <div>
                     <p className="text-sm font-medium">Artigo em destaque</p>
-                    <p className="text-xs text-muted-foreground">Prioriza o conteúdo na listagem do blog.</p>
+                    <p className="text-xs text-muted-foreground">Prioriza o conteÃºdo na listagem do blog.</p>
                   </div>
                   <Switch
                     checked={articleForm.featured}
@@ -2320,6 +2384,8 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                 <BlogSeoFields
                   value={articleForm}
                   onChange={(patch) => setArticleForm((prev) => ({ ...prev, ...patch }))}
+                  onOptimizeField={handleOptimizeSeoField}
+                  optimizingField={optimizingSeoField}
                 />
 
                 {showSeoAudit ? (
@@ -2386,7 +2452,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
             <CardHeader>
               <CardTitle>Pesquisa de Temas com IA</CardTitle>
               <CardDescription>
-                Selecione um foco e pesquise temas/notícias atuais sobre atendimentos à saúde para gerar artigos.
+                Selecione um foco e pesquise temas/notÃ­cias atuais sobre atendimentos Ã  saÃºde para gerar artigos.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -2435,7 +2501,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                 <CardHeader>
                   <CardTitle className="text-base">Resultados da pesquisa</CardTitle>
                   <CardDescription>
-                    Selecione um resultado para gerar artigo com URL de referência e capa automática.
+                    Selecione um resultado para gerar artigo com URL de referÃªncia e capa automÃ¡tica.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -2474,7 +2540,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                             ) : (
                               <Bot className="h-4 w-4" />
                             )}
-                            Gerar rascunho com este tema
+                            Gerar artigo com este tema
                           </Button>
                         </div>
                       </div>
@@ -2494,7 +2560,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
           <Card>
             <CardHeader>
               <CardTitle>Categorias</CardTitle>
-              <CardDescription>Gerencie categorias com SEO próprio e schema específico.</CardDescription>
+              <CardDescription>Gerencie categorias com SEO prÃ³prio e schema especÃ­fico.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -2503,7 +2569,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                     <TableHead>Nome</TableHead>
                     <TableHead>Hierarquia</TableHead>
                     <TableHead>Slug</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead className="text-right">AÃ§Ãµes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2628,7 +2694,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Descrição</Label>
+                  <Label>DescriÃ§Ã£o</Label>
                   <Textarea
                     rows={3}
                     value={categoryForm.description}
@@ -2659,7 +2725,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
           <Card>
             <CardHeader>
               <CardTitle>Tags</CardTitle>
-              <CardDescription>Gerencie tags com SEO e schema próprio.</CardDescription>
+              <CardDescription>Gerencie tags com SEO e schema prÃ³prio.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -2667,7 +2733,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                   <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>Slug</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
+                    <TableHead className="text-right">AÃ§Ãµes</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2759,7 +2825,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Descrição</Label>
+                  <Label>DescriÃ§Ã£o</Label>
                   <Textarea
                     rows={3}
                     value={tagForm.description}
@@ -2800,9 +2866,9 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
       >
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Pré-visualização da capa</DialogTitle>
+            <DialogTitle>PrÃ©-visualizaÃ§Ã£o da capa</DialogTitle>
             <DialogDescription>
-              Aprove esta opção ou rejeite para gerar outra imagem automaticamente.
+              Aprove esta opÃ§Ã£o ou rejeite para gerar outra imagem automaticamente.
             </DialogDescription>
           </DialogHeader>
 
@@ -2811,7 +2877,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
               <div className="overflow-hidden rounded-xl border border-border bg-secondary/20">
                 <img
                   src={coverCandidate.cover_image_url}
-                  alt={coverCandidate.alt_text || "Prévia da capa do artigo"}
+                  alt={coverCandidate.alt_text || "PrÃ©via da capa do artigo"}
                   className="max-h-[60vh] w-full object-contain"
                 />
               </div>
@@ -2825,7 +2891,7 @@ ${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)
             <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-border bg-secondary/20">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Gerando pré-visualização da capa...
+                Gerando prÃ©-visualizaÃ§Ã£o da capa...
               </div>
             </div>
           )}

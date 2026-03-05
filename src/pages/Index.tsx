@@ -1,4 +1,4 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+﻿import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import PricingCard from "@/components/PricingCard";
@@ -62,14 +62,14 @@ const Index = () => {
     const isSupabaseAuthRedirect = location.hash.includes("_supabase=true");
 
     if (!authLoading && session && !isLoadingProfile && profile && isSupabaseAuthRedirect) {
-      console.log("[Index] Usuário logado detectado via redirect de auth, redirecionando para o painel...");
+      console.log("[Index] UsuÃ¡rio logado detectado via redirect de auth, redirecionando para o painel...");
       if (profile.is_admin || profile.role === "admin") {
         navigate("/admin", { replace: true });
       } else {
         navigate("/dashboard", { replace: true });
       }
     } else if (!authLoading && session && !isLoadingProfile && profile && !isSupabaseAuthRedirect) {
-      console.log("[Index] Usuário logado acessou a página diretamente, permitindo visualização.");
+      console.log("[Index] UsuÃ¡rio logado acessou a pÃ¡gina diretamente, permitindo visualizaÃ§Ã£o.");
     }
   }, [session, authLoading, profile, isLoadingProfile, navigate, location.hash]);
 
@@ -78,7 +78,7 @@ const Index = () => {
   const handlePlanCheckout = async (planId: "monthly" | "yearly") => {
     setSelectedPlanForCheckout(null);
     if (!session) {
-      toast.info("Por favor, crie uma conta ou faça login para continuar.");
+      toast.info("Por favor, crie uma conta ou faÃ§a login para continuar.");
       navigate("/login#auth-sign-up");
       return;
     }
@@ -94,7 +94,7 @@ const Index = () => {
         toast.success("Redirecionando para pagamento...");
         window.location.href = data.url;
       } else {
-        throw new Error("URL de checkout não retornada pelo servidor.");
+        throw new Error("URL de checkout nÃ£o retornada pelo servidor.");
       }
     } catch (err: unknown) {
       toast.dismiss(toastId);
@@ -110,7 +110,7 @@ const Index = () => {
 
   const handleSubscribe = async (planId: string) => {
     if (!session) {
-      toast.info("Por favor, crie uma conta ou faça login para continuar.");
+      toast.info("Por favor, crie uma conta ou faÃ§a login para continuar.");
       navigate("/login#auth-sign-up");
       return;
     }
@@ -125,19 +125,19 @@ const Index = () => {
       return;
     }
 
-    toast.error("Plano inválido para checkout.");
+    toast.error("Plano invÃ¡lido para checkout.");
   };
 
   const features = [
     {
       icon: Search,
       title: "Mais visibilidade profissional",
-      description: "Oportunidades de atendimento na sua região.",
+      description: "Oportunidades de atendimento na sua regiÃ£o.",
     },
     {
       icon: Shield,
-      title: "Contato direto com empresas e famílias",
-      description: "Perfil profissional organizado em um só lugar.",
+      title: "Contato direto com empresas e famÃ­lias",
+      description: "Perfil profissional organizado em um sÃ³ lugar.",
     },
     {
       icon: Star,
@@ -147,17 +147,17 @@ const Index = () => {
     {
       icon: Users,
       title: "Credibilidade para seu trabalho",
-      description: "Visibilidade para empresas e famílias.",
+      description: "Visibilidade para empresas e famÃ­lias.",
     },
     {
       icon: Search,
-      title: "Oportunidades por região e especialidade",
+      title: "Oportunidades por regiÃ£o e especialidade",
       description: "Aumente suas chances de receber novos atendimentos.",
     },
     {
       icon: Shield,
       title: "Perfil profissional completo",
-      description: "Seja encontrado por quem precisa de você.",
+      description: "Seja encontrado por quem precisa de vocÃª.",
     },
   ];
 
@@ -165,21 +165,21 @@ const Index = () => {
     {
       question: "Quem pode se cadastrar na plataforma?",
       answer:
-        "Profissionais da área da saúde que realizam atendimentos domiciliares, como enfermeiros, técnicos de enfermagem, cuidadores, fisioterapeutas, fonoaudiólogos e outros profissionais.",
+        "Profissionais da Ã¡rea da saÃºde que realizam atendimentos domiciliares, como enfermeiros, tÃ©cnicos de enfermagem, cuidadores, fisioterapeutas, fonoaudiÃ³logos e outros profissionais.",
     },
     {
       question: "Como recebo oportunidades de atendimento?",
       answer:
-        "Empresas de home care e famílias podem encontrar seu perfil na plataforma e entrar em contato diretamente com você.",
+        "Empresas de home care e famÃ­lias podem encontrar seu perfil na plataforma e entrar em contato diretamente com vocÃª.",
     },
     {
       question: "Posso cancelar quando quiser?",
-      answer: "Sim. Você pode cancelar sua assinatura a qualquer momento.",
+      answer: "Sim. VocÃª pode cancelar sua assinatura a qualquer momento.",
     },
     {
       question: "A plataforma funciona em todo o Brasil?",
       answer:
-        "A Home Care Match conecta profissionais e oportunidades em diversas regiões do país.",
+        "A Home Care Match conecta profissionais e oportunidades em diversas regiÃµes do paÃ­s.",
     },
   ];
 
@@ -222,13 +222,13 @@ const Index = () => {
     id: "free_trial",
     name: "Plano Gratuito",
     price: "R$ 0,00",
-    period: "mês",
-    description: "Aplicado automaticamente no cadastro. Válido por 30 dias.",
+    period: "mÃªs",
+    description: "Aplicado automaticamente no cadastro. VÃ¡lido por 30 dias.",
     features: [
       "Perfil profissional completo",
       "Visibilidade limitada",
       "Suporte por email",
-      "Ao término de 30 dias, selecione um plano pago.",
+      "Ao tÃ©rmino de 30 dias, selecione um plano pago.",
     ],
     popular: false,
   };
@@ -238,11 +238,11 @@ const Index = () => {
       id: "monthly",
       name: "Plano Mensal",
       price: "R$ 49,90",
-      period: "mês",
+      period: "mÃªs",
       description: "Plano ideal para manter seu perfil ativo",
       features: [
         "Perfil profissional completo",
-        "Visibilidade para empresas e famílias",
+        "Visibilidade para empresas e famÃ­lias",
         "Mais oportunidades de atendimento",
         "Plataforma dedicada a profissionais de Home Care",
       ],
@@ -252,11 +252,11 @@ const Index = () => {
       id: "yearly",
       name: "Plano Anual",
       price: "R$ 39,90",
-      period: "mês",
+      period: "mÃªs",
       description: "Plano ideal para quem busca mais economia",
       features: [
         "Perfil profissional completo",
-        "Visibilidade para empresas e famílias",
+        "Visibilidade para empresas e famÃ­lias",
         "Mais oportunidades de atendimento",
         "Plataforma dedicada a profissionais de Home Care",
       ],
@@ -310,13 +310,13 @@ const Index = () => {
   })();
 
   const getPlanButtonConfig = (planId: string) => {
-    if (!session) return { text: "Escolher plano e começar", disabled: false };
+    if (!session) return { text: "Escolher plano e comeÃ§ar", disabled: false };
 
     if (profile?.role === "company" || profile?.role === "family") {
       return { text: "Somente para profissionais", disabled: true };
     }
 
-    if (!userTier) return { text: "Escolher plano e começar", disabled: false };
+    if (!userTier) return { text: "Escolher plano e comeÃ§ar", disabled: false };
 
     if (userTier === planId) {
       return { text: "Seu plano atual", disabled: true };
@@ -333,10 +333,10 @@ const Index = () => {
 
     if (userTier === "free_trial") {
       if (planId === "free_trial") return { text: "Seu plano atual", disabled: true };
-      return { text: "Escolher plano e começar", disabled: false };
+      return { text: "Escolher plano e comeÃ§ar", disabled: false };
     }
 
-    return { text: "Escolher plano e começar", disabled: false };
+    return { text: "Escolher plano e comeÃ§ar", disabled: false };
   };
 
   const getAcademyCardContent = () => {
@@ -344,7 +344,7 @@ const Index = () => {
       return {
         title: "E muito mais...",
         description:
-          "Se você atua com atendimento domiciliar, pode criar seu perfil e aumentar sua visibilidade profissional.",
+          "Se vocÃª atua com atendimento domiciliar, pode criar seu perfil e aumentar sua visibilidade profissional.",
         buttonText: "Criar meu perfil",
         link: "/login#auth-sign-up",
         icon: GraduationCap,
@@ -355,7 +355,7 @@ const Index = () => {
       return {
         title: "E muito mais...",
         description:
-          "Se você atua com atendimento domiciliar, mantenha seu perfil ativo para receber novas oportunidades.",
+          "Se vocÃª atua com atendimento domiciliar, mantenha seu perfil ativo para receber novas oportunidades.",
         buttonText: "Ir para meu painel",
         link: "/dashboard",
         icon: GraduationCap,
@@ -365,7 +365,7 @@ const Index = () => {
     return {
       title: "Perfil para profissionais",
       description:
-        "Esta página é dedicada a profissionais da saúde que realizam atendimento domiciliar.",
+        "Esta pÃ¡gina Ã© dedicada a profissionais da saÃºde que realizam atendimento domiciliar.",
       buttonText: "Buscar profissionais",
       link: "/buscar",
       icon: Search,
@@ -410,11 +410,16 @@ const Index = () => {
 
             <p className="animate-slide-up mx-auto mt-6 max-w-2xl text-lg text-muted-foreground" style={{ animationDelay: "0.1s" }}>
               A Home Care Match conecta profissionais da área da saúde a empresas de home care e famílias que buscam atendimento domiciliar.
-              <br />
-              Aumente sua visibilidade profissional e receba oportunidades de atendimento na sua região.
-              <br />
-              Leva menos de 3 minutos para começar.
             </p>
+            <p className="animate-slide-up mx-auto mt-2 max-w-2xl text-lg text-muted-foreground" style={{ animationDelay: "0.12s" }}>
+              Aumente sua visibilidade profissional e receba oportunidades de atendimento na sua região.
+            </p>
+            <ul className="animate-slide-up mx-auto mt-6 max-w-2xl space-y-2 text-left text-base text-muted-foreground" style={{ animationDelay: "0.14s" }}>
+              <li>• Perfil profissional completo</li>
+              <li>• Visibilidade por região e especialidade</li>
+              <li>• Contato direto com empresas e famílias</li>
+              <li>• Você escolhe quando aceitar novos atendimentos</li>
+            </ul>
 
             <div className="animate-slide-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.2s" }}>
               {session ? (
@@ -433,9 +438,12 @@ const Index = () => {
                 </Button>
               )}
               <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-                <Link to="/empresas">Contato com empresas e famílias</Link>
+                <a href="#como-funciona">Ver como funciona</a>
               </Button>
             </div>
+            <p className="animate-slide-up mx-auto mt-3 max-w-2xl text-sm text-muted-foreground" style={{ animationDelay: "0.22s" }}>
+              Leva menos de 3 minutos para começar.
+            </p>
           </div>
         </div>
       </section>
@@ -446,7 +454,7 @@ const Index = () => {
             <div className="max-w-4xl mx-auto">
               <LandingVideoPlayer
                 url={landingVideoUrl}
-                title="Apresentação para profissionais"
+                title="ApresentaÃ§Ã£o para profissionais"
                 autoplay={false}
                 deferLoad={true}
               />
@@ -458,17 +466,45 @@ const Index = () => {
       <section className="py-14 md:py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-foreground">
-              Por que criar seu perfil na Home Care Match
-            </h2>
+            <h2 className="text-3xl font-bold text-foreground">Como funciona a Home Care Match</h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Ter um perfil profissional na plataforma ajuda você a ser encontrado por empresas e famílias que procuram profissionais para atendimento domiciliar.
+              Criar seu perfil é simples. Em poucos passos você já pode começar a receber oportunidades de atendimento.
             </p>
           </div>
 
-          <div className="mobile-stagger grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature, index) => (
-              <FeatureCard key={index} icon={feature.icon} title={feature.title} description={feature.description} />
+          <div className="mobile-stagger mx-auto grid max-w-5xl gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                step: "1",
+                title: "Crie seu perfil profissional",
+                description: "Cadastre suas informações, especialidades e região de atendimento.",
+              },
+              {
+                step: "2",
+                title: "Seja encontrado por quem precisa",
+                description: "Empresas de home care e famílias podem visualizar seu perfil na plataforma.",
+              },
+              {
+                step: "3",
+                title: "Receba contatos e oportunidades",
+                description: "Profissionais cadastrados podem ser procurados diretamente para atendimentos.",
+              },
+              {
+                step: "4",
+                title: "Escolha quando aceitar",
+                description: "Você decide quais oportunidades deseja aceitar.",
+              },
+            ].map((item, index) => (
+              <div
+                key={index}
+                className="relative rounded-3xl border border-border/70 bg-card/80 p-5 text-center shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none"
+              >
+                <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-primary-foreground">
+                  {item.step}
+                </div>
+                <h3 className="mb-2 text-lg font-semibold text-foreground">{item.title}</h3>
+                <p className="text-sm text-muted-foreground">{item.description}</p>
+              </div>
             ))}
           </div>
         </div>
@@ -496,16 +532,21 @@ const Index = () => {
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Award className="h-6 w-6" />
                   </div>
-                  <h4 className="font-bold">Principais perfis</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Enfermeiro(a), Técnico(a) de Enfermagem, Cuidador(a), Fisioterapeuta, Fonoaudiólogo(a) e Terapeuta Ocupacional.
-                  </p>
+                  <h4 className="font-bold">Lista de profissionais</h4>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    <li>• Enfermeiro(a)</li>
+                    <li>• Técnico(a) de Enfermagem</li>
+                    <li>• Cuidador(a)</li>
+                    <li>• Fisioterapeuta</li>
+                    <li>• Fonoaudiólogo(a)</li>
+                    <li>• Terapeuta Ocupacional</li>
+                  </ul>
                 </div>
                 <div className="space-y-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <ShieldCheck className="h-6 w-6" />
                   </div>
-                  <h4 className="font-bold">E muito mais...</h4>
+                  <h4 className="font-bold">E muito mais…</h4>
                   <p className="text-sm text-muted-foreground">
                     Se você atua com atendimento domiciliar, pode criar seu perfil e aumentar sua visibilidade profissional.
                   </p>
@@ -521,7 +562,7 @@ const Index = () => {
                   <div className="flex items-start gap-3">
                     <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
                     <p className="text-sm">
-                      Criar seu perfil é simples. Em poucos passos você já pode começar a receber oportunidades de atendimento.
+                      Criar seu perfil Ã© simples. Em poucos passos vocÃª jÃ¡ pode comeÃ§ar a receber oportunidades de atendimento.
                     </p>
                   </div>
                 </div>
@@ -555,41 +596,28 @@ const Index = () => {
       <section className="py-14 md:py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-foreground">Como funciona a Home Care Match</h2>
+            <h2 className="text-3xl font-bold text-foreground">Por que criar seu perfil na Home Care Match</h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Criar seu perfil é simples. Em poucos passos você já pode começar a receber oportunidades de atendimento.
+              Ter um perfil profissional na plataforma ajuda você a ser encontrado por empresas e famílias que procuram profissionais para atendimento domiciliar.
             </p>
           </div>
 
-          <div className="mobile-stagger mx-auto grid max-w-4xl gap-4 md:gap-8 md:grid-cols-3">
+          <div className="mobile-stagger mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
             {[
-              {
-                step: "01",
-                title: "Crie seu perfil profissional",
-                description: "Cadastre suas informações, especialidades e região de atendimento.",
-              },
-              {
-                step: "02",
-                title: "Seja encontrado por quem precisa",
-                description: "Empresas de home care e famílias podem visualizar seu perfil na plataforma.",
-              },
-              {
-                step: "03",
-                title: "Receba contatos e oportunidades",
-                description: "Profissionais cadastrados podem ser procurados diretamente para atendimentos.",
-              },
-              {
-                step: "04",
-                title: "Escolha quando aceitar",
-                description: "Você decide quais oportunidades deseja aceitar.",
-              },
-            ].map((item, index) => (
-              <div key={index} className="relative rounded-3xl border border-border/70 bg-card/80 p-5 text-center shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
-                <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-2xl font-bold text-primary-foreground">
-                  {item.step}
-                </div>
-                <h3 className="mb-2 text-lg font-semibold text-foreground">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
+              "Mais visibilidade profissional",
+              "Oportunidades de atendimento na sua região",
+              "Contato direto com empresas e famílias",
+              "Perfil profissional organizado em um só lugar",
+              "Mais praticidade para encontrar atendimentos",
+              "Credibilidade para seu trabalho",
+            ].map((benefit) => (
+              <div
+                key={benefit}
+                className="relative rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none"
+              >
+                <p className="text-base text-foreground">
+                  <span className="font-semibold">✔</span> {benefit}
+                </p>
               </div>
             ))}
           </div>
@@ -599,16 +627,22 @@ const Index = () => {
       <section className="bg-primary py-16 md:py-20">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-primary-foreground">
-            Pronto para aumentar suas oportunidades no Home Care?
+            Escolha o plano ideal para você
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-primary-foreground/80">
-            Crie seu perfil profissional e comece a ser encontrado por empresas e famílias que precisam de profissionais de saúde para atendimento domiciliar.
+            Com sua assinatura você mantém seu perfil ativo na plataforma e aumenta suas chances de receber oportunidades de atendimento.
           </p>
+          <ul className="mx-auto mt-6 max-w-2xl space-y-2 text-left text-primary-foreground/90">
+            <li>• Perfil profissional completo</li>
+            <li>• Visibilidade para empresas e famílias</li>
+            <li>• Mais oportunidades de atendimento</li>
+            <li>• Plataforma dedicada a profissionais de Home Care</li>
+          </ul>
           <Button size="lg" variant="secondary" className="mt-8 w-full gap-2 sm:w-auto" asChild>
-            <Link to="/login#auth-sign-up">
-              Criar meu perfil
+            <a href="#planos">
+              Escolher plano e começar
               <ArrowRight className="h-4 w-4" />
-            </Link>
+            </a>
           </Button>
         </div>
       </section>
@@ -619,9 +653,9 @@ const Index = () => {
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <HelpCircle className="h-6 w-6 text-primary" />
             </div>
-            <h2 className="text-3xl font-bold text-foreground">Dúvidas frequentes</h2>
+            <h2 className="text-3xl font-bold text-foreground">DÃºvidas frequentes</h2>
             <p className="mt-4 text-muted-foreground">
-              Respostas rápidas para você começar com mais confiança.
+              Respostas rÃ¡pidas para vocÃª comeÃ§ar com mais confianÃ§a.
             </p>
           </div>
 
@@ -645,7 +679,7 @@ const Index = () => {
           <div className="mt-10 text-center">
             <Button variant="outline" asChild className="gap-2">
               <Link to="/suporte">
-                Ver todas as dúvidas
+                Ver todas as dÃºvidas
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -657,10 +691,10 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">
-              Escolha o plano ideal para você
+              Escolha o plano ideal para vocÃª
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Com sua assinatura você mantém seu perfil ativo na plataforma e aumenta suas chances de receber oportunidades de atendimento.
+              Com sua assinatura vocÃª mantÃ©m seu perfil ativo na plataforma e aumenta suas chances de receber oportunidades de atendimento.
             </p>
           </div>
 
@@ -699,6 +733,23 @@ const Index = () => {
               <CarouselNext className="relative" />
             </div>
           </Carousel>
+        </div>
+      </section>
+
+      <section className="bg-primary py-16 md:py-20">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold text-primary-foreground">
+            Pronto para aumentar suas oportunidades no Home Care?
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-primary-foreground/80">
+            Crie seu perfil profissional e comece a ser encontrado por empresas e famílias que precisam de profissionais de saúde para atendimento domiciliar.
+          </p>
+          <Button size="lg" variant="secondary" className="mt-8 w-full gap-2 sm:w-auto" asChild>
+            <Link to="/login#auth-sign-up">
+              Criar meu perfil
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
         </div>
       </section>
 

@@ -183,7 +183,7 @@ const Familias = () => {
       {landingVideoUrl && (
         <section className="bg-secondary/10 py-12">
           <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-4xl">
+            <div className="mx-auto max-w-4xl aspect-video overflow-hidden rounded-2xl border border-border/60 shadow-sm">
               <LandingVideoPlayer
                 url={landingVideoUrl}
                 title="Apresentação para Famílias"

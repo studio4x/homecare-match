@@ -468,7 +468,7 @@ const Index = () => {
       {landingVideoUrl && (
         <section className="py-12 bg-secondary/10">
           <div className="container mx-auto px-4">
-            <div className="max-w-4xl mx-auto">
+            <div className="mx-auto max-w-4xl aspect-video overflow-hidden rounded-2xl border border-border/60 shadow-sm">
               <LandingVideoPlayer
                 url={landingVideoUrl}
                 title="Apresentação para profissionais"

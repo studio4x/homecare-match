@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -13,6 +13,8 @@ const SEO_TITLE_MIN_CHARS = 30;
 const SEO_TITLE_MAX_CHARS = 60;
 const SEO_DESCRIPTION_MIN_CHARS = 70;
 const SEO_DESCRIPTION_MAX_CHARS = 155;
+const SEO_CONTENT_MIN_CHARS = 8000;
+const SEO_CONTENT_MAX_CHARS = 12000;
 
 const ALLOWED_FIELDS = new Set([
   "title",
@@ -84,11 +86,95 @@ const sanitizeHtml = (html: string) =>
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
     .trim();
 
+const escapeHtml = (value: string) =>
+  String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const stripContentH1Tags = (html: string) =>
   String(html || "")
     .replace(/<h1\b[^>]*>[\s\S]*?<\/h1>/gi, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+const normalizeSeoContentHtml = (html: string) => stripContentH1Tags(sanitizeHtml(html || ""));
+
+const adjustContentLengthLocally = (html: string, context: Record<string, string>) => {
+  let normalized = normalizeSeoContentHtml(html);
+  let plain = stripHtml(normalized);
+
+  if (plain.length < SEO_CONTENT_MIN_CHARS) {
+    const keyword = compactText(context.focus_keyword || context.title || "home care", 90);
+    const filler =
+      `Na pratica, a melhoria continua de ${keyword} depende de protocolos claros, registro estruturado, ` +
+      "indicadores de desempenho, comunicacao efetiva da equipe e revisao periodica de condutas assistenciais.";
+    let round = 1;
+    while (plain.length < SEO_CONTENT_MIN_CHARS && round <= 40) {
+      normalized += `<h3>Boas praticas complementares ${round}</h3><p>${escapeHtml(filler)}</p>`;
+      plain = stripHtml(normalized);
+      round += 1;
+    }
+  }
+
+  if (plain.length > SEO_CONTENT_MAX_CHARS) {
+    const truncated = plain.slice(0, SEO_CONTENT_MAX_CHARS).trim();
+    const sentences = truncated.match(/[^.!?]+[.!?]?/g) || [truncated];
+    const paragraphs: string[] = [];
+    let current = "";
+    for (const sentence of sentences) {
+      const next = `${current} ${sentence}`.trim();
+      if (next.length >= 650 && current) {
+        paragraphs.push(current.trim());
+        current = sentence.trim();
+      } else {
+        current = next;
+      }
+    }
+    if (current.trim()) paragraphs.push(current.trim());
+    normalized = paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
+  }
+
+  return normalizeSeoContentHtml(normalized);
+};
+
+const callGeminiJson = async ({
+  apiKey,
+  modelName,
+  prompt,
+}: {
+  apiKey: string;
+  modelName: string;
+  prompt: string;
+}) => {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      }),
+    },
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "Falha ao chamar API do Gemini.");
+  }
+
+  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) {
+    throw new Error("Resposta vazia da IA.");
+  }
+
+  return JSON.parse(cleanJsonText(rawText));
+};
 
 const getSafeExternalUrl = (value: unknown) => {
   const raw = String(value || "").trim();
@@ -144,8 +230,7 @@ const buildPrompt = ({
     title: "- Retorne um titulo claro e atrativo (max 120 caracteres).",
     slug: "- Retorne somente slug URL-friendly, sem acentos, em minusculo e com hifens (max 75 caracteres).",
     excerpt: "- Retorne um resumo curto, escaneavel e orientado a SEO (ideal 120-220 caracteres).",
-    content_html:
-      "- Retorne HTML completo SEM H1 (o titulo principal fica fora do conteúdo), com 3 a 6 H2, H3 quando necessario, conclusao e FAQ. Conteudo de 5000 a 8000 caracteres em texto limpo.",
+    content_html: `- Retorne HTML completo SEM H1 (o titulo principal fica fora do conteudo), com 3 a 8 H2, H3 quando necessario, conclusao e FAQ. Conteudo entre ${SEO_CONTENT_MIN_CHARS} e ${SEO_CONTENT_MAX_CHARS} caracteres em texto limpo.`,
     focus_keyword: "- Retorne UMA palavra-chave foco principal, objetiva e relevante (max 90 caracteres).",
     seo_title: `- Retorne um SEO title entre ${SEO_TITLE_MIN_CHARS} e ${SEO_TITLE_MAX_CHARS} caracteres, com palavra-chave principal.`,
     seo_description: `- Retorne uma meta description entre ${SEO_DESCRIPTION_MIN_CHARS} e ${SEO_DESCRIPTION_MAX_CHARS} caracteres, com beneficio claro e CTA.`,
@@ -211,10 +296,60 @@ const applyFieldRules = (field: string, rawValue: unknown, context: Record<strin
     case "excerpt":
       return compactText(value, 220);
     case "content_html":
-      return stripContentH1Tags(sanitizeHtml(value));
+      return normalizeSeoContentHtml(value);
     default:
       return compactText(value, 240);
   }
+};
+
+const ensureSeoContentLength = async ({
+  html,
+  context,
+  apiKey,
+  modelName,
+}: {
+  html: string;
+  context: Record<string, string>;
+  apiKey: string;
+  modelName: string;
+}) => {
+  let candidate = normalizeSeoContentHtml(html || "");
+  let plain = stripHtml(candidate);
+  if (plain.length >= SEO_CONTENT_MIN_CHARS && plain.length <= SEO_CONTENT_MAX_CHARS) return candidate;
+
+  const adjustPrompt = `
+Voce e um editor SEO tecnico.
+Ajuste o HTML abaixo para ficar entre ${SEO_CONTENT_MIN_CHARS} e ${SEO_CONTENT_MAX_CHARS} caracteres de texto limpo.
+
+Regras obrigatorias:
+- manter SEM H1
+- manter estrutura de artigo com H2/H3, conclusao e FAQ
+- manter foco no tema original de Home Care
+- nao usar markdown
+
+Contexto:
+- titulo: ${context.title || "(vazio)"}
+- palavra-chave foco: ${context.focus_keyword || "(vazio)"}
+
+Retorne APENAS JSON valido: {"value":"<html ajustado>"}
+
+HTML atual:
+${candidate}
+`.trim();
+
+  try {
+    const adjusted = await callGeminiJson({ apiKey, modelName, prompt: adjustPrompt });
+    candidate = normalizeSeoContentHtml(String(adjusted?.value || adjusted?.result || candidate));
+    plain = stripHtml(candidate);
+  } catch {
+    // fallback local below
+  }
+
+  if (plain.length < SEO_CONTENT_MIN_CHARS || plain.length > SEO_CONTENT_MAX_CHARS) {
+    candidate = adjustContentLengthLocally(candidate, context);
+  }
+
+  return normalizeSeoContentHtml(candidate);
 };
 
 serve(async (req) => {
@@ -324,32 +459,22 @@ serve(async (req) => {
       context,
     });
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-          },
-        }),
-      },
-    );
+    const parsed = await callGeminiJson({
+      apiKey: GEMINI_API_KEY,
+      modelName,
+      prompt,
+    });
 
-    const geminiData = await geminiResponse.json().catch(() => ({}));
-    if (!geminiResponse.ok) {
-      throw new Error(geminiData?.error?.message || "Falha ao chamar API do Gemini.");
+    let optimizedValue = applyFieldRules(field, parsed?.value || parsed?.result || "", context);
+    if (field === "content_html") {
+      optimizedValue = await ensureSeoContentLength({
+        html: optimizedValue,
+        context,
+        apiKey: GEMINI_API_KEY,
+        modelName,
+      });
     }
 
-    const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) {
-      throw new Error("Resposta vazia da IA.");
-    }
-
-    const parsed = JSON.parse(cleanJsonText(rawText));
-    const optimizedValue = applyFieldRules(field, parsed?.value || parsed?.result || "", context);
     if (!optimizedValue) {
       throw new Error("A IA nao retornou valor valido para o campo.");
     }
@@ -372,3 +497,4 @@ serve(async (req) => {
     });
   }
 });
+

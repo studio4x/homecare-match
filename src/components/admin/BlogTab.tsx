@@ -276,8 +276,13 @@ const parseSchemaJson = (value: string) => {
   const clean = value?.trim() || "{}";
   try {
     const parsed = JSON.parse(clean);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return { error: "O Schema JSON deve ser um objeto JSON válido." };
+    const isObject = !!parsed && typeof parsed === "object" && !Array.isArray(parsed);
+    const isArrayOfObjects =
+      Array.isArray(parsed) &&
+      parsed.every((item) => !!item && typeof item === "object" && !Array.isArray(item));
+
+    if (!isObject && !isArrayOfObjects) {
+      return { error: "O Schema JSON deve ser um objeto JSON ou uma lista de objetos JSON válida." };
     }
     return { value: parsed };
   } catch {

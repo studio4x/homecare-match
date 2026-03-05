@@ -7,9 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MIN_CONTENT_CHARS = 3000;
-const MAX_CONTENT_CHARS = 8000;
-const TARGET_CONTENT_CHARS = 6500;
+const MIN_CONTENT_CHARS = 8000;
+const MAX_CONTENT_CHARS = 12000;
+const TARGET_CONTENT_CHARS = 10000;
 const MIN_H2 = 3;
 const MAX_H2 = 8;
 const MIN_H3 = 3;

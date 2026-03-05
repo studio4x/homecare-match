@@ -853,6 +853,7 @@ const BlogTab = () => {
   const [researchResults, setResearchResults] = useState<BlogResearchResult[]>([]);
   const [generatingFromResearchId, setGeneratingFromResearchId] = useState<string | null>(null);
   const [showSeoAudit, setShowSeoAudit] = useState(false);
+  const [autoFixingSeo, setAutoFixingSeo] = useState(false);
 
   const [categories, setCategories] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
@@ -1666,18 +1667,23 @@ const BlogTab = () => {
   };
 
   const handleOptimizeSeoField = async (field: SeoAiOptimizableField) => {
-    setOptimizingSeoField(field);
-    try {
+    const getAiAccessToken = async () => {
       const {
         data: { session: currentSession },
       } = await supabase.auth.getSession();
       const { data: refreshed } = await supabase.auth.refreshSession();
       const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
-
       if (!accessToken) {
         throw new Error("Sessao expirada. Faca login novamente para usar a IA.");
       }
+      return accessToken;
+    };
 
+    const requestOptimizedSeoField = async (
+      targetField: SeoAiOptimizableField,
+      sourceForm: BlogArticleForm,
+      accessToken: string,
+    ) => {
       const response = await fetch(`${SUPABASE_URL}/functions/v1/optimize-blog-seo-field`, {
         method: "POST",
         headers: {
@@ -1686,23 +1692,23 @@ const BlogTab = () => {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          field,
-          current_value: String(articleForm[field] || ""),
+          field: targetField,
+          current_value: String(sourceForm[targetField] || ""),
           context: {
-            title: articleForm.title,
-            slug: articleForm.slug,
-            excerpt: articleForm.excerpt,
-            focus_keyword: articleForm.focus_keyword,
-            content_html: articleForm.content_html,
-            cover_image_url: articleForm.cover_image_url,
-            seo_title: articleForm.seo_title,
-            seo_description: articleForm.seo_description,
-            seo_canonical_url: articleForm.seo_canonical_url,
-            seo_robots: articleForm.seo_robots,
-            seo_og_title: articleForm.seo_og_title,
-            seo_og_description: articleForm.seo_og_description,
-            seo_og_image_url: articleForm.seo_og_image_url,
-            source_reference_url: articleForm.source_reference_url,
+            title: sourceForm.title,
+            slug: sourceForm.slug,
+            excerpt: sourceForm.excerpt,
+            focus_keyword: sourceForm.focus_keyword,
+            content_html: sourceForm.content_html,
+            cover_image_url: sourceForm.cover_image_url,
+            seo_title: sourceForm.seo_title,
+            seo_description: sourceForm.seo_description,
+            seo_canonical_url: sourceForm.seo_canonical_url,
+            seo_robots: sourceForm.seo_robots,
+            seo_og_title: sourceForm.seo_og_title,
+            seo_og_description: sourceForm.seo_og_description,
+            seo_og_image_url: sourceForm.seo_og_image_url,
+            source_reference_url: sourceForm.source_reference_url,
           },
         }),
       });
@@ -1714,12 +1720,34 @@ const BlogTab = () => {
 
       const optimized = String(payload?.value || "").trim();
       if (!optimized) throw new Error("A IA nao retornou valor para este campo.");
+      return optimized;
+    };
 
-      if (field === "slug") {
-        setArticleForm((prev) => ({ ...prev, slug: generateSlug(optimized) }));
-      } else {
-        setArticleForm((prev) => ({ ...prev, [field]: optimized }));
+    const applyOptimizedField = (
+      sourceForm: BlogArticleForm,
+      targetField: SeoAiOptimizableField,
+      optimizedValue: string,
+    ) => {
+      const next = { ...sourceForm };
+      if (targetField === "slug") {
+        next.slug = generateSlug(optimizedValue);
+        return next;
       }
+      if (targetField === "content_html") {
+        const normalizedHtml = stripContentH1Tags(optimizedValue);
+        next.content_html = normalizedHtml;
+        next.reading_time_minutes = Math.max(1, estimateReadingTime(normalizedHtml));
+        return next;
+      }
+      (next as any)[targetField] = optimizedValue;
+      return next;
+    };
+
+    setOptimizingSeoField(field);
+    try {
+      const accessToken = await getAiAccessToken();
+      const optimized = await requestOptimizedSeoField(field, articleForm, accessToken);
+      setArticleForm((prev) => applyOptimizedField(prev, field, optimized));
       toast.success("Campo otimizado com IA.");
     } catch (err: any) {
       const message = String(err?.message || "");
@@ -1734,6 +1762,156 @@ const BlogTab = () => {
       }
     } finally {
       setOptimizingSeoField(null);
+    }
+  };
+
+  const handleAutoFixSeoPendencies = async () => {
+    if (autoFixingSeo || savingArticle || !!optimizingSeoField) return;
+
+    const pending = seoAuditReport.items.filter((item) => !item.passed);
+    if (pending.length === 0) {
+      toast.success("Nao ha pendencias SEO para corrigir.");
+      return;
+    }
+
+    const getAiAccessToken = async () => {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente para usar a IA.");
+      }
+      return accessToken;
+    };
+
+    const requestOptimizedSeoField = async (
+      targetField: SeoAiOptimizableField,
+      sourceForm: BlogArticleForm,
+      accessToken: string,
+    ) => {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/optimize-blog-seo-field`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          field: targetField,
+          current_value: String(sourceForm[targetField] || ""),
+          context: {
+            title: sourceForm.title,
+            slug: sourceForm.slug,
+            excerpt: sourceForm.excerpt,
+            focus_keyword: sourceForm.focus_keyword,
+            content_html: sourceForm.content_html,
+            cover_image_url: sourceForm.cover_image_url,
+            seo_title: sourceForm.seo_title,
+            seo_description: sourceForm.seo_description,
+            seo_canonical_url: sourceForm.seo_canonical_url,
+            seo_robots: sourceForm.seo_robots,
+            seo_og_title: sourceForm.seo_og_title,
+            seo_og_description: sourceForm.seo_og_description,
+            seo_og_image_url: sourceForm.seo_og_image_url,
+            source_reference_url: sourceForm.source_reference_url,
+          },
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(payload?.error || `HTTP ${response.status}`));
+      }
+      const optimized = String(payload?.value || "").trim();
+      if (!optimized) throw new Error("A IA nao retornou valor para este campo.");
+      return optimized;
+    };
+
+    const applyOptimizedField = (
+      sourceForm: BlogArticleForm,
+      targetField: SeoAiOptimizableField,
+      optimizedValue: string,
+    ) => {
+      const next = { ...sourceForm };
+      if (targetField === "slug") {
+        next.slug = generateSlug(optimizedValue);
+        return next;
+      }
+      if (targetField === "content_html") {
+        const normalizedHtml = stripContentH1Tags(optimizedValue);
+        next.content_html = normalizedHtml;
+        next.reading_time_minutes = Math.max(1, estimateReadingTime(normalizedHtml));
+        return next;
+      }
+      (next as any)[targetField] = optimizedValue;
+      return next;
+    };
+
+    setAutoFixingSeo(true);
+    setShowSeoAudit(true);
+    try {
+      const accessToken = await getAiAccessToken();
+      let workingForm: BlogArticleForm = { ...articleForm };
+      const pendingIds = new Set(pending.map((item) => item.id));
+
+      const contentDrivenIds = new Set([
+        "min-content",
+        "h2-range",
+        "h3-min",
+        "keyword-density",
+        "keyword-first-paragraph",
+        "keyword-h2",
+        "keyword-conclusion",
+        "intro-size",
+        "conclusion-size",
+        "faq",
+        "links-internal",
+        "links-external",
+      ]);
+
+      const queue: SeoAiOptimizableField[] = [];
+      if (!workingForm.focus_keyword.trim()) queue.push("focus_keyword");
+      if (Array.from(pendingIds).some((id) => contentDrivenIds.has(id))) queue.push("content_html");
+      if (pendingIds.has("keyword-slug")) queue.push("slug");
+      if (pendingIds.has("seo-title-length")) queue.push("seo_title");
+      if (pendingIds.has("meta-length") || pendingIds.has("keyword-meta")) queue.push("seo_description");
+
+      if (!queue.includes("seo_title")) queue.push("seo_title");
+      if (!queue.includes("seo_description")) queue.push("seo_description");
+      if (!queue.includes("seo_og_title")) queue.push("seo_og_title");
+      if (!queue.includes("seo_og_description")) queue.push("seo_og_description");
+
+      const uniqueQueue = Array.from(new Set(queue));
+      for (const field of uniqueQueue) {
+        setOptimizingSeoField(field);
+        const optimized = await requestOptimizedSeoField(field, workingForm, accessToken);
+        workingForm = applyOptimizedField(workingForm, field, optimized);
+        setArticleForm(workingForm);
+      }
+
+      const finalReport = computeSeoAuditReport(workingForm);
+      const remaining = finalReport.total - finalReport.passed;
+      if (remaining === 0) {
+        toast.success("Todas as pendencias SEO foram resolvidas com IA.");
+      } else {
+        toast.warning(`IA aplicou correcoes. Restaram ${remaining} pendencia(s) para ajuste manual.`);
+      }
+    } catch (err: any) {
+      const message = String(err?.message || "");
+      if (/not found|nao encontrada|requested function was not found|404/i.test(message)) {
+        toast.error("Funcao optimize-blog-seo-field nao publicada no Supabase.");
+      } else if (/401|unauthorized|jwt|autenticacao/i.test(message)) {
+        toast.error("Nao autorizado para otimizar com IA. Faca login novamente.");
+      } else if (/403|somente administradores|acesso negado/i.test(message)) {
+        toast.error("Apenas administradores podem usar IA de SEO.");
+      } else {
+        toast.error(message || "Erro ao resolver pendencias SEO com IA.");
+      }
+    } finally {
+      setOptimizingSeoField(null);
+      setAutoFixingSeo(false);
     }
   };
 
@@ -2790,9 +2968,22 @@ const BlogTab = () => {
                           Use este checklist para aprovar o artigo antes de salvar/publicar.
                         </p>
                       </div>
-                      <Badge variant={seoAuditReport.score >= 85 ? "default" : "secondary"}>
-                        Score SEO: {seoAuditReport.score}% ({seoAuditReport.passed}/{seoAuditReport.total})
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={handleAutoFixSeoPendencies}
+                          disabled={autoFixingSeo || savingArticle || !!optimizingSeoField}
+                        >
+                          {autoFixingSeo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+                          Resolver pendencias com IA
+                        </Button>
+                        <Badge variant={seoAuditReport.score >= 85 ? "default" : "secondary"}>
+                          Score SEO: {seoAuditReport.score}% ({seoAuditReport.passed}/{seoAuditReport.total})
+                        </Badge>
+                      </div>
                     </div>
 
                     <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-4">

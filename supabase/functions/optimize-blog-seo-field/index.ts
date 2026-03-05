@@ -80,6 +80,8 @@ const stripHtml = (html: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+const countMatches = (value: string, regex: RegExp) => (String(value || "").match(regex) || []).length;
+
 const sanitizeHtml = (html: string) =>
   String(html || "")
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -101,6 +103,86 @@ const stripContentH1Tags = (html: string) =>
     .trim();
 
 const normalizeSeoContentHtml = (html: string) => stripContentH1Tags(sanitizeHtml(html || ""));
+
+const hasRequiredSeoStructure = (html: string) => {
+  const source = String(html || "");
+  const h2Count = countMatches(source, /<h2\b/gi);
+  const h3Count = countMatches(source, /<h3\b/gi);
+  const pCount = countMatches(source, /<p\b/gi);
+  const listCount = countMatches(source, /<(ul|ol)\b/gi);
+  const faqHeading = /<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>/i.test(source);
+  return h2Count >= 3 && h3Count >= 3 && pCount >= 10 && listCount >= 1 && faqHeading;
+};
+
+const splitIntoParagraphs = (plain: string) => {
+  const sentences = String(plain || "").match(/[^.!?]+[.!?]?/g) || [];
+  const paragraphs: string[] = [];
+  let current = "";
+  for (const sentence of sentences) {
+    const next = `${current} ${sentence}`.trim();
+    if (next.length > 520 && current) {
+      paragraphs.push(current.trim());
+      current = sentence.trim();
+    } else {
+      current = next;
+    }
+  }
+  if (current.trim()) paragraphs.push(current.trim());
+  return paragraphs.filter(Boolean);
+};
+
+const buildStructuredHtmlFromPlain = (html: string, context: Record<string, string>) => {
+  const plain = stripHtml(html);
+  const keyword = compactText(context.focus_keyword || context.title || "home care", 90);
+  const paragraphs = splitIntoParagraphs(plain);
+  const getPara = (index: number, fallback: string) => escapeHtml(paragraphs[index] || fallback);
+
+  const intro1 =
+    getPara(0, `Este conteudo apresenta fundamentos praticos sobre ${keyword} no contexto de Home Care.`) ||
+    `Este conteudo apresenta fundamentos praticos sobre ${keyword} no contexto de Home Care.`;
+  const intro2 =
+    getPara(1, "Ao longo do artigo, voce encontrara orientacoes para melhorar qualidade assistencial e eficiencia operacional.") ||
+    "Ao longo do artigo, voce encontrara orientacoes para melhorar qualidade assistencial e eficiencia operacional.";
+
+  return `
+<p>${intro1}</p>
+<p>${intro2}</p>
+
+<h2 id="sumario">Neste artigo voce vera</h2>
+<ul>
+  <li><a href="#fundamentos">Fundamentos de ${escapeHtml(keyword)}</a></li>
+  <li><a href="#aplicacao">Aplicacao pratica no dia a dia</a></li>
+  <li><a href="#conclusao">Conclusao</a></li>
+  <li><a href="#faq">Perguntas frequentes</a></li>
+</ul>
+
+<h2 id="fundamentos">Fundamentos de ${escapeHtml(keyword)}</h2>
+<p>${getPara(2, `A implementacao de ${keyword} exige protocolo claro, comunicacao ativa e monitoramento continuo de resultados.`)}</p>
+<p>${getPara(3, "Processos padronizados reduzem variacao de conduta e aumentam previsibilidade da assistencia.")}</p>
+<h3>Boas praticas essenciais</h3>
+<p>${getPara(4, "Defina papeis, indicadores e rotina de revisao para garantir consistencia na execucao da equipe.")}</p>
+
+<h2 id="aplicacao">Aplicacao pratica no dia a dia</h2>
+<p>${getPara(5, "A operacao deve alinhar agenda, registro clinico e comunicacao com pacientes e familiares.")}</p>
+<p>${getPara(6, "Acompanhamento frequente e feedback estruturado ajudam a corrigir desvios rapidamente.")}</p>
+<h3>Erros comuns e como evitar</h3>
+<p>${getPara(7, "As falhas mais comuns incluem ausencia de padrao e baixa rastreabilidade das decisoes assistenciais.")}</p>
+<h3>Indicadores para melhoria continua</h3>
+<p>${getPara(8, "Monitore adesao ao plano, eventos evitaveis, tempo de resposta e satisfacao da familia.")}</p>
+
+<h2 id="conclusao">Conclusao</h2>
+<p>${getPara(9, `Com metodo, acompanhamento e foco no paciente, ${keyword} gera ganhos de qualidade e seguranca.`)}</p>
+<p>${getPara(10, "A evolucao consistente depende de revisao periodica de processos e capacitacao continua da equipe.")}</p>
+
+<h2 id="faq">Perguntas frequentes</h2>
+<h3>Qual o primeiro passo para melhorar ${escapeHtml(keyword)}?</h3>
+<p>O primeiro passo e definir protocolo assistencial claro com metas, responsaveis e revisao recorrente.</p>
+<h3>Como garantir qualidade na rotina operacional?</h3>
+<p>Use indicadores objetivos, registro estruturado e rituais de acompanhamento com toda a equipe.</p>
+<h3>Quais resultados esperar com boa implementacao?</h3>
+<p>E esperado maior previsibilidade, reducao de falhas e melhor experiencia para paciente e familia.</p>
+`.trim();
+};
 
 const adjustContentLengthLocally = (html: string, context: Record<string, string>) => {
   let normalized = normalizeSeoContentHtml(html);
@@ -315,7 +397,9 @@ const ensureSeoContentLength = async ({
 }) => {
   let candidate = normalizeSeoContentHtml(html || "");
   let plain = stripHtml(candidate);
-  if (plain.length >= SEO_CONTENT_MIN_CHARS && plain.length <= SEO_CONTENT_MAX_CHARS) return candidate;
+  let hasStructure = hasRequiredSeoStructure(candidate);
+  const lengthOk = plain.length >= SEO_CONTENT_MIN_CHARS && plain.length <= SEO_CONTENT_MAX_CHARS;
+  if (lengthOk && hasStructure) return candidate;
 
   const adjustPrompt = `
 Voce e um editor SEO tecnico.
@@ -341,11 +425,23 @@ ${candidate}
     const adjusted = await callGeminiJson({ apiKey, modelName, prompt: adjustPrompt });
     candidate = normalizeSeoContentHtml(String(adjusted?.value || adjusted?.result || candidate));
     plain = stripHtml(candidate);
+    hasStructure = hasRequiredSeoStructure(candidate);
   } catch {
     // fallback local below
   }
 
+  if (!hasStructure) {
+    candidate = buildStructuredHtmlFromPlain(candidate || plain, context);
+    plain = stripHtml(candidate);
+  }
+
   if (plain.length < SEO_CONTENT_MIN_CHARS || plain.length > SEO_CONTENT_MAX_CHARS) {
+    candidate = adjustContentLengthLocally(candidate, context);
+    plain = stripHtml(candidate);
+  }
+
+  if (!hasRequiredSeoStructure(candidate)) {
+    candidate = buildStructuredHtmlFromPlain(candidate || plain, context);
     candidate = adjustContentLengthLocally(candidate, context);
   }
 

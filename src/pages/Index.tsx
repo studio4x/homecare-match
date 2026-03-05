@@ -478,7 +478,7 @@ const Index = () => {
         </section>
       )}
 
-      <section className="py-14 md:py-20">
+      <section id="como-funciona" className="scroll-mt-20 py-14 md:py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">Como funciona a Home Care Match</h2>

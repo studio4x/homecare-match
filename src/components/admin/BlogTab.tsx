@@ -134,7 +134,7 @@ const BLOG_RESEARCH_DEFAULT_THEMES: BlogResearchTheme[] = [
   {
     id: "gestao_homecare",
     label: "Gestao e operacao em Home Care",
-    description: "EficiÃªncia operacional, escala, qualidade e gestao de equipes assistenciais.",
+    description: "Eficiência operacional, escala, qualidade e gestao de equipes assistenciais.",
     queries: [
       "gestao operacional em home care",
       "indicadores de qualidade no atendimento domiciliar",
@@ -277,11 +277,11 @@ const parseSchemaJson = (value: string) => {
   try {
     const parsed = JSON.parse(clean);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return { error: "O Schema JSON deve ser um objeto JSON vÃ¡lido." };
+      return { error: "O Schema JSON deve ser um objeto JSON válido." };
     }
     return { value: parsed };
   } catch {
-    return { error: "Schema JSON invÃ¡lido. Verifique a sintaxe." };
+    return { error: "Schema JSON inválido. Verifique a sintaxe." };
   }
 };
 
@@ -353,7 +353,7 @@ const computeSeoAuditReport = (form: BlogArticleForm): SeoAuditReport => {
   const firstParagraphText = stripAuditHtml((contentHtml.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i)?.[1] || "").trim());
   const introLength = firstParagraphText.length;
 
-  const conclusionMatch = contentHtml.match(/<h2\b[^>]*>[\s\S]*?(conclusao|conclusÃ£o)[\s\S]*?<\/h2>([\s\S]*?)(?=<h2\b|$)/i);
+  const conclusionMatch = contentHtml.match(/<h2\b[^>]*>[\s\S]*?(conclusao|conclusão)[\s\S]*?<\/h2>([\s\S]*?)(?=<h2\b|$)/i);
   const conclusionText = stripAuditHtml(conclusionMatch?.[2] || "");
   const conclusionLength = conclusionText.length;
 
@@ -790,7 +790,7 @@ const BlogTab = () => {
       console.error("[BlogTab] fetchAll error:", err);
       toast.error(
         err?.message?.includes("relation")
-          ? "Estrutura de blog ainda nÃ£o existe. Execute a migration antes de usar este painel."
+          ? "Estrutura de blog ainda não existe. Execute a migration antes de usar este painel."
           : "Erro ao carregar dados do blog.",
       );
     } finally {
@@ -1085,7 +1085,7 @@ const BlogTab = () => {
     event.preventDefault();
 
     if (!articleForm.title.trim()) {
-      toast.error("Informe o tÃ­tulo do artigo.");
+      toast.error("Informe o título do artigo.");
       return;
     }
     if (!articleForm.slug.trim()) {
@@ -1093,7 +1093,7 @@ const BlogTab = () => {
       return;
     }
     if (!articleForm.content_html.trim()) {
-      toast.error("Informe o conteÃºdo do artigo.");
+      toast.error("Informe o conteúdo do artigo.");
       return;
     }
 
@@ -1876,9 +1876,9 @@ const BlogTab = () => {
     setGeneratingCoverImage(true);
     try {
       await requestCoverCandidate(nextExcluded);
-      toast.success("Nova opÃ§Ã£o de capa gerada.");
+      toast.success("Nova opção de capa gerada.");
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao gerar nova opÃ§Ã£o de capa.");
+      toast.error(err?.message || "Erro ao gerar nova opção de capa.");
     } finally {
       setGeneratingCoverImage(false);
     }
@@ -1910,7 +1910,7 @@ const BlogTab = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid grid-cols-4 md:w-[640px]">
           <TabsTrigger value="articles">Artigos</TabsTrigger>
-          <TabsTrigger value="ai-settings">ConfiguraÃ§Ãµes IA</TabsTrigger>
+          <TabsTrigger value="ai-settings">Configurações IA</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
           <TabsTrigger value="tags">Tags</TabsTrigger>
         </TabsList>
@@ -1919,17 +1919,17 @@ const BlogTab = () => {
           <Card>
             <CardHeader>
               <CardTitle>Artigos</CardTitle>
-              <CardDescription>Gerencie conteÃºdos do blog e status de publicaÃ§Ã£o.</CardDescription>
+              <CardDescription>Gerencie conteúdos do blog e status de publicação.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>TÃ­tulo</TableHead>
+                    <TableHead>Título</TableHead>
                     <TableHead>Slug</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Categoria</TableHead>
-                    <TableHead className="text-right">AÃ§Ãµes</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1979,7 +1979,7 @@ const BlogTab = () => {
                 <div>
                   <CardTitle>{articleForm.id ? "Editar artigo" : "Novo artigo"}</CardTitle>
                   <CardDescription>
-                    ConteÃºdo, SEO completo e schema otimizado para Google.
+                    Conteúdo, SEO completo e schema otimizado para Google.
                   </CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={resetArticleForm} className="gap-2">
@@ -1995,14 +1995,14 @@ const BlogTab = () => {
                   <div>
                     <p className="text-sm font-semibold">Assistente de IA para Artigos</p>
                     <p className="text-xs text-muted-foreground">
-                      Gere um artigo por sugestÃ£o ou deixe a IA escolher um tema estratÃ©gico para a plataforma.
+                      Gere um artigo por sugestão ou deixe a IA escolher um tema estratégico para a plataforma.
                     </p>
                   </div>
                 </div>
                 <Textarea
                   value={aiSuggestion}
                   onChange={(e) => setAiSuggestion(e.target.value)}
-                  placeholder="SugestÃ£o opcional: Ex. Como reduzir turnover em equipes de Home Care"
+                  placeholder="Sugestão opcional: Ex. Como reduzir turnover em equipes de Home Care"
                   rows={3}
                 />
                 <div className="flex flex-wrap gap-2">
@@ -2018,7 +2018,7 @@ const BlogTab = () => {
                     ) : (
                       <Sparkles className="h-4 w-4" />
                     )}
-                    Gerar com sugestÃ£o
+                    Gerar com sugestão
                   </Button>
                   <Button
                     type="button"
@@ -2042,7 +2042,7 @@ const BlogTab = () => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <Label>TÃ­tulo</Label>
+                      <Label>Título</Label>
                       <Button
                         type="button"
                         size="sm"
@@ -2194,7 +2194,7 @@ const BlogTab = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>ConteÃºdo do artigo</Label>
+                  <Label>Conteúdo do artigo</Label>
                   <RichTextEditor
                     content={articleForm.content_html}
                     enableHtmlModeToggle
@@ -2233,7 +2233,7 @@ const BlogTab = () => {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Data de publicaÃ§Ã£o (ISO)</Label>
+                    <Label>Data de publicação (ISO)</Label>
                     <Input
                       value={articleForm.published_at}
                       onChange={(e) => setArticleForm((prev) => ({ ...prev, published_at: e.target.value }))}
@@ -2325,7 +2325,7 @@ const BlogTab = () => {
                 <div className="flex items-center justify-between rounded-xl border border-border/70 p-3">
                   <div>
                     <p className="text-sm font-medium">Artigo em destaque</p>
-                    <p className="text-xs text-muted-foreground">Prioriza o conteÃºdo na listagem do blog.</p>
+                    <p className="text-xs text-muted-foreground">Prioriza o conteúdo na listagem do blog.</p>
                   </div>
                   <Switch
                     checked={articleForm.featured}
@@ -2452,7 +2452,7 @@ const BlogTab = () => {
             <CardHeader>
               <CardTitle>Pesquisa de Temas com IA</CardTitle>
               <CardDescription>
-                Selecione um foco e pesquise temas/notÃ­cias atuais sobre atendimentos Ã  saÃºde para gerar artigos.
+                Selecione um foco e pesquise temas/notícias atuais sobre atendimentos à saúde para gerar artigos.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -2501,7 +2501,7 @@ const BlogTab = () => {
                 <CardHeader>
                   <CardTitle className="text-base">Resultados da pesquisa</CardTitle>
                   <CardDescription>
-                    Selecione um resultado para gerar artigo com URL de referÃªncia e capa automÃ¡tica.
+                    Selecione um resultado para gerar artigo com URL de referência e capa automática.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -2560,7 +2560,7 @@ const BlogTab = () => {
           <Card>
             <CardHeader>
               <CardTitle>Categorias</CardTitle>
-              <CardDescription>Gerencie categorias com SEO prÃ³prio e schema especÃ­fico.</CardDescription>
+              <CardDescription>Gerencie categorias com SEO próprio e schema específico.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -2569,7 +2569,7 @@ const BlogTab = () => {
                     <TableHead>Nome</TableHead>
                     <TableHead>Hierarquia</TableHead>
                     <TableHead>Slug</TableHead>
-                    <TableHead className="text-right">AÃ§Ãµes</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2694,7 +2694,7 @@ const BlogTab = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>DescriÃ§Ã£o</Label>
+                  <Label>Descrição</Label>
                   <Textarea
                     rows={3}
                     value={categoryForm.description}
@@ -2725,7 +2725,7 @@ const BlogTab = () => {
           <Card>
             <CardHeader>
               <CardTitle>Tags</CardTitle>
-              <CardDescription>Gerencie tags com SEO e schema prÃ³prio.</CardDescription>
+              <CardDescription>Gerencie tags com SEO e schema próprio.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -2733,7 +2733,7 @@ const BlogTab = () => {
                   <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>Slug</TableHead>
-                    <TableHead className="text-right">AÃ§Ãµes</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -2825,7 +2825,7 @@ const BlogTab = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>DescriÃ§Ã£o</Label>
+                  <Label>Descrição</Label>
                   <Textarea
                     rows={3}
                     value={tagForm.description}
@@ -2866,9 +2866,9 @@ const BlogTab = () => {
       >
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>PrÃ©-visualizaÃ§Ã£o da capa</DialogTitle>
+            <DialogTitle>Pré-visualização da capa</DialogTitle>
             <DialogDescription>
-              Aprove esta opÃ§Ã£o ou rejeite para gerar outra imagem automaticamente.
+              Aprove esta opção ou rejeite para gerar outra imagem automaticamente.
             </DialogDescription>
           </DialogHeader>
 
@@ -2877,7 +2877,7 @@ const BlogTab = () => {
               <div className="overflow-hidden rounded-xl border border-border bg-secondary/20">
                 <img
                   src={coverCandidate.cover_image_url}
-                  alt={coverCandidate.alt_text || "PrÃ©via da capa do artigo"}
+                  alt={coverCandidate.alt_text || "Prévia da capa do artigo"}
                   className="max-h-[60vh] w-full object-contain"
                 />
               </div>
@@ -2891,7 +2891,7 @@ const BlogTab = () => {
             <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-border bg-secondary/20">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Gerando prÃ©-visualizaÃ§Ã£o da capa...
+                Gerando pré-visualização da capa...
               </div>
             </div>
           )}
@@ -2917,3 +2917,4 @@ const BlogTab = () => {
 };
 
 export default BlogTab;
+

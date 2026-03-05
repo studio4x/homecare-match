@@ -432,8 +432,18 @@ const OverviewPage = () => {
   const normalizedCurrentPlanId = currentPlanId === "annual" ? "yearly" : currentPlanId;
 
   const annualPlanFeatures = useMemo(() => {
-    const yearlyPlan = planCatalog.find((plan) => plan.id === "yearly" || plan.id === "annual");
-    return yearlyPlan?.features || [];
+    const yearlyVariants = planCatalog.filter((plan) => plan.id === "yearly" || plan.id === "annual");
+    const seen = new Set<string>();
+    const features: string[] = [];
+    for (const plan of yearlyVariants) {
+      for (const feature of plan.features || []) {
+        const normalized = normalizeFeatureKey(feature);
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+        features.push(feature);
+      }
+    }
+    return features;
   }, [planCatalog]);
 
   const planFeatureMatrix = useMemo(() => {
@@ -449,39 +459,60 @@ const OverviewPage = () => {
         return String(a.name || a.id).localeCompare(String(b.name || b.id), "pt-BR");
       });
 
-    const dbFeaturesByPlan = new Map<string, string[]>();
-    for (const plan of normalizedCatalog) {
-      if (!plan.id || plan.features.length === 0) continue;
-      dbFeaturesByPlan.set(plan.id, plan.features);
-    }
-
-    const activePlanIds = new Set<string>();
-    if (normalizedCurrentPlanId && normalizedCurrentPlanId !== "no_plan") {
-      activePlanIds.add(normalizedCurrentPlanId);
-      if (normalizedCurrentPlanId === "yearly") activePlanIds.add("annual");
-      if (normalizedCurrentPlanId === "annual") activePlanIds.add("yearly");
-    }
-
-    const activeFeatureKeys = new Set<string>();
-    for (const planId of activePlanIds) {
-      const features = dbFeaturesByPlan.get(planId) || [];
+    const uniqueFeatures = (features: string[]) => {
+      const seen = new Set<string>();
+      const deduped: string[] = [];
       for (const feature of features) {
-        activeFeatureKeys.add(normalizeFeatureKey(feature));
+        const normalized = normalizeFeatureKey(feature);
+        if (!normalized || seen.has(normalized)) continue;
+        seen.add(normalized);
+        deduped.push(feature);
       }
+      return deduped;
+    };
+
+    const getPlanFeatures = (planId: string) => {
+      const aliases = planId === "yearly" ? ["yearly", "annual"] : [planId];
+      const features: string[] = [];
+      for (const plan of normalizedCatalog) {
+        if (aliases.includes(plan.id)) {
+          features.push(...plan.features);
+        }
+      }
+      return uniqueFeatures(features);
+    };
+
+    const annualFeatures = getPlanFeatures("yearly");
+    const monthlyFeatures = getPlanFeatures("monthly");
+    const activeFeatures = getPlanFeatures(normalizedCurrentPlanId);
+    const activeFeatureKeys = new Set(activeFeatures.map((feature) => normalizeFeatureKey(feature)));
+
+    if (normalizedCurrentPlanId === "yearly") {
+      return activeFeatures.map((feature) => ({ label: feature, available: true }));
     }
 
-    const seenFeatureKeys = new Set<string>();
-    const orderedFeatureLabels: string[] = [];
-    for (const plan of normalizedCatalog) {
-      for (const feature of plan.features) {
-        const featureKey = normalizeFeatureKey(feature);
-        if (!featureKey || seenFeatureKeys.has(featureKey)) continue;
-        seenFeatureKeys.add(featureKey);
-        orderedFeatureLabels.push(feature);
-      }
+    if (normalizedCurrentPlanId === "monthly") {
+      const baseList = annualFeatures.length > 0 ? annualFeatures : monthlyFeatures;
+      const seen = new Set(baseList.map((feature) => normalizeFeatureKey(feature)));
+      const monthlyExtras = monthlyFeatures.filter((feature) => !seen.has(normalizeFeatureKey(feature)));
+      return [...baseList, ...monthlyExtras].map((feature) => ({
+        label: feature,
+        available: activeFeatureKeys.has(normalizeFeatureKey(feature)),
+      }));
     }
 
-    return orderedFeatureLabels.map((feature) => ({
+    if (normalizedCurrentPlanId === "free_trial") {
+      const baseList = annualFeatures.length > 0 ? annualFeatures : activeFeatures;
+      const seen = new Set(baseList.map((feature) => normalizeFeatureKey(feature)));
+      const freeExtras = activeFeatures.filter((feature) => !seen.has(normalizeFeatureKey(feature)));
+      return [...baseList, ...freeExtras].map((feature) => ({
+        label: feature,
+        available: activeFeatureKeys.has(normalizeFeatureKey(feature)),
+      }));
+    }
+
+    const fallbackBase = annualFeatures.length > 0 ? annualFeatures : activeFeatures;
+    return fallbackBase.map((feature) => ({
       label: feature,
       available: activeFeatureKeys.has(normalizeFeatureKey(feature)),
     }));

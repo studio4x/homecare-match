@@ -22,6 +22,16 @@ import { generatePosterFromVideoFile } from "@/lib/video-poster";
 const VIDEO_STORAGE_BUCKET = "uploads";
 const VIDEO_STORAGE_FOLDER = "site-videos";
 
+const isMissingColumnError = (error: unknown, columnName: string) => {
+  const message = String((error as { message?: string })?.message || "");
+  return (
+    message.includes(`Could not find the '${columnName}' column`) ||
+    (message.toLowerCase().includes("column") &&
+      message.toLowerCase().includes(String(columnName || "").toLowerCase()) &&
+      message.toLowerCase().includes("does not exist"))
+  );
+};
+
 const VideosTab = () => {
   const { data: config, isLoading } = useSiteConfig();
   const queryClient = useQueryClient();
@@ -119,10 +129,21 @@ const VideosTab = () => {
         [fieldConfig.mimeId]: file.type // Store mime type
       };
 
-      const { error: dbError } = await supabase
+      let { error: dbError } = await supabase
         .from('site_config')
         .update(updatePayload)
         .eq('id', 1);
+
+      let mimeColumnSkipped = false;
+      if (dbError && isMissingColumnError(dbError, fieldConfig.mimeId)) {
+        mimeColumnSkipped = true;
+        const fallbackPayload: any = {
+          [activeField]: publicUrl,
+          [fieldConfig.storageId]: filePath,
+        };
+        const retry = await supabase.from('site_config').update(fallbackPayload).eq('id', 1);
+        dbError = retry.error;
+      }
 
       if (dbError) {
         if (dbError.message.includes("column") && dbError.message.includes("does not exist")) {
@@ -139,6 +160,9 @@ const VideosTab = () => {
         if (coverGenerationError) {
           toast.warning(`Vídeo salvo, mas a capa não foi gerada: ${coverGenerationError}`);
         }
+      }
+      if (mimeColumnSkipped) {
+        toast.warning("Upload concluído sem salvar o MIME do vídeo. Clique em 'Sincronizar Banco' para atualizar a estrutura.");
       }
     } catch (error: any) {
       console.error(error);
@@ -166,10 +190,19 @@ const VideosTab = () => {
         await supabase.storage.from(VIDEO_STORAGE_BUCKET).remove([posterPath]);
       }
 
-      const { error } = await supabase
+      let { error } = await supabase
         .from('site_config')
         .update(updatePayload)
         .eq('id', 1);
+
+      if (error && isMissingColumnError(error, mimeId)) {
+        const fallbackPayload: any = {
+          [fieldId]: null,
+          [storageId]: null,
+        };
+        const retry = await supabase.from('site_config').update(fallbackPayload).eq('id', 1);
+        error = retry.error;
+      }
 
       if (error) throw error;
       

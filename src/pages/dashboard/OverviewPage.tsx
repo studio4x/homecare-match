@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -35,7 +35,8 @@ import {
   Gift,
   PlayCircle,
   Users,
-  Edit2
+  Edit2,
+  ChevronDown
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { differenceInDays, addDays, parseISO, isValid, format } from "date-fns";
@@ -49,6 +50,58 @@ import { useQuery } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label";
 
+const FALLBACK_PLAN_FEATURES: Record<string, string[]> = {
+  free_trial: [
+    "Perfil profissional completo",
+    "Visibilidade para empresas e famílias",
+    "Mais oportunidades de atendimento",
+    "Plataforma dedicada a profissionais de Home Care",
+  ],
+  monthly: [
+    "Perfil profissional completo",
+    "Visibilidade para empresas e famílias",
+    "Mais oportunidades de atendimento",
+    "Plataforma dedicada a profissionais de Home Care",
+  ],
+  yearly: [
+    "Perfil profissional completo",
+    "Visibilidade para empresas e famílias",
+    "Mais oportunidades de atendimento",
+    "Plataforma dedicada a profissionais de Home Care",
+    "Destaque no topo das buscas",
+    "Selo dourado de verificação",
+    "Acesso grátis aos cursos Academy",
+    "Suporte prioritário",
+  ],
+  no_plan: [],
+};
+
+const FEATURE_PREFERRED_ORDER = [
+  "Perfil profissional completo",
+  "Visibilidade para empresas e famílias",
+  "Mais oportunidades de atendimento",
+  "Plataforma dedicada a profissionais de Home Care",
+  "Destaque no topo das buscas",
+  "Selo dourado de verificação",
+  "Acesso grátis aos cursos Academy",
+  "Suporte prioritário",
+];
+
+const normalizeFeatureKey = (value: string) =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+type PlanCatalogItem = {
+  id: string;
+  name: string | null;
+  features: string[];
+};
+
 const OverviewPage = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -58,15 +111,28 @@ const OverviewPage = () => {
   const [isManagingBilling, setIsManagingBilling] = useState(false);
   const [isPlanSelectionOpen, setIsPlanSelectionOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isPlanFeaturesOpen, setIsPlanFeaturesOpen] = useState(false);
   const [referralStats, setReferralStats] = useState<any>(null);
   const [isSavingOnboardingPref, setIsSavingOnboardingPref] = useState(false);
   const [companyPatients, setCompanyPatients] = useState<any[]>([]);
 
-  const { data: annualPlan } = useQuery({
-    queryKey: ["annual-plan-details"],
+  const { data: planCatalog = [] } = useQuery<PlanCatalogItem[]>({
+    queryKey: ["dashboard-plan-catalog"],
     queryFn: async () => {
-      const { data } = await supabase.from('plans').select('features').eq('id', 'yearly').single();
-      return data;
+      const { data } = await supabase
+        .from("plans")
+        .select("id, name, features")
+        .in("id", ["free_trial", "monthly", "yearly"]);
+
+      return (data || [])
+        .map((plan) => ({
+          id: String(plan.id || "").toLowerCase(),
+          name: plan.name ? String(plan.name) : null,
+          features: Array.isArray(plan.features)
+            ? plan.features.map((feature) => String(feature || "").trim()).filter(Boolean)
+            : [],
+        }))
+        .filter((plan) => plan.id.length > 0);
     }
   });
 
@@ -387,6 +453,50 @@ const OverviewPage = () => {
     isExpiredSubscriptionEnd &&
     !['monthly', 'yearly'].includes(String(profile?.subscription_tier || '').toLowerCase());
   const displayedPlanLabel = showNoPlanLabel ? 'Nenhum plano definido' : getPlanLabel(profile?.subscription_tier);
+  const currentPlanId = showNoPlanLabel
+    ? "no_plan"
+    : String(profile?.subscription_tier || "no_plan").toLowerCase();
+
+  const annualPlanFeatures = useMemo(() => {
+    const yearlyPlan = planCatalog.find((plan) => plan.id === "yearly");
+    const dbFeatures = yearlyPlan?.features || [];
+    return dbFeatures.length > 0 ? dbFeatures : FALLBACK_PLAN_FEATURES.yearly;
+  }, [planCatalog]);
+
+  const planFeatureMatrix = useMemo(() => {
+    const dbFeaturesByPlan = new Map<string, string[]>();
+    for (const plan of planCatalog) {
+      const planId = String(plan.id || "").toLowerCase();
+      if (!planId) continue;
+      const features = plan.features;
+      if (features.length > 0) {
+        dbFeaturesByPlan.set(planId, features);
+      }
+    }
+
+    const activeFeaturesSource =
+      dbFeaturesByPlan.get(currentPlanId) || FALLBACK_PLAN_FEATURES[currentPlanId] || [];
+    const activeFeatureKeys = new Set(activeFeaturesSource.map((feature) => normalizeFeatureKey(feature)));
+
+    const orderedCatalog = FEATURE_PREFERRED_ORDER.map((feature) => feature.trim()).filter(Boolean);
+    const dynamicCatalog = Array.from(
+      new Set(
+        [
+          ...Object.values(FALLBACK_PLAN_FEATURES).flat(),
+          ...Array.from(dbFeaturesByPlan.values()).flat(),
+        ]
+          .map((feature) => String(feature || "").trim())
+          .filter(Boolean),
+      ),
+    ).filter((feature) => !orderedCatalog.includes(feature));
+
+    const allFeatureLabels = [...orderedCatalog, ...dynamicCatalog];
+
+    return allFeatureLabels.map((feature) => ({
+      label: feature,
+      available: activeFeatureKeys.has(normalizeFeatureKey(feature)),
+    }));
+  }, [planCatalog, currentPlanId]);
 
   const getPatientCode = (patient: any) => {
     const rawCode = (patient?.patient_name ?? "").toString().trim();
@@ -830,7 +940,66 @@ const OverviewPage = () => {
                       </div>
                     )}
                   </div>
-                  
+
+                  <div className="mb-4 rounded-xl border border-border/70 bg-background/70 p-4">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Funções do seu plano
+                      </p>
+                      <Badge variant="secondary" className="hidden text-[10px] sm:inline-flex">
+                        {displayedPlanLabel}
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsPlanFeaturesOpen((prev) => !prev)}
+                        className="h-7 gap-1 px-2 text-[11px] sm:hidden"
+                      >
+                        {isPlanFeaturesOpen ? "Ocultar" : "Ver funções"}
+                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isPlanFeaturesOpen && "rotate-180")} />
+                      </Button>
+                    </div>
+                    <Badge variant="secondary" className="mb-3 text-[10px] sm:hidden">
+                      {displayedPlanLabel}
+                    </Badge>
+                    <div className={cn("space-y-2", !isPlanFeaturesOpen && "hidden sm:block")}>
+                      {planFeatureMatrix.map((feature) => (
+                        <div
+                          key={feature.label}
+                          className={cn(
+                            "flex items-center justify-between rounded-lg border px-3 py-2",
+                            feature.available
+                              ? "border-emerald-200 bg-emerald-50/70"
+                              : "border-slate-200 bg-slate-50/80",
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            {feature.available ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-slate-400" />
+                            )}
+                            <span className={cn("text-xs", feature.available ? "text-emerald-900" : "text-slate-600")}>
+                              {feature.label}
+                            </span>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px]",
+                              feature.available
+                                ? "border-emerald-300 text-emerald-700"
+                                : "border-slate-300 text-slate-500",
+                            )}
+                          >
+                            {feature.available ? "Disponível" : "Indisponível"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {hasPaidPlan ? (
                     <div className="space-y-4">
                       {profile.coupon_days && (
@@ -856,8 +1025,8 @@ const OverviewPage = () => {
                                 <TooltipContent className="max-w-xs p-4 space-y-2">
                                   <p className="font-bold text-xs uppercase tracking-wider border-b pb-1 mb-2">Benefícios do Plano Anual:</p>
                                   <ul className="space-y-1.5">
-                                    {annualPlan?.features ? (
-                                      annualPlan.features.map((f: string, i: number) => (
+                                    {annualPlanFeatures.length > 0 ? (
+                                      annualPlanFeatures.map((f: string, i: number) => (
                                         <li key={i} className="flex items-center gap-2 text-[10px]">
                                           <CheckCircle2 className="h-3 w-3 text-success" /> {f}
                                         </li>

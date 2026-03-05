@@ -52,7 +52,7 @@ const Layout = ({ children }: LayoutProps) => {
   const showSearchTab = !!session && (profileRole === "company" || profileRole === "family");
 
   const mobileTabs = [
-    { to: "/", label: "Início", icon: Home },
+    { to: "/", label: "Inicio", icon: Home },
     ...(showSearchTab ? [{ to: "/buscar", label: "Buscar", icon: Search }] : []),
     { to: "/funcionalidades", label: "Recursos", icon: LayoutGrid },
     {

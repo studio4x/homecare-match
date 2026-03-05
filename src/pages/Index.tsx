@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
+import PricingCard from "@/components/PricingCard";
 import SeoMeta from "@/components/SeoMeta";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useSiteConfig } from "@/hooks/use-site-config";
+import { useProfessionalStats } from "@/hooks/use-professional-stats";
 import { createCheckoutSession } from "@/lib/checkout";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,10 +22,10 @@ import {
   BadgeCheck,
   CalendarCheck,
   CheckCircle2,
+  HandHeart,
   Headset,
   Loader2,
   MessageSquare,
-  Plus,
   Search,
   ShieldCheck,
   Stethoscope,
@@ -58,160 +59,198 @@ interface RawPlanRow {
   asaas_installment_max: number | null;
 }
 
-interface SocialMetric {
-  value: string;
-  label: string;
-}
-
-interface SocialTestimonial {
-  quote: string;
-  author: string;
-  role?: string;
-}
-
 const PAGE_VARIANT = "profissionais";
 
+const heroHeadlineVariants = [
+  "Receba oportunidades de Home Care na sua regiao.",
+  "Conecte-se a empresas e familias e consiga atendimentos de Home Care.",
+  "Seu perfil profissional visivel para quem precisa de voce no Home Care.",
+];
+
 const heroBullets = [
-  "Perfil profissional completo",
-  "Visibilidade por região e especialidade",
-  "Contato direto e rápido",
-  "Você escolhe quando aceitar",
+  "Perfil profissional com informacoes completas",
+  "Visibilidade para empresas de Home Care e familias",
+  "Oportunidades por regiao e especialidade",
+  "Voce escolhe quando aceitar",
+  "Tudo organizado em um so lugar",
 ];
 
 const howItWorksSteps = [
-  { icon: UserPlus, title: "Crie seu perfil" },
-  { icon: Search, title: "Seja encontrado" },
-  { icon: MessageSquare, title: "Receba contatos" },
-  { icon: CalendarCheck, title: "Feche atendimentos" },
+  {
+    icon: UserPlus,
+    title: "Crie seu perfil",
+    description: "Preencha seus dados profissionais em poucos minutos.",
+  },
+  {
+    icon: Search,
+    title: "Seja encontrado por empresas e familias",
+    description: "Seu perfil fica disponivel para quem busca atendimento domiciliar.",
+  },
+  {
+    icon: MessageSquare,
+    title: "Receba convites e contatos",
+    description: "Chegam oportunidades alinhadas ao seu perfil e especialidade.",
+  },
+  {
+    icon: CalendarCheck,
+    title: "Feche atendimentos conforme sua disponibilidade",
+    description: "Aceite as oportunidades que fazem sentido para sua agenda.",
+  },
 ];
 
-const professionChips = [
+const targetProfessions = [
   "Enfermeiro(a)",
-  "Técnico(a) de Enfermagem",
+  "Tecnico(a) de Enfermagem",
   "Cuidador(a)",
   "Fisioterapeuta",
-  "Fonoaudiólogo(a)",
+  "Fonoaudiologo(a)",
   "Terapeuta Ocupacional",
 ];
 
-const benefits = [
-  "Mais visibilidade profissional",
-  "Oportunidades por região",
-  "Contato direto",
-  "Perfil confiável",
-  "Praticidade no dia a dia",
-  "Credibilidade",
+const benefitCards = [
+  {
+    title: "Mais visibilidade",
+    description: "Seu perfil aparece para quem realmente esta contratando.",
+  },
+  {
+    title: "Oportunidades segmentadas por regiao",
+    description: "Mais chance de fechar atendimentos perto de voce.",
+  },
+  {
+    title: "Contato direto e rapido",
+    description: "Conexao sem intermediarios desnecessarios.",
+  },
+  {
+    title: "Perfil profissional completo",
+    description: "Mostre experiencia, especialidades e diferenciais.",
+  },
+  {
+    title: "Organizacao e praticidade",
+    description: "Tudo centralizado para voce acompanhar oportunidades.",
+  },
+  {
+    title: "Credibilidade para o seu trabalho",
+    description: "Conta verificada gera mais confianca no seu perfil.",
+  },
+];
+
+const testimonialPlaceholders = [
+  {
+    quote: "Espaco reservado para depoimento real de profissional.",
+    author: "Depoimento 01",
+    role: "Campo editavel via admin",
+  },
+  {
+    quote: "Espaco reservado para depoimento real de profissional.",
+    author: "Depoimento 02",
+    role: "Campo editavel via admin",
+  },
+  {
+    quote: "Espaco reservado para depoimento real de profissional.",
+    author: "Depoimento 03",
+    role: "Campo editavel via admin",
+  },
 ];
 
 const faqs = [
   {
     question: "Preciso pagar para me cadastrar?",
     answer:
-      "Você pode criar seu perfil e conhecer o fluxo de cadastro. A assinatura ativa os recursos premium de visibilidade.",
+      "O cadastro inicial e rapido. A assinatura ativa recursos premium de visibilidade e destaque.",
   },
   {
-    question: "Como as oportunidades chegam até mim?",
+    question: "Como as oportunidades chegam ate mim?",
     answer:
-      "Empresas e famílias encontram seu perfil pela região e especialidade e iniciam contato diretamente.",
+      "Empresas e familias visualizam seu perfil e iniciam contato quando ha compatibilidade com sua especialidade.",
   },
   {
-    question: "Quais regiões são atendidas?",
+    question: "Quais regioes sao atendidas?",
     answer:
-      "A cobertura varia conforme a demanda local. A Home Care Match amplia continuamente as regiões atendidas.",
+      "A plataforma conecta oportunidades por regiao. A cobertura cresce conforme a demanda de cada localidade.",
   },
   {
-    question: "Quais profissões podem se cadastrar?",
+    question: "Quais profissoes podem se cadastrar?",
     answer:
-      "Profissionais de enfermagem, cuidadores e terapeutas de diferentes áreas do cuidado domiciliar.",
+      "Profissionais de saude e cuidado domiciliar, como enfermagem, cuidadores e terapeutas.",
   },
   {
     question: "Como funciona a assinatura?",
     answer:
-      "Você escolhe entre plano mensal e anual para manter seu perfil ativo com recursos premium.",
+      "Voce escolhe entre plano mensal e anual para manter recursos premium ativos no perfil.",
   },
   {
     question: "Posso cancelar quando quiser?",
     answer:
-      "Sim. Você pode cancelar conforme as regras do plano contratado, sem burocracia desnecessária.",
+      "Sim. O cancelamento pode ser feito sem fidelidade, conforme as regras do seu plano.",
   },
   {
-    question: "Como meus dados são protegidos?",
+    question: "Como meus dados sao protegidos?",
     answer:
-      "Aplicamos boas práticas de segurança e privacidade para proteger seus dados de acesso e perfil.",
+      "Aplicamos boas praticas de seguranca para proteger dados pessoais e acessos da conta.",
   },
   {
     question: "Como falo com o suporte?",
-    answer: "Você pode acionar o suporte pelos canais oficiais da Home Care Match sempre que precisar.",
+    answer:
+      "Voce pode acionar o suporte pelos canais oficiais dentro da plataforma quando precisar.",
+  },
+  {
+    question: "Cadastro verificado aumenta minhas chances?",
+    answer:
+      "Perfis com verificacao costumam transmitir mais confianca durante a avaliacao.",
   },
   {
     question: "Posso escolher quais atendimentos aceitar?",
-    answer: "Sim. Você avalia cada oportunidade e decide se quer seguir com o atendimento.",
-  },
-  {
-    question: "Quanto tempo leva para criar meu perfil?",
-    answer: "Normalmente, menos de 3 minutos para iniciar e deixar seu perfil pronto para visibilidade.",
+    answer:
+      "Sim. Voce decide quais oportunidades seguir, conforme sua disponibilidade.",
   },
 ];
+
+const defaultFreePlan: DbPlan = {
+  id: "free_trial",
+  name: "Comece agora",
+  price: "R$ 0,00",
+  period: "mes",
+  description: "Cadastro para iniciar seu perfil profissional.",
+  features: [
+    "Perfil profissional inicial",
+    "Acesso para configurar sua conta",
+    "Assinatura ativa recursos premium",
+  ],
+  popular: false,
+};
 
 const defaultPlans: DbPlan[] = [
   {
     id: "monthly",
-    name: "Plano Mensal",
+    name: "Plano mensal",
     price: "R$ 49,90",
-    period: "mês",
-    description: "Ideal para começar",
+    period: "mes",
+    description: "Plano principal para ganhar visibilidade e receber contatos.",
     features: [
-      "Visibilidade para empresas e famílias",
+      "Visibilidade para empresas e familias",
       "Recebimento de oportunidades",
       "Contato direto na plataforma",
-    ],
-    popular: false,
-  },
-  {
-    id: "yearly",
-    name: "Plano Anual",
-    price: "R$ 39,90",
-    period: "mês",
-    description: "Melhor custo-benefício",
-    features: [
-      "Tudo do Plano Mensal",
-      "Economia no valor anual",
-      "Suporte prioritário",
+      "Suporte padrao",
     ],
     popular: true,
   },
+  {
+    id: "yearly",
+    name: "Plano anual",
+    price: "R$ 39,90",
+    period: "mes",
+    description: "Melhor custo-beneficio com desconto anual.",
+    features: [
+      "Tudo do plano mensal",
+      "Economia anual",
+      "Maior previsibilidade de custo",
+      "Suporte prioritario",
+    ],
+    popular: false,
+    savings: "Economize no anual",
+    asaas_installment_max: 12,
+  },
 ];
-
-const normalizeText = (value: unknown) => (typeof value === "string" ? value.trim() : "");
-
-const parseSocialMetrics = (value: unknown): SocialMetric[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      const data = item as Record<string, unknown>;
-      const metric = {
-        value: normalizeText(data.value),
-        label: normalizeText(data.label),
-      };
-      return metric;
-    })
-    .filter((item) => item.value && item.label);
-};
-
-const parseSocialTestimonials = (value: unknown): SocialTestimonial[] => {
-  if (!Array.isArray(value)) return [];
-  return value
-    .map((item) => {
-      const data = item as Record<string, unknown>;
-      const testimonial = {
-        quote: normalizeText(data.quote),
-        author: normalizeText(data.author),
-        role: normalizeText(data.role) || undefined,
-      };
-      return testimonial;
-    })
-    .filter((item) => item.quote && item.author);
-};
 
 const pushDataLayer = (payload: Record<string, unknown>) => {
   if (typeof window === "undefined") return;
@@ -221,7 +260,7 @@ const pushDataLayer = (payload: Record<string, unknown>) => {
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
-  const { data: siteConfig } = useSiteConfig();
+  const { data: professionalStats } = useProfessionalStats();
   const navigate = useNavigate();
   const location = useLocation();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -245,29 +284,6 @@ const Index = () => {
     enabled: !!user,
   });
 
-  const { data: remotePlans } = useQuery({
-    queryKey: ["plans"],
-    queryFn: async (): Promise<DbPlan[]> => {
-      const { data, error } = await supabase.from("plans").select("*").order("price", { ascending: true });
-      if (error) throw error;
-      const rows = (data || []) as RawPlanRow[];
-      return rows.map((plan) => ({
-        id: plan.id,
-        name: plan.name,
-        price: plan.price,
-        period: plan.period,
-        description: plan.description ?? "",
-        features: Array.isArray(plan.features)
-          ? plan.features.filter((feature): feature is string => typeof feature === "string")
-          : [],
-        popular: !!plan.popular,
-        savings: plan.savings ?? undefined,
-        asaas_installment_max: plan.asaas_installment_max ?? undefined,
-      }));
-    },
-    staleTime: 1000 * 60 * 5,
-  });
-
   useEffect(() => {
     const isSupabaseAuthRedirect = location.hash.includes("_supabase=true");
     if (!authLoading && session && !isLoadingProfile && profile && isSupabaseAuthRedirect) {
@@ -278,6 +294,14 @@ const Index = () => {
       }
     }
   }, [authLoading, isLoadingProfile, location.hash, navigate, profile, session]);
+
+  const trackCtaClick = (ctaLocation: CtaLocation) => {
+    pushDataLayer({
+      event: "hcm_lp_profissionais_cta_click",
+      cta_location: ctaLocation,
+      page_variant: PAGE_VARIANT,
+    });
+  };
 
   useEffect(() => {
     const onScroll = () => {
@@ -321,18 +345,10 @@ const Index = () => {
     return () => observer.disconnect();
   }, []);
 
-  const trackCtaClick = (ctaLocation: CtaLocation) => {
-    pushDataLayer({
-      event: "hcm_lp_profissionais_cta_click",
-      cta_location: ctaLocation,
-      page_variant: PAGE_VARIANT,
-    });
-  };
-
   const handlePlanCheckout = async (planId: PlanId) => {
     setSelectedPlanForCheckout(null);
     if (!session) {
-      toast.info("Por favor, crie uma conta ou faça login para continuar.");
+      toast.info("Por favor, crie uma conta ou faca login para continuar.");
       navigate("/login#auth-sign-up");
       return;
     }
@@ -342,7 +358,7 @@ const Index = () => {
 
     try {
       const data = await createCheckoutSession({ planId });
-      if (!data?.url) throw new Error("URL de checkout não retornada pelo servidor.");
+      if (!data?.url) throw new Error("URL de checkout nao retornada pelo servidor.");
       toast.dismiss(toastId);
       toast.success("Redirecionando para pagamento...");
       window.location.href = data.url;
@@ -358,29 +374,17 @@ const Index = () => {
     }
   };
 
-  const userTier = profile?.subscription_tier || null;
-
-  const getPlanButtonConfig = (planId: string) => {
-    if (!session) return { text: "Começar agora", disabled: false };
-    if (profile?.role === "company" || profile?.role === "family") {
-      return { text: "Somente para profissionais", disabled: true };
-    }
-    if (!userTier) return { text: "Começar agora", disabled: false };
-    if (userTier === planId) return { text: "Seu plano atual", disabled: true };
-    if (userTier === "yearly") return { text: "Plano inferior", disabled: true };
-    if (userTier === "monthly") {
-      if (planId === "yearly") return { text: "Fazer upgrade", disabled: false };
-      return { text: "Plano inferior", disabled: true };
-    }
-    if (userTier === "free_trial") return { text: "Começar agora", disabled: false };
-    return { text: "Começar agora", disabled: false };
-  };
-
   const handleSubscribe = async (planId: string) => {
     trackCtaClick("plans");
+
     if (!session) {
-      toast.info("Por favor, crie uma conta ou faça login para continuar.");
+      toast.info("Por favor, crie uma conta ou faca login para continuar.");
       navigate("/login#auth-sign-up");
+      return;
+    }
+
+    if (planId === "free" || planId === "free_trial") {
+      navigate("/dashboard");
       return;
     }
 
@@ -389,41 +393,98 @@ const Index = () => {
       return;
     }
 
-    toast.error("Plano inválido para checkout.");
+    toast.error("Plano invalido para checkout.");
   };
 
-  const planCards = useMemo(() => {
-    const source = remotePlans && remotePlans.length > 0 ? remotePlans : defaultPlans;
-    const filtered = source.filter((plan) => plan.id === "monthly" || plan.id === "yearly");
-    const fallback = filtered.length > 0 ? filtered : defaultPlans;
+  const userTier = profile?.subscription_tier || null;
 
-    return fallback.map((plan) => ({
-      ...plan,
-      period: plan.period === "mes" ? "mês" : plan.period,
-      features: (plan.features || []).slice(0, 3),
-    }));
+  const getPlanButtonConfig = (planId: string) => {
+    if (!session) return { text: "Criar perfil", disabled: false };
+    if (profile?.role === "company" || profile?.role === "family") {
+      return { text: "Somente para profissionais", disabled: true };
+    }
+
+    if (!userTier) return { text: "Assinar agora", disabled: false };
+    if (userTier === planId) return { text: "Seu plano atual", disabled: true };
+    if (userTier === "yearly") return { text: "Plano inferior", disabled: true };
+    if (userTier === "monthly") {
+      if (planId === "yearly") return { text: "Fazer upgrade", disabled: false };
+      return { text: "Plano inferior", disabled: true };
+    }
+    if (userTier === "free_trial") {
+      if (planId === "free_trial") return { text: "Seu plano atual", disabled: true };
+      return { text: "Assinar agora", disabled: false };
+    }
+    return { text: "Assinar agora", disabled: false };
+  };
+
+  const { data: remotePlans } = useQuery({
+    queryKey: ["plans"],
+    queryFn: async (): Promise<DbPlan[]> => {
+      const { data, error } = await supabase.from("plans").select("*").order("price", { ascending: true });
+      if (error) throw error;
+      const rows = (data || []) as RawPlanRow[];
+      return rows.map((plan) => ({
+        id: plan.id,
+        name: plan.name,
+        price: plan.price,
+        period: plan.period,
+        description: plan.description ?? "",
+        features: Array.isArray(plan.features)
+          ? plan.features.filter((feature): feature is string => typeof feature === "string")
+          : [],
+        popular: !!plan.popular,
+        savings: plan.savings ?? undefined,
+        asaas_installment_max: plan.asaas_installment_max ?? undefined,
+      }));
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const allPlans = useMemo(() => {
+    const parsePrice = (price: string) => {
+      const numeric = price.replace(/[^\d,]/g, "").replace(",", ".");
+      return Number.parseFloat(numeric) || 0;
+    };
+
+    let plans: DbPlan[] = [];
+
+    if (!remotePlans || remotePlans.length === 0) {
+      plans = [defaultFreePlan, ...defaultPlans];
+    } else {
+      const hasRemoteFree = remotePlans.some((plan) => plan.id === "free_trial");
+      const sortedRemote = [...remotePlans].sort((a, b) => {
+        if (a.id === "free_trial") return -1;
+        if (b.id === "free_trial") return 1;
+        return 0;
+      });
+      plans = [...(hasRemoteFree ? [] : [defaultFreePlan]), ...sortedRemote];
+    }
+
+    const monthly = plans.find((plan) => plan.id === "monthly");
+    const yearly = plans.find((plan) => plan.id === "yearly");
+    if (monthly && yearly) {
+      const monthlyValue = parsePrice(monthly.price);
+      const yearlyValue = parsePrice(yearly.price);
+      const yearlySavings = (monthlyValue - yearlyValue) * 12;
+      if (yearlySavings > 0) {
+        yearly.savings = `Economize R$ ${Math.round(yearlySavings)}/ano`;
+      }
+    }
+
+    return plans;
   }, [remotePlans]);
 
-  const socialProof = useMemo(() => {
-    const config = (siteConfig as unknown as Record<string, unknown>) || {};
-    const metrics = parseSocialMetrics(
-      config.lp_professionals_social_metrics_json ??
-        config.lp_professionals_social_metrics ??
-        config.landing_professionals_social_metrics,
-    );
-    const testimonials = parseSocialTestimonials(
-      config.lp_professionals_testimonials_json ??
-        config.lp_professionals_testimonials ??
-        config.landing_professionals_testimonials,
-    );
+  const professionalCount =
+    typeof professionalStats?.total === "number" && professionalStats.total > 0
+      ? `+${professionalStats.total.toLocaleString("pt-BR")}`
+      : "+X";
 
-    return {
-      metrics: metrics.slice(0, 3),
-      testimonials: testimonials.slice(0, 3),
-    };
-  }, [siteConfig]);
-
-  const hasSocialProof = socialProof.metrics.length > 0 || socialProof.testimonials.length > 0;
+  const numbersStrip = [
+    { value: professionalCount, label: "profissionais cadastrados" },
+    { value: "Campo", label: "numero editavel via admin" },
+    { value: "Campo", label: "numero editavel via admin" },
+  ];
 
   const faqSchema = {
     "@context": "https://schema.org",
@@ -459,86 +520,79 @@ const Index = () => {
       <SeoMeta
         appendSiteName={false}
         title="Home Care Match | Oportunidades de Home Care para Profissionais"
-        description="Cadastre-se como profissional e aumente suas chances de conseguir atendimentos de Home Care na sua região. Perfil completo, visibilidade e praticidade."
+        description="Cadastre-se como profissional e aumente suas chances de conseguir atendimentos de Home Care na sua regiao. Perfil completo, visibilidade e praticidade."
         jsonLd={faqSchema}
       />
 
-      <section className="gradient-hero relative overflow-hidden border-b border-border/50 py-14 md:py-20">
+      <section className="gradient-hero relative overflow-hidden py-14 md:py-20">
         <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -right-24 -top-24 h-56 w-56 rounded-full bg-primary/10 blur-2xl" />
-          <div className="absolute -bottom-20 -left-16 h-52 w-52 rounded-full bg-success/10 blur-2xl" />
+          <div className="absolute -right-32 -top-32 h-72 w-72 rounded-full bg-primary/10 blur-2xl" />
+          <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-success/10 blur-2xl" />
         </div>
 
         <div className="container relative mx-auto px-4">
-          <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <Stethoscope className="h-4 w-4 text-primary" />
-                Home Care Match para profissionais
-              </span>
+          <div className="mx-auto max-w-4xl rounded-3xl border border-border/70 bg-card/90 p-6 text-center shadow-xl md:p-10">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Stethoscope className="h-4 w-4 text-primary" />
+              Landing para profissionais
+            </span>
 
-              <h1 className="mt-5 text-4xl font-bold leading-tight text-foreground md:text-5xl">
-                Receba oportunidades de Home Care na sua região.
-              </h1>
+            <h1 className="mt-5 text-3xl font-bold leading-tight text-foreground md:text-5xl">
+              {heroHeadlineVariants[0]}
+            </h1>
 
-              <p className="mt-4 max-w-xl text-base text-muted-foreground md:text-lg">
-                Crie seu perfil em minutos e aumente sua visibilidade para empresas e famílias.
-              </p>
+            <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground md:text-lg">
+              Crie seu perfil em minutos e aumente suas chances de fechar atendimentos.
+            </p>
 
-              <ul className="mt-6 grid gap-2">
-                {heroBullets.map((bullet) => (
-                  <li key={bullet} className="flex items-start gap-2 text-sm text-foreground/90 md:text-base">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                    <span>{bullet}</span>
-                  </li>
-                ))}
-              </ul>
+            <ul className="mx-auto mt-6 grid max-w-2xl gap-2 text-left">
+              {heroBullets.map((bullet) => (
+                <li key={bullet} className="flex items-start gap-2 text-sm text-foreground/90">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
 
-              <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                <Button asChild size="lg" className="w-full gap-2 sm:w-auto" onClick={() => trackCtaClick("hero")}>
-                  <Link to={primaryCtaHref}>
-                    {primaryCtaText}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
-                  <a href="#como-funciona">Ver como funciona</a>
-                </Button>
-              </div>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Button asChild size="lg" className="w-full gap-2 sm:w-auto">
+                <Link to={primaryCtaHref} onClick={() => trackCtaClick("hero")}>
+                  {primaryCtaText}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
+                <a href="#como-funciona">Ver como funciona</a>
+              </Button>
+            </div>
 
-              <p className="mt-3 text-xs text-muted-foreground">Leva menos de 3 minutos.</p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Leva menos de 3 minutos. Sem compromisso para comecar.
+            </p>
 
-              <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground md:text-sm">
-                <span className="inline-flex items-center gap-1.5">
+            <div className="mt-6 grid gap-2 text-left sm:grid-cols-3">
+              <div className="rounded-xl border border-border bg-background p-3 text-sm">
+                <div className="flex items-center gap-2 font-medium">
                   <ShieldCheck className="h-4 w-4 text-primary" />
                   Dados protegidos
-                </span>
-                <span className="h-1 w-1 rounded-full bg-border" />
-                <span className="inline-flex items-center gap-1.5">
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-background p-3 text-sm">
+                <div className="flex items-center gap-2 font-medium">
+                  <BadgeCheck className="h-4 w-4 text-primary" />
+                  Cadastro verificado
+                </div>
+              </div>
+              <div className="rounded-xl border border-border bg-background p-3 text-sm">
+                <div className="flex items-center gap-2 font-medium">
                   <Headset className="h-4 w-4 text-primary" />
                   Suporte
-                </span>
-                <span className="h-1 w-1 rounded-full bg-border" />
-                <span className="inline-flex items-center gap-1.5">
-                  <BadgeCheck className="h-4 w-4 text-primary" />
-                  Feito para profissionais
-                </span>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-background/80 p-6">
-              <p className="text-sm font-semibold uppercase tracking-wide text-primary">Seu perfil em destaque</p>
-              <ul className="mt-4 space-y-4">
-                <li className="border-b border-border/50 pb-4 text-sm text-foreground/90">
-                  Preencha sua especialidade, região e disponibilidade.
-                </li>
-                <li className="border-b border-border/50 pb-4 text-sm text-foreground/90">
-                  Receba contatos com mais agilidade.
-                </li>
-                <li className="text-sm text-foreground/90">
-                  Organize oportunidades em um fluxo simples.
-                </li>
-              </ul>
+            <div className="sr-only" aria-hidden>
+              {heroHeadlineVariants.slice(1).join(" | ")}
             </div>
           </div>
         </div>
@@ -548,162 +602,144 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="mx-auto mb-10 max-w-2xl text-center">
             <h2 className="text-3xl font-bold text-foreground">Como funciona</h2>
-            <p className="mt-3 text-muted-foreground">Quatro passos diretos para começar.</p>
+            <p className="mt-3 text-muted-foreground">Quatro passos simples para ganhar mais oportunidades.</p>
           </div>
 
-          <ol className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {howItWorksSteps.map((step, index) => (
-              <li key={step.title} className="flex items-center gap-3 lg:justify-center">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {howItWorksSteps.map((step) => (
+              <article key={step.title} className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
+                <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <step.icon className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Passo {index + 1}</p>
-                  <p className="text-sm font-semibold text-foreground">{step.title}</p>
                 </div>
-              </li>
+                <h3 className="text-base font-semibold">{step.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{step.description}</p>
+              </article>
             ))}
-          </ol>
+          </div>
         </div>
       </section>
 
-      <section className="border-y border-border/40 bg-secondary/20 py-14 md:py-20">
+      <section className="bg-secondary/20 py-14 md:py-20">
         <div className="container mx-auto px-4">
-          <div className="mx-auto mb-8 max-w-2xl text-center">
-            <h2 className="text-3xl font-bold text-foreground">Profissionais</h2>
-            <p className="mt-3 text-muted-foreground">Atendimentos domiciliares por demanda na sua região.</p>
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <h2 className="text-3xl font-bold text-foreground">Para quem e</h2>
+            <p className="mt-3 text-muted-foreground">
+              Atendimentos domiciliares por demanda na sua regiao.
+            </p>
           </div>
 
-          <div className="mx-auto flex max-w-3xl flex-wrap justify-center gap-3">
-            {professionChips.map((profession) => (
-              <span
-                key={profession}
-                className="rounded-full border border-border/60 bg-background/80 px-4 py-2 text-sm font-medium text-foreground"
-              >
-                {profession}
-              </span>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {targetProfessions.map((profession) => (
+              <article key={profession} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <HandHeart className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-base font-semibold">{profession}</h3>
+                </div>
+              </article>
             ))}
           </div>
-
-          <p className="mt-5 text-center text-sm font-medium text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Plus className="h-4 w-4" />
-              E muito mais…
-            </span>
-          </p>
         </div>
       </section>
 
       <section className="py-14 md:py-20">
         <div className="container mx-auto px-4">
-          <div className="mx-auto mb-8 max-w-2xl text-center">
-            <h2 className="text-3xl font-bold text-foreground">Benefícios</h2>
-            <p className="mt-3 text-muted-foreground">Clareza no processo para você focar no atendimento.</p>
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <h2 className="text-3xl font-bold text-foreground">Beneficios</h2>
+            <p className="mt-3 text-muted-foreground">Motivos para manter seu perfil ativo e competitivo.</p>
           </div>
 
-          <div className="mx-auto grid max-w-4xl gap-x-10 gap-y-3 md:grid-cols-2">
-            {benefits.map((benefit) => (
-              <div key={benefit} className="flex items-center gap-2 text-sm text-foreground md:text-base">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
-                <span>{benefit}</span>
-              </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {benefitCards.map((benefit) => (
+              <article key={benefit.title} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <h3 className="text-base font-semibold">{benefit.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{benefit.description}</p>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {hasSocialProof && (
-        <section className="border-y border-border/40 bg-secondary/20 py-14 md:py-20">
-          <div className="container mx-auto px-4">
-            <div className="mx-auto mb-8 max-w-2xl text-center">
-              <h2 className="text-3xl font-bold text-foreground">Prova social</h2>
-              <p className="mt-3 text-muted-foreground">Resultados e relatos de quem já usa o perfil profissional.</p>
-            </div>
-
-            {socialProof.metrics.length > 0 && (
-              <div className="mx-auto mb-8 grid max-w-4xl gap-4 sm:grid-cols-3">
-                {socialProof.metrics.map((metric) => (
-                  <div key={`${metric.label}-${metric.value}`} className="text-center">
-                    <p className="text-2xl font-bold text-foreground">{metric.value}</p>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">{metric.label}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {socialProof.testimonials.length > 0 && (
-              <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-3">
-                {socialProof.testimonials.map((item) => (
-                  <blockquote key={`${item.author}-${item.quote}`} className="rounded-2xl bg-background/80 p-4">
-                    <p className="text-sm text-foreground/90">“{item.quote}”</p>
-                    <footer className="mt-3 text-xs text-muted-foreground">
-                      {item.author}
-                      {item.role ? ` · ${item.role}` : ""}
-                    </footer>
-                  </blockquote>
-                ))}
-              </div>
-            )}
+      <section className="bg-secondary/20 py-14 md:py-20">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
+            <h2 className="text-3xl font-bold text-foreground">Confianca e prova social</h2>
+            <p className="mt-3 text-muted-foreground">
+              Estrutura pronta para inserir depoimentos e numeros reais via admin.
+            </p>
           </div>
-        </section>
-      )}
+
+          <div className="grid gap-3 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3">
+            {numbersStrip.map((item) => (
+              <div key={item.label} className="rounded-xl border border-border/70 bg-background p-4 text-center">
+                <p className="text-2xl font-bold text-foreground">{item.value}</p>
+                <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">{item.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {testimonialPlaceholders.map((item) => (
+              <article key={item.author} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                <p className="text-sm text-muted-foreground">"{item.quote}"</p>
+                <div className="mt-4 border-t border-border pt-3">
+                  <p className="font-semibold text-foreground">{item.author}</p>
+                  <p className="text-xs text-muted-foreground">{item.role}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <section id="planos" ref={plansSectionRef} className="scroll-mt-24 py-14 md:py-20">
         <div className="container mx-auto px-4">
-          <div className="mx-auto mb-8 max-w-2xl text-center">
+          <div className="mx-auto mb-10 max-w-2xl text-center">
             <h2 className="text-3xl font-bold text-foreground">Planos</h2>
-            <p className="mt-3 text-muted-foreground">Você cria o perfil e escolhe o plano na sequência.</p>
+            <p className="mt-3 text-muted-foreground">
+              Escolha seu plano e mantenha seu perfil profissional em destaque.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              A assinatura ativa recursos premium de visibilidade e oportunidades.
+            </p>
           </div>
 
-          <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
-            {planCards.map((plan) => {
+          <div className="grid items-stretch gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {allPlans.map((plan) => {
               const buttonConfig = getPlanButtonConfig(plan.id);
               return (
-                <article
+                <PricingCard
                   key={plan.id}
-                  className={`rounded-2xl border p-6 ${
-                    plan.popular ? "border-primary/60 bg-primary/5" : "border-border/60 bg-background/80"
-                  }`}
-                >
-                  <p className="text-sm font-semibold text-primary">{plan.name}</p>
-                  <p className="mt-2 text-3xl font-bold text-foreground">
-                    {plan.price}
-                    <span className="ml-1 text-sm font-normal text-muted-foreground">/{plan.period}</span>
-                  </p>
-
-                  <ul className="mt-4 space-y-2">
-                    {(plan.features || []).map((feature) => (
-                      <li key={feature} className="flex items-center gap-2 text-sm text-foreground/90">
-                        <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Button
-                    className="mt-6 w-full"
-                    onClick={() => handleSubscribe(plan.id)}
-                    disabled={buttonConfig.disabled || loadingPlan === plan.id}
-                  >
-                    {loadingPlan === plan.id ? "Processando..." : buttonConfig.text}
-                  </Button>
-                </article>
+                  id={plan.id}
+                  name={plan.name}
+                  price={plan.price}
+                  period={plan.period}
+                  description={plan.description ?? ""}
+                  features={plan.features ?? []}
+                  popular={plan.popular}
+                  savings={plan.savings}
+                  onSubscribe={handleSubscribe}
+                  isLoading={loadingPlan === plan.id}
+                  buttonText={buttonConfig.text}
+                  isDisabled={buttonConfig.disabled}
+                />
               );
             })}
           </div>
         </div>
       </section>
 
-      <section id="duvidas" className="scroll-mt-24 border-y border-border/40 bg-secondary/20 py-14 md:py-20">
+      <section id="duvidas" className="scroll-mt-24 bg-secondary/20 py-14 md:py-20">
         <div className="container mx-auto max-w-3xl px-4">
-          <div className="mb-8 text-center">
-            <h2 className="text-3xl font-bold text-foreground">Dúvidas</h2>
-            <p className="mt-3 text-muted-foreground">Respostas rápidas para reduzir objeções antes do cadastro.</p>
+          <div className="mb-10 text-center">
+            <h2 className="text-3xl font-bold text-foreground">FAQ</h2>
+            <p className="mt-3 text-muted-foreground">Respostas rapidas para reduzir duvidas antes do cadastro.</p>
           </div>
 
-          <Accordion type="single" collapsible className="space-y-2">
+          <Accordion type="single" collapsible className="space-y-3">
             {faqs.map((faq) => (
-              <AccordionItem key={faq.question} value={faq.question} className="rounded-xl border border-border/60 bg-background/80 px-4">
+              <AccordionItem key={faq.question} value={faq.question} className="rounded-xl border border-border bg-card px-4">
                 <AccordionTrigger className="text-left font-semibold hover:no-underline">
                   {faq.question}
                 </AccordionTrigger>
@@ -719,8 +755,8 @@ const Index = () => {
           <h2 className="text-3xl font-bold text-primary-foreground">
             Pronto para aumentar suas oportunidades no Home Care?
           </h2>
-          <Button asChild size="lg" variant="secondary" className="mt-7 gap-2" onClick={() => trackCtaClick("footer")}>
-            <Link to={primaryCtaHref}>
+          <Button asChild size="lg" variant="secondary" className="mt-8 gap-2">
+            <Link to={primaryCtaHref} onClick={() => trackCtaClick("footer")}>
               Criar meu perfil
               <ArrowRight className="h-4 w-4" />
             </Link>
@@ -729,8 +765,10 @@ const Index = () => {
       </section>
 
       <div className="fixed inset-x-0 z-50 px-4 md:hidden" style={{ bottom: "calc(5.5rem + env(safe-area-inset-bottom))" }}>
-        <Button asChild className="h-12 w-full shadow-lg" onClick={() => trackCtaClick("sticky")}>
-          <Link to={primaryCtaHref}>Criar perfil</Link>
+        <Button asChild className="h-12 w-full shadow-lg">
+          <Link to={primaryCtaHref} onClick={() => trackCtaClick("sticky")}>
+            Criar perfil
+          </Link>
         </Button>
       </div>
 

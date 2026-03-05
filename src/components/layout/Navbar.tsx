@@ -122,12 +122,12 @@ const Navbar = () => {
         {
           to: "/#planos",
           label: "Planos",
-          description: "Compare opções",
+          description: "Compare opcoes",
           icon: Building2,
         },
         {
           to: "/#duvidas",
-          label: "Dúvidas",
+          label: "Duvidas",
           description: "Perguntas frequentes",
           icon: CircleHelp,
         },
@@ -136,7 +136,7 @@ const Navbar = () => {
         {
           to: "/",
           label: "Profissionais",
-          description: "Conheça a versão para profissionais",
+          description: "Conheca a versao para profissionais",
           icon: Home,
         },
         {
@@ -147,7 +147,7 @@ const Navbar = () => {
         },
         {
           to: "/familias",
-          label: "Famílias",
+          label: "Familias",
           description: "Busca para cuidado domiciliar",
           icon: Users,
         },
@@ -160,7 +160,7 @@ const Navbar = () => {
         {
           to: "/blog",
           label: "Blog",
-          description: "Conteúdo sobre Home Care",
+          description: "Conteudo sobre Home Care",
           icon: Newspaper,
         },
         ...(canSeeSearch
@@ -198,7 +198,7 @@ const Navbar = () => {
                   Planos
                 </Link>
                 <Link to="/#duvidas" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">
-                  Dúvidas
+                  Duvidas
                 </Link>
               </>
             ) : (
@@ -225,7 +225,7 @@ const Navbar = () => {
                     isActive("/familias") ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  Para Famílias
+                  Para Familias
                 </Link>
                 <Link
                   to="/funcionalidades"
@@ -285,7 +285,7 @@ const Navbar = () => {
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{profile?.full_name || "Usuário"}</p>
+                      <p className="text-sm font-medium leading-none">{profile?.full_name || "Usuario"}</p>
                       <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
                     </div>
                   </DropdownMenuLabel>
@@ -302,7 +302,7 @@ const Navbar = () => {
                       className="flex cursor-pointer items-center gap-2"
                     >
                       {isAdmin ? <Settings className="h-4 w-4" /> : <UserIcon className="h-4 w-4" />}
-                      <span>{isAdmin ? "Configurações" : "Meu Perfil"}</span>
+                      <span>{isAdmin ? "Configuracoes" : "Meu Perfil"}</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

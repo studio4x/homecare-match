@@ -59,18 +59,18 @@
 
 - [ ] P0-09 Contratacao do plano anual funcionando
   Desktop: OK
-  Mobile:
+  Mobile: OK
   Observacoes:
 
 - [ ] P0-10 Ativacao/reflexo do plano anual no dashboard
-  Desktop:
-  Mobile:
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [ ] P0-11 Cancelamento atualizando status corretamente
-  Desktop:
-  Mobile:
-  Observacoes:
+  Desktop: OK
+  Mobile: OK
+  Observacoes: Ajuste para fazer a tela voltar ao topo ao ser feito o cancelamento
 
 - [ ] P0-12 Expiracao atualizando status corretamente
   Desktop:

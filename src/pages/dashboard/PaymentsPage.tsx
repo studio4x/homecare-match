@@ -400,6 +400,9 @@ const PaymentsPage = () => {
 
       toast.success(data?.message || "Assinatura cancelada com sucesso.", { id: toastId });
       await fetchHistory(true);
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
     } catch (err: unknown) {
       console.error("[Cancel Subscription Error]", err);
       const message =

@@ -7,6 +7,37 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const MIN_CONTENT_CHARS = 6000;
+const TARGET_CONTENT_CHARS = 9000;
+const MIN_H2 = 3;
+const MAX_H2 = 8;
+const MIN_H3 = 3;
+const MIN_INTERNAL_LINKS = 3;
+const MIN_EXTERNAL_LINKS = 2;
+const MAX_EXTERNAL_LINKS = 3;
+const MIN_INTRO_CHARS = 500;
+const MAX_INTRO_CHARS = 800;
+const MIN_CONCLUSION_CHARS = 400;
+const MAX_CONCLUSION_CHARS = 700;
+const MIN_KEYWORD_DENSITY = 0.8;
+const MAX_KEYWORD_DENSITY = 1.5;
+const MAX_SLUG_LENGTH = 75;
+
+const INTERNAL_LINK_SUGGESTIONS = [
+  "/",
+  "/buscar",
+  "/empresas",
+  "/familias",
+  "/funcionalidades",
+  "/blog",
+];
+
+const EXTERNAL_LINK_SUGGESTIONS = [
+  "https://www.gov.br/saude/pt-br",
+  "https://www.who.int/health-topics/home-care",
+  "https://scholar.google.com/",
+];
+
 const cleanJsonText = (text: string) =>
   String(text || "")
     .trim()
@@ -27,10 +58,320 @@ const toSlug = (text: string) =>
     .replace(/-+$/, "")
     .trim();
 
+const normalizeText = (value: string) =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const escapeRegex = (value: string) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const stripHtml = (html: string) =>
+  String(html || "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const estimateReadingTime = (html: string) => {
-  const plain = String(html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const plain = stripHtml(html);
   const words = plain ? plain.split(" ").filter(Boolean).length : 0;
   return Math.max(1, Math.ceil(words / 220));
+};
+
+const countMatches = (value: string, regex: RegExp) => (String(value || "").match(regex) || []).length;
+
+const extractFirstParagraphText = (html: string) => {
+  const match = String(html || "").match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
+  return match ? stripHtml(match[1]) : "";
+};
+
+const extractSectionText = (html: string, sectionKeyword: string) => {
+  const lowerKeyword = normalizeText(sectionKeyword);
+  const sections = String(html || "").split(/<h2\b[^>]*>[\s\S]*?<\/h2>/gi);
+  const headings = String(html || "").match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi) || [];
+
+  for (let i = 0; i < headings.length; i += 1) {
+    const headingText = stripHtml(headings[i]);
+    if (normalizeText(headingText).includes(lowerKeyword)) {
+      return stripHtml(sections[i + 1] || "");
+    }
+  }
+  return "";
+};
+
+const extractHrefList = (html: string) => {
+  const links: string[] = [];
+  const regex = /href\s*=\s*["']([^"']+)["']/gi;
+  let match: RegExpExecArray | null = null;
+  while ((match = regex.exec(String(html || "")))) {
+    links.push(String(match[1] || "").trim());
+  }
+  return links.filter(Boolean);
+};
+
+const isInternalLink = (href: string) => {
+  const value = String(href || "").trim().toLowerCase();
+  if (!value) return false;
+  if (value.startsWith("#")) return true;
+  if (value.startsWith("/")) return true;
+  return value.includes("homecarematch.com.br");
+};
+
+const isExternalLink = (href: string) => {
+  const value = String(href || "").trim().toLowerCase();
+  if (!value.startsWith("http://") && !value.startsWith("https://")) return false;
+  return !value.includes("homecarematch.com.br");
+};
+
+const countKeywordOccurrences = (text: string, keyword: string) => {
+  const normalizedText = normalizeText(text);
+  const normalizedKeyword = normalizeText(keyword);
+  if (!normalizedText || !normalizedKeyword) return 0;
+  const pattern = new RegExp(`\\b${escapeRegex(normalizedKeyword)}\\b`, "gi");
+  const matches = normalizedText.match(pattern);
+  return matches ? matches.length : 0;
+};
+
+const toMetaLength = (value: string, min: number, max: number, fallback: string) => {
+  const text = String(value || "").trim() || String(fallback || "").trim();
+  if (!text) return "";
+  if (text.length > max) return text.slice(0, max).trim();
+  return text;
+};
+
+const normalizeArticlePayload = (parsed: any) => {
+  const title = String(parsed?.title || "").trim();
+  const focusKeyword = String(parsed?.focus_keyword || "").trim() || String(title || "").split(":")[0].trim();
+  const normalizedKeywordSlug = toSlug(focusKeyword);
+  let slug = toSlug(String(parsed?.slug || title || focusKeyword));
+  if (normalizedKeywordSlug && !slug.includes(normalizedKeywordSlug)) {
+    slug = toSlug(`${focusKeyword} ${slug}`);
+  }
+  if (slug.length > MAX_SLUG_LENGTH) slug = slug.slice(0, MAX_SLUG_LENGTH).replace(/-+$/, "");
+
+  const contentHtml = String(parsed?.content_html || "").trim();
+  const plainContent = stripHtml(contentHtml);
+  const excerpt = String(parsed?.excerpt || "").trim() || plainContent.slice(0, 180).trim();
+  const seoTitleRaw = String(parsed?.seo_title || title).trim() || title;
+  const seoDescriptionRaw = String(parsed?.seo_description || excerpt).trim() || excerpt;
+  const seoOgTitle = String(parsed?.seo_og_title || seoTitleRaw).trim() || seoTitleRaw;
+  const seoOgDescription = String(parsed?.seo_og_description || seoDescriptionRaw).trim() || seoDescriptionRaw;
+  const tagsSuggested = Array.isArray(parsed?.tags_suggested)
+    ? parsed.tags_suggested.map((item: unknown) => String(item || "").trim()).filter(Boolean).slice(0, 8)
+    : [];
+
+  return {
+    title,
+    slug,
+    excerpt: excerpt.slice(0, 180),
+    content_html: contentHtml,
+    focus_keyword: focusKeyword,
+    seo_title: seoTitleRaw,
+    seo_description: toMetaLength(seoDescriptionRaw, 140, 160, excerpt),
+    seo_og_title: seoOgTitle,
+    seo_og_description: toMetaLength(seoOgDescription, 140, 180, seoDescriptionRaw),
+    tags_suggested: tagsSuggested,
+    reading_time_minutes: Number(parsed?.reading_time_minutes || 0) || estimateReadingTime(contentHtml),
+  };
+};
+
+const extractFaqQuestions = (html: string) => {
+  const result: string[] = [];
+  const regex = /<h3\b[^>]*>([\s\S]*?)<\/h3>/gi;
+  let match: RegExpExecArray | null = null;
+  while ((match = regex.exec(String(html || "")))) {
+    const question = stripHtml(match[1]);
+    if (!question) continue;
+    result.push(question.slice(0, 220));
+    if (result.length >= 5) break;
+  }
+  return result;
+};
+
+const buildSchemaJson = (article: any) => {
+  const faqQuestions = extractFaqQuestions(article.content_html);
+  const schemas: any[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      headline: article.title,
+      description: article.seo_description || article.excerpt,
+      keywords: article.focus_keyword,
+      wordCount: stripHtml(article.content_html).split(/\s+/).filter(Boolean).length,
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": `https://www.homecarematch.com.br/blog/artigo/${article.slug}`,
+      },
+    },
+  ];
+
+  const hasFaqHeading = /<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>/i.test(article.content_html);
+  if (hasFaqHeading && faqQuestions.length >= 3) {
+    schemas.push({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faqQuestions.map((question) => ({
+        "@type": "Question",
+        name: question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Resposta detalhada disponivel no conteudo do artigo.",
+        },
+      })),
+    });
+  }
+
+  return schemas;
+};
+
+const validateArticleSeoRules = (article: any) => {
+  const issues: string[] = [];
+  const plain = stripHtml(article.content_html);
+  const keyword = String(article.focus_keyword || "").trim();
+  const keywordNorm = normalizeText(keyword);
+  const slugKeyword = toSlug(keyword);
+
+  if (!article.title) issues.push("title ausente");
+  if (!article.slug) issues.push("slug ausente");
+  if (!article.content_html) issues.push("content_html ausente");
+
+  if (plain.length < MIN_CONTENT_CHARS) {
+    issues.push(`conteudo abaixo do minimo (${plain.length} < ${MIN_CONTENT_CHARS} caracteres)`);
+  }
+
+  const h1Count = countMatches(article.content_html, /<h1\b/gi);
+  const h2Count = countMatches(article.content_html, /<h2\b/gi);
+  const h3Count = countMatches(article.content_html, /<h3\b/gi);
+  if (h1Count !== 1) issues.push(`deve ter exatamente 1 H1 (atual: ${h1Count})`);
+  if (h2Count < MIN_H2 || h2Count > MAX_H2) issues.push(`H2 fora do intervalo ${MIN_H2}-${MAX_H2} (atual: ${h2Count})`);
+  if (h3Count < MIN_H3) issues.push(`deve ter ao menos ${MIN_H3} H3 (atual: ${h3Count})`);
+
+  const faqHeading = /<h2\b[^>]*>[\s\S]*?(perguntas frequentes|faq)[\s\S]*?<\/h2>/i.test(article.content_html);
+  if (!faqHeading) issues.push("secao FAQ/Perguntas Frequentes ausente");
+
+  const introText = extractFirstParagraphText(article.content_html);
+  if (introText.length < MIN_INTRO_CHARS || introText.length > MAX_INTRO_CHARS) {
+    issues.push(`introducao deve ter ${MIN_INTRO_CHARS}-${MAX_INTRO_CHARS} caracteres (atual: ${introText.length})`);
+  }
+
+  const conclusionText = extractSectionText(article.content_html, "conclusao");
+  if (
+    conclusionText &&
+    (conclusionText.length < MIN_CONCLUSION_CHARS || conclusionText.length > MAX_CONCLUSION_CHARS)
+  ) {
+    issues.push(
+      `conclusao deve ter ${MIN_CONCLUSION_CHARS}-${MAX_CONCLUSION_CHARS} caracteres (atual: ${conclusionText.length})`,
+    );
+  }
+
+  const tocAnchors = countMatches(article.content_html, /href\s*=\s*["']#[^"']+["']/gi);
+  if (tocAnchors < 4) issues.push("sumario clicavel insuficiente (minimo 4 links internos de ancora)");
+
+  const links = extractHrefList(article.content_html);
+  const internalLinks = links.filter(isInternalLink).length;
+  const externalLinks = links.filter(isExternalLink).length;
+  if (internalLinks < MIN_INTERNAL_LINKS) issues.push(`deve ter ao menos ${MIN_INTERNAL_LINKS} links internos`);
+  if (externalLinks < MIN_EXTERNAL_LINKS || externalLinks > MAX_EXTERNAL_LINKS) {
+    issues.push(`links externos fora do intervalo ${MIN_EXTERNAL_LINKS}-${MAX_EXTERNAL_LINKS}`);
+  }
+
+  if (article.slug.length > MAX_SLUG_LENGTH) issues.push(`slug acima de ${MAX_SLUG_LENGTH} caracteres`);
+
+  if (keywordNorm) {
+    const h1TextMatch = String(article.content_html).match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+    const h1Text = normalizeText(h1TextMatch ? stripHtml(h1TextMatch[1]) : "");
+    if (!h1Text.includes(keywordNorm)) issues.push("palavra-chave principal ausente no H1");
+
+    const firstParagraphNorm = normalizeText(introText);
+    if (!firstParagraphNorm.includes(keywordNorm)) issues.push("palavra-chave principal ausente no primeiro paragrafo");
+
+    const h2Headings = String(article.content_html).match(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi) || [];
+    const hasKeywordInH2 = h2Headings.some((heading) => normalizeText(stripHtml(heading)).includes(keywordNorm));
+    if (!hasKeywordInH2) issues.push("palavra-chave principal ausente em pelo menos um H2");
+
+    if (conclusionText && !normalizeText(conclusionText).includes(keywordNorm)) {
+      issues.push("palavra-chave principal ausente na conclusao");
+    }
+
+    if (slugKeyword && !article.slug.includes(slugKeyword)) {
+      issues.push("slug sem a palavra-chave principal");
+    }
+
+    const seoDescriptionNorm = normalizeText(article.seo_description);
+    if (!seoDescriptionNorm.includes(keywordNorm)) {
+      issues.push("meta description sem palavra-chave principal");
+    }
+
+    const seoTitleNorm = normalizeText(article.seo_title);
+    if (!seoTitleNorm.includes(keywordNorm)) {
+      issues.push("seo title sem palavra-chave principal");
+    }
+
+    const occurrences = countKeywordOccurrences(plain, keyword);
+    const words = normalizeText(plain).split(" ").filter(Boolean).length || 1;
+    const density = (occurrences / words) * 100;
+    if (density < MIN_KEYWORD_DENSITY || density > MAX_KEYWORD_DENSITY) {
+      issues.push(
+        `densidade da palavra-chave fora de ${MIN_KEYWORD_DENSITY}%-${MAX_KEYWORD_DENSITY}% (atual: ${density.toFixed(
+          2,
+        )}%)`,
+      );
+    }
+  } else {
+    issues.push("focus_keyword ausente");
+  }
+
+  if (article.seo_title.length < 50 || article.seo_title.length > 60) {
+    issues.push(`seo_title deve ter 50-60 caracteres (atual: ${article.seo_title.length})`);
+  }
+  if (article.seo_description.length < 140 || article.seo_description.length > 160) {
+    issues.push(`seo_description deve ter 140-160 caracteres (atual: ${article.seo_description.length})`);
+  }
+
+  if (!Array.isArray(article.tags_suggested) || article.tags_suggested.length < 4 || article.tags_suggested.length > 8) {
+    issues.push("tags_suggested deve conter de 4 a 8 tags");
+  }
+
+  return issues;
+};
+
+const callGeminiJson = async ({
+  apiKey,
+  modelName,
+  prompt,
+}: {
+  apiKey: string;
+  modelName: string;
+  prompt: string;
+}) => {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.6,
+        },
+      }),
+    },
+  );
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "Falha ao chamar API do Gemini.");
+  }
+
+  const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) throw new Error("Resposta vazia da IA.");
+  return JSON.parse(cleanJsonText(rawText));
 };
 
 serve(async (req) => {
@@ -50,7 +391,7 @@ serve(async (req) => {
     } = await supabaseAdmin.auth.getUser(token);
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Não autorizado." }), {
+      return new Response(JSON.stringify({ error: "Nao autorizado." }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -74,7 +415,7 @@ serve(async (req) => {
     const normalizedSuggestion = String(suggestion || "").trim();
 
     if (normalizedMode === "suggestion" && !normalizedSuggestion) {
-      return new Response(JSON.stringify({ error: "Informe uma sugestão para gerar o artigo." }), {
+      return new Response(JSON.stringify({ error: "Informe uma sugestao para gerar o artigo." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -89,26 +430,53 @@ serve(async (req) => {
     const modelName = config?.gemini_model || "gemini-2.0-flash";
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY não configurada no servidor.");
+      throw new Error("GEMINI_API_KEY nao configurada no servidor.");
     }
 
     const topicInstruction =
       normalizedMode === "automatic"
-        ? "Escolha um tema estratégico e atual para Home Care no Brasil, com foco em valor para profissionais, empresas e famílias."
-        : `Tema sugerido pelo usuário: ${normalizedSuggestion}`;
+        ? "Escolha um tema estrategico e atual para Home Care no Brasil, com foco em valor pratico para profissionais, empresas e familias."
+        : `Tema sugerido pelo usuario: ${normalizedSuggestion}`;
 
-    const prompt = `
-Você é um redator sênior de SEO especializado em Home Care no Brasil.
+    const generationPrompt = `
+Voce e um redator senior de SEO especializado em saude Home Care.
+Siga rigorosamente este padrao de artigo:
 
+- Minimo absoluto de conteudo: ${MIN_CONTENT_CHARS} caracteres de texto limpo
+- Faixa recomendada: 8000 a 12000 caracteres
+- Palavra-chave principal com densidade aproximada de ${MIN_KEYWORD_DENSITY}% a ${MAX_KEYWORD_DENSITY}%
+- Palavra-chave deve aparecer em: H1, primeiro paragrafo, ao menos 1 H2, conclusao, meta description e slug
+- Slug maximo: ${MAX_SLUG_LENGTH} caracteres, sem acento, com hifens
+- SEO title: 50 a 60 caracteres
+- Meta description: 140 a 160 caracteres
+
+Estrutura obrigatoria no content_html:
+1) Um unico H1
+2) Introducao (500-800 caracteres)
+3) Sumario clicavel com ancora
+4) Entre ${MIN_H2} e ${MAX_H2} H2
+5) Pelo menos ${MIN_H3} H3
+6) Conclusao (400-700 caracteres)
+7) FAQ com 3 a 5 perguntas (H2 FAQ + H3 para perguntas)
+8) Inserir listas e exemplos praticos
+9) Inserir no minimo ${MIN_INTERNAL_LINKS} links internos
+10) Inserir ${MIN_EXTERNAL_LINKS} a ${MAX_EXTERNAL_LINKS} links externos de autoridade
+
+Sugestoes de links internos (use pelo menos 3 no artigo):
+${INTERNAL_LINK_SUGGESTIONS.join("\n")}
+
+Sugestoes de links externos de referencia (use 2 a 3):
+${EXTERNAL_LINK_SUGGESTIONS.join("\n")}
+
+Tema:
 ${topicInstruction}
 
-Gere um artigo completo em português brasileiro e retorne APENAS um JSON válido, sem markdown, sem comentários.
-Estrutura obrigatória de resposta:
+Retorne APENAS JSON valido, sem markdown:
 {
   "title": "string",
   "slug": "string",
-  "excerpt": "string curta (até 180 caracteres)",
-  "content_html": "string em HTML sem <script>",
+  "excerpt": "string curta ate 180 caracteres",
+  "content_html": "string em HTML sem script",
   "focus_keyword": "string",
   "seo_title": "string",
   "seo_description": "string",
@@ -118,71 +486,56 @@ Estrutura obrigatória de resposta:
   "reading_time_minutes": 1
 }
 
-Regras:
-- Use headings H2/H3 e parágrafos curtos em content_html.
-- Não use promessas médicas indevidas.
-- Traga tom profissional e prático.
-- Evite exagero comercial.
-- "slug" deve estar em minúsculas com hífens.
-- "tags_suggested" deve conter de 4 a 8 tags relevantes.
+Regras adicionais:
+- Nao use promessas medicas indevidas
+- Use tom profissional, pratico e confiavel
+- Paragrafos curtos para boa escaneabilidade
 `.trim();
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: "application/json",
-          },
-        }),
-      },
+    let article = normalizeArticlePayload(
+      await callGeminiJson({
+        apiKey: GEMINI_API_KEY,
+        modelName,
+        prompt: generationPrompt,
+      }),
     );
 
-    const geminiData = await geminiResponse.json();
-    if (!geminiResponse.ok) {
-      throw new Error(geminiData?.error?.message || "Falha ao chamar API do Gemini.");
+    let issues = validateArticleSeoRules(article);
+    if (issues.length > 0) {
+      const repairPrompt = `
+Voce deve corrigir um artigo JSON para cumprir padrao SEO estrito.
+NAO resuma. EXPANDA o conteudo quando necessario.
+
+Problemas detectados:
+${issues.map((issue, index) => `${index + 1}. ${issue}`).join("\n")}
+
+Artigo atual (JSON):
+${JSON.stringify(article)}
+
+Retorne APENAS JSON valido com os mesmos campos e com todos os problemas corrigidos.
+Lembre-se: conteudo minimo ${MIN_CONTENT_CHARS} caracteres.
+`.trim();
+
+      article = normalizeArticlePayload(
+        await callGeminiJson({
+          apiKey: GEMINI_API_KEY,
+          modelName,
+          prompt: repairPrompt,
+        }),
+      );
+      issues = validateArticleSeoRules(article);
     }
 
-    const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) throw new Error("Resposta vazia da IA.");
-
-    const parsed = JSON.parse(cleanJsonText(rawText));
-
-    const title = String(parsed?.title || "").trim();
-    const slug = toSlug(String(parsed?.slug || title));
-    const excerpt = String(parsed?.excerpt || "").trim().slice(0, 180);
-    const contentHtml = String(parsed?.content_html || "").trim();
-    const focusKeyword = String(parsed?.focus_keyword || "").trim();
-    const seoTitle = String(parsed?.seo_title || title).trim();
-    const seoDescription = String(parsed?.seo_description || excerpt).trim().slice(0, 180);
-    const seoOgTitle = String(parsed?.seo_og_title || seoTitle).trim();
-    const seoOgDescription = String(parsed?.seo_og_description || seoDescription).trim().slice(0, 180);
-    const tagsSuggested = Array.isArray(parsed?.tags_suggested)
-      ? parsed.tags_suggested.map((item: unknown) => String(item || "").trim()).filter(Boolean).slice(0, 8)
-      : [];
-    const readingTime =
-      Number(parsed?.reading_time_minutes || 0) || estimateReadingTime(contentHtml);
-
-    if (!title || !slug || !contentHtml) {
-      throw new Error("A IA não retornou os campos mínimos para o artigo.");
+    if (issues.length > 0) {
+      throw new Error(`A IA retornou artigo fora do padrao SEO minimo: ${issues.slice(0, 8).join(" | ")}`);
     }
+
+    const schemaJson = buildSchemaJson(article);
 
     return new Response(
       JSON.stringify({
-        title,
-        slug,
-        excerpt,
-        content_html: contentHtml,
-        focus_keyword: focusKeyword,
-        seo_title: seoTitle,
-        seo_description: seoDescription,
-        seo_og_title: seoOgTitle,
-        seo_og_description: seoOgDescription,
-        tags_suggested: tagsSuggested,
-        reading_time_minutes: readingTime,
+        ...article,
+        schema_json: schemaJson,
       }),
       {
         status: 200,

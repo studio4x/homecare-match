@@ -1032,6 +1032,11 @@ const BlogTab = () => {
       const aiContent = String(payload.content_html || "").trim();
       const aiFocusKeyword = String(payload.focus_keyword || "").trim();
       const aiTagsSuggested = Array.isArray(payload.tags_suggested) ? payload.tags_suggested : [];
+      const aiSchemaJsonRaw = payload?.schema_json;
+      const aiSchemaJson =
+        aiSchemaJsonRaw && typeof aiSchemaJsonRaw === "object"
+          ? JSON.stringify(aiSchemaJsonRaw, null, 2)
+          : String(aiSchemaJsonRaw || "").trim();
 
       const suggestedTagIds = sortedTags
         .filter((tag) =>
@@ -1057,6 +1062,7 @@ const BlogTab = () => {
         reading_time_minutes:
           Number(payload.reading_time_minutes || 0) || Math.max(1, estimateReadingTime(aiContent || prev.content_html)),
         tag_ids: suggestedTagIds.length > 0 ? suggestedTagIds : prev.tag_ids,
+        schema_json: aiSchemaJson || prev.schema_json,
       }));
 
       toast.success("Artigo gerado com IA. Revise e ajuste antes de publicar.");
@@ -1402,6 +1408,11 @@ const BlogTab = () => {
       const aiContent = String(articlePayload.content_html || "").trim();
       const aiFocusKeyword = String(articlePayload.focus_keyword || "").trim();
       const aiTagsSuggested = Array.isArray(articlePayload.tags_suggested) ? articlePayload.tags_suggested : [];
+      const aiSchemaJsonRaw = articlePayload?.schema_json;
+      const aiSchemaJson =
+        aiSchemaJsonRaw && typeof aiSchemaJsonRaw === "object"
+          ? JSON.stringify(aiSchemaJsonRaw, null, 2)
+          : String(aiSchemaJsonRaw || "").trim();
 
       const suggestedTagIds = sortedTags
         .filter((tag) =>
@@ -1445,6 +1456,7 @@ const BlogTab = () => {
         reading_time_minutes:
           Number(articlePayload.reading_time_minutes || 0) || Math.max(1, estimateReadingTime(aiContent || prev.content_html)),
         tag_ids: suggestedTagIds.length > 0 ? suggestedTagIds : prev.tag_ids,
+        schema_json: aiSchemaJson || prev.schema_json,
       }));
 
       setActiveTab("articles");

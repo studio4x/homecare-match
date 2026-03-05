@@ -8,15 +8,22 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const BASE_URL = "https://www.homecarematch.com.br";
+
 const ALLOWED_FIELDS = new Set([
   "title",
   "slug",
   "excerpt",
+  "content_html",
   "focus_keyword",
   "seo_title",
   "seo_description",
+  "seo_canonical_url",
+  "seo_robots",
   "seo_og_title",
   "seo_og_description",
+  "seo_og_image_url",
+  "schema_json",
 ]);
 
 const cleanJsonText = (text: string) =>
@@ -46,28 +53,59 @@ const toSlug = (value: unknown) =>
 
 const compactText = (value: unknown, max = 180) => String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
 
-const applyFieldRules = (field: string, rawValue: unknown) => {
-  const value = String(rawValue || "").trim().replace(/\s+/g, " ");
-  switch (field) {
-    case "slug":
-      return toSlug(value);
-    case "seo_title":
-      return compactText(value, 60);
-    case "seo_description":
-      return compactText(value, 160);
-    case "seo_og_title":
-      return compactText(value, 60);
-    case "seo_og_description":
-      return compactText(value, 160);
-    case "title":
-      return compactText(value, 120);
-    case "focus_keyword":
-      return compactText(value, 90);
-    case "excerpt":
-      return compactText(value, 220);
-    default:
-      return compactText(value, 240);
+const stripHtml = (html: string) =>
+  String(html || "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const sanitizeHtml = (html: string) =>
+  String(html || "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .trim();
+
+const getSafeExternalUrl = (value: unknown) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return parsed.toString();
+  } catch {
+    return "";
   }
+};
+
+const buildDefaultCanonicalUrl = (slugLike: string) => {
+  const safeSlug = toSlug(slugLike || "");
+  return safeSlug ? `${BASE_URL}/blog/artigo/${safeSlug}` : `${BASE_URL}/blog`;
+};
+
+const buildDefaultSchemaJson = (context: Record<string, string>) => {
+  const title = compactText(context.title || "", 120);
+  const slug = toSlug(context.slug || context.title || "");
+  const description = compactText(context.seo_description || context.excerpt || "", 160);
+  const keyword = compactText(context.focus_keyword || "", 120);
+  return JSON.stringify(
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        headline: title,
+        description,
+        keywords: keyword,
+        mainEntityOfPage: {
+          "@type": "WebPage",
+          "@id": buildDefaultCanonicalUrl(slug),
+        },
+      },
+    ],
+    null,
+    2,
+  );
 };
 
 const buildPrompt = ({
@@ -83,6 +121,8 @@ const buildPrompt = ({
     title: "- Retorne um titulo claro e atrativo (max 120 caracteres).",
     slug: "- Retorne somente slug URL-friendly, sem acentos, em minusculo e com hifens (max 75 caracteres).",
     excerpt: "- Retorne um resumo curto, escaneavel e orientado a SEO (ideal 120-220 caracteres).",
+    content_html:
+      "- Retorne HTML completo com H1 unico, 3 a 6 H2, H3 quando necessario, conclusao e FAQ. Conteudo de 5000 a 8000 caracteres em texto limpo.",
     focus_keyword: "- Retorne UMA palavra-chave foco principal, objetiva e relevante (max 90 caracteres).",
     seo_title: "- Retorne um SEO title entre 50 e 60 caracteres, com palavra-chave principal.",
     seo_description: "- Retorne uma meta description entre 140 e 160 caracteres, com beneficio claro e CTA.",
@@ -104,16 +144,44 @@ Contexto do artigo:
 - palavra-chave foco: ${context.focus_keyword || "(vazio)"}
 - seo_title: ${context.seo_title || "(vazio)"}
 - seo_description: ${context.seo_description || "(vazio)"}
+- canonical: ${context.seo_canonical_url || "(vazio)"}
 - og_title: ${context.seo_og_title || "(vazio)"}
 - og_description: ${context.seo_og_description || "(vazio)"}
+- og_image: ${context.seo_og_image_url || context.cover_image_url || "(vazio)"}
 - referencia: ${context.source_reference_url || "(vazio)"}
-- conteudo (trecho): ${compactText(String(context.content_html || "").replace(/<[^>]+>/g, " "), 900) || "(vazio)"}
+- conteudo (trecho): ${compactText(stripHtml(context.content_html || ""), 1200) || "(vazio)"}
 
 Regras:
 ${rulesByField[field] || "- Retorne valor otimizado para SEO."}
 - Responda APENAS JSON valido no formato: {"value":"..."}
 - Nao inclua markdown.
 `.trim();
+};
+
+const applyFieldRules = (field: string, rawValue: unknown, context: Record<string, string>) => {
+  const value = String(rawValue || "").trim();
+  switch (field) {
+    case "slug":
+      return toSlug(value || context.title || context.focus_keyword || "");
+    case "seo_title":
+      return compactText(value, 60);
+    case "seo_description":
+      return compactText(value, 160);
+    case "seo_og_title":
+      return compactText(value, 60);
+    case "seo_og_description":
+      return compactText(value, 160);
+    case "title":
+      return compactText(value, 120);
+    case "focus_keyword":
+      return compactText(value, 90);
+    case "excerpt":
+      return compactText(value, 220);
+    case "content_html":
+      return sanitizeHtml(value);
+    default:
+      return compactText(value, 240);
+  }
 };
 
 serve(async (req) => {
@@ -166,6 +234,45 @@ serve(async (req) => {
       });
     }
 
+    if (field === "seo_canonical_url") {
+      const fallbackCanonical = buildDefaultCanonicalUrl(context.slug || context.title || "");
+      const resolved = getSafeExternalUrl(currentValue) || getSafeExternalUrl(context.seo_canonical_url) || fallbackCanonical;
+      return new Response(JSON.stringify({ field, value: resolved }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (field === "seo_robots") {
+      const allowed = new Set(["index,follow", "index,nofollow", "noindex,follow", "noindex,nofollow"]);
+      const raw = compactText(currentValue || context.seo_robots || "", 30).toLowerCase();
+      const resolved = allowed.has(raw) ? raw : "index,follow";
+      return new Response(JSON.stringify({ field, value: resolved }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (field === "seo_og_image_url") {
+      const resolved =
+        getSafeExternalUrl(currentValue) ||
+        getSafeExternalUrl(context.seo_og_image_url) ||
+        getSafeExternalUrl(context.cover_image_url) ||
+        "";
+      return new Response(JSON.stringify({ field, value: resolved }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (field === "schema_json") {
+      const resolved = buildDefaultSchemaJson(context);
+      return new Response(JSON.stringify({ field, value: resolved }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY nao configurada no servidor.");
@@ -209,7 +316,7 @@ serve(async (req) => {
     }
 
     const parsed = JSON.parse(cleanJsonText(rawText));
-    const optimizedValue = applyFieldRules(field, parsed?.value || parsed?.result || "");
+    const optimizedValue = applyFieldRules(field, parsed?.value || parsed?.result || "", context);
     if (!optimizedValue) {
       throw new Error("A IA nao retornou valor valido para o campo.");
     }

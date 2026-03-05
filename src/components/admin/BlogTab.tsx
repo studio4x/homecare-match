@@ -285,6 +285,114 @@ const parseSchemaJson = (value: string) => {
   }
 };
 
+const clampText = (value: string, max: number) => String(value || "").trim().slice(0, max).trim();
+
+const buildDefaultCanonicalUrl = (slug: string) => {
+  const safeSlug = generateSlug(String(slug || "").trim());
+  return safeSlug ? `https://www.homecarematch.com.br/blog/artigo/${safeSlug}` : "https://www.homecarematch.com.br/blog";
+};
+
+const buildFallbackArticleContent = (title: string, keyword: string, excerpt: string) => {
+  const safeTitle = String(title || "Guia de Home Care").trim();
+  const safeKeyword = String(keyword || "home care").trim();
+  const safeExcerpt =
+    String(excerpt || "").trim() ||
+    `Entenda como aplicar ${safeKeyword} com qualidade assistencial, segurança e foco no paciente.`;
+
+  const intro = `
+<p>${safeExcerpt}</p>
+<p>Este guia apresenta uma visão prática sobre ${safeKeyword}, com foco em processos assistenciais, segurança do paciente e eficiência operacional no atendimento domiciliar.</p>
+<p>Ao longo do conteúdo, você verá recomendações aplicáveis para equipes de Home Care, familiares e gestores que desejam elevar qualidade e previsibilidade dos resultados.</p>
+`;
+
+  const sec1 = `
+<h2 id="fundamentos">${safeKeyword}: fundamentos para aplicar com qualidade</h2>
+<p>Estruturar ${safeKeyword} exige protocolos claros, definição de responsabilidades e comunicação ativa entre equipe, paciente e família.</p>
+<p>Na prática, os melhores resultados surgem quando a rotina combina avaliação inicial completa, plano assistencial personalizado e revisão periódica dos indicadores clínicos.</p>
+<p>Outro ponto essencial é padronizar registros para reduzir retrabalho, facilitar auditoria e apoiar decisões baseadas em dados.</p>
+<ul>
+  <li>Plano de cuidado com objetivos mensuráveis</li>
+  <li>Rotina de reavaliação semanal ou quinzenal</li>
+  <li>Registro estruturado de evolução clínica</li>
+</ul>
+`;
+
+  const sec2 = `
+<h2 id="operacao">Como organizar a operação de ${safeKeyword}</h2>
+<p>A operação deve começar com estratificação de risco, frequência de visitas e definição de gatilhos para escalonamento clínico.</p>
+<p>Em seguida, a equipe precisa alinhar agenda, logística e canais de contato para evitar atrasos e lacunas no acompanhamento.</p>
+<p>Também é recomendado monitorar indicadores como adesão ao plano, tempo de resposta e ocorrências assistenciais para melhoria contínua.</p>
+<h3 id="indicadores">Indicadores prioritários para acompanhamento</h3>
+<p>Taxa de readmissão, eventos evitáveis, satisfação da família e conformidade de protocolos são métricas úteis para calibrar a qualidade de ${safeKeyword}.</p>
+`;
+
+  const sec3 = `
+<h2 id="seguranca">Segurança do paciente em ${safeKeyword}</h2>
+<p>A segurança deve ser tratada como rotina, não como ação pontual. Isso inclui checklist de visita, confirmação de medicação e validação de sinais de alerta.</p>
+<p>Treinamento contínuo da equipe e orientação objetiva à família reduzem riscos e melhoram adesão ao plano assistencial.</p>
+<p>Quando existe protocolo de resposta rápida para intercorrências, a assistência se torna mais previsível e efetiva.</p>
+<ul>
+  <li>Checklist padronizado em toda visita</li>
+  <li>Protocolos de comunicação e escalonamento</li>
+  <li>Revisão de eventos e plano de prevenção</li>
+</ul>
+`;
+
+  const sec4 = `
+<h2 id="conclusao">Conclusão</h2>
+<p>Aplicar ${safeKeyword} com qualidade depende de método, acompanhamento de indicadores e melhoria contínua da execução.</p>
+<p>Com processos bem definidos, comunicação clara e foco no paciente, é possível aumentar segurança assistencial e eficiência operacional em Home Care.</p>
+<p>Use este conteúdo como base para evoluir seu modelo de atendimento e fortalecer resultados clínicos e experiência da família.</p>
+`;
+
+  const faq = `
+<h2 id="faq">Perguntas Frequentes</h2>
+<h3>Qual o primeiro passo para melhorar ${safeKeyword}?</h3>
+<p>O primeiro passo é definir um plano assistencial com metas claras, responsáveis e rotina de reavaliação para cada paciente.</p>
+<h3>Quais indicadores acompanhar em ${safeKeyword}?</h3>
+<p>Os principais são adesão ao plano, eventos evitáveis, tempo de resposta e satisfação da família com o atendimento.</p>
+<h3>Como reduzir falhas operacionais no Home Care?</h3>
+<p>Padronize protocolos, garanta registros consistentes e mantenha comunicação ativa entre equipe, paciente e familiares.</p>
+`;
+
+  return `
+<h1>${safeTitle}</h1>
+${intro}
+<h2 id="sumario">Neste artigo você verá</h2>
+<ul>
+  <li><a href="#fundamentos">Fundamentos de ${safeKeyword}</a></li>
+  <li><a href="#operacao">Organização operacional</a></li>
+  <li><a href="#seguranca">Segurança do paciente</a></li>
+  <li><a href="#conclusao">Conclusão</a></li>
+  <li><a href="#faq">Perguntas frequentes</a></li>
+</ul>
+${sec1}
+${sec2}
+${sec3}
+${sec4}
+${faq}
+`.trim();
+};
+
+const buildDefaultSchemaJson = (title: string, slug: string, description: string, keyword: string) =>
+  JSON.stringify(
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        headline: String(title || "").trim(),
+        description: clampText(description || "", 160),
+        keywords: String(keyword || "").trim(),
+        mainEntityOfPage: {
+          "@type": "WebPage",
+          "@id": buildDefaultCanonicalUrl(slug),
+        },
+      },
+    ],
+    null,
+    2,
+  );
+
 type SeoAuditItem = {
   id: string;
   label: string;
@@ -521,11 +629,16 @@ type SeoAiOptimizableField =
   | "title"
   | "slug"
   | "excerpt"
+  | "content_html"
   | "focus_keyword"
   | "seo_title"
   | "seo_description"
+  | "seo_canonical_url"
+  | "seo_robots"
   | "seo_og_title"
-  | "seo_og_description";
+  | "seo_og_description"
+  | "seo_og_image_url"
+  | "schema_json";
 
 const BlogSeoFields = ({
   value,
@@ -558,7 +671,15 @@ const BlogSeoFields = ({
         <Input value={value.seo_title} onChange={(e) => onChange({ seo_title: e.target.value })} />
       </div>
       <div className="space-y-2">
-        <Label>Robots</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label>Robots</Label>
+          {onOptimizeField ? (
+            <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onOptimizeField("seo_robots")} disabled={optimizingField === "seo_robots"}>
+              {optimizingField === "seo_robots" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              IA SEO
+            </Button>
+          ) : null}
+        </div>
         <Input value={value.seo_robots} onChange={(e) => onChange({ seo_robots: e.target.value })} placeholder="index,follow" />
       </div>
     </div>
@@ -577,7 +698,15 @@ const BlogSeoFields = ({
     </div>
 
     <div className="space-y-2">
-      <Label>Canonical URL</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label>Canonical URL</Label>
+        {onOptimizeField ? (
+          <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onOptimizeField("seo_canonical_url")} disabled={optimizingField === "seo_canonical_url"}>
+            {optimizingField === "seo_canonical_url" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            IA SEO
+          </Button>
+        ) : null}
+      </div>
       <Input value={value.seo_canonical_url} onChange={(e) => onChange({ seo_canonical_url: e.target.value })} placeholder="https://www.homecarematch.com.br/blog/..." />
     </div>
 
@@ -595,7 +724,15 @@ const BlogSeoFields = ({
         <Input value={value.seo_og_title} onChange={(e) => onChange({ seo_og_title: e.target.value })} />
       </div>
       <div className="space-y-2">
-        <Label>Open Graph Imagem (URL)</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label>Open Graph Imagem (URL)</Label>
+          {onOptimizeField ? (
+            <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onOptimizeField("seo_og_image_url")} disabled={optimizingField === "seo_og_image_url"}>
+              {optimizingField === "seo_og_image_url" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              IA SEO
+            </Button>
+          ) : null}
+        </div>
         <Input value={value.seo_og_image_url} onChange={(e) => onChange({ seo_og_image_url: e.target.value })} placeholder="https://..." />
       </div>
     </div>
@@ -614,7 +751,15 @@ const BlogSeoFields = ({
     </div>
 
     <div className="space-y-2">
-      <Label>Schema JSON (opcional)</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label>Schema JSON (opcional)</Label>
+        {onOptimizeField ? (
+          <Button type="button" size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onOptimizeField("schema_json")} disabled={optimizingField === "schema_json"}>
+            {optimizingField === "schema_json" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+            IA SEO
+          </Button>
+        ) : null}
+      </div>
       <Textarea value={value.schema_json} onChange={(e) => onChange({ schema_json: e.target.value })} rows={5} className="font-mono text-xs" />
     </div>
   </div>
@@ -1300,6 +1445,30 @@ const BlogTab = () => {
           ? JSON.stringify(aiSchemaJsonRaw, null, 2)
           : String(aiSchemaJsonRaw || "").trim();
 
+      const resolvedTitle = aiTitle || clampText(effectiveSuggestion || articleForm.title || "Guia de Home Care", 120);
+      const resolvedKeyword = aiFocusKeyword || articleForm.focus_keyword || resolvedTitle.split(":")[0].trim();
+      const resolvedSlug = aiSlug || generateSlug(`${resolvedKeyword} ${resolvedTitle}`);
+      const resolvedExcerpt =
+        aiExcerpt ||
+        articleForm.excerpt ||
+        clampText(`Aprenda como aplicar ${resolvedKeyword} com foco em qualidade assistencial, segurança e eficiência no Home Care.`, 180);
+      const resolvedContent = aiContent || buildFallbackArticleContent(resolvedTitle, resolvedKeyword, resolvedExcerpt);
+      const resolvedCanonical =
+        String(payload.seo_canonical_url || "").trim() ||
+        articleForm.seo_canonical_url ||
+        buildDefaultCanonicalUrl(resolvedSlug);
+      const resolvedSeoRobots = String(payload.seo_robots || "").trim() || articleForm.seo_robots || "index,follow";
+      const resolvedSeoTitle = String(payload.seo_title || "").trim() || clampText(resolvedTitle, 60);
+      const resolvedSeoDescription =
+        String(payload.seo_description || "").trim() ||
+        clampText(resolvedExcerpt || stripAuditHtml(resolvedContent), 160);
+      const resolvedOgTitle = String(payload.seo_og_title || "").trim() || resolvedSeoTitle;
+      const resolvedOgDescription = String(payload.seo_og_description || "").trim() || resolvedSeoDescription;
+      const resolvedOgImage =
+        String(payload.seo_og_image_url || "").trim() || articleForm.seo_og_image_url || articleForm.cover_image_url;
+      const resolvedSchema =
+        aiSchemaJson || articleForm.schema_json || buildDefaultSchemaJson(resolvedTitle, resolvedSlug, resolvedSeoDescription, resolvedKeyword);
+
       const suggestedTagIds = sortedTags
         .filter((tag) =>
           aiTagsSuggested.some(
@@ -1312,22 +1481,28 @@ const BlogTab = () => {
 
       setArticleForm((prev) => ({
         ...prev,
-        title: aiTitle || prev.title,
-        slug: aiSlug || prev.slug,
-        excerpt: aiExcerpt || prev.excerpt,
-        content_html: aiContent || prev.content_html,
-        focus_keyword: aiFocusKeyword || prev.focus_keyword,
-        seo_title: String(payload.seo_title || aiTitle || prev.seo_title),
-        seo_description: String(payload.seo_description || aiExcerpt || prev.seo_description),
-        seo_og_title: String(payload.seo_og_title || aiTitle || prev.seo_og_title),
-        seo_og_description: String(payload.seo_og_description || aiExcerpt || prev.seo_og_description),
+        title: resolvedTitle || prev.title,
+        slug: resolvedSlug || prev.slug,
+        excerpt: resolvedExcerpt || prev.excerpt,
+        content_html: resolvedContent || prev.content_html,
+        focus_keyword: resolvedKeyword || prev.focus_keyword,
+        seo_title: resolvedSeoTitle || prev.seo_title,
+        seo_description: resolvedSeoDescription || prev.seo_description,
+        seo_canonical_url: resolvedCanonical || prev.seo_canonical_url,
+        seo_robots: resolvedSeoRobots || prev.seo_robots,
+        seo_og_title: resolvedOgTitle || prev.seo_og_title,
+        seo_og_description: resolvedOgDescription || prev.seo_og_description,
+        seo_og_image_url: resolvedOgImage || prev.seo_og_image_url,
         reading_time_minutes:
-          Number(payload.reading_time_minutes || 0) || Math.max(1, estimateReadingTime(aiContent || prev.content_html)),
+          Number(payload.reading_time_minutes || 0) || Math.max(1, estimateReadingTime(resolvedContent || prev.content_html)),
         tag_ids: suggestedTagIds.length > 0 ? suggestedTagIds : prev.tag_ids,
-        schema_json: aiSchemaJson || prev.schema_json,
+        schema_json: resolvedSchema || prev.schema_json,
       }));
 
       setShowSeoAudit(true);
+      if (!aiContent) {
+        toast.warning("A IA não retornou o conteúdo completo na primeira resposta. Preenchemos um conteúdo-base otimizado para você revisar.");
+      }
       if (aiSeoPassed) {
         toast.success("Artigo gerado com IA dentro da faixa SEO de conteudo.");
       } else {
@@ -1387,10 +1562,14 @@ const BlogTab = () => {
             excerpt: articleForm.excerpt,
             focus_keyword: articleForm.focus_keyword,
             content_html: articleForm.content_html,
+            cover_image_url: articleForm.cover_image_url,
             seo_title: articleForm.seo_title,
             seo_description: articleForm.seo_description,
+            seo_canonical_url: articleForm.seo_canonical_url,
+            seo_robots: articleForm.seo_robots,
             seo_og_title: articleForm.seo_og_title,
             seo_og_description: articleForm.seo_og_description,
+            seo_og_image_url: articleForm.seo_og_image_url,
             source_reference_url: articleForm.source_reference_url,
           },
         }),
@@ -1760,6 +1939,25 @@ const BlogTab = () => {
           ? JSON.stringify(aiSchemaJsonRaw, null, 2)
           : String(aiSchemaJsonRaw || "").trim();
 
+      const resolvedTitle = aiTitle || clampText(result.title || articleForm.title || "Guia de Home Care", 120);
+      const resolvedKeyword = aiFocusKeyword || articleForm.focus_keyword || resolvedTitle.split(":")[0].trim();
+      const resolvedSlug = aiSlug || generateSlug(`${resolvedKeyword} ${resolvedTitle}`);
+      const resolvedExcerpt =
+        aiExcerpt ||
+        clampText(result.summary || articleForm.excerpt || `Saiba como aplicar ${resolvedKeyword} com foco em segurança e qualidade no Home Care.`, 180);
+      const resolvedContent = aiContent || buildFallbackArticleContent(resolvedTitle, resolvedKeyword, resolvedExcerpt);
+      const resolvedCanonical =
+        String(articlePayload.seo_canonical_url || "").trim() ||
+        articleForm.seo_canonical_url ||
+        buildDefaultCanonicalUrl(resolvedSlug);
+      const resolvedSeoRobots = String(articlePayload.seo_robots || "").trim() || articleForm.seo_robots || "index,follow";
+      const resolvedSeoTitle = String(articlePayload.seo_title || "").trim() || clampText(resolvedTitle, 60);
+      const resolvedSeoDescription =
+        String(articlePayload.seo_description || "").trim() ||
+        clampText(resolvedExcerpt || stripAuditHtml(resolvedContent), 160);
+      const resolvedOgTitle = String(articlePayload.seo_og_title || "").trim() || resolvedSeoTitle;
+      const resolvedOgDescription = String(articlePayload.seo_og_description || "").trim() || resolvedSeoDescription;
+
       const suggestedTagIds = sortedTags
         .filter((tag) =>
           aiTagsSuggested.some(
@@ -1788,25 +1986,34 @@ const BlogTab = () => {
 
       setArticleForm((prev) => ({
         ...prev,
-        title: aiTitle || prev.title,
-        slug: aiSlug || prev.slug,
-        excerpt: aiExcerpt || prev.excerpt,
+        title: resolvedTitle || prev.title,
+        slug: resolvedSlug || prev.slug,
+        excerpt: resolvedExcerpt || prev.excerpt,
         source_reference_url: result.url || prev.source_reference_url,
         cover_image_url: coverImageUrl || prev.cover_image_url,
-        content_html: aiContent || prev.content_html,
-        focus_keyword: aiFocusKeyword || prev.focus_keyword,
-        seo_title: String(articlePayload.seo_title || aiTitle || prev.seo_title),
-        seo_description: String(articlePayload.seo_description || aiExcerpt || prev.seo_description),
-        seo_og_title: String(articlePayload.seo_og_title || aiTitle || prev.seo_og_title),
-        seo_og_description: String(articlePayload.seo_og_description || aiExcerpt || prev.seo_og_description),
+        content_html: resolvedContent || prev.content_html,
+        focus_keyword: resolvedKeyword || prev.focus_keyword,
+        seo_title: resolvedSeoTitle || prev.seo_title,
+        seo_description: resolvedSeoDescription || prev.seo_description,
+        seo_canonical_url: resolvedCanonical || prev.seo_canonical_url,
+        seo_robots: resolvedSeoRobots || prev.seo_robots,
+        seo_og_title: resolvedOgTitle || prev.seo_og_title,
+        seo_og_description: resolvedOgDescription || prev.seo_og_description,
+        seo_og_image_url: String(articlePayload.seo_og_image_url || "").trim() || prev.seo_og_image_url || coverImageUrl || prev.cover_image_url,
         reading_time_minutes:
-          Number(articlePayload.reading_time_minutes || 0) || Math.max(1, estimateReadingTime(aiContent || prev.content_html)),
+          Number(articlePayload.reading_time_minutes || 0) || Math.max(1, estimateReadingTime(resolvedContent || prev.content_html)),
         tag_ids: suggestedTagIds.length > 0 ? suggestedTagIds : prev.tag_ids,
-        schema_json: aiSchemaJson || prev.schema_json,
+        schema_json:
+          aiSchemaJson ||
+          prev.schema_json ||
+          buildDefaultSchemaJson(resolvedTitle, resolvedSlug, resolvedSeoDescription, resolvedKeyword),
       }));
 
       setActiveTab("articles");
       setShowSeoAudit(true);
+      if (!aiContent) {
+        toast.warning("A IA não retornou o conteúdo completo na primeira resposta. Preenchemos um conteúdo-base otimizado para você revisar.");
+      }
       if (aiSeoPassed) toast.success("Artigo gerado com tema pesquisado e preenchido no editor.");
       else toast.warning("Artigo gerado com pendencias SEO. Revise com o checklist antes de publicar.");
     } catch (err: any) {
@@ -2194,7 +2401,24 @@ const BlogTab = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Conteúdo do artigo</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>Conteúdo do artigo</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1 text-xs"
+                      onClick={() => handleOptimizeSeoField("content_html")}
+                      disabled={optimizingSeoField === "content_html"}
+                    >
+                      {optimizingSeoField === "content_html" ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3" />
+                      )}
+                      IA SEO
+                    </Button>
+                  </div>
                   <RichTextEditor
                     content={articleForm.content_html}
                     enableHtmlModeToggle

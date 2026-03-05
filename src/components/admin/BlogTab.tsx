@@ -260,6 +260,18 @@ const emptyArticleForm: BlogArticleForm = {
   ...emptySeoForm,
 };
 
+const getSafeExternalUrl = (value: string) => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+};
+
 const parseSchemaJson = (value: string) => {
   const clean = value?.trim() || "{}";
   try {
@@ -366,6 +378,7 @@ const BlogTab = () => {
   const [savingArticle, setSavingArticle] = useState(false);
   const [generatingAI, setGeneratingAI] = useState<"suggestion" | "automatic" | null>(null);
   const [generatingTagsAI, setGeneratingTagsAI] = useState(false);
+  const [creatingTagsAI, setCreatingTagsAI] = useState(false);
   const [generatingCoverImage, setGeneratingCoverImage] = useState(false);
   const [coverPreviewOpen, setCoverPreviewOpen] = useState(false);
   const [coverCandidate, setCoverCandidate] = useState<CoverCandidate | null>(null);
@@ -483,6 +496,14 @@ const BlogTab = () => {
   const selectedResearchTheme = useMemo(
     () => researchThemes.find((theme) => theme.id === researchTheme) || researchThemes[0] || null,
     [researchTheme, researchThemes],
+  );
+  const sourceReferenceExternalUrl = useMemo(
+    () => getSafeExternalUrl(articleForm.source_reference_url),
+    [articleForm.source_reference_url],
+  );
+  const coverImagePreviewUrl = useMemo(
+    () => getSafeExternalUrl(articleForm.cover_image_url),
+    [articleForm.cover_image_url],
   );
 
   const fetchAll = async () => {
@@ -1060,8 +1081,8 @@ const BlogTab = () => {
     }
   };
 
-  const handlePopulateTagsWithAI = async () => {
-    if (sortedTags.length === 0) {
+  const runTagAI = async (createMissingTags: boolean) => {
+    if (!createMissingTags && sortedTags.length === 0) {
       toast.error("Cadastre tags antes de usar a IA para preencher este campo.");
       return;
     }
@@ -1074,7 +1095,9 @@ const BlogTab = () => {
       return;
     }
 
-    setGeneratingTagsAI(true);
+    if (createMissingTags) setCreatingTagsAI(true);
+    else setGeneratingTagsAI(true);
+
     try {
       const {
         data: { session: currentSession },
@@ -1098,11 +1121,7 @@ const BlogTab = () => {
           excerpt: articleForm.excerpt,
           focus_keyword: articleForm.focus_keyword,
           content_html: articleForm.content_html,
-          available_tags: sortedTags.map((tag) => ({
-            id: String(tag.id),
-            name: String(tag.name || ""),
-            slug: String(tag.slug || ""),
-          })),
+          create_missing_tags: createMissingTags,
         }),
       });
 
@@ -1114,13 +1133,32 @@ const BlogTab = () => {
       const suggestedIds = Array.isArray(payload?.selected_tag_ids)
         ? payload.selected_tag_ids.map((id: unknown) => String(id || "").trim()).filter(Boolean)
         : [];
+      const createdCount = Number(payload?.created_count || 0);
 
       if (suggestedIds.length === 0) {
         throw new Error("A IA nao encontrou tags compativeis para este artigo.");
       }
 
-      setArticleForm((prev) => ({ ...prev, tag_ids: Array.from(new Set(suggestedIds)) }));
-      toast.success(`${suggestedIds.length} tag(s) preenchida(s) com IA.`);
+      setArticleForm((prev) => ({
+        ...prev,
+        tag_ids: createMissingTags
+          ? Array.from(new Set([...prev.tag_ids, ...suggestedIds]))
+          : Array.from(new Set(suggestedIds)),
+      }));
+
+      if (createMissingTags && createdCount > 0) {
+        await fetchAll();
+      }
+
+      if (createMissingTags) {
+        toast.success(
+          createdCount > 0
+            ? `${createdCount} nova(s) tag(s) criada(s) e ${suggestedIds.length} tag(s) selecionada(s).`
+            : `${suggestedIds.length} tag(s) selecionada(s). Nenhuma nova tag precisou ser criada.`,
+        );
+      } else {
+        toast.success(`${suggestedIds.length} tag(s) preenchida(s) com IA.`);
+      }
     } catch (err: any) {
       const message = String(err?.message || "");
       if (/not found|nao encontrada|requested function was not found|404/i.test(message)) {
@@ -1130,11 +1168,20 @@ const BlogTab = () => {
       } else if (/403|somente administradores|acesso negado/i.test(message)) {
         toast.error("Apenas administradores podem usar IA para tags.");
       } else {
-        toast.error(message || "Erro ao preencher tags com IA.");
+        toast.error(message || "Erro ao processar tags com IA.");
       }
     } finally {
-      setGeneratingTagsAI(false);
+      if (createMissingTags) setCreatingTagsAI(false);
+      else setGeneratingTagsAI(false);
     }
+  };
+
+  const handlePopulateTagsWithAI = async () => {
+    await runTagAI(false);
+  };
+
+  const handleSuggestAndCreateTagsWithAI = async () => {
+    await runTagAI(true);
   };
 
   const fetchCoverCandidateFromAI = async ({
@@ -1656,11 +1703,23 @@ const BlogTab = () => {
 
                 <div className="space-y-2">
                   <Label>URL de referencia do artigo</Label>
-                  <Input
-                    value={articleForm.source_reference_url}
-                    onChange={(e) => setArticleForm((prev) => ({ ...prev, source_reference_url: e.target.value }))}
-                    placeholder="https://..."
-                  />
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      value={articleForm.source_reference_url}
+                      onChange={(e) => setArticleForm((prev) => ({ ...prev, source_reference_url: e.target.value }))}
+                      placeholder="https://..."
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2 sm:shrink-0"
+                      onClick={() => window.open(sourceReferenceExternalUrl, "_blank", "noopener,noreferrer")}
+                      disabled={!sourceReferenceExternalUrl}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Abrir referencia
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -1689,6 +1748,28 @@ const BlogTab = () => {
                   <p className="text-xs text-muted-foreground">
                     Usa titulo, resumo, palavra-chave e sugestao para buscar a melhor imagem automaticamente.
                   </p>
+                  {coverImagePreviewUrl ? (
+                    <div className="overflow-hidden rounded-lg border border-border/70 bg-background">
+                      <img
+                        src={coverImagePreviewUrl}
+                        alt={articleForm.title || "Previa da imagem de capa"}
+                        className="h-56 w-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="flex items-center justify-end border-t border-border/60 p-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => window.open(coverImagePreviewUrl, "_blank", "noopener,noreferrer")}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Abrir imagem
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="space-y-2">
@@ -1815,17 +1896,30 @@ const BlogTab = () => {
                 <div className="space-y-2 rounded-xl border border-border/70 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <Label className="text-sm font-semibold">Tags do artigo</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      onClick={handlePopulateTagsWithAI}
-                      disabled={generatingTagsAI || sortedTags.length === 0}
-                    >
-                      {generatingTagsAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
-                      Preencher tags com IA
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={handlePopulateTagsWithAI}
+                        disabled={generatingTagsAI || creatingTagsAI || sortedTags.length === 0}
+                      >
+                        {generatingTagsAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+                        Preencher tags com IA
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                        onClick={handleSuggestAndCreateTagsWithAI}
+                        disabled={generatingTagsAI || creatingTagsAI}
+                      >
+                        {creatingTagsAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        Sugerir e criar novas tags
+                      </Button>
+                    </div>
                   </div>
                   <div className="grid gap-2 md:grid-cols-3">
                     {sortedTags.map((tag) => (

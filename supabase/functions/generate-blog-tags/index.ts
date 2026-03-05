@@ -13,6 +13,12 @@ type AvailableTag = {
   slug: string;
 };
 
+type TagRow = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
 const cleanJsonText = (text: string) =>
   String(text || "")
     .trim()
@@ -31,7 +37,20 @@ const normalizeText = (value: unknown) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const toSlug = (value: unknown) => normalizeText(value).replace(/\s+/g, "-").replace(/-+/g, "-");
+const toSlug = (value: unknown) =>
+  normalizeText(value)
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const toTitleCase = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 
 const sanitizeTags = (rawTags: unknown): AvailableTag[] => {
   const source = Array.isArray(rawTags) ? rawTags : [];
@@ -51,7 +70,7 @@ const sanitizeTags = (rawTags: unknown): AvailableTag[] => {
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(tag);
-    if (deduped.length >= 120) break;
+    if (deduped.length >= 300) break;
   }
   return deduped;
 };
@@ -122,22 +141,30 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
+    const shouldCreateMissing = !!body?.create_missing_tags;
+
     const title = String(body?.title || "").trim();
     const excerpt = String(body?.excerpt || "").trim();
     const focusKeyword = String(body?.focus_keyword || "").trim();
     const contentHtml = String(body?.content_html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    const availableTags = sanitizeTags(body?.available_tags);
 
-    if (availableTags.length === 0) {
-      return new Response(JSON.stringify({ error: "Nenhuma tag disponivel para selecao." }), {
+    const context = [title, excerpt, focusKeyword, contentHtml.slice(0, 5000)].filter(Boolean).join("\n");
+    if (!context) {
+      return new Response(JSON.stringify({ error: "Contexto insuficiente para sugerir tags." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const context = [title, excerpt, focusKeyword, contentHtml.slice(0, 5000)].filter(Boolean).join("\n");
-    if (!context) {
-      return new Response(JSON.stringify({ error: "Contexto insuficiente para sugerir tags." }), {
+    const { data: dbTags, error: tagsError } = await supabaseAdmin
+      .from("blog_tags")
+      .select("id, name, slug")
+      .order("name", { ascending: true });
+    if (tagsError) throw tagsError;
+
+    const availableTags = sanitizeTags(dbTags || []);
+    if (!shouldCreateMissing && availableTags.length === 0) {
+      return new Response(JSON.stringify({ error: "Nenhuma tag disponivel para selecao." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -163,24 +190,29 @@ serve(async (req) => {
 
     const prompt = `
 Voce e um editor SEO para blog de Home Care.
-Com base no contexto do artigo e na lista de tags disponiveis, selecione as tags mais relevantes.
+Com base no contexto do artigo e na lista de tags existentes, selecione as tags mais relevantes.
+${shouldCreateMissing
+  ? "Se faltar cobertura semantica, voce pode sugerir novas tags (maximo 5)."
+  : "Nao crie novas tags. Use apenas tags existentes."}
 
 Contexto do artigo:
 ${context}
 
-Tags disponiveis (escolha apenas daqui):
+Tags existentes:
 ${JSON.stringify(compactTags)}
 
 Retorne APENAS JSON valido:
 {
   "selected_tag_ids": ["id1", "id2"],
-  "selected_tag_slugs": ["slug-1", "slug-2"]
+  "selected_tag_slugs": ["slug-1", "slug-2"],
+  "new_tags": ["nome da nova tag"]
 }
 
 Regras:
-- escolha entre 3 e 8 tags
-- use apenas ids/slugs presentes na lista disponivel
-- priorize aderencia semantica ao tema do artigo
+- selecione entre 3 e 8 tags existentes quando possivel
+- use apenas ids/slugs presentes na lista para campos selected_*
+- em new_tags, sugira no maximo 5 tags novas e objetivas
+- nao repita tags existentes ou equivalentes obvias
 `.trim();
 
     const geminiResponse = await fetch(
@@ -198,6 +230,8 @@ Regras:
     );
 
     let selectedTagIds: string[] = [];
+    let suggestedNewTagNames: string[] = [];
+
     if (geminiResponse.ok) {
       const geminiData = await geminiResponse.json().catch(() => ({}));
       const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -207,6 +241,7 @@ Regras:
         const slugToId = new Map<string, string>(
           availableTags.map((tag) => [toSlug(tag.slug || tag.name), String(tag.id)]),
         );
+        const existingSlugSet = new Set(availableTags.map((tag) => toSlug(tag.slug || tag.name)));
 
         const idsFromAI = (Array.isArray(parsed?.selected_tag_ids) ? parsed.selected_tag_ids : [])
           .map((id: unknown) => String(id || "").trim())
@@ -217,24 +252,80 @@ Regras:
           .filter(Boolean);
 
         selectedTagIds = Array.from(new Set([...idsFromAI, ...idsFromSlugs])).slice(0, 8);
+
+        const rawNewTags = Array.isArray(parsed?.new_tags)
+          ? parsed.new_tags
+          : Array.isArray(parsed?.suggested_new_tags)
+            ? parsed.suggested_new_tags
+            : [];
+
+        suggestedNewTagNames = rawNewTags
+          .map((name: unknown) => toTitleCase(name))
+          .filter(Boolean)
+          .map((name: string) => name.slice(0, 60))
+          .filter((name: string) => {
+            const slug = toSlug(name);
+            return !!slug && !existingSlugSet.has(slug);
+          })
+          .filter((name: string, index: number, array: string[]) => array.indexOf(name) === index)
+          .slice(0, 5);
       }
     }
 
-    if (selectedTagIds.length === 0) {
+    if (selectedTagIds.length === 0 && availableTags.length > 0) {
       selectedTagIds = pickTagsByHeuristic(context, availableTags);
     }
 
-    if (selectedTagIds.length === 0) {
-      selectedTagIds = availableTags.slice(0, Math.min(3, availableTags.length)).map((tag) => tag.id);
+    const createdTags: TagRow[] = [];
+    if (shouldCreateMissing && suggestedNewTagNames.length > 0) {
+      const rows = suggestedNewTagNames
+        .map((name) => ({ name, slug: toSlug(name) }))
+        .filter((row) => !!row.slug);
+
+      if (rows.length > 0) {
+        await supabaseAdmin.from("blog_tags").upsert(rows, {
+          onConflict: "slug",
+          ignoreDuplicates: true,
+        });
+
+        const slugs = rows.map((row) => row.slug);
+        const { data: newTagsRows } = await supabaseAdmin
+          .from("blog_tags")
+          .select("id, name, slug")
+          .in("slug", slugs);
+
+        const parsedNewTags = sanitizeTags(newTagsRows || []);
+        for (const tag of parsedNewTags) {
+          createdTags.push(tag);
+          selectedTagIds.push(tag.id);
+        }
+      }
     }
 
-    const selectedTags = availableTags.filter((tag) => selectedTagIds.includes(tag.id));
+    selectedTagIds = Array.from(new Set(selectedTagIds)).slice(0, 10);
+
+    if (selectedTagIds.length === 0) {
+      const fallbackPool = [...availableTags, ...createdTags];
+      selectedTagIds = fallbackPool.slice(0, Math.min(3, fallbackPool.length)).map((tag) => tag.id);
+    }
+
+    const allTagsById = new Map<string, AvailableTag>();
+    for (const tag of availableTags) allTagsById.set(tag.id, tag);
+    for (const tag of createdTags) allTagsById.set(tag.id, tag);
+
+    const selectedTags = selectedTagIds.map((id) => allTagsById.get(id)).filter(Boolean);
 
     return new Response(
       JSON.stringify({
         count: selectedTags.length,
         selected_tag_ids: selectedTags.map((tag) => tag.id),
         selected_tag_slugs: selectedTags.map((tag) => toSlug(tag.slug || tag.name)),
+        created_count: createdTags.length,
+        created_tags: createdTags.map((tag) => ({
+          id: tag.id,
+          name: tag.name,
+          slug: toSlug(tag.slug || tag.name),
+        })),
       }),
       {
         status: 200,

@@ -10,8 +10,6 @@ import {
   Star,
   Users,
   Award,
-  Clock,
-  CheckCircle,
   ArrowRight,
   HelpCircle,
   Loader2,
@@ -19,7 +17,7 @@ import {
   GraduationCap,
   Zap,
   ShieldCheck,
-  LayoutDashboard
+  LayoutDashboard,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
@@ -35,7 +33,6 @@ import {
 import { useState, useEffect } from "react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
-import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 import { createCheckoutSession } from "@/lib/checkout";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 
@@ -43,39 +40,38 @@ const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
   const { data: config } = useSiteConfig();
   const navigate = useNavigate();
-  const location = useLocation(); // Importando useLocation
+  const location = useLocation();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<"monthly" | "yearly" | null>(null);
 
-  // Busca o perfil do usuário para saber o plano atual e o papel
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["user-profile-tier", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data } = await supabase.from('profiles').select('subscription_tier, role, is_admin').eq('id', user.id).single();
+      const { data } = await supabase
+        .from("profiles")
+        .select("subscription_tier, role, is_admin")
+        .eq("id", user.id)
+        .single();
       return data;
     },
-    enabled: !!user
+    enabled: !!user,
   });
 
-  // Redirecionamento automático para usuários já logados
   useEffect(() => {
-    const isSupabaseAuthRedirect = location.hash.includes('_supabase=true');
+    const isSupabaseAuthRedirect = location.hash.includes("_supabase=true");
 
-    // Só redireciona se não estiver carregando auth nem perfil, e se houver uma sessão ativa
-    // E se a navegação for proveniente de um fluxo de autenticação do Supabase (ex: magic link, confirmação de e-mail)
     if (!authLoading && session && !isLoadingProfile && profile && isSupabaseAuthRedirect) {
       console.log("[Index] Usuário logado detectado via redirect de auth, redirecionando para o painel...");
-      if (profile.is_admin || profile.role === 'admin') {
-        navigate('/admin', { replace: true });
+      if (profile.is_admin || profile.role === "admin") {
+        navigate("/admin", { replace: true });
       } else {
-        navigate('/dashboard', { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     } else if (!authLoading && session && !isLoadingProfile && profile && !isSupabaseAuthRedirect) {
-      // Usuário logado, mas não vindo de um redirect de auth. Permite que ele fique na página.
       console.log("[Index] Usuário logado acessou a página diretamente, permitindo visualização.");
     }
-  }, [session, authLoading, profile, isLoadingProfile, navigate, location.hash]); // Adicionando location.hash às dependências
+  }, [session, authLoading, profile, isLoadingProfile, navigate, location.hash]);
 
   const userTier = profile?.subscription_tier || null;
 
@@ -100,9 +96,12 @@ const Index = () => {
       } else {
         throw new Error("URL de checkout não retornada pelo servidor.");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.dismiss(toastId);
-      const cleanMessage = err.message?.replace("Edge Function returned a non-2xx status code", "").trim();
+      const cleanMessage =
+        err instanceof Error
+          ? err.message?.replace("Edge Function returned a non-2xx status code", "").trim()
+          : "";
       toast.error(`Erro: ${cleanMessage || "Falha ao iniciar pagamento."}`);
     } finally {
       setLoadingPlan(null);
@@ -132,51 +131,56 @@ const Index = () => {
   const features = [
     {
       icon: Search,
-      title: "Visibilidade Total",
-      description:
-        "Seu perfil disponível para as maiores empresas de Home Care do país.",
+      title: "Mais visibilidade profissional",
+      description: "Oportunidades de atendimento na sua região.",
     },
     {
       icon: Shield,
-      title: "Perfil Verificado",
-      description:
-        "Validação profissional para garantir confiança entre você e o recrutador.",
+      title: "Contato direto com empresas e famílias",
+      description: "Perfil profissional organizado em um só lugar.",
     },
     {
       icon: Star,
-      title: "Destaque na Busca",
-      description:
-        "Assinantes Anuais aparecem no topo dos resultados, aumentando as chances de contratação.",
+      title: "Mais praticidade para encontrar atendimentos",
+      description: "Plataforma dedicada a profissionais de Home Care.",
     },
     {
       icon: Users,
-      title: "Contato Direto",
-      description:
-        "Receba propostas diretamente no seu WhatsApp sem intermediários.",
+      title: "Credibilidade para seu trabalho",
+      description: "Visibilidade para empresas e famílias.",
+    },
+    {
+      icon: Search,
+      title: "Oportunidades por região e especialidade",
+      description: "Aumente suas chances de receber novos atendimentos.",
+    },
+    {
+      icon: Shield,
+      title: "Perfil profissional completo",
+      description: "Seja encontrado por quem precisa de você.",
     },
   ];
 
   const faqs = [
     {
-      question: "Como funciona o período de teste gratuito?",
-      answer: "Ao se cadastrar como profissional, você recebe automaticamente 30 dias de acesso gratuito ao plano básico para experimentar a plataforma e começar a ser encontrado."
+      question: "Quem pode se cadastrar na plataforma?",
+      answer:
+        "Profissionais da área da saúde que realizam atendimentos domiciliares, como enfermeiros, técnicos de enfermagem, cuidadores, fisioterapeutas, fonoaudiólogos e outros profissionais.",
     },
     {
-      question: "Como as empresas entram em contato comigo?",
-      answer: "As empresas visualizam seu perfil e, caso tenham interesse, clicam no botão de contato. Você receberá uma notificação e elas poderão iniciar uma conversa diretamente pelo seu WhatsApp cadastrado."
+      question: "Como recebo oportunidades de atendimento?",
+      answer:
+        "Empresas de home care e famílias podem encontrar seu perfil na plataforma e entrar em contato diretamente com você.",
     },
     {
-      question: "O que é o selo de perfil verificado?",
-      answer: "É uma garantia de que seus documentos (como RG e registro profissional) foram analisados por nossa equipe. Perfis verificados transmitem mais segurança e têm prioridade na escolha dos recrutadores."
+      question: "Posso cancelar quando quiser?",
+      answer: "Sim. Você pode cancelar sua assinatura a qualquer momento.",
     },
     {
-      question: "Posso cancelar minha assinatura a qualquer momento?",
-      answer: "Sim, você tem total liberdade para gerenciar sua assinatura pelo painel. Não há fidelidade ou multas por cancelamento."
+      question: "A plataforma funciona em todo o Brasil?",
+      answer:
+        "A Home Care Match conecta profissionais e oportunidades em diversas regiões do país.",
     },
-    {
-      question: "Como apareço no topo das buscas?",
-      answer: "Assinantes do Plano Anual recebem o selo de Destaque Premium e são posicionados no topo dos resultados de busca, aumentando significativamente a visibilidade."
-    }
   ];
 
   interface DbPlan {
@@ -194,27 +198,26 @@ const Index = () => {
   const { data: remotePlans } = useQuery({
     queryKey: ["plans"],
     queryFn: async (): Promise<DbPlan[]> => {
-      const { data, error } = await supabase
-        .from("plans")
-        .select("*")
-        .order("price", { ascending: true });
+      const { data, error } = await supabase.from("plans").select("*").order("price", { ascending: true });
       if (error) throw error;
-      return (data || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        period: p.period,
-        description: p.description ?? "",
-        features: Array.isArray(p.features) ? p.features : [],
-        popular: !!p.popular,
-        savings: p.savings ?? undefined,
-        asaas_installment_max: p.asaas_installment_max ?? undefined,
+      return (data || []).map((p: Record<string, unknown>) => ({
+        id: String(p.id ?? ""),
+        name: String(p.name ?? ""),
+        price: String(p.price ?? ""),
+        period: String(p.period ?? ""),
+        description: typeof p.description === "string" ? p.description : "",
+        features: Array.isArray(p.features)
+          ? p.features.filter((feature): feature is string => typeof feature === "string")
+          : [],
+        popular: Boolean(p.popular),
+        savings: typeof p.savings === "string" ? p.savings : undefined,
+        asaas_installment_max:
+          typeof p.asaas_installment_max === "number" ? p.asaas_installment_max : undefined,
       }));
     },
     staleTime: 1000 * 60 * 5,
   });
 
-  // Fallback para o plano gratuito se não estiver no banco
   const defaultFreePlan: DbPlan = {
     id: "free_trial",
     name: "Plano Gratuito",
@@ -222,10 +225,10 @@ const Index = () => {
     period: "mês",
     description: "Aplicado automaticamente no cadastro. Válido por 30 dias.",
     features: [
-      "Perfil básico",
+      "Perfil profissional completo",
       "Visibilidade limitada",
       "Suporte por email",
-      "Ao término de 30 dias, selecione um plano pago."
+      "Ao término de 30 dias, selecione um plano pago.",
     ],
     popular: false,
   };
@@ -236,12 +239,12 @@ const Index = () => {
       name: "Plano Mensal",
       price: "R$ 49,90",
       period: "mês",
-      description: "Acesso total à plataforma",
+      description: "Plano ideal para manter seu perfil ativo",
       features: [
         "Perfil profissional completo",
-        "Visibilidade para todas as empresas",
-        "Link direto para seu WhatsApp",
-        "Suporte por email",
+        "Visibilidade para empresas e famílias",
+        "Mais oportunidades de atendimento",
+        "Plataforma dedicada a profissionais de Home Care",
       ],
       popular: false,
     },
@@ -250,14 +253,12 @@ const Index = () => {
       name: "Plano Anual",
       price: "R$ 39,90",
       period: "mês",
-      description: "O melhor custo-benefício",
+      description: "Plano ideal para quem busca mais economia",
       features: [
-        "Tudo do plano Mensal",
-        "Destaque no topo das buscas",
-        "Selo dourado de verificação",
-        "Acesso gratuito aos cursos da Academy",
-        "Suporte prioritário",
-        "Economia de R$ 120/ano",
+        "Perfil profissional completo",
+        "Visibilidade para empresas e famílias",
+        "Mais oportunidades de atendimento",
+        "Plataforma dedicada a profissionais de Home Care",
       ],
       popular: true,
       savings: "Economize R$ 120/ano",
@@ -265,45 +266,41 @@ const Index = () => {
     },
   ];
 
-  // Lógica para montar a lista final de planos e automatizar a economia
   const allPlans = (() => {
     let basePlans: DbPlan[] = [];
     if (!remotePlans || remotePlans.length === 0) {
       basePlans = [defaultFreePlan, ...defaultPlans];
     } else {
-      const hasRemoteFree = remotePlans.some(p => p.id === 'free_trial');
+      const hasRemoteFree = remotePlans.some((p) => p.id === "free_trial");
       const base = hasRemoteFree ? [] : [defaultFreePlan];
       const sortedRemote = [...remotePlans].sort((a, b) => {
-        if (a.id === 'free_trial') return -1;
-        if (b.id === 'free_trial') return 1;
+        if (a.id === "free_trial") return -1;
+        if (b.id === "free_trial") return 1;
         return 0;
       });
       basePlans = [...base, ...sortedRemote];
     }
 
-    // Automação do cálculo de economia
     const parsePrice = (priceStr: string) => {
-      const numeric = priceStr.replace(/[^\d,]/g, '').replace(',', '.');
+      const numeric = priceStr.replace(/[^\d,]/g, "").replace(",", ".");
       return parseFloat(numeric) || 0;
     };
 
-    const monthly = basePlans.find(p => p.id === 'monthly');
-    const yearly = basePlans.find(p => p.id === 'yearly');
+    const monthly = basePlans.find((p) => p.id === "monthly");
+    const yearly = basePlans.find((p) => p.id === "yearly");
 
     if (monthly && yearly) {
       const mPrice = parsePrice(monthly.price);
       const yPrice = parsePrice(yearly.price);
       const diff = (mPrice - yPrice) * 12;
-      
+
       if (diff > 0) {
         const savingsText = `Economize R$ ${Math.round(diff)}/ano`;
         yearly.savings = savingsText;
-        
+
         if (yearly.features) {
-          yearly.features = yearly.features.map(f => 
-            f.toLowerCase().includes("economia de") 
-              ? `Economia de R$ ${Math.round(diff)}/ano` 
-              : f
+          yearly.features = yearly.features.map((f) =>
+            f.toLowerCase().includes("economia de") ? `Economia de R$ ${Math.round(diff)}/ano` : f,
           );
         }
       }
@@ -312,81 +309,76 @@ const Index = () => {
     return basePlans;
   })();
 
-  // Lógica de status do botão baseada no plano atual e papel do usuário
   const getPlanButtonConfig = (planId: string) => {
-    // 1. Usuários não logados: podem clicar (levará ao registro)
-    if (!session) return { text: "Assinar Agora", disabled: false };
+    if (!session) return { text: "Escolher plano e começar", disabled: false };
 
-    // 2. Empresas e Famílias: desativado
-    if (profile?.role === 'company' || profile?.role === 'family') {
+    if (profile?.role === "company" || profile?.role === "family") {
       return { text: "Somente para profissionais", disabled: true };
     }
 
-    // 3. Profissionais: lógica de hierarquia
-    if (!userTier) return { text: "Assinar Agora", disabled: false };
+    if (!userTier) return { text: "Escolher plano e começar", disabled: false };
 
     if (userTier === planId) {
-      return { text: "Seu Plano Atual", disabled: true };
+      return { text: "Seu plano atual", disabled: true };
     }
 
-    if (userTier === 'yearly') {
-      return { text: "Plano Inferior", disabled: true };
+    if (userTier === "yearly") {
+      return { text: "Plano inferior", disabled: true };
     }
 
-    if (userTier === 'monthly') {
-      if (planId === 'yearly') return { text: "Fazer Upgrade", disabled: false };
-      return { text: "Plano Inferior", disabled: true };
+    if (userTier === "monthly") {
+      if (planId === "yearly") return { text: "Fazer upgrade", disabled: false };
+      return { text: "Plano inferior", disabled: true };
     }
 
-    if (userTier === 'free_trial') {
-      if (planId === 'free_trial') return { text: "Seu Plano Atual", disabled: true };
-      return { text: "Assinar Agora", disabled: false };
+    if (userTier === "free_trial") {
+      if (planId === "free_trial") return { text: "Seu plano atual", disabled: true };
+      return { text: "Escolher plano e começar", disabled: false };
     }
 
-    return { text: "Assinar Agora", disabled: false };
+    return { text: "Escolher plano e começar", disabled: false };
   };
 
-  // Lógica dinâmica para o card de CTA da Academy
   const getAcademyCardContent = () => {
     if (!session) {
       return {
-        title: "Pronto para começar?",
-        description: "Crie seu perfil profissional agora e seja encontrado pelas maiores empresas de Home Care.",
-        buttonText: "Crie agora sua conta",
+        title: "E muito mais...",
+        description:
+          "Se você atua com atendimento domiciliar, pode criar seu perfil e aumentar sua visibilidade profissional.",
+        buttonText: "Criar meu perfil",
         link: "/login#auth-sign-up",
-        icon: GraduationCap
+        icon: GraduationCap,
       };
     }
 
-    if (profile?.role === 'professional') {
+    if (profile?.role === "professional") {
       return {
-        title: "Pronto para começar?",
-        description: "Acesse nossa área de cursos e comece a transformar sua carreira hoje mesmo.",
-        buttonText: "Explorar Catálogo",
-        link: "/cursos",
-        icon: GraduationCap
+        title: "E muito mais...",
+        description:
+          "Se você atua com atendimento domiciliar, mantenha seu perfil ativo para receber novas oportunidades.",
+        buttonText: "Ir para meu painel",
+        link: "/dashboard",
+        icon: GraduationCap,
       };
     }
 
-    // Empresa ou Família
     return {
-      title: "Precisa de profissionais?",
-      description: "Acesse nossa base de especialistas verificados e feche sua escala com segurança.",
-      buttonText: "Buscar Profissionais",
+      title: "Perfil para profissionais",
+      description:
+        "Esta página é dedicada a profissionais da saúde que realizam atendimento domiciliar.",
+      buttonText: "Buscar profissionais",
       link: "/buscar",
-      icon: Search
+      icon: Search,
     };
   };
 
   const cardContent = getAcademyCardContent();
   const CardIcon = cardContent.icon;
 
-  // Determine video URL for LandingVideoPlayer
   const landingVideoUrl = config?.video_storage_path_professionals
     ? `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/site-videos/${config.video_storage_path_professionals}`
     : config?.video_url_professionals;
 
-  // Se estiver carregando a autenticação, mostra um loader centralizado para evitar flashes de conteúdo
   if (authLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -408,55 +400,54 @@ const Index = () => {
             <div className="animate-fade-in mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 shadow-sm">
               <Heart className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-muted-foreground">
-                Plataforma exclusiva para profissionais de Home Care
+                Home Care Match para profissionais da área da saúde
               </span>
             </div>
 
             <h1 className="animate-slide-up text-4xl font-bold leading-tight text-foreground md:text-5xl lg:text-6xl">
-              Sua carreira no{" "}
-              <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Home Care
-              </span>{" "}
-              começa aqui
+              Crie seu perfil profissional e seja encontrado por quem precisa de você
             </h1>
 
             <p className="animate-slide-up mx-auto mt-6 max-w-2xl text-lg text-muted-foreground" style={{ animationDelay: "0.1s" }}>
-              Crie seu perfil profissional, seja encontrado pelas maiores empresas de saúde e receba propostas diretamente no seu celular.
+              A Home Care Match conecta profissionais da área da saúde a empresas de home care e famílias que buscam atendimento domiciliar.
+              <br />
+              Aumente sua visibilidade profissional e receba oportunidades de atendimento na sua região.
+              <br />
+              Leva menos de 3 minutos para começar.
             </p>
 
             <div className="animate-slide-up mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: "0.2s" }}>
               {session ? (
                 <Button size="lg" asChild className="w-full gap-2 sm:w-auto">
-                  <Link to={profile?.is_admin || profile?.role === 'admin' ? "/admin" : "/dashboard"}>
+                  <Link to={profile?.is_admin || profile?.role === "admin" ? "/admin" : "/dashboard"}>
                     <LayoutDashboard className="h-4 w-4" />
-                    Ir para Meu Painel
+                    Ir para meu painel
                   </Link>
                 </Button>
               ) : (
                 <Button size="lg" asChild className="w-full gap-2 sm:w-auto">
                   <Link to="/login#auth-sign-up">
-                    Escolher Plano e Começar
+                    Criar meu perfil
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
               )}
               <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-                <Link to="/empresas">Sou uma Empresa</Link>
+                <Link to="/empresas">Contato com empresas e famílias</Link>
               </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Seção de Vídeo de Apresentação */}
       {landingVideoUrl && (
         <section className="py-12 bg-secondary/10">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
-              <LandingVideoPlayer 
-                url={landingVideoUrl} 
-                title="Apresentação para Profissionais"
-                autoplay={false} // Desativar autoplay
+              <LandingVideoPlayer
+                url={landingVideoUrl}
+                title="Apresentação para profissionais"
+                autoplay={false}
                 deferLoad={true}
               />
             </div>
@@ -468,42 +459,36 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">
-              Vantagens da Assinatura
+              Por que criar seu perfil na Home Care Match
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Acesso exclusivo às melhores oportunidades do mercado de saúde domiciliar.
+              Ter um perfil profissional na plataforma ajuda você a ser encontrado por empresas e famílias que procuram profissionais para atendimento domiciliar.
             </p>
           </div>
 
           <div className="mobile-stagger grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {features.map((feature, index) => (
-              <FeatureCard
-                key={index}
-                icon={feature.icon}
-                title={feature.title}
-                description={feature.description}
-              />
+              <FeatureCard key={index} icon={feature.icon} title={feature.title} description={feature.description} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* Academy Section */}
       <section className="py-20 bg-card border-y border-border overflow-hidden">
         <div className="container mx-auto px-4">
           <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-primary">
                 <BookOpen className="h-5 w-5" />
-                <span className="text-sm font-bold uppercase tracking-wider">HomeCare Match Academy</span>
+                <span className="text-sm font-bold uppercase tracking-wider">Profissionais de Home Care</span>
               </div>
-              
+
               <h2 className="text-3xl font-bold text-foreground md:text-4xl">
-                Sua evolução profissional não pode parar
+                Para quais profissionais a plataforma foi criada
               </h2>
-              
+
               <p className="text-lg text-muted-foreground leading-relaxed">
-                A <strong>Academy</strong> é o nosso braço educativo, focado em preparar você para os desafios reais do Home Care. Oferecemos conteúdos práticos e atualizados para que você se torne um profissional ainda mais requisitado.
+                A Home Care Match foi criada para profissionais da área da saúde que realizam atendimentos domiciliares.
               </p>
 
               <div className="grid gap-6 sm:grid-cols-2">
@@ -511,34 +496,32 @@ const Index = () => {
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Award className="h-6 w-6" />
                   </div>
-                  <h4 className="font-bold">Selos de Conquista</h4>
-                  <p className="text-sm text-muted-foreground">Ao concluir um curso, você ganha um selo exclusivo que aparece no seu perfil público.</p>
+                  <h4 className="font-bold">Principais perfis</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Enfermeiro(a), Técnico(a) de Enfermagem, Cuidador(a), Fisioterapeuta, Fonoaudiólogo(a) e Terapeuta Ocupacional.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <ShieldCheck className="h-6 w-6" />
                   </div>
-                  <h4 className="font-bold">Destaque no Perfil</h4>
-                  <p className="text-sm text-muted-foreground">Recrutadores dão preferência a profissionais que investem em capacitação contínua.</p>
+                  <h4 className="font-bold">E muito mais...</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Se você atua com atendimento domiciliar, pode criar seu perfil e aumentar sua visibilidade profissional.
+                  </p>
                 </div>
               </div>
 
               <div className="rounded-2xl bg-secondary/30 p-6 border border-border/50">
                 <h4 className="font-bold flex items-center gap-2 mb-4">
                   <Zap className="h-5 w-5 text-amber-500 fill-amber-500" />
-                  Acesso por Plano
+                  Como funciona a Home Care Match
                 </h4>
                 <div className="space-y-4">
                   <div className="flex items-start gap-3">
                     <div className="mt-1 h-2 w-2 rounded-full bg-primary shrink-0" />
                     <p className="text-sm">
-                      <strong>Plano Mensal:</strong> Você tem acesso ao catálogo completo e pode adquirir cursos pagos individualmente conforme sua necessidade.
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1 h-2 w-2 rounded-full bg-success shrink-0" />
-                    <p className="text-sm">
-                      <strong>Plano Anual:</strong> Além de poder adquirir cursos pagos, você ganha acesso <strong>exclusivo e gratuito</strong> a todos os cursos marcados como "Gratuitos" na plataforma.
+                      Criar seu perfil é simples. Em poucos passos você já pode começar a receber oportunidades de atendimento.
                     </p>
                   </div>
                 </div>
@@ -554,9 +537,7 @@ const Index = () => {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-2xl font-bold">{cardContent.title}</h3>
-                    <p className="text-muted-foreground">
-                      {cardContent.description}
-                    </p>
+                    <p className="text-muted-foreground">{cardContent.description}</p>
                   </div>
                   <Button asChild size="lg" className="w-full gap-2 h-14 text-lg shadow-lg">
                     <Link to={cardContent.link}>
@@ -571,13 +552,12 @@ const Index = () => {
         </div>
       </section>
 
-      {/* How it Works */}
       <section className="py-14 md:py-20">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-foreground">Como Funciona</h2>
+            <h2 className="text-3xl font-bold text-foreground">Como funciona a Home Care Match</h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Processo simples e rápido para impulsionar sua carreira.
+              Criar seu perfil é simples. Em poucos passos você já pode começar a receber oportunidades de atendimento.
             </p>
           </div>
 
@@ -585,30 +565,30 @@ const Index = () => {
             {[
               {
                 step: "01",
-                title: "Cadastre-se",
-                description:
-                  "Crie seu perfil profissional detalhado em poucos minutos.",
+                title: "Crie seu perfil profissional",
+                description: "Cadastre suas informações, especialidades e região de atendimento.",
               },
               {
                 step: "02",
-                title: "Destaque-se",
-                description:
-                  "Envie seus documentos para verificação e ganhe o selo de confiança.",
+                title: "Seja encontrado por quem precisa",
+                description: "Empresas de home care e famílias podem visualizar seu perfil na plataforma.",
               },
               {
                 step: "03",
-                title: "Seja Contratado",
-                description:
-                  "Receba propostas diretamente no seu WhatsApp e feche novos plantões.",
+                title: "Receba contatos e oportunidades",
+                description: "Profissionais cadastrados podem ser procurados diretamente para atendimentos.",
+              },
+              {
+                step: "04",
+                title: "Escolha quando aceitar",
+                description: "Você decide quais oportunidades deseja aceitar.",
               },
             ].map((item, index) => (
               <div key={index} className="relative rounded-3xl border border-border/70 bg-card/80 p-5 text-center shadow-sm md:border-0 md:bg-transparent md:p-0 md:shadow-none">
                 <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-2xl font-bold text-primary-foreground">
                   {item.step}
                 </div>
-                <h3 className="mb-2 text-lg font-semibold text-foreground">
-                  {item.title}
-                </h3>
+                <h3 className="mb-2 text-lg font-semibold text-foreground">{item.title}</h3>
                 <p className="text-sm text-muted-foreground">{item.description}</p>
               </div>
             ))}
@@ -616,47 +596,40 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="bg-primary py-16 md:py-20">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold text-primary-foreground">
-            Pronto para conquistar as melhores oportunidades?
+            Pronto para aumentar suas oportunidades no Home Care?
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-primary-foreground/80">
-            Junte-se a milhares de profissionais e tenha visibilidade para as maiores empresas de Home Care do Brasil.
+            Crie seu perfil profissional e comece a ser encontrado por empresas e famílias que precisam de profissionais de saúde para atendimento domiciliar.
           </p>
-          <Button
-            size="lg"
-            variant="secondary"
-            className="mt-8 w-full gap-2 sm:w-auto"
-            asChild
-          >
+          <Button size="lg" variant="secondary" className="mt-8 w-full gap-2 sm:w-auto" asChild>
             <Link to="/login#auth-sign-up">
-              Criar Perfil Agora
+              Criar meu perfil
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
         </div>
       </section>
 
-      {/* FAQ Section */}
       <section className="bg-secondary/10 py-14 md:py-20">
         <div className="container mx-auto px-4 max-w-3xl">
           <div className="mb-12 text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
               <HelpCircle className="h-6 w-6 text-primary" />
             </div>
-            <h2 className="text-3xl font-bold text-foreground">Dúvidas Frequentes</h2>
+            <h2 className="text-3xl font-bold text-foreground">Dúvidas frequentes</h2>
             <p className="mt-4 text-muted-foreground">
-              Tudo o que você precisa saber para começar sua jornada conosco.
+              Respostas rápidas para você começar com mais confiança.
             </p>
           </div>
 
           <Accordion type="single" collapsible className="mobile-stagger w-full space-y-4">
             {faqs.map((faq, index) => (
-              <AccordionItem 
-                key={index} 
-                value={`item-${index}`} 
+              <AccordionItem
+                key={index}
+                value={`item-${index}`}
                 className="rounded-xl border border-primary/5 bg-card px-4 shadow-sm md:px-6"
               >
                 <AccordionTrigger className="text-left font-semibold hover:no-underline py-4">
@@ -672,7 +645,7 @@ const Index = () => {
           <div className="mt-10 text-center">
             <Button variant="outline" asChild className="gap-2">
               <Link to="/suporte">
-                Ver Todas as Dúvidas
+                Ver todas as dúvidas
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -684,10 +657,10 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-foreground">
-              Escolha seu Plano
+              Escolha o plano ideal para você
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Assine agora e torne seu perfil visível para centenas de empresas de recrutamento.
+              Com sua assinatura você mantém seu perfil ativo na plataforma e aumenta suas chances de receber oportunidades de atendimento.
             </p>
           </div>
 
@@ -737,10 +710,8 @@ const Index = () => {
         planId={selectedPlanForCheckout}
         onProceedToCheckout={handlePlanCheckout}
       />
-
     </Layout>
   );
 };
 
 export default Index;
-

@@ -608,7 +608,7 @@ const BlogTab = () => {
   const [savingCategory, setSavingCategory] = useState(false);
   const [savingTag, setSavingTag] = useState(false);
   const [savingArticle, setSavingArticle] = useState(false);
-  const [generatingAI, setGeneratingAI] = useState<"suggestion" | "automatic" | null>(null);
+  const [generatingAI, setGeneratingAI] = useState<"suggestion" | "automatic" | "enhance" | null>(null);
   const [generatingTagsAI, setGeneratingTagsAI] = useState(false);
   const [creatingTagsAI, setCreatingTagsAI] = useState(false);
   const [generatingCoverImage, setGeneratingCoverImage] = useState(false);
@@ -1215,13 +1215,20 @@ const BlogTab = () => {
     setActiveTab("articles");
   };
 
-  const handleGenerateAI = async (mode: "suggestion" | "automatic") => {
-    if (mode === "suggestion" && !aiSuggestion.trim()) {
+  const handleGenerateAI = async (
+    mode: "suggestion" | "automatic",
+    generationProfile: "base" | "full" = "full",
+    forcedSuggestion?: string,
+    loadingKey?: "suggestion" | "automatic" | "enhance",
+  ) => {
+    const effectiveSuggestion = mode === "suggestion" ? String((forcedSuggestion ?? aiSuggestion) || "").trim() : "";
+
+    if (mode === "suggestion" && !effectiveSuggestion) {
       toast.error("Informe uma sugestao para gerar o artigo com IA.");
       return;
     }
 
-    setGeneratingAI(mode);
+    setGeneratingAI(loadingKey || mode);
     try {
       const {
         data: { session: currentSession },
@@ -1242,7 +1249,8 @@ const BlogTab = () => {
         },
         body: JSON.stringify({
           mode,
-          suggestion: mode === "suggestion" ? aiSuggestion : null,
+          suggestion: mode === "suggestion" ? effectiveSuggestion : null,
+          generation_profile: generationProfile,
         }),
       });
 
@@ -1327,12 +1335,41 @@ const BlogTab = () => {
         toast.error("Nao autorizado para usar a IA do blog. Faca login novamente.");
       } else if (statusCode === 403 || /somente administradores|acesso negado/i.test(message)) {
         toast.error("Apenas administradores podem gerar artigos com IA.");
+      } else if (statusCode === 546 || /http 546|timeout|time-out|upstream/i.test(message)) {
+        toast.error(
+          "A geracao demorou demais no servidor. Tente primeiro um rascunho (informacoes principais) e depois clique em completar artigo.",
+        );
       } else {
         toast.error(message || "Erro ao gerar artigo com IA.");
       }
     } finally {
       setGeneratingAI(null);
     }
+  };
+
+  const handleEnhanceCurrentDraft = async () => {
+    const hasDraftContext =
+      !!String(articleForm.title || "").trim() ||
+      !!String(articleForm.excerpt || "").trim() ||
+      !!String(articleForm.focus_keyword || "").trim() ||
+      !!String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").trim();
+
+    if (!hasDraftContext) {
+      toast.error("Preencha ao menos titulo, resumo, palavra-chave ou conteudo para completar com IA.");
+      return;
+    }
+
+    const enhanceSuggestion = `
+Complete e refine este rascunho para SEO completo (8000 a 12000 caracteres).
+Titulo atual: ${articleForm.title || ""}
+Palavra-chave foco: ${articleForm.focus_keyword || ""}
+Resumo atual: ${articleForm.excerpt || ""}
+URL de referencia: ${articleForm.source_reference_url || ""}
+Rascunho atual:
+${String(articleForm.content_html || "").replace(/<[^>]+>/g, " ").slice(0, 3000)}
+`.trim();
+
+    await handleGenerateAI("suggestion", "full", enhanceSuggestion, "enhance");
   };
 
   const runTagAI = async (createMissingTags: boolean) => {
@@ -1642,12 +1679,16 @@ const BlogTab = () => {
         body: JSON.stringify({
           mode: "suggestion",
           suggestion,
+          generation_profile: "base",
         }),
       });
 
       const articlePayload = await articleResponse.json().catch(() => ({}));
       if (!articleResponse.ok) {
-        throw new Error(String(articlePayload?.error || `HTTP ${articleResponse.status}`));
+        const detail = String(articlePayload?.error || `HTTP ${articleResponse.status}`);
+        const error = new Error(detail) as Error & { status?: number };
+        error.status = articleResponse.status;
+        throw error;
       }
 
       const aiTitle = String(articlePayload.title || "").trim();
@@ -1713,15 +1754,20 @@ const BlogTab = () => {
 
       setActiveTab("articles");
       setShowSeoAudit(true);
-      if (aiSeoPassed) {
-        toast.success("Artigo gerado com tema pesquisado e dentro da faixa SEO de conteudo.");
-      } else {
-        toast.warning(
-          `Artigo gerado com pendencias SEO: ${aiSeoIssues.slice(0, 3).join(" | ") || "revise checklist de SEO."}`,
-        );
-      }
+      if (aiSeoPassed) toast.success("Rascunho principal gerado com tema pesquisado. Agora clique em 'Completar artigo com IA'.");
+      else toast.warning("Rascunho principal gerado com pendencias leves. Use 'Completar artigo com IA' para finalizar.");
     } catch (err: any) {
-      toast.error(err?.message || "Erro ao gerar artigo com tema pesquisado.");
+      const message = String(err?.message || "");
+      const statusCode =
+        Number(err?.status) ||
+        Number(err?.context?.status) ||
+        (/\b546\b/.test(message) ? 546 : undefined);
+
+      if (statusCode === 546 || /http 546|timeout|time-out|upstream/i.test(message)) {
+        toast.error("A geracao estourou tempo no servidor. Tente novamente; agora esta em modo de rascunho rapido.");
+      } else {
+        toast.error(message || "Erro ao gerar artigo com tema pesquisado.");
+      }
     } finally {
       setGeneratingFromResearchId(null);
     }
@@ -1935,6 +1981,21 @@ const BlogTab = () => {
                       <Bot className="h-4 w-4" />
                     )}
                     IA escolhe tema relevante
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleEnhanceCurrentDraft}
+                    disabled={!!generatingAI}
+                  >
+                    {generatingAI === "enhance" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Completar artigo com IA (SEO 8k-12k)
                   </Button>
                 </div>
               </div>
@@ -2371,7 +2432,7 @@ const BlogTab = () => {
                             ) : (
                               <Bot className="h-4 w-4" />
                             )}
-                            Gerar artigo com este tema
+                            Gerar rascunho com este tema
                           </Button>
                         </div>
                       </div>

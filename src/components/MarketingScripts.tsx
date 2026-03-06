@@ -50,7 +50,7 @@ const injectGA = (measurementId: string) => {
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', '${measurementId}');
+      gtag('config', '${measurementId}', { send_page_view: false });
     `;
     return script;
   });
@@ -90,7 +90,6 @@ const injectFBPixel = (pixelId: string) => {
       s.parentNode.insertBefore(t,s)}(window, document,'script',
       'https://connect.facebook.net/en_US/fbevents.js');
       fbq('init', '${pixelId}');
-      fbq('track', 'PageView');
     `;
     return script;
   });
@@ -375,6 +374,39 @@ const MarketingScripts = () => {
       injectFBPixel(config.fb_pixel_id);
     }
   }, [config]);
+
+  useEffect(() => {
+    if (!config || typeof window === "undefined") return;
+
+    const hasAnyTracker =
+      (config.ga_enabled && config.ga_measurement_id) ||
+      (config.fb_pixel_enabled && config.fb_pixel_id) ||
+      (config.gtm_enabled && config.gtm_container_id);
+
+    if (!hasAnyTracker) return;
+
+    const pagePath = `${location.pathname}${location.search}${location.hash}` || "/";
+    const pagePayload = {
+      page_path: pagePath,
+      page_title: document.title || "",
+      page_location: `${window.location.origin}${pagePath}`,
+    };
+
+    if (window.gtag) {
+      window.gtag("event", "page_view", pagePayload);
+    }
+
+    if (window.fbq) {
+      window.fbq("track", "PageView", pagePayload);
+      window.fbq("trackCustom", "hcm_page_view", pagePayload);
+    }
+
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: "hcm_page_view",
+      ...pagePayload,
+    });
+  }, [config, location.pathname, location.search, location.hash]);
 
   useEffect(() => {
     if (!config) return;

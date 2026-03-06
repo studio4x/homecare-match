@@ -477,6 +477,12 @@ const Courses = () => {
               {filteredCourses.map((c) => {
                 const isFree = !c.price || c.price === 0;
                 const needsYearly = isFree && !isYearlyPlan && !isEnrolled(c.slug) && !isAdmin;
+                const enrolledActionLabel =
+                  isAdmin && !isEnrolled(c.slug)
+                    ? "Acesso Admin"
+                    : isCompleted(c.slug)
+                      ? "Rever Curso"
+                      : "Continuar";
 
                 return (
                   <Card key={c.slug} className="overflow-hidden flex flex-col group hover:shadow-md transition-all border-primary/5">
@@ -532,10 +538,13 @@ const Courses = () => {
                           <Button 
                             asChild 
                             size="sm"
-                            className={cn("flex-1", isCompleted(c.slug) && "bg-success hover:bg-success/90 border-none")}
+                            className={cn(
+                              "flex-1 bg-success hover:bg-success/90 border-none text-white",
+                              enrolledActionLabel === "Acesso Admin" && "bg-primary hover:bg-primary/90",
+                            )}
                           >
                             <Link to={`/cursos/${c.slug}`}>
-                              {isAdmin && !isEnrolled(c.slug) ? "Acesso Admin" : isCompleted(c.slug) ? "Rever Curso" : "Continuar"}
+                              {enrolledActionLabel}
                             </Link>
                           </Button>
                         ) : needsYearly ? (

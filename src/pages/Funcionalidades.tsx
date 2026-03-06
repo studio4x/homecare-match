@@ -224,15 +224,6 @@ export const features = [
     feature_key: "blog-de-conteudo-especializado"
   },
   {
-    title: "Busca no Blog por Categorias e Tags",
-    description: "Encontre conteudos rapidamente usando pesquisa, categorias e tags na central de artigos.",
-    icon: Search,
-    profiles: ["professional", "company", "family"],
-    color: "text-sky-600",
-    bg: "bg-sky-50",
-    feature_key: "busca-no-blog-por-categorias-e-tags"
-  },
-  {
     title: "Instalacao do App (PWA)",
     description: "Instale a plataforma no celular como aplicativo, com acesso rapido e experiencia otimizada.",
     icon: Smartphone,

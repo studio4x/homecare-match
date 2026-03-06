@@ -15,7 +15,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Loader2, MessageSquare, Eye, Plus, LifeBuoy } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import SupportTicketModal from "@/components/SupportTicketModal";
 
 const SupportTicketsPage = () => {
@@ -23,10 +23,26 @@ const SupportTicketsPage = () => {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalInitialStep, setModalInitialStep] = useState<"choice" | "form">("choice");
+  const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
     if (user) fetchTickets();
   }, [user]);
+
+  useEffect(() => {
+    const shouldOpenModal = searchParams.get("openTicketModal") === "1";
+    if (!shouldOpenModal) return;
+
+    const desiredStep = searchParams.get("ticketStep") === "form" ? "form" : "choice";
+    setModalInitialStep(desiredStep);
+    setIsModalOpen(true);
+
+    const next = new URLSearchParams(searchParams);
+    next.delete("openTicketModal");
+    next.delete("ticketStep");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const fetchTickets = async () => {
     try {
@@ -66,7 +82,13 @@ const SupportTicketsPage = () => {
           <Button variant="outline" asChild className="gap-2">
             <Link to="/suporte"><LifeBuoy className="h-4 w-4" /> Ver FAQs</Link>
           </Button>
-          <Button className="gap-2" onClick={() => setIsModalOpen(true)}>
+          <Button
+            className="gap-2"
+            onClick={() => {
+              setModalInitialStep("choice");
+              setIsModalOpen(true);
+            }}
+          >
             <Plus className="h-4 w-4" /> Novo Chamado
           </Button>
         </div>
@@ -117,7 +139,7 @@ const SupportTicketsPage = () => {
       <SupportTicketModal 
         open={isModalOpen} 
         onOpenChange={setIsModalOpen} 
-        initialStep="choice"
+        initialStep={modalInitialStep}
       />
     </div>
   );

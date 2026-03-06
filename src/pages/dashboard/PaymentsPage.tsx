@@ -889,8 +889,11 @@ const PaymentsPage = () => {
               Antes de cancelar, fale com nossa equipe de suporte: podemos ajudar você a resolver dúvidas, ajustar sua estratégia
               de uso e manter seu perfil gerando novas oportunidades.
             </p>
-            <Button asChild variant="secondary" className="mt-3 w-full">
-              <Link to="/dashboard/suporte" onClick={() => setIsCancelModalOpen(false)}>
+            <Button
+              asChild
+              className="mt-3 w-full bg-emerald-600 text-white hover:bg-emerald-700 focus-visible:ring-emerald-500"
+            >
+              <Link to="/dashboard/suporte?openTicketModal=1&ticketStep=form" onClick={() => setIsCancelModalOpen(false)}>
                 <LifeBuoy className="mr-2 h-4 w-4" />
                 Abrir ticket antes de cancelar
               </Link>

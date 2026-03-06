@@ -294,6 +294,15 @@ const trackConversion = (payload: ConversionPayload) => {
 
   let sent = false;
   const category = payload.contentType === "subscription" ? "assinatura" : "curso";
+  const eventPayload = {
+    category,
+    content_type: payload.contentType,
+    transaction_id: payload.transactionId,
+    item_id: payload.itemId,
+    item_name: payload.itemName,
+    value: payload.value,
+    currency: payload.currency,
+  };
 
   if (window.gtag) {
     window.gtag("event", "purchase", {
@@ -323,8 +332,20 @@ const trackConversion = (payload: ConversionPayload) => {
       content_category: category,
       category,
     });
+
+    window.fbq("trackCustom", "hcm_purchase", {
+      event_name: "hcm_purchase",
+      ...eventPayload,
+    });
     sent = true;
   }
+
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    event: "hcm_purchase",
+    ...eventPayload,
+  });
+  sent = true;
 
   if (sent) {
     markPurchaseTracked(payload.transactionId);

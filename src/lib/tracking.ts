@@ -12,7 +12,7 @@ export const trackAccountCreated = (role: SignupRole) => {
   if (typeof window === "undefined") return;
 
   const category = getSignupCategory(role);
-  const metaPayload = {
+  const eventPayload = {
     category,
     user_role: category,
     account_type: category,
@@ -31,12 +31,18 @@ export const trackAccountCreated = (role: SignupRole) => {
     window.fbq("track", "CompleteRegistration", {
       content_name: "Criacao de conta",
       status: true,
-      ...metaPayload,
+      ...eventPayload,
     });
 
     window.fbq("trackCustom", "hcm_account_created", {
       event_name: "hcm_account_created",
-      ...metaPayload,
+      ...eventPayload,
     });
   }
+
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    event: "hcm_account_created",
+    ...eventPayload,
+  });
 };

@@ -456,8 +456,8 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                           <Eye className="h-3 w-3" /> Visível
                         </Badge>
                       ) : !u.email_confirmed ? (
-                        <Badge variant="destructive" className="gap-1 text-[9px] h-5">
-                          <EyeOff className="h-3 w-3" /> E-mail não confirmado
+                        <Badge className="gap-1.5 min-h-6 px-2.5 py-0.5 text-[11px] font-semibold leading-none whitespace-nowrap bg-red-100 text-red-700 border border-red-300">
+                          <EyeOff className="h-3.5 w-3.5" /> E-mail não confirmado
                         </Badge>
                       ) : (
                         <Badge variant="secondary" className="gap-1 text-[9px] h-5 opacity-60">

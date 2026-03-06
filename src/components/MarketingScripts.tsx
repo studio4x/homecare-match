@@ -323,13 +323,19 @@ const trackConversion = (payload: ConversionPayload) => {
   }
 
   if (window.fbq) {
+    const contents = payload.itemId
+      ? [{ id: payload.itemId, quantity: 1, item_price: payload.value }]
+      : [];
+
     window.fbq("track", "Purchase", {
       value: payload.value,
       currency: payload.currency,
-      content_name: payload.itemName,
+      content_name: `${category}: ${payload.itemName}`,
       content_ids: payload.itemId ? [payload.itemId] : [],
-      content_type: payload.contentType,
+      content_type: "product",
       content_category: category,
+      contents,
+      num_items: 1,
       category,
     });
 

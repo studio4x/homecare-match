@@ -187,17 +187,27 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const handleToggleEmailConfirmed = async (profileId: string, currentStatus: boolean) => {
     setIsUpdatingEmailConfirmed(profileId);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) {
+        throw new Error("Sessão inválida para atualizar confirmação de e-mail.");
+      }
+
       const { error } = await supabase.functions.invoke("admin-set-email-confirmed", {
         body: {
           targetUserId: profileId,
           emailConfirmed: !currentStatus,
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
         },
       });
 
       if (error) throw error;
       toast.success(!currentStatus ? "E-mail marcado como confirmado." : "Confirmação de e-mail removida.");
       await refetchData();
-    } catch (err) {
+    } catch (err: any) {
+      console.error("[UsersTab] Erro ao atualizar confirmação de e-mail:", err);
       toast.error("Erro ao atualizar confirmação de e-mail.");
     } finally {
       setIsUpdatingEmailConfirmed(null);

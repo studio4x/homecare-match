@@ -22,7 +22,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
     );
 
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -30,7 +30,13 @@ serve(async (req) => {
       });
     }
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const { data: callerData, error: callerError } = await supabaseAdmin.auth.getUser(token);
     if (callerError || !callerData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -124,4 +130,3 @@ serve(async (req) => {
     });
   }
 });
-

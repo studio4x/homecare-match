@@ -323,7 +323,15 @@ const trackConversion = (payload: ConversionPayload) => {
 
   if (window.fbq) {
     const contents = payload.itemId
-      ? [{ id: payload.itemId, quantity: 1, item_price: payload.value }]
+      ? [
+          {
+            id: payload.itemId,
+            quantity: 1,
+            item_price: payload.value,
+            item_category: category,
+            content_category: category,
+          },
+        ]
       : [];
 
     window.fbq("track", "Purchase", {
@@ -385,11 +393,21 @@ const MarketingScripts = () => {
 
     if (!hasAnyTracker) return;
 
-    const pagePath = `${location.pathname}${location.search}${location.hash}` || "/";
+    const pathname = location.pathname || "/";
+    const pagePath = `${pathname}${location.search}${location.hash}` || "/";
+    const pageName =
+      pathname === "/"
+        ? "home"
+        : pathname
+            .replace(/^\/+|\/+$/g, "")
+            .replace(/\//g, "_");
     const pagePayload = {
       page_path: pagePath,
       page_title: document.title || "",
-      page_location: `${window.location.origin}${pagePath}`,
+      page_location: window.location.href,
+      page_name: pageName,
+      content_name: pagePath,
+      content_category: "page",
     };
 
     if (window.gtag) {

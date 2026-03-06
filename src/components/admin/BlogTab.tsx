@@ -272,6 +272,116 @@ const getSafeExternalUrl = (value: string) => {
   }
 };
 
+const extractFirstExternalUrlFromText = (value: string) => {
+  const source = String(value || "");
+  const matches = source.match(/https?:\/\/[^\s<>"'`]+/gi) || [];
+  for (const candidate of matches) {
+    const safe = getSafeExternalUrl(candidate);
+    if (safe) return safe;
+  }
+  return "";
+};
+
+const escapeHtml = (value: string) =>
+  String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const normalizeLooseText = (value: string) =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const parseSeedTextToHtml = (seedText: string) => {
+  const source = String(seedText || "").trim();
+  if (!source) return "";
+
+  const hasHtml = /<\/?[a-z][\s\S]*>/i.test(source);
+  if (hasHtml) return stripContentH1Tags(source);
+
+  const normalized = source.replace(/\r\n/g, "\n").trim();
+  const blocks = normalized
+    .split(/\n\s*\n/g)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  const htmlBlocks = blocks.map((block) => {
+    const lines = block
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (!lines.length) return "";
+
+    const headingMatch = lines[0].match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      const level = Math.min(6, Math.max(2, headingMatch[1].length));
+      const headingText = escapeHtml(headingMatch[2].trim());
+      const rest = lines.slice(1).join(" ");
+      if (!rest) return `<h${level}>${headingText}</h${level}>`;
+      return `<h${level}>${headingText}</h${level}><p>${escapeHtml(rest)}</p>`;
+    }
+
+    const unorderedItems = lines
+      .map((line) => line.match(/^(?:[-*•]\s+)(.+)$/)?.[1]?.trim() || "")
+      .filter(Boolean);
+    if (unorderedItems.length === lines.length) {
+      return `<ul>${unorderedItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+    }
+
+    const orderedItems = lines
+      .map((line) => line.match(/^\d+[.)]\s+(.+)$/)?.[1]?.trim() || "")
+      .filter(Boolean);
+    if (orderedItems.length === lines.length) {
+      return `<ol>${orderedItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>`;
+    }
+
+    const headingLine = lines[0].replace(/^#+\s*/, "").trim();
+    if (lines.length >= 2 && headingLine.length <= 120 && /[A-Za-zÀ-ÿ]/.test(headingLine)) {
+      const paragraphs = lines.slice(1).join(" ");
+      if (paragraphs.length >= 30) {
+        return `<h2>${escapeHtml(headingLine)}</h2><p>${escapeHtml(paragraphs)}</p>`;
+      }
+    }
+
+    return `<p>${escapeHtml(lines.join(" "))}</p>`;
+  });
+
+  return stripContentH1Tags(htmlBlocks.filter(Boolean).join("\n"));
+};
+
+const deriveTitleFromSeed = (seedText: string) => {
+  const normalized = String(seedText || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const candidate =
+    normalized.find((line) => {
+      if (/^https?:\/\//i.test(line)) return false;
+      if (/^(?:[-*•]\s+|\d+[.)]\s+)/.test(line)) return false;
+      return /[A-Za-zÀ-ÿ]/.test(line);
+    }) || "Guia de Home Care";
+
+  return clampText(candidate.replace(/^#+\s*/, ""), 120) || "Guia de Home Care";
+};
+
+const deriveFocusKeywordFromTitle = (title: string) => {
+  const normalized = String(title || "").trim();
+  if (!normalized) return "home care";
+  const firstSegment = normalized.split(/[:|—-]/)[0]?.trim() || normalized;
+  const words = firstSegment.split(/\s+/).filter(Boolean).slice(0, 6);
+  return clampText(words.join(" "), SEO_FOCUS_KEYWORD_MAX_CHARS) || "home care";
+};
+
 const parseSchemaJson = (value: string) => {
   const clean = value?.trim() || "{}";
   try {
@@ -978,6 +1088,9 @@ const BlogTab = () => {
   const [rejectedCoverUrls, setRejectedCoverUrls] = useState<string[]>([]);
   const [creatingCategoryInline, setCreatingCategoryInline] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState("");
+  const [chatGptSeedText, setChatGptSeedText] = useState("");
+  const [autofillingFromChatGpt, setAutofillingFromChatGpt] = useState(false);
+  const [autofillingLocally, setAutofillingLocally] = useState(false);
   const [researchThemes, setResearchThemes] = useState<BlogResearchTheme[]>(BLOG_RESEARCH_DEFAULT_THEMES);
   const [researchTheme, setResearchTheme] = useState(BLOG_RESEARCH_DEFAULT_THEMES[0]?.id || "homecare_idosos");
   const [loadingResearchThemes, setLoadingResearchThemes] = useState(false);
@@ -1813,6 +1926,297 @@ const BlogTab = () => {
       }
     } finally {
       setGeneratingAI(null);
+    }
+  };
+
+  const handleAutofillFromChatGptText = async () => {
+    const rawSeed = String(chatGptSeedText || "").trim();
+    if (!rawSeed) {
+      toast.error("Cole um texto com a ideia ou conteúdo para preencher os campos automaticamente.");
+      return;
+    }
+
+    const compactSeed = rawSeed.replace(/\s+/g, " ").trim();
+    const maxSeedChars = 7000;
+    const boundedSeed = compactSeed.slice(0, maxSeedChars);
+    const referenceFromSeed = extractFirstExternalUrlFromText(rawSeed);
+    const referenceUrl = sourceReferenceExternalUrl || referenceFromSeed || "";
+
+    setAutofillingFromChatGpt(true);
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente para usar a IA do blog.");
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-blog-article`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          mode: "suggestion",
+          suggestion: boundedSeed,
+          source_reference_url: referenceUrl || null,
+        }),
+      });
+
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          const message = typeof payload?.error === "string" ? payload.error : "";
+          const extra = typeof payload?.details === "string" ? payload.details : "";
+          const text = [message, extra].filter(Boolean).join(" - ");
+          if (text) detail = text;
+        } catch {
+          // noop
+        }
+        const error = new Error(detail) as Error & { status?: number };
+        error.status = response.status;
+        throw error;
+      }
+
+      const payload = await response.json();
+      const aiTitle = String(payload.title || "").trim();
+      const aiSlug = generateSlug(String(payload.slug || aiTitle || ""));
+      const aiExcerpt = String(payload.excerpt || "").trim();
+      const aiContent = stripContentH1Tags(String(payload.content_html || "").trim());
+      const aiFocusKeyword = String(payload.focus_keyword || "").trim();
+      const aiTagsSuggested = Array.isArray(payload.tags_suggested) ? payload.tags_suggested : [];
+      const aiSeoIssues = Array.isArray(payload?.seo_issues)
+        ? payload.seo_issues.map((item: unknown) => String(item || "").trim()).filter(Boolean)
+        : [];
+      const aiSeoPassed = payload?.seo_validation_passed !== false && aiSeoIssues.length === 0;
+      const aiSchemaJsonRaw = payload?.schema_json;
+      const aiSchemaJson =
+        aiSchemaJsonRaw && typeof aiSchemaJsonRaw === "object"
+          ? JSON.stringify(aiSchemaJsonRaw, null, 2)
+          : String(aiSchemaJsonRaw || "").trim();
+
+      const fallbackTitle = boundedSeed.split(/[.!?\n]/).map((part) => part.trim()).find(Boolean) || "Guia de Home Care";
+      const resolvedTitle = aiTitle || clampText(fallbackTitle || articleForm.title || "Guia de Home Care", 120);
+      const resolvedKeyword = aiFocusKeyword || articleForm.focus_keyword || resolvedTitle.split(":")[0].trim();
+      const resolvedSlug = aiSlug || generateSlug(`${resolvedKeyword} ${resolvedTitle}`);
+      const resolvedExcerpt =
+        aiExcerpt ||
+        articleForm.excerpt ||
+        clampText(`Aprenda como aplicar ${resolvedKeyword} com foco em qualidade assistencial, seguranca e eficiencia no Home Care.`, 180);
+      const limitedContent = clampContentHtmlByPlainChars(
+        aiContent || buildFallbackArticleContent(resolvedKeyword, resolvedExcerpt),
+        SEO_MAX_CONTENT_CHARS,
+      );
+      const resolvedContent = limitedContent.html;
+      const resolvedCanonical =
+        String(payload.seo_canonical_url || "").trim() ||
+        articleForm.seo_canonical_url ||
+        buildDefaultCanonicalUrl(resolvedSlug);
+      const resolvedSeoRobots = String(payload.seo_robots || "").trim() || articleForm.seo_robots || "index,follow";
+      const resolvedSeoTitle = fitSeoLengthRange(
+        String(payload.seo_title || "").trim() || resolvedTitle,
+        SEO_TITLE_MIN_CHARS,
+        SEO_TITLE_MAX_CHARS,
+        resolvedTitle || resolvedKeyword,
+      );
+      const resolvedSeoDescription = fitSeoLengthRange(
+        String(payload.seo_description || "").trim() || resolvedExcerpt || stripAuditHtml(resolvedContent),
+        SEO_DESCRIPTION_MIN_CHARS,
+        SEO_DESCRIPTION_MAX_CHARS,
+        resolvedExcerpt || "Conteudo informativo para orientar com qualidade e seguranca.",
+      );
+      const resolvedOgTitle = String(payload.seo_og_title || "").trim() || resolvedSeoTitle;
+      const resolvedOgDescription = String(payload.seo_og_description || "").trim() || resolvedSeoDescription;
+      const resolvedOgImage =
+        String(payload.seo_og_image_url || "").trim() || articleForm.seo_og_image_url || articleForm.cover_image_url;
+
+      const suggestedTagIds = sortedTags
+        .filter((tag) =>
+          aiTagsSuggested.some(
+            (name: string) =>
+              generateSlug(String(name || "")) === generateSlug(String(tag.slug || "")) ||
+              generateSlug(String(name || "")) === generateSlug(String(tag.name || "")),
+          ),
+        )
+        .map((tag) => String(tag.id));
+
+      setArticleForm((prev) => ({
+        ...prev,
+        title: resolvedTitle || prev.title,
+        slug: resolvedSlug || prev.slug,
+        excerpt: resolvedExcerpt || prev.excerpt,
+        source_reference_url:
+          String(payload.source_reference_url || "").trim() ||
+          referenceUrl ||
+          prev.source_reference_url,
+        content_html: resolvedContent || prev.content_html,
+        focus_keyword: resolvedKeyword || prev.focus_keyword,
+        seo_title: resolvedSeoTitle || prev.seo_title,
+        seo_description: resolvedSeoDescription || prev.seo_description,
+        seo_canonical_url: resolvedCanonical || prev.seo_canonical_url,
+        seo_robots: resolvedSeoRobots || prev.seo_robots,
+        seo_og_title: resolvedOgTitle || prev.seo_og_title,
+        seo_og_description: resolvedOgDescription || prev.seo_og_description,
+        seo_og_image_url: resolvedOgImage || prev.seo_og_image_url,
+        reading_time_minutes:
+          Number(payload.reading_time_minutes || 0) || Math.max(1, estimateReadingTime(resolvedContent || prev.content_html)),
+        tag_ids: suggestedTagIds.length > 0 ? suggestedTagIds : prev.tag_ids,
+        schema_json:
+          aiSchemaJson ||
+          prev.schema_json ||
+          buildDefaultSchemaJson(resolvedTitle, resolvedSlug, resolvedSeoDescription, resolvedKeyword),
+      }));
+
+      setShowSeoAudit(true);
+      setActiveTab("articles");
+
+      if (compactSeed.length > maxSeedChars) {
+        toast.warning(`Texto base reduzido para ${maxSeedChars} caracteres antes da geracao.`);
+      }
+      if (!referenceUrl && !String(payload.source_reference_url || "").trim()) {
+        toast.info("Campos preenchidos sem URL de referência. Se quiser artigo baseado em fonte, informe um link.");
+      }
+      if (!aiContent) {
+        toast.warning("A IA nao retornou todo o conteudo na primeira resposta. Preenchemos um conteudo-base para revisao.");
+      }
+      if (limitedContent.wasTrimmed) {
+        toast.warning(`Conteudo ajustado automaticamente para no maximo ${SEO_MAX_CONTENT_CHARS} caracteres.`);
+      }
+      if (aiSeoPassed) {
+        toast.success("Campos preenchidos automaticamente com base no texto informado.");
+      } else {
+        toast.warning(
+          `Campos preenchidos com pendencias SEO: ${aiSeoIssues.slice(0, 3).join(" | ") || "revise checklist de SEO."}`,
+        );
+      }
+    } catch (err: any) {
+      const message = String(err?.message || "");
+      const statusCode =
+        Number(err?.status) ||
+        Number(err?.context?.status) ||
+        (/\b401\b/.test(message) ? 401 : undefined);
+
+      if (statusCode === 404 || /not found|nao encontrada|requested function was not found/i.test(message)) {
+        toast.error("Funcao generate-blog-article nao publicada no Supabase.");
+      } else if (statusCode === 401 || /unauthorized|jwt|autenticacao/i.test(message)) {
+        toast.error("Nao autorizado para usar a IA do blog. Faca login novamente.");
+      } else if (statusCode === 403 || /somente administradores|acesso negado/i.test(message)) {
+        toast.error("Apenas administradores podem gerar artigos com IA.");
+      } else if (statusCode === 546 || /http 546|timeout|time-out|upstream/i.test(message)) {
+        toast.error("A geracao demorou demais no servidor. Tente novamente com um texto mais objetivo.");
+      } else {
+        toast.error(message || "Erro ao preencher campos automaticamente com IA.");
+      }
+    } finally {
+      setAutofillingFromChatGpt(false);
+    }
+  };
+
+  const handleAutofillFromChatGptTextLocal = () => {
+    const rawSeed = String(chatGptSeedText || "").trim();
+    if (!rawSeed) {
+      toast.error("Cole um texto com a ideia ou conteúdo para preencher os campos automaticamente.");
+      return;
+    }
+
+    setAutofillingLocally(true);
+    try {
+      const referenceFromSeed = extractFirstExternalUrlFromText(rawSeed);
+      const fallbackTitle = deriveTitleFromSeed(rawSeed);
+      const resolvedTitle = clampText(fallbackTitle || articleForm.title || "Guia de Home Care", 120);
+      const resolvedKeyword =
+        clampText(articleForm.focus_keyword || deriveFocusKeywordFromTitle(resolvedTitle), SEO_FOCUS_KEYWORD_MAX_CHARS) ||
+        "home care";
+      const resolvedSlug = generateSlug(articleForm.slug || `${resolvedKeyword} ${resolvedTitle}`);
+
+      const parsedHtml = parseSeedTextToHtml(rawSeed);
+      const normalizedSource = stripAuditHtml(parsedHtml);
+      const sourceExcerpt = normalizedSource.slice(0, SEO_EXCERPT_MAX_CHARS).trim();
+      const resolvedExcerpt = fitSeoLengthRange(
+        articleForm.excerpt || sourceExcerpt || `Saiba como aplicar ${resolvedKeyword} no atendimento domiciliar com segurança e qualidade.`,
+        SEO_EXCERPT_MIN_CHARS,
+        SEO_EXCERPT_MAX_CHARS,
+        `Aprenda a aplicar ${resolvedKeyword} com foco em segurança, eficiência e resultados no Home Care.`,
+      );
+
+      const fallbackContent = buildFallbackArticleContent(resolvedKeyword, resolvedExcerpt);
+      const chosenContent = parsedHtml || fallbackContent;
+      const mergedContent =
+        stripAuditHtml(chosenContent).length < 1600 && parsedHtml
+          ? `${chosenContent}\n${fallbackContent}`
+          : chosenContent;
+      const limitedContent = clampContentHtmlByPlainChars(mergedContent, SEO_MAX_CONTENT_CHARS);
+      const resolvedContent = limitedContent.html;
+
+      const resolvedCanonical =
+        articleForm.seo_canonical_url ||
+        buildDefaultCanonicalUrl(resolvedSlug);
+      const resolvedSeoTitle = fitSeoLengthRange(
+        articleForm.seo_title || resolvedTitle,
+        SEO_TITLE_MIN_CHARS,
+        SEO_TITLE_MAX_CHARS,
+        `${resolvedTitle} | Home Care Match`,
+      );
+      const resolvedSeoDescription = fitSeoLengthRange(
+        articleForm.seo_description || resolvedExcerpt || stripAuditHtml(resolvedContent),
+        SEO_DESCRIPTION_MIN_CHARS,
+        SEO_DESCRIPTION_MAX_CHARS,
+        `Entenda como aplicar ${resolvedKeyword} em atendimentos de Home Care com práticas claras e seguras.`,
+      );
+      const resolvedOgTitle = articleForm.seo_og_title || resolvedSeoTitle;
+      const resolvedOgDescription = articleForm.seo_og_description || resolvedSeoDescription;
+
+      const searchCorpus = normalizeLooseText(
+        `${resolvedTitle} ${resolvedExcerpt} ${stripAuditHtml(resolvedContent)} ${resolvedKeyword}`,
+      );
+      const inferredTagIds = sortedTags
+        .filter((tag) => {
+          const tagName = normalizeLooseText(String(tag?.name || ""));
+          const tagSlug = normalizeLooseText(String(tag?.slug || "").replace(/-/g, " "));
+          if (!tagName && !tagSlug) return false;
+          return (tagName && searchCorpus.includes(tagName)) || (tagSlug && searchCorpus.includes(tagSlug));
+        })
+        .map((tag) => String(tag.id))
+        .slice(0, 8);
+
+      setArticleForm((prev) => ({
+        ...prev,
+        title: resolvedTitle || prev.title,
+        slug: resolvedSlug || prev.slug,
+        excerpt: resolvedExcerpt || prev.excerpt,
+        source_reference_url: prev.source_reference_url || referenceFromSeed || "",
+        content_html: resolvedContent || prev.content_html,
+        focus_keyword: resolvedKeyword || prev.focus_keyword,
+        seo_title: resolvedSeoTitle || prev.seo_title,
+        seo_description: resolvedSeoDescription || prev.seo_description,
+        seo_canonical_url: resolvedCanonical || prev.seo_canonical_url,
+        seo_robots: prev.seo_robots || "index,follow",
+        seo_og_title: resolvedOgTitle || prev.seo_og_title,
+        seo_og_description: resolvedOgDescription || prev.seo_og_description,
+        reading_time_minutes: Math.max(1, estimateReadingTime(resolvedContent || prev.content_html)),
+        tag_ids: inferredTagIds.length > 0 ? inferredTagIds : prev.tag_ids,
+        schema_json:
+          prev.schema_json ||
+          buildDefaultSchemaJson(resolvedTitle, resolvedSlug, resolvedSeoDescription, resolvedKeyword),
+      }));
+
+      setShowSeoAudit(true);
+      setActiveTab("articles");
+
+      if (limitedContent.wasTrimmed) {
+        toast.warning(`Conteúdo ajustado automaticamente para no máximo ${SEO_MAX_CONTENT_CHARS} caracteres.`);
+      }
+      toast.success("Campos preenchidos localmente com base no texto colado.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao preencher os campos localmente.");
+    } finally {
+      setAutofillingLocally(false);
     }
   };
 
@@ -2707,6 +3111,18 @@ const BlogTab = () => {
                   placeholder="Sugestão opcional: Ex. Como reduzir turnover em equipes de Home Care"
                   rows={3}
                 />
+                <div className="space-y-2">
+                  <Label>Texto base do ChatGPT (ideia ou conteúdo)</Label>
+                  <Textarea
+                    value={chatGptSeedText}
+                    onChange={(e) => setChatGptSeedText(e.target.value)}
+                    placeholder="Cole aqui um texto do ChatGPT para preencher automaticamente título, resumo, conteúdo e campos SEO."
+                    rows={4}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Se o texto tiver uma URL de referência, ela será detectada automaticamente.
+                  </p>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
@@ -2736,6 +3152,36 @@ const BlogTab = () => {
                       <Bot className="h-4 w-4" />
                     )}
                     IA escolhe tema relevante
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleAutofillFromChatGptText}
+                    disabled={!!generatingAI || autofillingFromChatGpt}
+                  >
+                    {autofillingFromChatGpt ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                    Preencher campos automaticamente
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleAutofillFromChatGptTextLocal}
+                    disabled={!!generatingAI || autofillingFromChatGpt || autofillingLocally}
+                  >
+                    {autofillingLocally ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Database className="h-4 w-4" />
+                    )}
+                    Usar texto colado sem IA
                   </Button>
                 </div>
               </div>

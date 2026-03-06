@@ -875,16 +875,6 @@ serve(async (req) => {
       });
     }
 
-    if (normalizedMode === "suggestion" && !normalizedSourceReferenceUrl) {
-      return new Response(
-        JSON.stringify({ error: "Informe uma URL de referencia valida para gerar o artigo com base na fonte." }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
-
     const { data: config } = await supabaseAdmin
       .from("site_config")
       .select("gemini_model")
@@ -906,7 +896,7 @@ serve(async (req) => {
       ? await fetchReferenceContext(normalizedSourceReferenceUrl)
       : null;
 
-    if (normalizedMode === "suggestion" && !referenceContext) {
+    if (normalizedMode === "suggestion" && normalizedSourceReferenceUrl && !referenceContext) {
       return new Response(
         JSON.stringify({
           error:

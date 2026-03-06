@@ -80,7 +80,10 @@ const CadastroEmpresaFamilia = () => {
       });
       if (error) throw error;
 
-      trackAccountCreated(data.role, { dedupeKey: signUpData?.user?.id });
+      trackAccountCreated(data.role, {
+        dedupeKey: signUpData?.user?.id,
+        email: signUpData?.user?.email || data.email,
+      });
       
       setShowSuccessModal(true);
       form.reset();

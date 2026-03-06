@@ -1,5 +1,7 @@
 "use client";
 
+import { sendMetaConversionsEvent } from "@/lib/meta-conversions";
+
 export type SignupRole = "professional" | "company" | "family";
 const SIGNUP_TRACKED_PREFIX = "hcm_signup_tracked:";
 
@@ -9,7 +11,10 @@ const getSignupCategory = (role: SignupRole) => {
   return "familia";
 };
 
-export const trackAccountCreated = (role: SignupRole, options?: { dedupeKey?: string | null }) => {
+export const trackAccountCreated = (
+  role: SignupRole,
+  options?: { dedupeKey?: string | null; email?: string | null },
+) => {
   if (typeof window === "undefined") return;
 
   const dedupeKey = String(options?.dedupeKey || "").trim();
@@ -20,6 +25,11 @@ export const trackAccountCreated = (role: SignupRole, options?: { dedupeKey?: st
   }
 
   const category = getSignupCategory(role);
+  const randomId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const eventId = `signup_${dedupeKey || randomId}`;
   const eventPayload = {
     category,
     user_role: category,
@@ -40,13 +50,22 @@ export const trackAccountCreated = (role: SignupRole, options?: { dedupeKey?: st
       content_name: "Criacao de conta",
       status: true,
       ...eventPayload,
-    });
-
-    window.fbq("trackCustom", "hcm_account_created", {
-      event_name: "hcm_account_created",
-      ...eventPayload,
-    });
+    }, { eventID: eventId });
   }
+
+  void sendMetaConversionsEvent({
+    eventName: "CompleteRegistration",
+    eventId,
+    customData: {
+      content_name: "Criacao de conta",
+      status: true,
+      ...eventPayload,
+    },
+    userData: {
+      email: options?.email || null,
+      externalId: dedupeKey || null,
+    },
+  });
 
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({

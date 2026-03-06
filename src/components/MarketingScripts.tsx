@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { supabase } from "@/integrations/supabase/client";
+import { sendMetaConversionsEvent } from "@/lib/meta-conversions";
 
 const LAST_CHECKOUT_STORAGE_KEY = "hcm_last_checkout_context";
 const TRACKED_PURCHASE_PREFIX = "hcm_tracked_purchase:";
@@ -293,9 +294,12 @@ const trackConversion = (payload: ConversionPayload) => {
 
   let sent = false;
   const category = payload.contentType === "subscription" ? "assinatura" : "curso";
+  const eventId = `purchase_${payload.transactionId}`;
   const eventPayload = {
     category,
     content_type: payload.contentType,
+    content_category: category,
+    content_name: `${category}: ${payload.itemName}`,
     transaction_id: payload.transactionId,
     item_id: payload.itemId,
     item_name: payload.itemName,
@@ -308,6 +312,7 @@ const trackConversion = (payload: ConversionPayload) => {
       transaction_id: payload.transactionId,
       value: payload.value,
       currency: payload.currency,
+      content_category: category,
       items: [
         {
           item_id: payload.itemId,
@@ -321,7 +326,8 @@ const trackConversion = (payload: ConversionPayload) => {
     sent = true;
   }
 
-  if (window.fbq) {
+  const hasMetaPixel = Boolean(window.fbq);
+  if (hasMetaPixel) {
     const contents = payload.itemId
       ? [
           {
@@ -344,14 +350,38 @@ const trackConversion = (payload: ConversionPayload) => {
       contents,
       num_items: 1,
       category,
-    });
-
-    window.fbq("trackCustom", "hcm_purchase", {
-      event_name: "hcm_purchase",
-      ...eventPayload,
-    });
+    }, { eventID: eventId });
     sent = true;
   }
+
+  void sendMetaConversionsEvent({
+    eventName: "Purchase",
+    eventId,
+    customData: {
+      value: payload.value,
+      currency: payload.currency,
+      content_name: `${category}: ${payload.itemName}`,
+      content_ids: payload.itemId ? [payload.itemId] : [],
+      content_type: "product",
+      content_category: category,
+      contents: payload.itemId
+        ? [
+            {
+              id: payload.itemId,
+              quantity: 1,
+              item_price: payload.value,
+              item_category: category,
+              content_category: category,
+            },
+          ]
+        : [],
+      num_items: 1,
+      category,
+    },
+    userData: {
+      externalId: payload.transactionId,
+    },
+  });
 
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({
@@ -416,7 +446,6 @@ const MarketingScripts = () => {
 
     if (window.fbq) {
       window.fbq("track", "PageView", pagePayload);
-      window.fbq("trackCustom", "hcm_page_view", pagePayload);
     }
 
     window.dataLayer = window.dataLayer || [];

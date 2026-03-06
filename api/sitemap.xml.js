@@ -63,7 +63,7 @@ const buildUrlNode = ({ loc, lastmod, changefreq, priority }) => {
   return `  <url>\n    ${nodes.join("\n    ")}\n  </url>`;
 };
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   try {
     const [blogRows, courseRows] = await Promise.all([
       requestSupabase(
@@ -118,9 +118,17 @@ module.exports = async (req, res) => {
     res.status(200).send(xml);
   } catch (error) {
     const message = String(error?.message || "Erro ao gerar sitemap.xml");
+    const fallbackXmlNodes = STATIC_ROUTES.map((item) =>
+      buildUrlNode({
+        loc: `${SITE_URL}${item.path === "/" ? "" : item.path}`,
+        lastmod: "",
+        changefreq: item.changefreq,
+        priority: item.priority,
+      }),
+    ).join("\n");
+    const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${fallbackXmlNodes}\n</urlset>\n`;
     res.setHeader("Content-Type", "application/xml; charset=utf-8");
-    res.status(500).send(
-      `<?xml version="1.0" encoding="UTF-8"?>\n<error><message>${escapeXml(message)}</message></error>\n`,
-    );
+    res.setHeader("X-Sitemap-Warning", escapeXml(message));
+    res.status(200).send(fallbackXml);
   }
-};
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +40,20 @@ const getInitialSpecialtyFromUrl = () => {
   const value = new URLSearchParams(window.location.search).get("specialty");
   return value || "";
 };
+
+const normalizeSearchText = (value?: string | null) =>
+  (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\bjd\b/g, "jardim")
+    .replace(/\bvl\b/g, "vila")
+    .replace(/\bsta\b/g, "santa")
+    .replace(/\bsto\b/g, "santo")
+    .replace(/\bsao\b/g, "sao")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const Buscar = () => {
   const { user, session, loading: authLoading } = useAuth();
@@ -85,6 +99,24 @@ const Buscar = () => {
   });
 
   const [showFilters, setShowFilters] = useState(false);
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const resultsSectionRef = useRef<HTMLDivElement | null>(null);
+  const pendingMobileResultsScrollRef = useRef(false);
+
+  const isMobileViewport = () =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+
+  const setFilterValue = (
+    field: keyof typeof filters,
+    value: string,
+    options?: { scrollToResultsOnMobile?: boolean },
+  ) => {
+    if (options?.scrollToResultsOnMobile && isMobileViewport()) {
+      pendingMobileResultsScrollRef.current = true;
+    }
+    setFilters((prev) => ({ ...prev, [field]: value }));
+  };
 
   useEffect(() => {
     const fetchMyProfile = async () => {
@@ -104,6 +136,44 @@ const Buscar = () => {
     };
     fetchMyProfile();
   }, [user]);
+
+  useEffect(() => {
+    const loadCitiesByState = async () => {
+      if (!filters.state) {
+        setAvailableCities([]);
+        return;
+      }
+
+      setLoadingCities(true);
+      try {
+        const { data, error } = await supabase
+          .from("professional_discovery")
+          .select("city")
+          .eq("state", filters.state)
+          .not("city", "is", null);
+
+        if (error) {
+          console.error("[Buscar] Erro ao carregar cidades por estado:", error);
+          setAvailableCities([]);
+          return;
+        }
+
+        const uniqueCities = Array.from(
+          new Set(
+            (data || [])
+              .map((item: any) => String(item?.city || "").trim())
+              .filter(Boolean),
+          ),
+        ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+        setAvailableCities(uniqueCities);
+      } finally {
+        setLoadingCities(false);
+      }
+    };
+
+    loadCitiesByState();
+  }, [filters.state]);
 
   useEffect(() => {
     const geocodeZipWithCache = async (zipRaw?: string | null) => {
@@ -240,7 +310,6 @@ const Buscar = () => {
       if (filters.specialty) query = query.eq("specialty", filters.specialty);
       if (filters.state) query = query.eq("state", filters.state);
       if (filters.city) query = query.ilike("city", `%${filters.city}%`);
-      if (filters.neighborhood) query = query.ilike("neighborhood", `%${filters.neighborhood}%`);
       if (filters.search) query = query.or(`full_name.ilike.%${filters.search}%,experience.ilike.%${filters.search}%`);
 
       const { data, error } = await query;
@@ -250,6 +319,20 @@ const Buscar = () => {
         setAllProfessionals([]);
       } else if (data) {
         let filteredProfessionals = [...data];
+        const normalizedNeighborhoodFilter = normalizeSearchText(filters.neighborhood);
+
+        if (normalizedNeighborhoodFilter) {
+          filteredProfessionals = filteredProfessionals.filter((professional: any) => {
+            const normalizedNeighborhood = normalizeSearchText(professional.neighborhood);
+            if (!normalizedNeighborhood) return false;
+
+            if (normalizedNeighborhood.includes(normalizedNeighborhoodFilter)) return true;
+
+            const filterTokens = normalizedNeighborhoodFilter.split(" ").filter(Boolean);
+            return filterTokens.every((token) => normalizedNeighborhood.includes(token));
+          });
+        }
+
         const hasProfileDrivenFilters = Boolean(
           filters.availability || filters.patient_profile || filters.max_hourly_rate
         );
@@ -342,6 +425,17 @@ const Buscar = () => {
     fetchProfessionals();
   }, [userProfile, isLoadingConfig, config, filters, searchTrigger]);
 
+  useEffect(() => {
+    if (loading || !pendingMobileResultsScrollRef.current || !isMobileViewport()) return;
+    pendingMobileResultsScrollRef.current = false;
+
+    window.requestAnimationFrame(() => {
+      if (!resultsSectionRef.current) return;
+      const targetTop = resultsSectionRef.current.getBoundingClientRect().top + window.scrollY - 88;
+      window.scrollTo({ top: Math.max(targetTop, 0), behavior: "smooth" });
+    });
+  }, [loading, allProfessionals.length]);
+
   const displayedProfessionals = useMemo(() => {
     if (!isMapExpanded || !mapBounds || typeof google === 'undefined') return allProfessionals;
 
@@ -417,6 +511,30 @@ const Buscar = () => {
   ];
 
   const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+
+  const handleStateChange = (state: string) => {
+    if (isMobileViewport()) {
+      pendingMobileResultsScrollRef.current = true;
+    }
+    setFilters((prev) => ({
+      ...prev,
+      state,
+      city: "",
+      neighborhood: "",
+    }));
+  };
+
+  const handleCityChange = (cityValue: string) => {
+    const city = cityValue === "__all" ? "" : cityValue;
+    if (isMobileViewport()) {
+      pendingMobileResultsScrollRef.current = true;
+    }
+    setFilters((prev) => ({
+      ...prev,
+      city,
+      neighborhood: "",
+    }));
+  };
 
   const openConciergeModal = () => {
     setConciergeForm({
@@ -557,12 +675,12 @@ const Buscar = () => {
                   placeholder="Nome ou experiência..."
                   className="pl-10"
                   value={filters.search}
-                  onChange={(e) => setFilters({...filters, search: e.target.value})}
+                  onChange={(e) => setFilterValue("search", e.target.value)}
                 />
               </div>
             </div>
             <Button variant="outline" onClick={() => setShowFilters(!showFilters)} className="h-11 w-full gap-2 sm:w-auto">
-              <Filter className="h-4 w-4" /> Filtros
+              <Filter className="h-4 w-4" /> Filtros {showFilters ? "(RECOLHER)" : "(EXPANDIR)"}
             </Button>
             <Button className="h-11 w-full gap-2 sm:w-auto" onClick={() => setSearchTrigger(prev => prev + 1)}>
               <Search className="h-4 w-4" /> Buscar
@@ -574,29 +692,69 @@ const Buscar = () => {
               <div className="mobile-stagger grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div className="grid gap-2">
                   <Label>Especialidade</Label>
-                  <Select value={filters.specialty} onValueChange={(v) => setFilters({...filters, specialty: v})}>
+                  <Select
+                    value={filters.specialty}
+                    onValueChange={(v) => setFilterValue("specialty", v, { scrollToResultsOnMobile: true })}
+                  >
                     <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
                     <SelectContent>{specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label>Estado (UF)</Label>
-                  <Select value={filters.state} onValueChange={(v) => setFilters({...filters, state: v})}>
+                  <Select
+                    value={filters.state}
+                    onValueChange={handleStateChange}
+                  >
                     <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
                     <SelectContent>{states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label>Cidade</Label>
-                  <Input placeholder="Ex: São Paulo" value={filters.city} onChange={(e) => setFilters({...filters, city: e.target.value})} />
+                  <Select
+                    value={filters.city || "__all"}
+                    onValueChange={handleCityChange}
+                    disabled={!filters.state || loadingCities}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          !filters.state
+                            ? "Selecione o estado primeiro"
+                            : loadingCities
+                              ? "Carregando cidades..."
+                              : "Selecione a cidade"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all">Todas as cidades</SelectItem>
+                      {availableCities.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid gap-2">
                   <Label>Bairro</Label>
-                  <Input placeholder="Digite o bairro..." value={filters.neighborhood} onChange={(e) => setFilters({...filters, neighborhood: e.target.value})} />
+                  <Input
+                    placeholder={!filters.city ? "Selecione a cidade primeiro" : "Digite o bairro"}
+                    value={filters.neighborhood}
+                    disabled={!filters.city}
+                    onChange={(e) =>
+                      setFilterValue("neighborhood", e.target.value, { scrollToResultsOnMobile: true })
+                    }
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label>Disponibilidade</Label>
-                  <Select value={filters.availability || "all"} onValueChange={(v) => setFilters({...filters, availability: v === "all" ? "" : v})}>
+                  <Select
+                    value={filters.availability || "all"}
+                    onValueChange={(v) => setFilterValue("availability", v === "all" ? "" : v, { scrollToResultsOnMobile: true })}
+                  >
                     <SelectTrigger><SelectValue placeholder="Todos os períodos" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os períodos</SelectItem>
@@ -608,7 +766,10 @@ const Buscar = () => {
                 </div>
                 <div className="grid gap-2">
                   <Label>Público-alvo</Label>
-                  <Select value={filters.patient_profile || "all"} onValueChange={(v) => setFilters({...filters, patient_profile: v === "all" ? "" : v})}>
+                  <Select
+                    value={filters.patient_profile || "all"}
+                    onValueChange={(v) => setFilterValue("patient_profile", v === "all" ? "" : v, { scrollToResultsOnMobile: true })}
+                  >
                     <SelectTrigger><SelectValue placeholder="Todos os públicos" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos os públicos</SelectItem>
@@ -625,7 +786,7 @@ const Buscar = () => {
                     min="1"
                     placeholder="Ex: 120"
                     value={filters.max_hourly_rate}
-                    onChange={(e) => setFilters({...filters, max_hourly_rate: e.target.value})}
+                    onChange={(e) => setFilterValue("max_hourly_rate", e.target.value)}
                   />
                 </div>
               </div>
@@ -655,7 +816,11 @@ const Buscar = () => {
           </div>
         )}
 
-        <div className="mobile-stagger grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+        <div
+          ref={resultsSectionRef}
+          id="resultados-profissionais"
+          className="mobile-stagger grid gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4"
+        >
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-64 rounded-2xl" />)
           ) : displayedProfessionals.length > 0 ? (

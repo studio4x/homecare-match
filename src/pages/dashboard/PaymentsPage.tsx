@@ -34,10 +34,12 @@ import {
   ChevronUp,
   Clock,
   CheckCircle2,
+  LifeBuoy,
 } from "lucide-react";
 import { differenceInCalendarDays, format, isValid, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 interface PaymentRecord {
   id: string;
@@ -286,6 +288,7 @@ const PaymentsPage = () => {
   }, [subscriptionSnapshot]);
 
   const currentPlanTier = normalizeTier(subscriptionSnapshot?.tier);
+  const hasActivePlan = ["monthly", "yearly", "free_trial"].includes(currentPlanTier || "");
 
   const currentPlanBenefits = useMemo(() => {
     const unique = (items: string[]) => {
@@ -797,9 +800,11 @@ const PaymentsPage = () => {
       <Card className="border-amber-300/40 bg-amber-50/30">
         <CardHeader>
           <CardTitle className="text-base">Cancelamento de Assinatura</CardTitle>
-          <CardDescription>
-            O cancelamento é permitido apenas em até {CANCELLATION_WINDOW_DAYS} dias após o pagamento.
-          </CardDescription>
+          {hasActivePlan && (
+            <CardDescription>
+              O cancelamento é permitido apenas em até {CANCELLATION_WINDOW_DAYS} dias após o pagamento.
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-foreground">
@@ -808,22 +813,26 @@ const PaymentsPage = () => {
           <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-3">
             <p className="text-xs font-medium text-emerald-900">{retentionCopy}</p>
           </div>
-          <p className="text-sm text-muted-foreground">{cancellationState.message}</p>
-          {cancellationState.deadline && (
-            <p className="text-xs text-muted-foreground">
-              Data limite: <strong>{format(cancellationState.deadline, "dd/MM/yyyy", { locale: ptBR })}</strong>
-            </p>
+          {hasActivePlan && (
+            <>
+              <p className="text-sm text-muted-foreground">{cancellationState.message}</p>
+              {cancellationState.deadline && (
+                <p className="text-xs text-muted-foreground">
+                  Data limite: <strong>{format(cancellationState.deadline, "dd/MM/yyyy", { locale: ptBR })}</strong>
+                </p>
+              )}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleOpenCancelModal}
+                disabled={!cancellationState.canCancel || isCancelling || loading}
+                className="w-full sm:w-auto"
+              >
+                {isCancelling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Cancelar Assinatura
+              </Button>
+            </>
           )}
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleOpenCancelModal}
-            disabled={!cancellationState.canCancel || isCancelling || loading}
-            className="w-full sm:w-auto"
-          >
-            {isCancelling ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-            Cancelar Assinatura
-          </Button>
         </CardContent>
       </Card>
 
@@ -874,6 +883,19 @@ const PaymentsPage = () => {
               Confirmar cancelamento
             </Button>
           </DialogFooter>
+
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <p className="text-sm text-muted-foreground">
+              Antes de cancelar, fale com nossa equipe de suporte: podemos ajudar você a resolver dúvidas, ajustar sua estratégia
+              de uso e manter seu perfil gerando novas oportunidades.
+            </p>
+            <Button asChild variant="secondary" className="mt-3 w-full">
+              <Link to="/dashboard/suporte" onClick={() => setIsCancelModalOpen(false)}>
+                <LifeBuoy className="mr-2 h-4 w-4" />
+                Abrir ticket antes de cancelar
+              </Link>
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

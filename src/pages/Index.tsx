@@ -23,14 +23,14 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { createCheckoutSession } from "@/lib/checkout";
@@ -44,6 +44,7 @@ const Index = () => {
   const location = useLocation();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<"monthly" | "yearly" | null>(null);
+  const [plansCarouselApi, setPlansCarouselApi] = useState<CarouselApi | null>(null);
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["user-profile-tier", user?.id],
@@ -309,6 +310,29 @@ const Index = () => {
 
     return basePlans;
   })();
+
+  const plansForCarousel = useMemo(() => {
+    if (allPlans.length <= 2) return allPlans;
+
+    const annualIndex = allPlans.findIndex((plan) => plan.id === "yearly" || plan.id === "annual");
+    if (annualIndex < 0) return allPlans;
+
+    const reordered = [...allPlans];
+    const [annualPlan] = reordered.splice(annualIndex, 1);
+    const middleIndex = Math.floor(reordered.length / 2);
+    reordered.splice(middleIndex, 0, annualPlan);
+    return reordered;
+  }, [allPlans]);
+
+  const annualPlanIndex = useMemo(
+    () => plansForCarousel.findIndex((plan) => plan.id === "yearly" || plan.id === "annual"),
+    [plansForCarousel],
+  );
+
+  useEffect(() => {
+    if (!plansCarouselApi || annualPlanIndex < 0) return;
+    plansCarouselApi.scrollTo(annualPlanIndex, true);
+  }, [plansCarouselApi, annualPlanIndex]);
 
   const getPlanButtonConfig = (planId: string) => {
     if (!session) return { text: "Escolher plano e começar", disabled: false };
@@ -658,9 +682,13 @@ const Index = () => {
             Dica: arraste para o lado para ver todos os planos.
           </p>
 
-          <Carousel className="w-full">
+          <Carousel
+            className="w-full"
+            setApi={setPlansCarouselApi}
+            opts={{ align: "center", startIndex: annualPlanIndex >= 0 ? annualPlanIndex : 0 }}
+          >
             <CarouselContent className="mobile-stagger items-stretch">
-              {allPlans.map((plan) => {
+              {plansForCarousel.map((plan) => {
                 const btnConfig = getPlanButtonConfig(plan.id);
                 return (
                   <CarouselItem key={plan.id} className="basis-full md:basis-1/2 lg:basis-1/3">

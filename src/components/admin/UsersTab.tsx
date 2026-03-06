@@ -187,14 +187,16 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const handleToggleEmailConfirmed = async (profileId: string, currentStatus: boolean) => {
     setIsUpdatingEmailConfirmed(profileId);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ email_confirmed: !currentStatus })
-        .eq("id", profileId);
+      const { error } = await supabase.functions.invoke("admin-set-email-confirmed", {
+        body: {
+          targetUserId: profileId,
+          emailConfirmed: !currentStatus,
+        },
+      });
 
       if (error) throw error;
       toast.success(!currentStatus ? "E-mail marcado como confirmado." : "Confirmação de e-mail removida.");
-      refetchData();
+      await refetchData();
     } catch (err) {
       toast.error("Erro ao atualizar confirmação de e-mail.");
     } finally {

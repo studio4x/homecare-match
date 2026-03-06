@@ -293,6 +293,7 @@ const trackConversion = (payload: ConversionPayload) => {
   if (wasPurchaseAlreadyTracked(payload.transactionId)) return;
 
   let sent = false;
+  const category = payload.contentType === "subscription" ? "assinatura" : "curso";
 
   if (window.gtag) {
     window.gtag("event", "purchase", {
@@ -319,6 +320,8 @@ const trackConversion = (payload: ConversionPayload) => {
       content_name: payload.itemName,
       content_ids: payload.itemId ? [payload.itemId] : [],
       content_type: payload.contentType,
+      content_category: category,
+      category,
     });
     sent = true;
   }

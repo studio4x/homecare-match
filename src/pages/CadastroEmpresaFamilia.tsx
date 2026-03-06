@@ -33,6 +33,7 @@ import {
 import Layout from "@/components/layout/Layout";
 import { Link, useNavigate } from "react-router-dom";
 import { translateAuthError } from "@/lib/error-utils";
+import { trackAccountCreated } from "@/lib/tracking";
 
 const registerSchema = z.object({
   fullName: z.string({ required_error: "Nome é obrigatório" }).min(3, "O nome da empresa ou responsável é obrigatório"),
@@ -78,6 +79,8 @@ const CadastroEmpresaFamilia = () => {
         },
       });
       if (error) throw error;
+
+      trackAccountCreated(data.role);
       
       setShowSuccessModal(true);
       form.reset();

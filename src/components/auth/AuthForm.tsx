@@ -33,6 +33,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { translateAuthError } from "@/lib/error-utils";
+import { trackAccountCreated } from "@/lib/tracking";
 import { useNavigate } from "react-router-dom";
 
 const authSchema = z.object({
@@ -106,6 +107,30 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
       toast.error(translateAuthError(error.message));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmationEmail = async (email: string) => {
+    const normalizedEmail = String(email || "").trim();
+    if (!normalizedEmail) {
+      toast.error("Digite seu e-mail para reenviar a confirmação.");
+      return;
+    }
+
+    const toastId = toast.loading("Reenviando e-mail de confirmação...");
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: window.location.origin + "/dashboard",
+        },
+      });
+
+      if (error) throw error;
+      toast.success("E-mail de confirmação reenviado com sucesso.", { id: toastId });
+    } catch (error: any) {
+      toast.error(translateAuthError(error.message), { id: toastId });
     }
   };
 
@@ -202,6 +227,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           }
         }
 
+        trackAccountCreated("professional");
         setShowSuccessRegisterModal(true);
         setMode("login");
         reset();
@@ -214,10 +240,27 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
 
           if (error) {
             if (error.message.includes("Email not confirmed")) {
-              toast.error("Verifique seu e-mail para continuar.", {
-                description: "Clique no link de confirmação enviado para sua caixa de entrada.",
+              let emailConfirmationToastId: string | number;
+              emailConfirmationToastId = toast.error("Verifique seu e-mail para continuar.", {
+                description: (
+                  <div className="space-y-3">
+                    <p>Clique no link de confirmação enviado para sua caixa de entrada.</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      onClick={async () => {
+                        toast.dismiss(emailConfirmationToastId);
+                        await handleResendConfirmationEmail(data.email);
+                      }}
+                    >
+                      Reenviar e-mail de confirmação
+                    </Button>
+                  </div>
+                ),
                 icon: <MailWarning className="h-5 w-5" />,
-                duration: 10000,
+                duration: Infinity,
+                closeButton: true,
               });
               return;
             }

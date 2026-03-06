@@ -26,6 +26,42 @@ const normalizeExternalId = (value: unknown) => {
   return safe ? safe.toLowerCase() : null;
 };
 
+const sanitizeCustomData = (eventName: string, input: Record<string, unknown>) => {
+  const customData: Record<string, unknown> = { ...input };
+
+  if (Array.isArray(customData.content_ids)) {
+    customData.content_ids = customData.content_ids
+      .map((value) => asNonEmptyString(value))
+      .filter((value): value is string => Boolean(value));
+  }
+
+  if (eventName === "Purchase" && Array.isArray(customData.contents)) {
+    customData.contents = customData.contents
+      .map((item) => {
+        if (!isObject(item)) return null;
+
+        const cleaned: Record<string, unknown> = {};
+        const id = asNonEmptyString(item.id ?? item.content_id ?? item.item_id);
+        if (id) cleaned.id = id;
+
+        const quantity = Number(item.quantity ?? 1);
+        if (Number.isFinite(quantity) && quantity > 0) {
+          cleaned.quantity = Math.round(quantity);
+        }
+
+        const itemPrice = Number(item.item_price ?? item.price ?? customData.value ?? 0);
+        if (Number.isFinite(itemPrice) && itemPrice >= 0) {
+          cleaned.item_price = itemPrice;
+        }
+
+        return Object.keys(cleaned).length > 0 ? cleaned : null;
+      })
+      .filter((item): item is Record<string, unknown> => Boolean(item));
+  }
+
+  return customData;
+};
+
 const getClientIp = (req: Request) => {
   const header =
     req.headers.get("x-forwarded-for") ||
@@ -61,7 +97,8 @@ serve(async (req) => {
     const eventTime = Number(body?.eventTime || Math.floor(Date.now() / 1000));
     const actionSource = asNonEmptyString(body?.actionSource) || "website";
     const eventSourceUrl = asNonEmptyString(body?.eventSourceUrl) || req.headers.get("origin") || undefined;
-    const customData = isObject(body?.customData) ? body.customData : {};
+    const rawCustomData = isObject(body?.customData) ? body.customData : {};
+    const customData = sanitizeCustomData(eventName || "", rawCustomData);
     const userDataInput = isObject(body?.userData) ? body.userData : {};
 
     if (!eventName || !eventId || !Number.isFinite(eventTime)) {
@@ -210,4 +247,3 @@ serve(async (req) => {
     );
   }
 });
-

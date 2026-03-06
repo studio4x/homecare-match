@@ -227,7 +227,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           }
         }
 
-        trackAccountCreated("professional");
+        trackAccountCreated("professional", { dedupeKey: signUpData?.user?.id });
         setShowSuccessRegisterModal(true);
         setMode("login");
         reset();

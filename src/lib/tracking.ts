@@ -1,6 +1,7 @@
 "use client";
 
 export type SignupRole = "professional" | "company" | "family";
+const SIGNUP_TRACKED_PREFIX = "hcm_signup_tracked:";
 
 const getSignupCategory = (role: SignupRole) => {
   if (role === "professional") return "profissional";
@@ -8,8 +9,15 @@ const getSignupCategory = (role: SignupRole) => {
   return "familia";
 };
 
-export const trackAccountCreated = (role: SignupRole) => {
+export const trackAccountCreated = (role: SignupRole, options?: { dedupeKey?: string | null }) => {
   if (typeof window === "undefined") return;
+
+  const dedupeKey = String(options?.dedupeKey || "").trim();
+  if (dedupeKey) {
+    const storageKey = `${SIGNUP_TRACKED_PREFIX}${dedupeKey}`;
+    if (window.sessionStorage.getItem(storageKey) === "1") return;
+    window.sessionStorage.setItem(storageKey, "1");
+  }
 
   const category = getSignupCategory(role);
   const eventPayload = {

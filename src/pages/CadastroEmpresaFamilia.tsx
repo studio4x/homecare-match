@@ -67,7 +67,7 @@ const CadastroEmpresaFamilia = () => {
   const onSubmit = async (data: RegisterFormData) => {
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
@@ -80,7 +80,7 @@ const CadastroEmpresaFamilia = () => {
       });
       if (error) throw error;
 
-      trackAccountCreated(data.role);
+      trackAccountCreated(data.role, { dedupeKey: signUpData?.user?.id });
       
       setShowSuccessModal(true);
       form.reset();

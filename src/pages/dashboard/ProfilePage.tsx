@@ -291,7 +291,7 @@ const ProfilePage = () => {
           notifications_enabled: data.notifications_enabled ?? true,
           // New patient-specific fields
           patient_name: data.patient_name || "",
-          patient_age: data.patient_age || "",
+          patient_age: data.patient_age ?? "",
           patient_medical_conditions: data.patient_medical_conditions || "",
           patient_mobility_level: data.patient_mobility_level || [],
           patient_cognitive_state: data.patient_cognitive_state || [],
@@ -611,6 +611,20 @@ const ProfilePage = () => {
         }
       }
 
+      const normalizedHourlyRate = (() => {
+        const rawValue = String(profile.hourly_rate ?? "").trim();
+        if (!rawValue) return null;
+        const parsed = Number(rawValue.replace(",", "."));
+        return Number.isFinite(parsed) ? parsed : null;
+      })();
+
+      const normalizedPatientAge = (() => {
+        const rawValue = String(profile.patient_age ?? "").trim();
+        if (!rawValue) return null;
+        const parsed = Number.parseInt(rawValue, 10);
+        return Number.isFinite(parsed) ? parsed : null;
+      })();
+
       const updatePayload = {
         full_name: profile.full_name,
         phone: profile.phone,
@@ -626,7 +640,7 @@ const ProfilePage = () => {
         cpf: profile.cpf,
         cnpj: profile.cnpj,
         ans_registration: profile.ans_registration, // Save new field
-        hourly_rate: profile.hourly_rate,
+        hourly_rate: normalizedHourlyRate,
         availability: profile.availability,
         patient_profiles: profile.patient_profiles,
         address_zip: profile.address_zip,
@@ -638,7 +652,7 @@ const ProfilePage = () => {
         updated_at: new Date().toISOString(),
         // New patient-specific fields
         patient_name: profile.patient_name,
-        patient_age: profile.patient_age,
+        patient_age: normalizedPatientAge,
         patient_medical_conditions: profile.patient_medical_conditions,
         patient_mobility_level: profile.patient_mobility_level,
         patient_cognitive_state: profile.patient_cognitive_state,

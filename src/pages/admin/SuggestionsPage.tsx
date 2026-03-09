@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Trash2, MessageSquare, Calendar, Bot, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 type SuggestionStatus = "new" | "reviewing" | "implemented" | "ignored";
 
@@ -62,6 +63,7 @@ const statusBadge = (status: SuggestionStatus) => {
 };
 
 const SuggestionsPage = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [suggestions, setSuggestions] = useState<HumanSuggestion[]>([]);
@@ -173,6 +175,22 @@ const SuggestionsPage = () => {
     }
   };
 
+  const handleCreateFaqFromQuestion = async (row: ChatbotQuestionSuggestion) => {
+    try {
+      if (row.status === "new") {
+        await supabase.from("chatbot_unanswered_questions").update({ status: "reviewing" }).eq("id", row.id);
+        setChatbotSuggestions((prev) => prev.map((item) => (item.id === row.id ? { ...item, status: "reviewing" } : item)));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+
+    const params = new URLSearchParams();
+    params.set("createFromQuestion", row.question);
+    params.set("sourceSuggestionId", row.id);
+    navigate(`/admin/faq?${params.toString()}`);
+  };
+
   const manualCount = suggestions.length;
   const unansweredCount = chatbotSuggestions.length;
 
@@ -219,7 +237,7 @@ const SuggestionsPage = () => {
                   <TableHead className="w-[220px]">Usuario</TableHead>
                   <TableHead>Sugestao</TableHead>
                   <TableHead className="w-[170px]">Data</TableHead>
-                  <TableHead className="w-[80px] text-right">Acoes</TableHead>
+                  <TableHead className="w-[170px] text-right">Acoes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -346,14 +364,24 @@ const SuggestionsPage = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteChatbotSuggestion(row.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 text-primary hover:bg-primary/10"
+                              onClick={() => handleCreateFaqFromQuestion(row)}
+                            >
+                              Criar FAQ
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteChatbotSuggestion(row.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

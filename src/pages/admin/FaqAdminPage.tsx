@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ const csvToArray = (value: string) =>
 const arrayToCsv = (value: unknown) => (Array.isArray(value) ? value.filter(Boolean).join(", ") : "");
 
 const FaqAdminPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("faqs");
   const [faqs, setFaqs] = useState<any[]>([]);
   const [guides, setGuides] = useState<any[]>([]);
@@ -54,6 +56,7 @@ const FaqAdminPage = () => {
   const [openFaqDialog, setOpenFaqDialog] = useState(false);
   const [selectedFaq, setSelectedFaq] = useState<any>(null);
   const [isSavingFaq, setIsSavingFaq] = useState(false);
+  const [pendingSuggestionId, setPendingSuggestionId] = useState<string | null>(null);
 
   const [newCategoryMode, setNewCategoryMode] = useState(false);
   const [customCategory, setCustomCategory] = useState("");
@@ -71,6 +74,30 @@ const FaqAdminPage = () => {
   useEffect(() => {
     fetchKnowledgeBase();
   }, []);
+
+  useEffect(() => {
+    const questionFromQuery = String(searchParams.get("createFromQuestion") || "").trim();
+    if (!questionFromQuery) return;
+
+    const suggestionIdFromQuery = String(searchParams.get("sourceSuggestionId") || "").trim();
+    setActiveTab("faqs");
+    setSelectedFaq({
+      question: questionFromQuery,
+      answer: "",
+      category: categories[0] || "geral",
+      position: faqs.length,
+      is_published: true,
+    });
+    setPendingSuggestionId(suggestionIdFromQuery || null);
+    setNewCategoryMode(false);
+    setCustomCategory("");
+    setOpenFaqDialog(true);
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("createFromQuestion");
+    nextParams.delete("sourceSuggestionId");
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams, categories, faqs.length]);
 
   const fetchKnowledgeBase = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -124,6 +151,7 @@ const FaqAdminPage = () => {
       position: faqs.length,
       is_published: true,
     });
+    setPendingSuggestionId(null);
     setNewCategoryMode(false);
     setCustomCategory("");
     setOpenFaqDialog(true);
@@ -131,9 +159,18 @@ const FaqAdminPage = () => {
 
   const handleEditFaq = (faq: any) => {
     setSelectedFaq({ ...faq });
+    setPendingSuggestionId(null);
     setNewCategoryMode(false);
     setCustomCategory("");
     setOpenFaqDialog(true);
+  };
+
+  const closeFaqDialog = () => {
+    setOpenFaqDialog(false);
+    setSelectedFaq(null);
+    setPendingSuggestionId(null);
+    setNewCategoryMode(false);
+    setCustomCategory("");
   };
 
   const handleSaveFaq = async () => {
@@ -154,8 +191,23 @@ const FaqAdminPage = () => {
       const { error } = await supabase.from("support_faqs").upsert(payload);
       if (error) throw error;
 
-      toast.success("FAQ salva!");
-      setOpenFaqDialog(false);
+      if (pendingSuggestionId) {
+        const { error: suggestionError } = await supabase
+          .from("chatbot_unanswered_questions")
+          .update({ status: "implemented" })
+          .eq("id", pendingSuggestionId);
+
+        if (suggestionError) {
+          console.error(suggestionError);
+          toast.success("FAQ salva!");
+        } else {
+          toast.success("FAQ salva e sugestao marcada como implementada.");
+        }
+      } else {
+        toast.success("FAQ salva!");
+      }
+
+      closeFaqDialog();
       fetchKnowledgeBase(true);
     } catch (error) {
       console.error(error);
@@ -479,7 +531,13 @@ const FaqAdminPage = () => {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={openFaqDialog} onOpenChange={setOpenFaqDialog}>
+      <Dialog
+        open={openFaqDialog}
+        onOpenChange={(open) => {
+          if (!open) closeFaqDialog();
+          else setOpenFaqDialog(true);
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{selectedFaq?.id ? "Editar FAQ" : "Nova FAQ"}</DialogTitle>
@@ -570,7 +628,7 @@ const FaqAdminPage = () => {
               </div>
 
               <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpenFaqDialog(false)}>
+                <Button variant="ghost" onClick={closeFaqDialog}>
                   Cancelar
                 </Button>
                 <Button onClick={handleSaveFaq} disabled={isSavingFaq}>

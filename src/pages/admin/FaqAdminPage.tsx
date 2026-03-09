@@ -71,6 +71,16 @@ const FaqAdminPage = () => {
   const [guideVariantsInput, setGuideVariantsInput] = useState("");
   const [isSavingGuide, setIsSavingGuide] = useState(false);
 
+  const defaultFaqCategory = useMemo(() => {
+    const categorySet = new Set<string>();
+    for (const faq of faqs) {
+      const category = String(faq?.category || "").trim();
+      if (category) categorySet.add(category);
+    }
+    const sortedCategories = Array.from(categorySet).sort();
+    return sortedCategories[0] || "geral";
+  }, [faqs]);
+
   useEffect(() => {
     fetchKnowledgeBase();
   }, []);
@@ -84,7 +94,7 @@ const FaqAdminPage = () => {
     setSelectedFaq({
       question: questionFromQuery,
       answer: "",
-      category: categories[0] || "geral",
+      category: defaultFaqCategory,
       position: faqs.length,
       is_published: true,
     });
@@ -97,7 +107,7 @@ const FaqAdminPage = () => {
     nextParams.delete("createFromQuestion");
     nextParams.delete("sourceSuggestionId");
     setSearchParams(nextParams, { replace: true });
-  }, [searchParams, setSearchParams, categories, faqs.length]);
+  }, [searchParams, setSearchParams, defaultFaqCategory, faqs.length]);
 
   const fetchKnowledgeBase = async (silent = false) => {
     if (!silent) setLoading(true);

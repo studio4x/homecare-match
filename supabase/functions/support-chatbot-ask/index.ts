@@ -975,7 +975,7 @@ Regras obrigatorias:
 - Se a pergunta fugir do escopo, responda exatamente com: "${config.chatbot_out_of_scope_message}"
 - Nao invente telas, links, recursos ou regras.
 - Resposta curta, pratica e em portugues (pt-BR), mantendo o idioma do usuario se a pergunta vier em outro idioma.
-- Quando possivel, inclua o caminho da tela (ex: /dashboard/suporte).
+- Evite incluir URLs/caminhos de tela automaticamente; cite caminhos apenas quando o usuario pedir ou quando for indispensavel para executar o passo.
 - Nao inclua chamadas de acao como "Ver FAQ", "Abrir chamado" ou frases equivalentes no corpo da resposta.
 - Se houver nome do usuario no contexto, pode usar o nome com naturalidade no inicio da resposta, sem repetir em excesso.
 

@@ -42,7 +42,7 @@ type ChatMessage = {
 
 const VISITOR_ID_KEY = "hcm_chatbot_visitor_id";
 const MAX_LOCAL_MESSAGES = 60;
-const LINK_PATTERN = /(https?:\/\/[^\s]+|\/[a-zA-Z0-9][^\s]*)/g;
+const LINK_PATTERN = /(https?:\/\/[^\s]+)/g;
 const TRAILING_PUNCTUATION_PATTERN = /[.,;:!?)]$/;
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -82,8 +82,6 @@ const splitTrailingPunctuation = (value: string) => {
 
   return { clean, suffix };
 };
-
-const isInternalPath = (value: string) => /^\/[a-zA-Z0-9]/.test(String(value || ""));
 
 const extractFirstName = (value: string | null | undefined) => {
   const normalized = String(value || "")
@@ -125,6 +123,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [conversationStarted, setConversationStarted] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isSlowThinking, setIsSlowThinking] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
   const [visitorId, setVisitorId] = useState<string>("");
   const [roleContext, setRoleContext] = useState<string | null>(null);
@@ -139,6 +138,9 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const fallbackErrorMessage =
     siteConfig?.chatbot_error_message ||
     "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.";
+  const thinkingMessage = isSlowThinking
+    ? "Ainda estou analisando nossos documentos. Quase pronto..."
+    : "Estou lendo nossos documentos para te responder...";
   const personalizedWelcomeMessage = useMemo(
     () => buildWelcomeMessage(welcomeMessage, userFirstName),
     [welcomeMessage, userFirstName],
@@ -252,6 +254,20 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, open, isSending, isMinimized, conversationStarted]);
 
+  useEffect(() => {
+    if (!isSending) {
+      setIsSlowThinking(false);
+      return;
+    }
+
+    setIsSlowThinking(false);
+    const timeoutId = window.setTimeout(() => {
+      setIsSlowThinking(true);
+    }, 10_000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isSending]);
+
   const handleActionClick = (action: ActionItem) => {
     if (!action?.url) return;
     navigate(action.url);
@@ -287,17 +303,6 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
             >
               {clean}
             </a>,
-          );
-        } else if (isInternalPath(clean)) {
-          nodes.push(
-            <button
-              key={`msg-link-${nodeIndex++}`}
-              type="button"
-              className="underline underline-offset-2 hover:opacity-80"
-              onClick={() => handleActionClick({ type: "link", label: clean, url: clean })}
-            >
-              {clean}
-            </button>,
           );
         } else {
           nodes.push(rawToken);
@@ -493,8 +498,11 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
 
                       {isSending && (
                         <div className="flex justify-start">
-                          <div className="rounded-2xl rounded-bl-sm border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <div className="max-w-[90%] rounded-2xl rounded-bl-sm border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+                            <div className="flex items-start gap-2">
+                              <Loader2 className="mt-0.5 h-3.5 w-3.5 animate-spin shrink-0" />
+                              <span className="leading-relaxed">{thinkingMessage}</span>
+                            </div>
                           </div>
                         </div>
                       )}

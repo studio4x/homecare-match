@@ -141,7 +141,7 @@ const UserNotificationWidget = () => {
   if (!user) return null;
 
   return (
-    <div className="fixed bottom-20 right-6 z-[60]">
+    <div className="fixed bottom-20 md:bottom-24 right-6 z-[60]">
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
           <button 

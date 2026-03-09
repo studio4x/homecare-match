@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,7 +31,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import Layout from "@/components/layout/Layout";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { translateAuthError } from "@/lib/error-utils";
 import { trackAccountCreated } from "@/lib/tracking";
 
@@ -53,16 +53,25 @@ const CadastroEmpresaFamilia = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       fullName: "",
       email: "",
+      role: undefined,
       password: "",
       confirmPassword: "",
     },
   });
+
+  useEffect(() => {
+    const roleParam = new URLSearchParams(location.search).get("role");
+    if (roleParam === "company" || roleParam === "family") {
+      form.setValue("role", roleParam, { shouldValidate: true });
+    }
+  }, [location.search, form]);
 
   const onSubmit = async (data: RegisterFormData) => {
     setLoading(true);
@@ -118,7 +127,7 @@ const CadastroEmpresaFamilia = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo de Conta</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione se você é uma empresa ou família" />

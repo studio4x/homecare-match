@@ -1,4 +1,4 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Mail, LifeBuoy, LayoutGrid, ShieldCheck, Search, Building2, Home, UserRound, Newspaper } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import SuggestionDrawer from "../SuggestionDrawer";
@@ -141,7 +141,7 @@ const Footer = () => {
 
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-border pt-6 md:flex-row">
           <p className="text-center text-xs text-muted-foreground md:text-sm">
-            (c) {new Date().getFullYear()} HomeCare Match | CNPJ 10.682.236/0001-09. Todos os direitos reservados.
+            © {new Date().getFullYear()} HomeCare Match | CNPJ 10.682.236/0001-09. Todos os direitos reservados.
           </p>
           <div className="flex items-center gap-6">
             <Link to="/politica-de-privacidade" className="text-[10px] uppercase tracking-widest text-muted-foreground/60 transition-colors hover:text-primary">

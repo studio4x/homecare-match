@@ -570,7 +570,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
             setOpen(true);
             setIsMinimized(false);
           }}
-          className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-2xl transition-transform active:scale-95"
+          className="relative flex h-14 w-14 items-center justify-center rounded-full border border-emerald-300 bg-emerald-500 text-white shadow-2xl transition-transform hover:bg-emerald-600 active:scale-95"
           aria-label="Abrir assistente da plataforma"
         >
           <MessageCircle className="h-6 w-6" />

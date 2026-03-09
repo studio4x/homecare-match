@@ -232,8 +232,10 @@ const FEATURE_CATALOG = [
 
 const LEGACY_OUT_OF_SCOPE_MESSAGE =
   "Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.";
+const LEGACY_PLATFORM_SCOPE_OUT_OF_SCOPE_MESSAGE =
+  "Posso responder apenas sobre assuntos da plataforma HomeCare Match (funcionalidades, planos, pagamentos, conta e fluxos de uso). Se precisar, posso te direcionar para o suporte.";
 const PLATFORM_SCOPE_OUT_OF_SCOPE_MESSAGE =
-  "Consigo te ajudar com duvidas sobre a HomeCare Match (funcionalidades, planos, pagamentos, conta e fluxos de uso). Se precisar, te direciono para o suporte.";
+  "Posso te ajudar com duvidas da HomeCare Match: funcionalidades, planos, pagamentos, conta e uso da plataforma. Se quiser, tambem te encaminho para o suporte.";
 
 const SUBSCRIPTION_POLICY_DOCS = [
   {
@@ -275,7 +277,7 @@ const DEFAULTS = {
   chatbot_welcome_message:
     "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
   chatbot_out_of_scope_message: PLATFORM_SCOPE_OUT_OF_SCOPE_MESSAGE,
-  chatbot_error_message: "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.",
+  chatbot_error_message: "Tive um problema para responder agora. Tente de novo em instantes ou abra um chamado no suporte.",
   chatbot_max_requests_anon_per_day: 20,
   chatbot_max_requests_auth_per_day: 80,
   chatbot_history_window: 12,
@@ -313,6 +315,8 @@ const META_EXPLANATION_PATTERNS = [
   /\bsegundo\s+(o|a)\s+(contexto|documento|documentacao|base|faq)\b[^.]*[.:]?\s*/gi,
   /\bencontrei\s+uma\s+resposta\s+na\s+base\s+de\s+faq\b[^.]*[.:]?\s*/gi,
   /\bna\s+base\s+de\s+conhecimento\b[^.]*[.:]?\s*/gi,
+  /\bcomo\s+assistente\s+virtual\b[^.]*[.:]?\s*/gi,
+  /\bcomo\s+ia\b[^.]*[.:]?\s*/gi,
 ];
 
 const sanitizeAnswer = (value: string) => {
@@ -372,6 +376,259 @@ const buildDefaultActions = (isLoggedIn: boolean) => {
     { type: "link", label: "Ver FAQ", url: "/suporte" },
     { type: "link", label: "Entrar para abrir chamado", url: "/login" },
   ];
+};
+
+const ROUTE_META = [
+  { path: "/dashboard/pagamentos", label: "Dashboard > Pagamentos", authRequired: true },
+  { path: "/dashboard/perfil", label: "Dashboard > Perfil", authRequired: true },
+  { path: "/dashboard/contatos", label: "Dashboard > Contatos", authRequired: true },
+  { path: "/dashboard/suporte", label: "Dashboard > Suporte", authRequired: true },
+  { path: "/dashboard/pacientes", label: "Dashboard > Pacientes", authRequired: true },
+  { path: "/dashboard/avisos", label: "Dashboard > Avisos", authRequired: true },
+  { path: "/dashboard/cursos", label: "Dashboard > Cursos", authRequired: true },
+  { path: "/dashboard", label: "Dashboard", authRequired: true },
+  { path: "/cadastro-empresa", label: "Cadastro de Empresa/Familia", authRequired: false },
+  { path: "/buscar", label: "Busca de Profissionais", authRequired: false },
+  { path: "/cursos", label: "Cursos", authRequired: false },
+  { path: "/funcionalidades", label: "Funcionalidades", authRequired: false },
+  { path: "/suporte", label: "FAQ", authRequired: false },
+  { path: "/login", label: "Login", authRequired: false },
+];
+
+const INTERNAL_PATH_REGEX = /(^|[\s(])((\/[a-z0-9-]+(?:\/[a-z0-9-]+)*)(?:[?#][^\s)]*)?)(?=$|[\s).,;:!?])/gi;
+
+const normalizeRoutePath = (value: string | null | undefined) => {
+  let route = String(value || "").trim();
+  if (!route) return "";
+
+  if (/^https?:\/\//i.test(route)) {
+    try {
+      route = new URL(route).pathname || "";
+    } catch (_err) {
+      return "";
+    }
+  }
+
+  route = route.split("?")[0].split("#")[0].trim();
+  if (!route.startsWith("/")) return "";
+  if (route.length > 1 && route.endsWith("/")) route = route.slice(0, -1);
+  return route;
+};
+
+const titleCaseSegment = (value: string) =>
+  String(value || "")
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const resolveRouteMeta = (rawRoute: string | null | undefined) => {
+  const route = normalizeRoutePath(rawRoute);
+  if (!route) return null;
+
+  const exact = ROUTE_META.find((item) => item.path === route);
+  if (exact) return exact;
+
+  if (route.startsWith("/dashboard/")) {
+    const segments = route.replace("/dashboard/", "").split("/").filter(Boolean);
+    const section = segments.length > 0 ? titleCaseSegment(segments[0]) : "Dashboard";
+    return {
+      path: route,
+      label: section ? `Dashboard > ${section}` : "Dashboard",
+      authRequired: true,
+    };
+  }
+
+  if (route === "/dashboard") {
+    return { path: route, label: "Dashboard", authRequired: true };
+  }
+
+  const fallback = titleCaseSegment(route.replace(/^\//, ""));
+  return { path: route, label: fallback || "Pagina", authRequired: false };
+};
+
+const humanizeInternalPathMentions = (text: string) => {
+  return String(text || "").replace(INTERNAL_PATH_REGEX, (_match, prefix, pathToken) => {
+    const routeInfo = resolveRouteMeta(pathToken);
+    if (!routeInfo) return `${prefix}${pathToken}`;
+    return `${prefix}${routeInfo.label}`;
+  });
+};
+
+const ensureAuthAwareAnswer = (text: string, isLoggedIn: boolean) => {
+  if (isLoggedIn) return String(text || "").trim();
+
+  const normalized = normalizeText(text);
+  const mentionsRestrictedArea =
+    normalized.includes("dashboard") ||
+    normalized.includes("pagamentos") ||
+    normalized.includes("perfil") ||
+    normalized.includes("contatos") ||
+    normalized.includes("suporte");
+
+  const alreadyMentionsLogin =
+    normalized.includes("faca login") ||
+    normalized.includes("faça login") ||
+    normalized.includes("apos entrar") ||
+    normalized.includes("após entrar") ||
+    normalized.includes("depois de entrar") ||
+    normalized.includes("entrar na sua conta");
+
+  if (!mentionsRestrictedArea || alreadyMentionsLogin) return String(text || "").trim();
+  return `${String(text || "").trim()} Para acessar essa area, primeiro entre na sua conta.`;
+};
+
+const adaptAnswerForDisplay = (answer: string, isLoggedIn: boolean) => {
+  const cleaned = sanitizeAnswer(answer);
+  const humanized = humanizeInternalPathMentions(cleaned);
+  return ensureAuthAwareAnswer(humanized, isLoggedIn);
+};
+
+const resolvePrimaryRouteFromSources = (sources: any[]) => {
+  const rows = Array.isArray(sources) ? sources : [];
+  for (const source of rows) {
+    const route = normalizeRoutePath(source?.route || "");
+    if (!route) continue;
+    if (route === "/suporte") continue;
+    return route;
+  }
+  return "";
+};
+
+const buildContextualAction = (route: string, isLoggedIn: boolean) => {
+  const routeInfo = resolveRouteMeta(route);
+  if (!routeInfo) return null;
+  if (routeInfo.path === "/suporte" || routeInfo.path === "/login") return null;
+
+  if (routeInfo.authRequired && !isLoggedIn) {
+    return {
+      type: "link",
+      label: `Entrar para acessar ${routeInfo.label}`,
+      url: "/login",
+    };
+  }
+
+  return {
+    type: "link",
+    label: `Ir para ${routeInfo.label}`,
+    url: routeInfo.path,
+  };
+};
+
+const buildSuggestedActions = ({
+  isLoggedIn,
+  primaryRoute,
+}: {
+  isLoggedIn: boolean;
+  primaryRoute?: string;
+}) => {
+  const actions = buildDefaultActions(isLoggedIn).map((item) => ({ ...item }));
+  const contextualAction = buildContextualAction(primaryRoute || "", isLoggedIn);
+  if (!contextualAction) return actions;
+
+  const exists = actions.some((item) => item.label === contextualAction.label && item.url === contextualAction.url);
+  if (!exists) actions.push(contextualAction);
+  return actions;
+};
+
+const SIGNUP_ACTIONS = [
+  { type: "link", label: "Sou Profissional", url: "/login#auth-sign-up" },
+  { type: "link", label: "Sou Empresa", url: "/cadastro-empresa?role=company" },
+  { type: "link", label: "Sou Familia", url: "/cadastro-empresa?role=family" },
+];
+
+const SIGNUP_INTENT_PATTERNS = [
+  /\bcriar\s+(uma\s+)?conta\b/,
+  /\babrir\s+(uma\s+)?conta\b/,
+  /\bfazer\s+(o\s+)?cadastro\b/,
+  /\biniciar\s+(o\s+)?cadastro\b/,
+  /\brealizar\s+(o\s+)?cadastro\b/,
+  /\bme\s+cadastrar\b/,
+  /\bcadastrar\b/,
+  /\bcomo\s+(me\s+)?cadastrar\b/,
+  /\bcomo\s+criar\s+(uma\s+)?conta\b/,
+  /\bregistrar\s+(uma\s+)?conta\b/,
+  /\binscrever\s+(na\s+plataforma|me)\b/,
+];
+
+const SIGNUP_INTENT_BLOCKLIST = [
+  /\bcadastro\s+de\s+pacientes?\b/,
+  /\b(atualizar|editar|alterar|completar)\s+(meu|minha)\s+cadastro\b/,
+  /\b(meu|minha)\s+perfil\b/,
+];
+
+const isSignupIntent = (message: string) => {
+  const normalized = normalizeText(message);
+  if (!normalized) return false;
+  if (SIGNUP_INTENT_BLOCKLIST.some((pattern) => pattern.test(normalized))) return false;
+  return SIGNUP_INTENT_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
+const buildSignupActions = () => SIGNUP_ACTIONS.map((action) => ({ ...action }));
+
+const buildSignupIntentAnswer = (userName?: string | null) => {
+  const prefix = userName ? `Perfeito, ${userName}. ` : "";
+  return `${prefix}Qual tipo de cadastro voce quer fazer? Escolha uma opcao abaixo para iniciar seu cadastro.`;
+};
+
+const FREE_TRIAL_DEFAULT_DAYS = 30;
+
+const resolveFreeTrialDays = (plans: any[]) => {
+  // Regra oficial do chatbot: cadastro padrao = 30 dias com acesso limitado.
+  // Isso evita respostas inconsistentes por conteudo legado em FAQ/plans.
+  return FREE_TRIAL_DEFAULT_DAYS;
+};
+
+const TRIAL_POLICY_INTENT_PATTERNS = [
+  /\bteste\s+gratis\b/,
+  /\bteste\s+gratuito\b/,
+  /\bperiodo\s+gratuito\b/,
+  /\btrial\b/,
+  /\bacesso\s+total\b/,
+  /\bacesso\s+completo\b/,
+  /\bacesso\s+limitad[oa]\b/,
+  /\bquantos?\s+dias\b/,
+  /\bquanto\s+tempo\b/,
+  /\bdias?\s+gratis\b/,
+  /\bcupom\b/,
+  /\bbonificad[oa]\b/,
+  /\bganh[ao]\s+\d+\s+dias\b/,
+];
+
+const TRIAL_POLICY_HISTORY_KEYWORDS = [
+  "teste gratis",
+  "teste gratuito",
+  "periodo gratuito",
+  "free_trial",
+  "cupom",
+  "dias de acesso",
+  "acesso total",
+  "acesso limitado",
+];
+
+const hasTrialPolicyContextInHistory = (historyMessages: any[]) => {
+  const rows = Array.isArray(historyMessages) ? historyMessages : [];
+  return rows.some((item: any) => {
+    const normalized = normalizeText(item?.content || "");
+    if (!normalized) return false;
+    return TRIAL_POLICY_HISTORY_KEYWORDS.some((keyword) => normalized.includes(keyword));
+  });
+};
+
+const isTrialPolicyIntent = (message: string, historyMessages: any[] = []) => {
+  const normalized = normalizeText(message);
+  if (!normalized) return false;
+
+  const directIntent = TRIAL_POLICY_INTENT_PATTERNS.some((pattern) => pattern.test(normalized));
+  if (directIntent) return true;
+
+  if (/\bacesso\b/.test(normalized) && hasTrialPolicyContextInHistory(historyMessages)) return true;
+  return false;
+};
+
+const buildTrialPolicyAnswer = (freeTrialDays: number, userName?: string | null) => {
+  const prefix = userName ? `${userName}, ` : "";
+  return `${prefix}no cadastro padrao, o acesso gratuito e de ${freeTrialDays} dias e com acesso limitado. Se voce usar um cupom valido no cadastro, o prazo segue a quantidade de dias configurada no proprio cupom.`;
 };
 
 const buildDocTokens = (doc: any) => {
@@ -553,13 +810,17 @@ const buildFaqModeAnswer = (question: string, topDocs: any[], userName?: string 
   const top = topDocs[0];
   if (!top) return "Nao encontrei informacao suficiente para responder com seguranca sobre essa funcionalidade.";
 
-  const related = topDocs
+  const relatedTitles = topDocs
     .slice(1, 3)
-    .map((doc) => `- ${doc.title}`)
-    .join("\n");
+    .map((doc) => compact(String(doc.title || ""), 80))
+    .filter(Boolean);
 
   const greeting = userName ? `Ola, ${userName}. ` : "";
-  return `${greeting}${compact(top.content, 1200)}${related ? `\n\nSe quiser, tambem posso te explicar:\n${related}` : ""}`;
+  const related =
+    relatedTitles.length > 0
+      ? `\n\nSe quiser, tambem te explico ${relatedTitles.join(relatedTitles.length > 1 ? " e " : "")}.`
+      : "";
+  return `${greeting}${compact(top.content, 1200)}${related}`;
 };
 
 const selectAiContextDocs = (scoredDocs: any[]) => {
@@ -755,7 +1016,9 @@ serve(async (req) => {
     if (
       !currentOutOfScopeMessage ||
       currentOutOfScopeMessage === normalizeText(LEGACY_OUT_OF_SCOPE_MESSAGE) ||
-      currentOutOfScopeMessage.includes("apenas sobre funcionalidades da plataforma")
+      currentOutOfScopeMessage === normalizeText(LEGACY_PLATFORM_SCOPE_OUT_OF_SCOPE_MESSAGE) ||
+      currentOutOfScopeMessage.includes("apenas sobre funcionalidades da plataforma") ||
+      currentOutOfScopeMessage.includes("posso responder apenas sobre assuntos da plataforma")
     ) {
       config.chatbot_out_of_scope_message = PLATFORM_SCOPE_OUT_OF_SCOPE_MESSAGE;
     }
@@ -922,6 +1185,46 @@ serve(async (req) => {
       sources: [],
     });
 
+    if (isSignupIntent(rawMessage)) {
+      const mode: "faq" = "faq";
+      const answer = sanitizeAnswer(buildSignupIntentAnswer(userFirstName || null));
+      const sources: any[] = [];
+      const suggestedActions = buildSignupActions();
+
+      await supabaseAdmin.from("chatbot_messages").insert({
+        session_id: sessionId,
+        role: "assistant",
+        content: answer,
+        mode,
+        sources,
+      });
+
+      await supabaseAdmin
+        .from("chatbot_sessions")
+        .update({
+          last_mode: mode,
+          page_path: requestedPagePath,
+          role_context: roleContext,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sessionId);
+
+      return new Response(
+        JSON.stringify({
+          session_id: sessionId,
+          answer,
+          sources,
+          mode,
+          can_open_ticket: !!userId,
+          suggested_actions: suggestedActions,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const [{ data: faqs }, { data: guides }, { data: plans }, { data: historyMessages }] = await Promise.all([
       supabaseAdmin.from("support_faqs").select("id, question, answer, category").eq("is_published", true),
       supabaseAdmin
@@ -938,6 +1241,77 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(Math.max(2, Number(config.chatbot_history_window || 12) * 2)),
     ]);
+
+    const freeTrialDays = resolveFreeTrialDays(plans || []);
+    const trialPolicyDoc = buildDocTokens({
+      id: "policy:free-trial-coupon",
+      type: "policy",
+      title: "Politica de teste gratuito e cupom no cadastro",
+      content: `No cadastro padrao, o acesso gratuito e de ${freeTrialDays} dias e com acesso limitado. Se houver cupom valido no cadastro, o prazo de acesso passa a ser a quantidade de dias configurada no cupom.`,
+      route: "/login",
+      tags: [
+        "teste gratis",
+        "teste gratuito",
+        "trial",
+        "dias de acesso",
+        "acesso limitado",
+        "cupom",
+        "cadastro",
+      ],
+      audience: ["professional"],
+    });
+
+    if (isTrialPolicyIntent(rawMessage, historyMessages || [])) {
+      const mode: "faq" = "faq";
+      const answer = adaptAnswerForDisplay(buildTrialPolicyAnswer(freeTrialDays, userFirstName || null), !!userId);
+      const sources = [
+        {
+          id: trialPolicyDoc.id,
+          type: trialPolicyDoc.type,
+          title: trialPolicyDoc.title,
+          route: trialPolicyDoc.route,
+          snippet: compact(trialPolicyDoc.content, 180),
+          score: 1,
+        },
+      ];
+      const suggestedActions = buildSuggestedActions({
+        isLoggedIn: !!userId,
+        primaryRoute: resolvePrimaryRouteFromSources(sources),
+      });
+
+      await supabaseAdmin.from("chatbot_messages").insert({
+        session_id: sessionId,
+        role: "assistant",
+        content: answer,
+        mode,
+        sources,
+      });
+
+      await supabaseAdmin
+        .from("chatbot_sessions")
+        .update({
+          last_mode: mode,
+          page_path: requestedPagePath,
+          role_context: roleContext,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sessionId);
+
+      return new Response(
+        JSON.stringify({
+          session_id: sessionId,
+          answer,
+          sources,
+          mode,
+          can_open_ticket: !!userId,
+          suggested_actions: suggestedActions,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     const docs = [
       ...(faqs || []).map((faq: any) =>
@@ -964,6 +1338,7 @@ serve(async (req) => {
       ),
       ...buildPlanKnowledgeDocs(plans || [], config),
       ...SUBSCRIPTION_POLICY_DOCS.map((policy) => buildDocTokens(policy)),
+      trialPolicyDoc,
       ...FEATURE_CATALOG.map((feature) =>
         buildDocTokens({
           id: `feature:${feature.feature_key}`,
@@ -1011,6 +1386,7 @@ serve(async (req) => {
       if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente.");
 
       const modelName = String(config.gemini_model || DEFAULTS.gemini_model);
+      const authState = userId ? "logado" : "deslogado";
       const history = (historyMessages || [])
         .slice()
         .reverse()
@@ -1038,11 +1414,16 @@ Regras obrigatorias:
 - Nao invente telas, links, recursos ou regras.
 - Resposta curta, pratica e em portugues (pt-BR), mantendo o idioma do usuario se a pergunta vier em outro idioma.
 - Escreva como um especialista humano da plataforma.
+- Fale em tom de conversa, natural e direto (evite linguagem corporativa ou robotica).
+- Use frases curtas (preferencia: 1 a 4 frases) e foco em resolver a pergunta.
 - Nao mencione "base de dados", "base de conhecimento", "documentos", "fontes", "contexto", "IA", "modelo" ou termos internos.
 - Nao use frases como "com base no contexto", "encontrei na FAQ" ou equivalentes.
 - Evite incluir URLs/caminhos de tela automaticamente; cite caminhos apenas quando o usuario pedir ou quando for indispensavel para executar o passo.
+- Nunca escreva caminhos tecnicos com barra no corpo da resposta (ex.: /dashboard/pagamentos). Use nomes de tela naturais (ex.: "Dashboard > Pagamentos").
 - Nao inclua chamadas de acao como "Ver FAQ", "Abrir chamado" ou frases equivalentes no corpo da resposta.
 - Se houver nome do usuario no contexto, pode usar o nome com naturalidade no inicio da resposta, sem repetir em excesso.
+- Regra fixa para cadastro/teste/cupom: no cadastro padrao sao ${freeTrialDays} dias de acesso gratuito e limitado. Se houver cupom valido no cadastro, prevalece a quantidade de dias configurada no cupom. Nunca diga acesso total nesse contexto.
+- Se o usuario estiver deslogado, nao diga para acessar Dashboard como acao imediata. Explique o passo considerando que primeiro precisa entrar na conta.
 
 Contexto autorizado:
 ${context || "(nenhuma fonte especifica encontrada no momento)"}
@@ -1050,6 +1431,7 @@ ${context || "(nenhuma fonte especifica encontrada no momento)"}
 Contexto do usuario:
 Nome: ${userFirstName || "(nao informado)"}
 Perfil: ${roleContext || "(nao informado)"}
+Autenticacao: ${authState}
 
 Historico recente:
 ${history || "(sem historico relevante)"}
@@ -1116,7 +1498,7 @@ ${rawMessage}
       unansweredReason = "low_confidence";
     }
 
-    answer = sanitizeAnswer(answer);
+    answer = adaptAnswerForDisplay(answer, !!userId);
 
     if (!sources.length && topPublicDocs.length > 0) {
       for (const doc of topPublicDocs.slice(0, 2)) {
@@ -1131,7 +1513,10 @@ ${rawMessage}
       }
     }
 
-    const suggestedActions = buildDefaultActions(!!userId);
+    const suggestedActions = buildSuggestedActions({
+      isLoggedIn: !!userId,
+      primaryRoute: resolvePrimaryRouteFromSources(sources),
+    });
 
     await supabaseAdmin.from("chatbot_messages").insert({
       session_id: sessionId,

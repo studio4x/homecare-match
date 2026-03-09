@@ -26,6 +26,7 @@ serve(async (req) => {
       ALTER TABLE IF EXISTS public.site_config
       ADD COLUMN IF NOT EXISTS chatbot_enabled BOOLEAN DEFAULT true,
       ADD COLUMN IF NOT EXISTS chatbot_use_ai BOOLEAN DEFAULT true,
+      ADD COLUMN IF NOT EXISTS chatbot_ai_first BOOLEAN DEFAULT true,
       ADD COLUMN IF NOT EXISTS chatbot_welcome_message TEXT DEFAULT 'Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.',
       ADD COLUMN IF NOT EXISTS chatbot_out_of_scope_message TEXT DEFAULT 'Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.',
       ADD COLUMN IF NOT EXISTS chatbot_error_message TEXT DEFAULT 'Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.',

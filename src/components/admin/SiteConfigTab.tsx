@@ -66,6 +66,7 @@ const SiteConfigTab = () => {
     gemini_model: "gemini-2.0-flash",
     chatbot_enabled: true,
     chatbot_use_ai: true,
+    chatbot_ai_first: true,
     chatbot_welcome_message:
       "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
     chatbot_out_of_scope_message:
@@ -124,6 +125,7 @@ const SiteConfigTab = () => {
         gemini_model: config.gemini_model || "gemini-2.0-flash",
         chatbot_enabled: config.chatbot_enabled ?? true,
         chatbot_use_ai: config.chatbot_use_ai ?? true,
+        chatbot_ai_first: config.chatbot_ai_first ?? true,
         chatbot_welcome_message:
           config.chatbot_welcome_message ||
           "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
@@ -621,6 +623,7 @@ const SiteConfigTab = () => {
         gemini_model: formData.gemini_model,
         chatbot_enabled: !!formData.chatbot_enabled,
         chatbot_use_ai: !!formData.chatbot_use_ai,
+        chatbot_ai_first: !!formData.chatbot_ai_first,
         chatbot_welcome_message: formData.chatbot_welcome_message,
         chatbot_out_of_scope_message: formData.chatbot_out_of_scope_message,
         chatbot_error_message: formData.chatbot_error_message,
@@ -634,6 +637,7 @@ const SiteConfigTab = () => {
       const chatbotColumns = [
         "chatbot_enabled",
         "chatbot_use_ai",
+        "chatbot_ai_first",
         "chatbot_welcome_message",
         "chatbot_out_of_scope_message",
         "chatbot_error_message",
@@ -750,7 +754,7 @@ const SiteConfigTab = () => {
           <CardDescription>Controle disponibilidade, limites e mensagens do widget flutuante.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="space-y-0.5">
                 <Label>Chatbot Ativo</Label>
@@ -763,12 +767,23 @@ const SiteConfigTab = () => {
             </div>
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="space-y-0.5">
-                <Label>Modo Hibrido com IA</Label>
-                <p className="text-[10px] text-muted-foreground">Usa Gemini quando a confianca for media.</p>
+                <Label>Usar IA</Label>
+                <p className="text-[10px] text-muted-foreground">Habilita respostas com Gemini.</p>
               </div>
               <Switch
                 checked={!!formData.chatbot_use_ai}
                 onCheckedChange={(checked) => setFormData({ ...formData, chatbot_use_ai: checked })}
+              />
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-0.5">
+                <Label>IA First</Label>
+                <p className="text-[10px] text-muted-foreground">Se desativado, FAQ tenta responder primeiro.</p>
+              </div>
+              <Switch
+                checked={!!formData.chatbot_ai_first}
+                disabled={!formData.chatbot_use_ai}
+                onCheckedChange={(checked) => setFormData({ ...formData, chatbot_ai_first: checked })}
               />
             </div>
           </div>

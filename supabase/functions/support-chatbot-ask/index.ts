@@ -233,6 +233,7 @@ const FEATURE_CATALOG = [
 const DEFAULTS = {
   chatbot_enabled: true,
   chatbot_use_ai: true,
+  chatbot_ai_first: true,
   chatbot_welcome_message:
     "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
   chatbot_out_of_scope_message:
@@ -245,6 +246,7 @@ const DEFAULTS = {
   gemini_model: "gemini-2.0-flash",
 };
 
+const HIGH_CONFIDENCE = 0.7;
 const MEDIUM_CONFIDENCE = 0.45;
 
 const normalizeText = (value: string) =>
@@ -334,8 +336,6 @@ const buildFaqModeAnswer = (question: string, topDocs: any[]) => {
   const intro =
     top.type === "faq"
       ? `Encontrei uma resposta na base de FAQ sobre "${top.title}":`
-      : top.type === "guide"
-      ? `Encontrei um guia de uso sobre "${top.title}":`
       : `Sobre "${top.title}", segue o resumo oficial da plataforma:`;
 
   const related = topDocs
@@ -514,6 +514,7 @@ serve(async (req) => {
         [
           "chatbot_enabled",
           "chatbot_use_ai",
+          "chatbot_ai_first",
           "chatbot_welcome_message",
           "chatbot_out_of_scope_message",
           "chatbot_error_message",
@@ -742,14 +743,18 @@ serve(async (req) => {
       .map((doc) => ({ ...doc, score: scoreDoc(questionTokens, normalizedQuestion, doc, roleContext) }))
       .sort((a, b) => b.score - a.score);
     const topDocs = scored.slice(0, 4);
+    const publicDocs = scored.filter((doc) => doc.type !== "guide");
+    const topPublicDocs = publicDocs.slice(0, 4);
     const aiContextDocs = selectAiContextDocs(scored);
     const topScore = Number(topDocs[0]?.score || 0);
+    const topPublicScore = Number(topPublicDocs[0]?.score || 0);
 
     let mode: "faq" | "ai" | "fallback" = "fallback";
     let answer = config.chatbot_out_of_scope_message;
     let unansweredReason: "low_confidence" | "ai_out_of_scope" | null = null;
     const sourceCandidates = aiContextDocs.length > 0 ? aiContextDocs : topDocs;
-    const sources = sourceCandidates
+    const publicSourceCandidates = topPublicDocs.length > 0 ? topPublicDocs : publicDocs.slice(0, 8);
+    const sources = publicSourceCandidates
       .filter((doc) => Number(doc.score || 0) >= 0.08)
       .slice(0, 4)
       .map((doc) => ({
@@ -761,30 +766,29 @@ serve(async (req) => {
         score: Number(doc.score.toFixed(3)),
       }));
 
-    if (config.chatbot_use_ai) {
-      try {
-        const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-        if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente.");
+    const runAiAnswer = async (docsForAi: any[]) => {
+      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+      if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente.");
 
-        const modelName = String(config.gemini_model || DEFAULTS.gemini_model);
-        const history = (historyMessages || [])
-          .slice()
-          .reverse()
-          .filter((item: any) => item.role === "user" || item.role === "assistant")
-          .map((item: any) => `${item.role === "user" ? "Usuario" : "Assistente"}: ${compact(item.content, 350)}`)
-          .join("\n");
+      const modelName = String(config.gemini_model || DEFAULTS.gemini_model);
+      const history = (historyMessages || [])
+        .slice()
+        .reverse()
+        .filter((item: any) => item.role === "user" || item.role === "assistant")
+        .map((item: any) => `${item.role === "user" ? "Usuario" : "Assistente"}: ${compact(item.content, 350)}`)
+        .join("\n");
 
-        const context = sourceCandidates
-          .slice(0, 12)
-          .map(
-            (doc, index) =>
-              `[Fonte ${index + 1} | ${doc.type}] ${doc.title}\nRota: ${doc.route}\nScore: ${Number(
-                doc.score || 0,
-              ).toFixed(3)}\nConteudo: ${compact(doc.content, 700)}`,
-          )
-          .join("\n\n");
+      const context = docsForAi
+        .slice(0, 12)
+        .map(
+          (doc, index) =>
+            `[Fonte ${index + 1} | ${doc.type}] ${doc.title}\nRota: ${doc.route}\nScore: ${Number(
+              doc.score || 0,
+            ).toFixed(3)}\nConteudo: ${compact(doc.content, 700)}`,
+        )
+        .join("\n\n");
 
-        const prompt = `
+      const prompt = `
 Voce e o assistente oficial da plataforma HomeCare Match.
 
 Regras obrigatorias:
@@ -805,11 +809,18 @@ Pergunta do usuario:
 ${rawMessage}
 `.trim();
 
-        const aiAnswer = await callGemini({
-          apiKey: GEMINI_API_KEY,
-          modelName,
-          prompt,
-        });
+      return await callGemini({
+        apiKey: GEMINI_API_KEY,
+        modelName,
+        prompt,
+      });
+    };
+
+    const aiFirstEnabled = config.chatbot_use_ai && config.chatbot_ai_first;
+
+    if (aiFirstEnabled) {
+      try {
+        const aiAnswer = await runAiAnswer(sourceCandidates);
 
         if (normalizeText(aiAnswer) === normalizeText(config.chatbot_out_of_scope_message)) {
           mode = "fallback";
@@ -823,17 +834,41 @@ ${rawMessage}
         mode = "fallback";
         answer = config.chatbot_error_message;
       }
-    } else if (topScore >= MEDIUM_CONFIDENCE) {
+    } else if (config.chatbot_use_ai) {
+      if (topPublicScore >= HIGH_CONFIDENCE) {
+        mode = "faq";
+        answer = buildFaqModeAnswer(rawMessage, topPublicDocs);
+      } else if (topScore >= MEDIUM_CONFIDENCE) {
+        try {
+          const aiAnswer = await runAiAnswer(sourceCandidates);
+          if (normalizeText(aiAnswer) === normalizeText(config.chatbot_out_of_scope_message)) {
+            mode = "fallback";
+            answer = config.chatbot_out_of_scope_message;
+            unansweredReason = "ai_out_of_scope";
+          } else {
+            mode = "ai";
+            answer = aiAnswer;
+          }
+        } catch (_err) {
+          mode = "fallback";
+          answer = config.chatbot_error_message;
+        }
+      } else {
+        mode = "fallback";
+        answer = config.chatbot_out_of_scope_message;
+        unansweredReason = "low_confidence";
+      }
+    } else if (topPublicScore >= MEDIUM_CONFIDENCE) {
       mode = "faq";
-      answer = buildFaqModeAnswer(rawMessage, topDocs);
+      answer = buildFaqModeAnswer(rawMessage, topPublicDocs);
     } else {
       mode = "fallback";
       answer = config.chatbot_out_of_scope_message;
       unansweredReason = "low_confidence";
     }
 
-    if (!sources.length && topDocs.length > 0) {
-      for (const doc of topDocs.slice(0, 2)) {
+    if (!sources.length && topPublicDocs.length > 0) {
+      for (const doc of topPublicDocs.slice(0, 2)) {
         sources.push({
           id: doc.id,
           type: doc.type,

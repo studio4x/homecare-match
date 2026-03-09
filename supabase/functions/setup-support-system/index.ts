@@ -335,6 +335,123 @@ serve(async (req) => {
       END
       $policy$;
 
+      INSERT INTO public.support_faqs (question, answer, category, position, is_published)
+      SELECT
+        seed.question,
+        seed.answer,
+        seed.category,
+        seed.position,
+        seed.is_published
+      FROM (
+        VALUES
+          ('Como encontro profissionais na minha regiao?', 'Acesse /buscar e aplique filtros de cidade, bairro, especialidade e disponibilidade para encontrar perfis aderentes.', 'busca', 10, true),
+          ('Como abrir um chamado de suporte?', 'Entre em /dashboard/suporte e clique em novo chamado. Descreva o problema com detalhes e, se possivel, anexe evidencias.', 'suporte', 20, true),
+          ('Como acompanho um chamado aberto?', 'Acesse /dashboard/suporte e abra o ticket para acompanhar respostas e status. Continue no mesmo chamado para manter historico.', 'suporte', 30, true),
+          ('Como atualizar meu perfil profissional?', 'Use /dashboard/perfil para editar biografia, experiencias, formacoes e dados de contato.', 'perfil', 40, true),
+          ('Como funcionam os pagamentos e assinatura?', 'No painel em /dashboard/pagamentos, voce consulta status da assinatura e historico de cobranca.', 'assinatura', 50, true),
+          ('Como usar os cursos da Academy?', 'Abra /dashboard/cursos, selecione o curso e conclua os modulos para avancar no progresso.', 'academy', 60, true),
+          ('Como validar certificado pela pagina publica?', 'A validacao de certificado pode ser feita em /validar.', 'academy', 70, true),
+          ('Sou empresa: como cadastro pacientes?', 'Empresas podem organizar pacientes em /dashboard/pacientes.', 'empresa', 80, true),
+          ('Como funciona o programa de indicacoes?', 'Profissionais acompanham indicacoes em /dashboard/indicacoes, conforme regras vigentes.', 'indicacoes', 90, true),
+          ('Como recuperar minha senha?', 'Na tela /login, use a opcao de recuperar senha para seguir ao fluxo de redefinicao.', 'conta', 100, true)
+      ) AS seed(question, answer, category, position, is_published)
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM public.support_faqs f
+        WHERE lower(trim(f.question)) = lower(trim(seed.question))
+      );
+
+      INSERT INTO public.support_guides (title, module, audience, question_variants, content, position, is_published)
+      SELECT
+        seed.title,
+        seed.module,
+        seed.audience,
+        seed.question_variants,
+        seed.content,
+        seed.position,
+        seed.is_published
+      FROM (
+        VALUES
+          (
+            'Como abrir e acompanhar chamado',
+            'suporte',
+            ARRAY['professional','company','family']::text[],
+            ARRAY['abrir chamado','criar ticket','acompanhar suporte']::text[],
+            '1) Entre em /dashboard/suporte. 2) Crie o chamado com contexto e resultado esperado. 3) Anexe evidencias quando necessario. 4) Acompanhe o mesmo ticket ate a resolucao.',
+            10,
+            true
+          ),
+          (
+            'Como buscar profissionais com filtros',
+            'busca',
+            ARRAY['company','family']::text[],
+            ARRAY['buscar profissional','filtrar cidade','filtrar especialidade']::text[],
+            '1) Acesse /buscar. 2) Aplique filtros de localizacao, especialidade e disponibilidade. 3) Compare perfis e inicie contato com os mais aderentes.',
+            20,
+            true
+          ),
+          (
+            'Como otimizar o perfil profissional',
+            'perfil',
+            ARRAY['professional']::text[],
+            ARRAY['editar perfil','melhorar visibilidade','completar perfil']::text[],
+            '1) Acesse /dashboard/perfil. 2) Preencha bio, experiencias e formacoes. 3) Mantenha dados de contato atualizados.',
+            30,
+            true
+          ),
+          (
+            'Como acompanhar pagamentos e assinatura',
+            'assinatura',
+            ARRAY['professional']::text[],
+            ARRAY['status assinatura','faturas','historico de pagamento']::text[],
+            '1) Abra /dashboard/pagamentos. 2) Verifique status da assinatura. 3) Resolva pendencias de cobranca para evitar impacto de visibilidade.',
+            40,
+            true
+          ),
+          (
+            'Como estudar na Academy e validar certificado',
+            'academy',
+            ARRAY['professional','company','family']::text[],
+            ARRAY['academy','curso','certificado','validar certificado']::text[],
+            '1) Estude em /dashboard/cursos. 2) Conclua modulos para avancar progresso. 3) Valide certificados em /validar quando necessario.',
+            50,
+            true
+          ),
+          (
+            'Como cadastrar pacientes para recrutamento',
+            'empresa',
+            ARRAY['company']::text[],
+            ARRAY['cadastrar pacientes','painel pacientes','organizar demandas']::text[],
+            '1) Acesse /dashboard/pacientes. 2) Cadastre os dados necessarios de cada caso. 3) Atualize informacoes para apoiar recrutamento.',
+            60,
+            true
+          ),
+          (
+            'Como usar o programa de indicacoes',
+            'indicacoes',
+            ARRAY['professional']::text[],
+            ARRAY['indicar colega','link indicacao','acompanhar indicacoes']::text[],
+            '1) Entre em /dashboard/indicacoes. 2) Compartilhe seu link. 3) Acompanhe resultados conforme regras vigentes.',
+            70,
+            true
+          ),
+          (
+            'Como recuperar acesso da conta',
+            'conta',
+            ARRAY['professional','company','family']::text[],
+            ARRAY['esqueci senha','redefinir senha','nao consigo entrar']::text[],
+            '1) Em /login, clique em recuperar senha. 2) Abra o link recebido por e-mail. 3) Defina nova senha e acesse novamente.',
+            80,
+            true
+          )
+      ) AS seed(title, module, audience, question_variants, content, position, is_published)
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM public.support_guides g
+        WHERE lower(trim(g.title)) = lower(trim(seed.title))
+          AND lower(trim(g.module)) = lower(trim(seed.module))
+      );
+
       NOTIFY pgrst, 'reload schema';
     `;
 

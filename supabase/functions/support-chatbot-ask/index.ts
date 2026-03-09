@@ -233,7 +233,7 @@ const FEATURE_CATALOG = [
 const LEGACY_OUT_OF_SCOPE_MESSAGE =
   "Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.";
 const PLATFORM_SCOPE_OUT_OF_SCOPE_MESSAGE =
-  "Posso responder apenas sobre assuntos da plataforma HomeCare Match (funcionalidades, planos, pagamentos, conta e fluxos de uso). Se precisar, posso te direcionar para o suporte.";
+  "Consigo te ajudar com duvidas sobre a HomeCare Match (funcionalidades, planos, pagamentos, conta e fluxos de uso). Se precisar, te direciono para o suporte.";
 
 const SUBSCRIPTION_POLICY_DOCS = [
   {
@@ -307,12 +307,23 @@ const CTA_FOOTER_PATTERNS = [
   /\s*voce\s+pode\s+ver\s+a?\s*faq\s+ou\s+abrir\s+chamado\.?\s*$/i,
   /\s*consulte\s+a?\s*faq\s+ou\s+abra?\s+r?\s*chamado\.?\s*$/i,
 ];
+const META_EXPLANATION_PATTERNS = [
+  /\bcom\s+base\s+(no|na|nos|nas)\s+(contexto|dados|documentos|fontes|base|faq)\b[^.]*[.:]?\s*/gi,
+  /\bde\s+acordo\s+com\s+(o|a|os|as)\s+(contexto|dados|documentos|fontes|base|faq)\b[^.]*[.:]?\s*/gi,
+  /\bsegundo\s+(o|a)\s+(contexto|documento|documentacao|base|faq)\b[^.]*[.:]?\s*/gi,
+  /\bencontrei\s+uma\s+resposta\s+na\s+base\s+de\s+faq\b[^.]*[.:]?\s*/gi,
+  /\bna\s+base\s+de\s+conhecimento\b[^.]*[.:]?\s*/gi,
+];
 
 const sanitizeAnswer = (value: string) => {
   let text = String(value || "").replace(/\s+\n/g, "\n").trim();
   for (const pattern of CTA_FOOTER_PATTERNS) {
     text = text.replace(pattern, "").trim();
   }
+  for (const pattern of META_EXPLANATION_PATTERNS) {
+    text = text.replace(pattern, "").trim();
+  }
+  text = text.replace(/\n{3,}/g, "\n\n").trim();
   return text;
 };
 
@@ -542,18 +553,13 @@ const buildFaqModeAnswer = (question: string, topDocs: any[], userName?: string 
   const top = topDocs[0];
   if (!top) return "Nao encontrei informacao suficiente para responder com seguranca sobre essa funcionalidade.";
 
-  const intro =
-    top.type === "faq"
-      ? `Encontrei uma resposta na base de FAQ sobre "${top.title}":`
-      : `Sobre "${top.title}", segue o resumo oficial da plataforma:`;
-
   const related = topDocs
     .slice(1, 3)
     .map((doc) => `- ${doc.title}`)
     .join("\n");
 
   const greeting = userName ? `Ola, ${userName}. ` : "";
-  return `${greeting}${intro}\n\n${compact(top.content, 1200)}${related ? `\n\nTambem pode ajudar:\n${related}` : ""}`;
+  return `${greeting}${compact(top.content, 1200)}${related ? `\n\nSe quiser, tambem posso te explicar:\n${related}` : ""}`;
 };
 
 const selectAiContextDocs = (scoredDocs: any[]) => {
@@ -1031,6 +1037,9 @@ Regras obrigatorias:
 - Se a pergunta fugir do escopo, responda exatamente com: "${config.chatbot_out_of_scope_message}"
 - Nao invente telas, links, recursos ou regras.
 - Resposta curta, pratica e em portugues (pt-BR), mantendo o idioma do usuario se a pergunta vier em outro idioma.
+- Escreva como um especialista humano da plataforma.
+- Nao mencione "base de dados", "base de conhecimento", "documentos", "fontes", "contexto", "IA", "modelo" ou termos internos.
+- Nao use frases como "com base no contexto", "encontrei na FAQ" ou equivalentes.
 - Evite incluir URLs/caminhos de tela automaticamente; cite caminhos apenas quando o usuario pedir ou quando for indispensavel para executar o passo.
 - Nao inclua chamadas de acao como "Ver FAQ", "Abrir chamado" ou frases equivalentes no corpo da resposta.
 - Se houver nome do usuario no contexto, pode usar o nome com naturalidade no inicio da resposta, sem repetir em excesso.

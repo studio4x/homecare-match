@@ -23,6 +23,7 @@ export interface SiteConfig {
   chatbot_enabled?: boolean;
   chatbot_use_ai?: boolean;
   chatbot_ai_first?: boolean;
+  chatbot_show_mode_badge?: boolean;
   chatbot_welcome_message?: string | null;
   chatbot_out_of_scope_message?: string | null;
   chatbot_error_message?: string | null;
@@ -126,6 +127,7 @@ export const useSiteConfig = () => {
           chatbot_enabled: true,
           chatbot_use_ai: true,
           chatbot_ai_first: true,
+          chatbot_show_mode_badge: false,
           chatbot_welcome_message: "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
           chatbot_out_of_scope_message: "Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.",
           chatbot_error_message: "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.",

@@ -67,6 +67,7 @@ const SiteConfigTab = () => {
     chatbot_enabled: true,
     chatbot_use_ai: true,
     chatbot_ai_first: true,
+    chatbot_show_mode_badge: false,
     chatbot_welcome_message:
       "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
     chatbot_out_of_scope_message:
@@ -126,6 +127,7 @@ const SiteConfigTab = () => {
         chatbot_enabled: config.chatbot_enabled ?? true,
         chatbot_use_ai: config.chatbot_use_ai ?? true,
         chatbot_ai_first: config.chatbot_ai_first ?? true,
+        chatbot_show_mode_badge: config.chatbot_show_mode_badge ?? false,
         chatbot_welcome_message:
           config.chatbot_welcome_message ||
           "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
@@ -624,6 +626,7 @@ const SiteConfigTab = () => {
         chatbot_enabled: !!formData.chatbot_enabled,
         chatbot_use_ai: !!formData.chatbot_use_ai,
         chatbot_ai_first: !!formData.chatbot_ai_first,
+        chatbot_show_mode_badge: !!formData.chatbot_show_mode_badge,
         chatbot_welcome_message: formData.chatbot_welcome_message,
         chatbot_out_of_scope_message: formData.chatbot_out_of_scope_message,
         chatbot_error_message: formData.chatbot_error_message,
@@ -638,6 +641,7 @@ const SiteConfigTab = () => {
         "chatbot_enabled",
         "chatbot_use_ai",
         "chatbot_ai_first",
+        "chatbot_show_mode_badge",
         "chatbot_welcome_message",
         "chatbot_out_of_scope_message",
         "chatbot_error_message",
@@ -754,7 +758,7 @@ const SiteConfigTab = () => {
           <CardDescription>Controle disponibilidade, limites e mensagens do widget flutuante.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div className="space-y-0.5">
                 <Label>Chatbot Ativo</Label>
@@ -784,6 +788,16 @@ const SiteConfigTab = () => {
                 checked={!!formData.chatbot_ai_first}
                 disabled={!formData.chatbot_use_ai}
                 onCheckedChange={(checked) => setFormData({ ...formData, chatbot_ai_first: checked })}
+              />
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-0.5">
+                <Label>Mostrar selo IA/FAQ</Label>
+                <p className="text-[10px] text-muted-foreground">Exibe no chat se a resposta veio de IA, FAQ ou fallback.</p>
+              </div>
+              <Switch
+                checked={!!formData.chatbot_show_mode_badge}
+                onCheckedChange={(checked) => setFormData({ ...formData, chatbot_show_mode_badge: checked })}
               />
             </div>
           </div>

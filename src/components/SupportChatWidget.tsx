@@ -9,6 +9,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface SupportChatWidgetProps {
   context?: "public" | "dashboard";
@@ -111,6 +112,13 @@ const buildWelcomeMessage = (baseMessage: string, firstName: string) => {
   return `Ola, ${firstName}! ${base}`;
 };
 
+const getModeBadge = (mode?: ChatMode) => {
+  if (mode === "ai") return { label: "Resposta por IA", className: "bg-blue-600 hover:bg-blue-600 text-white" };
+  if (mode === "faq") return { label: "Resposta por FAQ", className: "bg-emerald-600 hover:bg-emerald-600 text-white" };
+  if (mode === "fallback") return { label: "Resposta fallback", className: "bg-amber-600 hover:bg-amber-600 text-white" };
+  return null;
+};
+
 const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const { data: siteConfig } = useSiteConfig();
   const { user } = useAuth();
@@ -132,6 +140,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const chatbotEnabled = siteConfig?.chatbot_enabled ?? true;
+  const showModeBadge = siteConfig?.chatbot_show_mode_badge ?? false;
   const welcomeMessage =
     siteConfig?.chatbot_welcome_message ||
     "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.";
@@ -331,7 +340,6 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
         id: createMessageId(),
         role: "assistant",
         content: personalizedWelcomeMessage,
-        mode: "faq",
       });
     }
   };
@@ -474,6 +482,15 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
                                 : "rounded-bl-sm border bg-secondary/40 text-foreground",
                             )}
                           >
+                            {message.role === "assistant" && showModeBadge && message.mode && (
+                              <div className="mb-2">
+                                {(() => {
+                                  const modeBadge = getModeBadge(message.mode);
+                                  if (!modeBadge) return null;
+                                  return <Badge className={cn("h-5 px-2 text-[10px] font-semibold", modeBadge.className)}>{modeBadge.label}</Badge>;
+                                })()}
+                              </div>
+                            )}
                             <p className="leading-relaxed">{renderMessageWithLinks(message.content)}</p>
 
                             {message.actions && message.actions.length > 0 && (

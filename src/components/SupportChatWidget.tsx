@@ -85,6 +85,34 @@ const splitTrailingPunctuation = (value: string) => {
 
 const isInternalPath = (value: string) => /^\/[a-zA-Z0-9]/.test(String(value || ""));
 
+const extractFirstName = (value: string | null | undefined) => {
+  const normalized = String(value || "")
+    .normalize("NFKC")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/[._-]+/g, " ")
+    .replace(/[^\p{L}\p{M}\s'`-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return "";
+
+  const [rawFirst = ""] = normalized.split(" ");
+  const first = rawFirst
+    .replace(/['`-]+$/g, "")
+    .replace(/^['`-]+/g, "")
+    .slice(0, 40);
+  if (!first) return "";
+
+  return first.charAt(0).toLocaleUpperCase("pt-BR") + first.slice(1).toLocaleLowerCase("pt-BR");
+};
+
+const buildWelcomeMessage = (baseMessage: string, firstName: string) => {
+  const base = String(baseMessage || "").trim();
+  if (!firstName) return base;
+  if (!base) return `Ola, ${firstName}!`;
+  if (/^ola[!,\s]/i.test(base)) return base.replace(/^ola[!,\s]*/i, `Ola, ${firstName}! `);
+  return `Ola, ${firstName}! ${base}`;
+};
+
 const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const { data: siteConfig } = useSiteConfig();
   const { user } = useAuth();
@@ -100,6 +128,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const [sessionId, setSessionId] = useState<string>("");
   const [visitorId, setVisitorId] = useState<string>("");
   const [roleContext, setRoleContext] = useState<string | null>(null);
+  const [userFirstName, setUserFirstName] = useState("");
   const [storageReady, setStorageReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -110,6 +139,10 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const fallbackErrorMessage =
     siteConfig?.chatbot_error_message ||
     "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.";
+  const personalizedWelcomeMessage = useMemo(
+    () => buildWelcomeMessage(welcomeMessage, userFirstName),
+    [welcomeMessage, userFirstName],
+  );
 
   const floatingPositionClass =
     context === "dashboard" ? "bottom-36 md:bottom-6 right-5 md:right-6" : "bottom-24 md:bottom-6 right-5 md:right-6";
@@ -196,13 +229,23 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
     const fetchRole = async () => {
       if (!user?.id) {
         setRoleContext(null);
+        setUserFirstName("");
         return;
       }
-      const { data } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      const { data } = await supabase.from("profiles").select("role,full_name").eq("id", user.id).maybeSingle();
       setRoleContext(data?.role || null);
+
+      const metadataName =
+        String(user.user_metadata?.full_name || user.user_metadata?.name || "").trim() ||
+        String(user.email || "")
+          .split("@")[0]
+          .replace(/[._-]+/g, " ")
+          .trim();
+      const resolvedName = extractFirstName(data?.full_name || metadataName);
+      setUserFirstName(resolvedName);
     };
     fetchRole();
-  }, [user?.id]);
+  }, [user?.id, user?.email, user?.user_metadata]);
 
   useEffect(() => {
     if (!scrollRef.current) return;
@@ -282,7 +325,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
       appendMessage({
         id: createMessageId(),
         role: "assistant",
-        content: welcomeMessage,
+        content: personalizedWelcomeMessage,
         mode: "faq",
       });
     }
@@ -483,7 +526,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
                   <Bot className="h-10 w-10 text-primary" />
                   <div className="space-y-2">
                     <p className="text-base font-semibold">Assistente da Plataforma</p>
-                    <p className="text-sm text-muted-foreground">{welcomeMessage}</p>
+                    <p className="text-sm text-muted-foreground">{personalizedWelcomeMessage}</p>
                   </div>
                   <Button onClick={handleStartConversation} className="w-full">
                     Iniciar conversa

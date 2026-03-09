@@ -230,14 +230,51 @@ const FEATURE_CATALOG = [
   },
 ];
 
+const LEGACY_OUT_OF_SCOPE_MESSAGE =
+  "Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.";
+const PLATFORM_SCOPE_OUT_OF_SCOPE_MESSAGE =
+  "Posso responder apenas sobre assuntos da plataforma HomeCare Match (funcionalidades, planos, pagamentos, conta e fluxos de uso). Se precisar, posso te direcionar para o suporte.";
+
+const SUBSCRIPTION_POLICY_DOCS = [
+  {
+    id: "policy:subscription-renewal",
+    type: "policy",
+    title: "Como funciona a renovacao dos planos",
+    content:
+      "Plano mensal renova automaticamente. Plano anual tem renovacao manual no painel em /dashboard/pagamentos e pode ter parcelamento conforme configuracao do plano.",
+    route: "/dashboard/pagamentos",
+    tags: ["renovacao", "renovacao manual", "plano mensal", "plano anual", "assinatura", "parcelamento"],
+    audience: ["professional"],
+  },
+  {
+    id: "policy:subscription-cancellation",
+    type: "policy",
+    title: "Politica de cancelamento de assinatura",
+    content:
+      "Cancelamento e permitido em ate 7 dias apos o pagamento confirmado. O fluxo de cancelamento fica em /dashboard/pagamentos.",
+    route: "/dashboard/pagamentos",
+    tags: ["cancelamento", "estorno", "prazo", "7 dias", "assinatura", "fidelidade"],
+    audience: ["professional"],
+  },
+  {
+    id: "policy:courses-annual-access",
+    type: "policy",
+    title: "Acesso aos cursos e plano anual",
+    content:
+      "Cursos gratuitos da Academy sao exclusivos para assinantes do Plano Anual. O upgrade pode ser feito pelo fluxo de assinatura.",
+    route: "/cursos",
+    tags: ["cursos", "academy", "plano anual", "assinatura", "upgrade"],
+    audience: ["professional"],
+  },
+];
+
 const DEFAULTS = {
   chatbot_enabled: true,
   chatbot_use_ai: true,
   chatbot_ai_first: true,
   chatbot_welcome_message:
     "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
-  chatbot_out_of_scope_message:
-    "Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.",
+  chatbot_out_of_scope_message: PLATFORM_SCOPE_OUT_OF_SCOPE_MESSAGE,
   chatbot_error_message: "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.",
   chatbot_max_requests_anon_per_day: 20,
   chatbot_max_requests_auth_per_day: 80,
@@ -265,6 +302,41 @@ const tokenize = (value: string) =>
     .filter((token) => token.length > 2 && !STOP_WORDS.has(token));
 
 const compact = (value: string, max = 240) => String(value || "").replace(/\s+/g, " ").trim().slice(0, max);
+const CTA_FOOTER_PATTERNS = [
+  /\s*ver\s+faq\s+ou\s+abrir\s+chamado\.?\s*$/i,
+  /\s*voce\s+pode\s+ver\s+a?\s*faq\s+ou\s+abrir\s+chamado\.?\s*$/i,
+  /\s*consulte\s+a?\s*faq\s+ou\s+abra?\s+r?\s*chamado\.?\s*$/i,
+];
+
+const sanitizeAnswer = (value: string) => {
+  let text = String(value || "").replace(/\s+\n/g, "\n").trim();
+  for (const pattern of CTA_FOOTER_PATTERNS) {
+    text = text.replace(pattern, "").trim();
+  }
+  return text;
+};
+
+const normalizeFirstName = (value: string | null | undefined) => {
+  const normalized = String(value || "")
+    .normalize("NFKC")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/[._-]+/g, " ")
+    .replace(/[^\p{L}\p{M}\s'`-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) return "";
+
+  const [rawFirst = ""] = normalized.split(" ");
+  const first = rawFirst.replace(/['`-]+$/g, "").replace(/^['`-]+/g, "").slice(0, 40);
+  if (!first) return "";
+
+  return first.charAt(0).toLocaleUpperCase("pt-BR") + first.slice(1).toLocaleLowerCase("pt-BR");
+};
+
+const firstName = (value: string | null | undefined) => {
+  return normalizeFirstName(compact(String(value || "").trim(), 120));
+};
 
 const toHex = (bytes: Uint8Array) => Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -301,6 +373,89 @@ const buildDocTokens = (doc: any) => {
   };
 };
 
+const normalizePlanId = (value: string | null | undefined) => {
+  const normalized = normalizeText(String(value || ""));
+  if (normalized === "annual") return "yearly";
+  return normalized;
+};
+
+const buildPlanKnowledgeDocs = (plans: any[]) => {
+  const rows = Array.isArray(plans) ? plans : [];
+
+  return rows.map((plan: any, index: number) => {
+    const planId = normalizePlanId(plan?.id || "");
+    const planName =
+      compact(
+        String(
+          plan?.name ||
+            (planId === "yearly" ? "Plano Anual" : planId === "monthly" ? "Plano Mensal" : "Plano de Assinatura"),
+        ),
+        120,
+      ) || "Plano de Assinatura";
+    const price = compact(String(plan?.price || ""), 100) || "nao informado";
+    const period = compact(String(plan?.period || ""), 80) || "nao informado";
+    const description = compact(String(plan?.description || ""), 260);
+    const installmentMaxRaw = Number(plan?.asaas_installment_max || 0);
+    const installmentMax = Number.isFinite(installmentMaxRaw) && installmentMaxRaw > 0
+      ? Math.floor(installmentMaxRaw)
+      : planId === "yearly"
+      ? 12
+      : 1;
+    const features = Array.isArray(plan?.features)
+      ? plan.features
+          .map((item: unknown) => compact(String(item || ""), 140))
+          .filter((item: string) => item.length > 0)
+          .slice(0, 8)
+      : [];
+
+    const renewalText =
+      planId === "monthly"
+        ? "Renovacao: automatica."
+        : planId === "yearly"
+        ? `Renovacao: manual em /dashboard/pagamentos com possibilidade de parcelamento em ate ${installmentMax}x.`
+        : "Renovacao: consulte os detalhes em /dashboard/pagamentos.";
+
+    const fidelityText =
+      planId === "yearly"
+        ? "Vigencia/fidelidade: plano anual com referencia de 12 meses."
+        : planId === "monthly"
+        ? "Vigencia/fidelidade: ciclo mensal."
+        : "Vigencia/fidelidade: conforme periodo do plano.";
+
+    const content = [
+      `Plano: ${planName}.`,
+      `Preco exibido: ${price}.`,
+      `Periodo: ${period}.`,
+      renewalText,
+      fidelityText,
+      description ? `Resumo: ${description}.` : "",
+      features.length > 0 ? `Beneficios principais: ${features.join(" | ")}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    return buildDocTokens({
+      id: `plan:${planId || compact(String(plan?.id || index), 40)}`,
+      type: "plan",
+      title: planName,
+      content,
+      route: "/dashboard/pagamentos",
+      tags: [
+        planId || "",
+        "plano",
+        "assinatura",
+        "preco",
+        "pagamentos",
+        "fidelidade",
+        "carencia",
+        "cancelamento",
+        "renovacao",
+      ],
+      audience: ["professional"],
+    });
+  });
+};
+
 const scoreDoc = (questionTokens: string[], normalizedQuestion: string, doc: any, roleContext?: string | null) => {
   if (!questionTokens.length) return 0;
   const uniqueQuestion = Array.from(new Set(questionTokens));
@@ -329,7 +484,7 @@ const scoreDoc = (questionTokens: string[], normalizedQuestion: string, doc: any
   return Math.min(1, overlapRatio * 0.75 + titleRatio * 0.2 + phraseBoost + roleBoost);
 };
 
-const buildFaqModeAnswer = (question: string, topDocs: any[]) => {
+const buildFaqModeAnswer = (question: string, topDocs: any[], userName?: string | null) => {
   const top = topDocs[0];
   if (!top) return "Nao encontrei informacao suficiente para responder com seguranca sobre essa funcionalidade.";
 
@@ -343,7 +498,8 @@ const buildFaqModeAnswer = (question: string, topDocs: any[]) => {
     .map((doc) => `- ${doc.title}`)
     .join("\n");
 
-  return `${intro}\n\n${compact(top.content, 1200)}${related ? `\n\nTambem pode ajudar:\n${related}` : ""}`;
+  const greeting = userName ? `Ola, ${userName}. ` : "";
+  return `${greeting}${intro}\n\n${compact(top.content, 1200)}${related ? `\n\nTambem pode ajudar:\n${related}` : ""}`;
 };
 
 const selectAiContextDocs = (scoredDocs: any[]) => {
@@ -367,6 +523,10 @@ const selectAiContextDocs = (scoredDocs: any[]) => {
   scoredDocs
     .filter((doc) => doc.type === "feature" && Number(doc.score || 0) >= 0.05)
     .slice(0, 3)
+    .forEach(tryPush);
+  scoredDocs
+    .filter((doc) => (doc.type === "plan" || doc.type === "policy") && Number(doc.score || 0) >= 0.05)
+    .slice(0, 4)
     .forEach(tryPush);
 
   return selected.slice(0, 12);
@@ -529,6 +689,15 @@ serve(async (req) => {
       .maybeSingle();
 
     const config = { ...DEFAULTS, ...(siteConfig || {}) };
+    const currentOutOfScopeMessage = normalizeText(config.chatbot_out_of_scope_message || "");
+    if (
+      !currentOutOfScopeMessage ||
+      currentOutOfScopeMessage === normalizeText(LEGACY_OUT_OF_SCOPE_MESSAGE) ||
+      currentOutOfScopeMessage.includes("apenas sobre funcionalidades da plataforma")
+    ) {
+      config.chatbot_out_of_scope_message = PLATFORM_SCOPE_OUT_OF_SCOPE_MESSAGE;
+    }
+
     if (!config.chatbot_enabled) {
       return new Response(
         JSON.stringify({
@@ -549,18 +718,21 @@ serve(async (req) => {
 
     let userId: string | null = null;
     let profileRole: string | null = null;
+    let profileName: string | null = null;
     if (token) {
       const { data, error } = await supabaseAdmin.auth.getUser(token);
       if (!error && data?.user?.id) {
         const candidateUserId = data.user.id;
+        const metadataName = compact(String(data.user.user_metadata?.full_name || data.user.user_metadata?.name || ""), 120);
         const { data: profile } = await supabaseAdmin
           .from("profiles")
-          .select("role")
+          .select("role,full_name")
           .eq("id", candidateUserId)
           .maybeSingle();
         if (profile) {
           userId = candidateUserId;
           profileRole = profile?.role || null;
+          profileName = compact(String(profile?.full_name || metadataName || ""), 120) || null;
         }
       }
     }
@@ -570,6 +742,7 @@ serve(async (req) => {
     const userAgent = String(req.headers.get("user-agent") || "").trim();
     const visitorHash = await sha256Hex([visitorId, forwardedFor, userAgent].join("|"));
     const roleContext = requestedRoleContext || profileRole || null;
+    const userFirstName = firstName(profileName);
 
     const retentionDays = Math.max(1, Number(config.chatbot_retention_days || 30));
     const retentionThresholdIso = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
@@ -687,12 +860,15 @@ serve(async (req) => {
       sources: [],
     });
 
-    const [{ data: faqs }, { data: guides }, { data: historyMessages }] = await Promise.all([
+    const [{ data: faqs }, { data: guides }, { data: plans }, { data: historyMessages }] = await Promise.all([
       supabaseAdmin.from("support_faqs").select("id, question, answer, category").eq("is_published", true),
       supabaseAdmin
         .from("support_guides")
         .select("id, title, module, audience, question_variants, content")
         .eq("is_published", true),
+      supabaseAdmin
+        .from("plans")
+        .select("id, name, price, period, description, features, asaas_installment_max, popular, savings"),
       supabaseAdmin
         .from("chatbot_messages")
         .select("role, content, mode, created_at")
@@ -724,6 +900,8 @@ serve(async (req) => {
           audience: Array.isArray(guide.audience) ? guide.audience : [],
         }),
       ),
+      ...buildPlanKnowledgeDocs(plans || []),
+      ...SUBSCRIPTION_POLICY_DOCS.map((policy) => buildDocTokens(policy)),
       ...FEATURE_CATALOG.map((feature) =>
         buildDocTokens({
           id: `feature:${feature.feature_key}`,
@@ -792,15 +970,21 @@ serve(async (req) => {
 Voce e o assistente oficial da plataforma HomeCare Match.
 
 Regras obrigatorias:
-- Responda APENAS sobre funcionalidades da plataforma e como usa-las.
+- Responda APENAS sobre assuntos da plataforma HomeCare Match.
+- Escopo permitido: funcionalidades, planos, assinatura, pagamentos, cadastro, suporte, cursos, configuracoes e fluxos de uso existentes na plataforma.
 - Se a pergunta fugir do escopo, responda exatamente com: "${config.chatbot_out_of_scope_message}"
 - Nao invente telas, links, recursos ou regras.
 - Resposta curta, pratica e em portugues (pt-BR), mantendo o idioma do usuario se a pergunta vier em outro idioma.
 - Quando possivel, inclua o caminho da tela (ex: /dashboard/suporte).
-- Se o contexto estiver incompleto, responda com o que for seguro e em seguida sugira "Ver FAQ" ou "Abrir chamado".
+- Nao inclua chamadas de acao como "Ver FAQ", "Abrir chamado" ou frases equivalentes no corpo da resposta.
+- Se houver nome do usuario no contexto, pode usar o nome com naturalidade no inicio da resposta, sem repetir em excesso.
 
 Contexto autorizado:
 ${context || "(nenhuma fonte especifica encontrada no momento)"}
+
+Contexto do usuario:
+Nome: ${userFirstName || "(nao informado)"}
+Perfil: ${roleContext || "(nao informado)"}
 
 Historico recente:
 ${history || "(sem historico relevante)"}
@@ -837,7 +1021,7 @@ ${rawMessage}
     } else if (config.chatbot_use_ai) {
       if (topPublicScore >= HIGH_CONFIDENCE) {
         mode = "faq";
-        answer = buildFaqModeAnswer(rawMessage, topPublicDocs);
+        answer = buildFaqModeAnswer(rawMessage, topPublicDocs, userFirstName || null);
       } else if (topScore >= MEDIUM_CONFIDENCE) {
         try {
           const aiAnswer = await runAiAnswer(sourceCandidates);
@@ -860,12 +1044,14 @@ ${rawMessage}
       }
     } else if (topPublicScore >= MEDIUM_CONFIDENCE) {
       mode = "faq";
-      answer = buildFaqModeAnswer(rawMessage, topPublicDocs);
+      answer = buildFaqModeAnswer(rawMessage, topPublicDocs, userFirstName || null);
     } else {
       mode = "fallback";
       answer = config.chatbot_out_of_scope_message;
       unansweredReason = "low_confidence";
     }
+
+    answer = sanitizeAnswer(answer);
 
     if (!sources.length && topPublicDocs.length > 0) {
       for (const doc of topPublicDocs.slice(0, 2)) {

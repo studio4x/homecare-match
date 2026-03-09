@@ -35,6 +35,7 @@ import BlogArticlePage from "./pages/BlogArticle";
 import BlogCategoriesPage from "./pages/BlogCategories";
 import BlogTagsPage from "./pages/BlogTags";
 import BlogSearchPage from "./pages/BlogSearch";
+import ShortLinkRedirect from "./pages/ShortLinkRedirect";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -114,6 +115,7 @@ const App = () => (
               <Route path="/redefinir-senha" element={<ResetPassword />} />
               <Route path="/conversion/course" element={<ConversionCourse />} /> {/* New route */}
               <Route path="/conversion/subscription" element={<ConversionSubscription />} /> {/* New route */}
+              <Route path="/:shortSlug" element={<ShortLinkRedirect />} />
 
               {/* Novo Painel do Usuário (Aninhado) */}
               <Route path="/dashboard" element={<UserLayout />}>

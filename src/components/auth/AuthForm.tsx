@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { translateAuthError } from "@/lib/error-utils";
 import { trackAccountCreated } from "@/lib/tracking";
+import { trackShortLinkSignupConversion } from "@/lib/short-link-attribution";
 import { useNavigate } from "react-router-dom";
 
 const authSchema = z.object({
@@ -231,6 +232,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           dedupeKey: signUpData?.user?.id,
           email: signUpData?.user?.email || data.email,
         });
+        await trackShortLinkSignupConversion(signUpData?.user?.id || null);
         setShowSuccessRegisterModal(true);
         setMode("login");
         reset();

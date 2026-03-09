@@ -34,6 +34,7 @@ import Layout from "@/components/layout/Layout";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { translateAuthError } from "@/lib/error-utils";
 import { trackAccountCreated } from "@/lib/tracking";
+import { trackShortLinkSignupConversion } from "@/lib/short-link-attribution";
 
 const registerSchema = z.object({
   fullName: z.string({ required_error: "Nome é obrigatório" }).min(3, "O nome da empresa ou responsável é obrigatório"),
@@ -93,6 +94,7 @@ const CadastroEmpresaFamilia = () => {
         dedupeKey: signUpData?.user?.id,
         email: signUpData?.user?.email || data.email,
       });
+      await trackShortLinkSignupConversion(signUpData?.user?.id || null);
       
       setShowSuccessModal(true);
       form.reset();

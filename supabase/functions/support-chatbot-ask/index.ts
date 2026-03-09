@@ -631,6 +631,102 @@ const buildTrialPolicyAnswer = (freeTrialDays: number, userName?: string | null)
   return `${prefix}no cadastro padrao, o acesso gratuito e de ${freeTrialDays} dias e com acesso limitado. Se voce usar um cupom valido no cadastro, o prazo segue a quantidade de dias configurada no proprio cupom.`;
 };
 
+const PLAN_CATALOG_INTENT_PATTERNS = [
+  /\bquais?\s+(sao\s+)?os?\s+planos?\b/,
+  /\bplanos?\s+disponiveis\b/,
+  /\bopcoes?\s+de\s+plano\b/,
+  /\btipos?\s+de\s+plano\b/,
+  /\bquais?\s+assinaturas?\b/,
+  /\bplanos?\s+da\s+plataforma\b/,
+];
+
+const isPlanCatalogIntent = (message: string) => {
+  const normalized = normalizeText(message);
+  if (!normalized) return false;
+  return PLAN_CATALOG_INTENT_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
+type PlanSummary = {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+};
+
+const buildPlanSummaries = (plans: any[]): PlanSummary[] => {
+  const rows = Array.isArray(plans) ? plans : [];
+  const uniqueById = new Map<string, PlanSummary>();
+
+  for (const row of rows) {
+    const normalizedId = normalizePlanId(row?.id || "");
+    if (!normalizedId) continue;
+    if (uniqueById.has(normalizedId)) continue;
+
+    const fallbackName =
+      normalizedId === "yearly"
+        ? "Plano Anual"
+        : normalizedId === "monthly"
+        ? "Plano Mensal"
+        : normalizedId === "free_trial"
+        ? "Teste Gratis (Sistema)"
+        : "Plano";
+
+    uniqueById.set(normalizedId, {
+      id: normalizedId,
+      name: compact(String(row?.name || fallbackName), 120) || fallbackName,
+      price: compact(String(row?.price || "nao informado"), 120) || "nao informado",
+      period: compact(String(row?.period || ""), 120),
+      description: compact(String(row?.description || ""), 260),
+    });
+  }
+
+  const orderWeight = (id: string) => {
+    if (id === "yearly") return 0;
+    if (id === "monthly") return 1;
+    if (id === "free_trial") return 2;
+    return 3;
+  };
+
+  return Array.from(uniqueById.values()).sort((a, b) => {
+    const weightDiff = orderWeight(a.id) - orderWeight(b.id);
+    if (weightDiff !== 0) return weightDiff;
+    return a.name.localeCompare(b.name, "pt-BR");
+  });
+};
+
+const describePlanCompact = (plan: PlanSummary | null | undefined) => {
+  if (!plan) return "";
+  const period = plan.period ? ` (${plan.period})` : "";
+  return `${plan.name}: ${plan.price}${period}`;
+};
+
+const buildPlanCatalogAnswer = (plans: any[], userName?: string | null) => {
+  const summaries = buildPlanSummaries(plans);
+  const annualPlan = summaries.find((plan) => plan.id === "yearly");
+  const monthlyPlan = summaries.find((plan) => plan.id === "monthly");
+  const trialPlan = summaries.find((plan) => plan.id === "free_trial");
+
+  const prefix = userName ? `${userName}, ` : "";
+  if (!annualPlan && !monthlyPlan && !trialPlan && summaries.length === 0) {
+    return `${prefix}agora nao consegui listar os planos com seguranca. Posso te direcionar para o FAQ enquanto atualizo isso.`;
+  }
+
+  const availableLabels = summaries.map((plan) => plan.name).join(", ");
+  const annualText = annualPlan
+    ? `O plano principal e o ${annualPlan.name}: ${annualPlan.price}${annualPlan.period ? ` (${annualPlan.period})` : ""}, com maior visibilidade e pacote mais completo.`
+    : "";
+  const monthlyText = monthlyPlan ? `Tambem temos ${describePlanCompact(monthlyPlan)}.` : "";
+  const trialText = trialPlan
+    ? `E existe ${describePlanCompact(trialPlan)}, com acesso limitado no periodo gratuito.`
+    : "";
+
+  return `${prefix}hoje os planos disponiveis sao: ${availableLabels}. ${annualText} ${monthlyText} ${trialText}`.replace(
+    /\s+/g,
+    " ",
+  ).trim();
+};
+
 const buildDocTokens = (doc: any) => {
   const baseText = `${doc.title || ""} ${doc.content || ""} ${(doc.tags || []).join(" ")}`;
   return {
@@ -1243,6 +1339,62 @@ serve(async (req) => {
     ]);
 
     const freeTrialDays = resolveFreeTrialDays(plans || []);
+    const planDocsForActions = buildPlanKnowledgeDocs(plans || [], config);
+    const planCatalogSources = planDocsForActions
+      .filter((doc) => ["plan:yearly", "plan:monthly", "plan:free_trial"].includes(String(doc.id || "")))
+      .slice(0, 3)
+      .map((doc) => ({
+        id: doc.id,
+        type: doc.type,
+        title: doc.title,
+        route: doc.route,
+        snippet: compact(doc.content, 180),
+        score: 1,
+      }));
+
+    if (isPlanCatalogIntent(rawMessage)) {
+      const mode: "faq" = "faq";
+      const answer = adaptAnswerForDisplay(buildPlanCatalogAnswer(plans || [], userFirstName || null), !!userId);
+      const sources = planCatalogSources.length > 0 ? planCatalogSources : [];
+      const suggestedActions = buildSuggestedActions({
+        isLoggedIn: !!userId,
+        primaryRoute: "/dashboard/pagamentos",
+      });
+
+      await supabaseAdmin.from("chatbot_messages").insert({
+        session_id: sessionId,
+        role: "assistant",
+        content: answer,
+        mode,
+        sources,
+      });
+
+      await supabaseAdmin
+        .from("chatbot_sessions")
+        .update({
+          last_mode: mode,
+          page_path: requestedPagePath,
+          role_context: roleContext,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", sessionId);
+
+      return new Response(
+        JSON.stringify({
+          session_id: sessionId,
+          answer,
+          sources,
+          mode,
+          can_open_ticket: !!userId,
+          suggested_actions: suggestedActions,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const trialPolicyDoc = buildDocTokens({
       id: "policy:free-trial-coupon",
       type: "policy",
@@ -1336,7 +1488,7 @@ serve(async (req) => {
           audience: Array.isArray(guide.audience) ? guide.audience : [],
         }),
       ),
-      ...buildPlanKnowledgeDocs(plans || [], config),
+      ...planDocsForActions,
       ...SUBSCRIPTION_POLICY_DOCS.map((policy) => buildDocTokens(policy)),
       trialPolicyDoc,
       ...FEATURE_CATALOG.map((feature) =>

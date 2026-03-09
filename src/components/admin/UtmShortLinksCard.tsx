@@ -8,7 +8,33 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Copy, Plus, Link as LinkIcon, Wand2, Trash2, ExternalLink } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Loader2,
+  Copy,
+  Plus,
+  Link as LinkIcon,
+  Wand2,
+  Trash2,
+  ExternalLink,
+  BarChart3,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  Legend,
+} from "recharts";
 import { toast } from "sonner";
 
 type MarketingShortLink = {
@@ -29,6 +55,12 @@ type MarketingShortLink = {
   created_at: string;
 };
 
+type MarketingShortLinkEvent = {
+  short_link_id: string;
+  event_type: "click" | "signup";
+  occurred_at: string;
+};
+
 type LinkForm = {
   name: string;
   baseUrl: string;
@@ -42,6 +74,8 @@ type LinkForm = {
 };
 
 const DEFAULT_BASE_URL = "https://www.homecarematch.com.br";
+const PERIOD_OPTIONS = [7, 30, 90] as const;
+const CHART_DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" });
 
 const RESERVED_SLUGS = new Set([
   "admin",
@@ -105,6 +139,27 @@ const truncateMiddle = (value: string, max = 90) => {
   return `${start}...${end}`;
 };
 
+const toDayKey = (value: string | Date) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const buildDayKeys = (periodDays: number) => {
+  const days = Math.max(1, periodDays);
+  const out: string[] = [];
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() - i);
+    out.push(toDayKey(d));
+  }
+  return out;
+};
+
 const buildTrackedUrl = (form: LinkForm) => {
   const base = normalizeBaseUrl(form.baseUrl);
   const rawDestination = String(form.destinationPath || "").trim();
@@ -144,7 +199,11 @@ const UtmShortLinksCard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [eventsLoading, setEventsLoading] = useState(false);
   const [links, setLinks] = useState<MarketingShortLink[]>([]);
+  const [events, setEvents] = useState<MarketingShortLinkEvent[]>([]);
+  const [periodDays, setPeriodDays] = useState<(typeof PERIOD_OPTIONS)[number]>(30);
+  const [selectedChartLinkId, setSelectedChartLinkId] = useState<string>("");
   const [form, setForm] = useState<LinkForm>({
     name: "",
     baseUrl: DEFAULT_BASE_URL,
@@ -175,13 +234,44 @@ const UtmShortLinksCard = () => {
         .limit(300);
 
       if (error) throw error;
-      setLinks((data || []) as MarketingShortLink[]);
+      const rows = (data || []) as MarketingShortLink[];
+      setLinks(rows);
+      setSelectedChartLinkId((current) => {
+        if (current && rows.some((row) => row.id === current)) return current;
+        return rows[0]?.id || "";
+      });
     } catch (error: any) {
       console.error("[UtmShortLinksCard] load error:", error);
       toast.error("Nao foi possivel carregar os links curtos. Verifique se o banco foi sincronizado.");
       setLinks([]);
+      setSelectedChartLinkId("");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEvents = async (days: number) => {
+    setEventsLoading(true);
+    try {
+      const cutoff = new Date();
+      cutoff.setHours(0, 0, 0, 0);
+      cutoff.setDate(cutoff.getDate() - Math.max(1, days) + 1);
+
+      const { data, error } = await supabase
+        .from("marketing_short_link_events")
+        .select("short_link_id,event_type,occurred_at")
+        .gte("occurred_at", cutoff.toISOString())
+        .order("occurred_at", { ascending: true })
+        .limit(200000);
+
+      if (error) throw error;
+      setEvents((data || []) as MarketingShortLinkEvent[]);
+    } catch (error: any) {
+      console.error("[UtmShortLinksCard] load events error:", error);
+      toast.error("Nao foi possivel carregar o historico por periodo.");
+      setEvents([]);
+    } finally {
+      setEventsLoading(false);
     }
   };
 
@@ -189,12 +279,68 @@ const UtmShortLinksCard = () => {
     void loadLinks();
   }, []);
 
+  useEffect(() => {
+    void loadEvents(periodDays);
+  }, [periodDays]);
+
   const trackedUrlPreview = useMemo(() => buildTrackedUrl(form), [form]);
   const normalizedSlug = useMemo(() => normalizeSlug(form.slug), [form.slug]);
   const publicShortUrlPreview = useMemo(() => {
     if (!normalizedSlug) return "";
     return `${normalizeBaseUrl(form.baseUrl)}/${normalizedSlug}`;
   }, [form.baseUrl, normalizedSlug]);
+
+  const periodStatsByLink = useMemo(() => {
+    const stats = new Map<string, { clicks: number; signups: number }>();
+    for (const event of events) {
+      const current = stats.get(event.short_link_id) || { clicks: 0, signups: 0 };
+      if (event.event_type === "signup") current.signups += 1;
+      else current.clicks += 1;
+      stats.set(event.short_link_id, current);
+    }
+    return stats;
+  }, [events]);
+
+  const chartData = useMemo(() => {
+    if (!selectedChartLinkId) return [];
+    const dayKeys = buildDayKeys(periodDays);
+    const byDay = new Map<string, { clicks: number; signups: number }>();
+    for (const key of dayKeys) {
+      byDay.set(key, { clicks: 0, signups: 0 });
+    }
+
+    for (const event of events) {
+      if (event.short_link_id !== selectedChartLinkId) continue;
+      const dayKey = toDayKey(event.occurred_at);
+      if (!dayKey || !byDay.has(dayKey)) continue;
+      const row = byDay.get(dayKey)!;
+      if (event.event_type === "signup") row.signups += 1;
+      else row.clicks += 1;
+    }
+
+    return dayKeys.map((dayKey) => {
+      const date = new Date(`${dayKey}T00:00:00Z`);
+      const day = byDay.get(dayKey) || { clicks: 0, signups: 0 };
+      return {
+        dayKey,
+        label: CHART_DATE_FORMATTER.format(date),
+        clicks: day.clicks,
+        signups: day.signups,
+      };
+    });
+  }, [events, periodDays, selectedChartLinkId]);
+
+  const selectedChartLink = useMemo(
+    () => links.find((row) => row.id === selectedChartLinkId) || null,
+    [links, selectedChartLinkId],
+  );
+
+  const selectedPeriodStats = useMemo(() => {
+    if (!selectedChartLinkId) return { clicks: 0, signups: 0, conversionRate: 0 };
+    const base = periodStatsByLink.get(selectedChartLinkId) || { clicks: 0, signups: 0 };
+    const conversionRate = base.clicks > 0 ? (base.signups / base.clicks) * 100 : 0;
+    return { clicks: base.clicks, signups: base.signups, conversionRate };
+  }, [periodStatsByLink, selectedChartLinkId]);
 
   const copyText = async (value: string, successMessage: string) => {
     if (!value) {
@@ -277,7 +423,7 @@ const UtmShortLinksCard = () => {
         utmContent: "",
         slug: "",
       }));
-      await loadLinks();
+      await Promise.all([loadLinks(), loadEvents(periodDays)]);
     } catch (error: any) {
       console.error("[UtmShortLinksCard] create error:", error);
       toast.error(error?.message || "Nao foi possivel criar o link curto.");
@@ -305,13 +451,46 @@ const UtmShortLinksCard = () => {
     try {
       const { error } = await supabase.from("marketing_short_links").delete().eq("id", row.id);
       if (error) throw error;
-      setLinks((prev) => prev.filter((item) => item.id !== row.id));
+      setLinks((prev) => {
+        const next = prev.filter((item) => item.id !== row.id);
+        if (selectedChartLinkId === row.id) {
+          setSelectedChartLinkId(next[0]?.id || "");
+        }
+        return next;
+      });
       toast.success("Link excluido.");
+      await loadEvents(periodDays);
     } catch (error) {
       console.error("[UtmShortLinksCard] delete error:", error);
       toast.error("Nao foi possivel excluir o link.");
     }
   };
+
+  const renderPeriodActions = () => (
+    <div className="flex flex-wrap gap-2">
+      {PERIOD_OPTIONS.map((days) => (
+        <Button
+          key={days}
+          type="button"
+          size="sm"
+          variant={periodDays === days ? "default" : "outline"}
+          onClick={() => setPeriodDays(days)}
+        >
+          {days} dias
+        </Button>
+      ))}
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
+        onClick={() => void loadEvents(periodDays)}
+        disabled={eventsLoading}
+      >
+        {eventsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Atualizar"}
+      </Button>
+    </div>
+  );
 
   return (
     <Card>
@@ -367,22 +546,27 @@ const UtmShortLinksCard = () => {
           <div className="space-y-2">
             <Label>utm_source</Label>
             <Input value={form.utmSource} onChange={(event) => setForm((prev) => ({ ...prev, utmSource: event.target.value }))} />
+            <p className="text-xs text-muted-foreground">Origem do trafego. Ex: facebook, instagram, google, newsletter.</p>
           </div>
           <div className="space-y-2">
             <Label>utm_medium</Label>
             <Input value={form.utmMedium} onChange={(event) => setForm((prev) => ({ ...prev, utmMedium: event.target.value }))} />
+            <p className="text-xs text-muted-foreground">Canal/formato da divulgacao. Ex: cpc, social, email, organic.</p>
           </div>
           <div className="space-y-2">
             <Label>utm_campaign</Label>
             <Input value={form.utmCampaign} onChange={(event) => setForm((prev) => ({ ...prev, utmCampaign: event.target.value }))} />
+            <p className="text-xs text-muted-foreground">Nome da campanha. Ex: profissionais-mar-2026, black-friday.</p>
           </div>
           <div className="space-y-2">
             <Label>utm_term (opcional)</Label>
             <Input value={form.utmTerm} onChange={(event) => setForm((prev) => ({ ...prev, utmTerm: event.target.value }))} />
+            <p className="text-xs text-muted-foreground">Palavra-chave/segmento. Mais comum em anuncios de busca.</p>
           </div>
           <div className="space-y-2">
             <Label>utm_content (opcional)</Label>
             <Input value={form.utmContent} onChange={(event) => setForm((prev) => ({ ...prev, utmContent: event.target.value }))} />
+            <p className="text-xs text-muted-foreground">Variacao da peca/link para teste A/B. Ex: botao-azul, criativo-video-1.</p>
           </div>
         </div>
 
@@ -411,10 +595,76 @@ const UtmShortLinksCard = () => {
           </div>
         </div>
 
+        <div className="space-y-4 rounded-xl border p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">Analitico por periodo</p>
+              <p className="text-xs text-muted-foreground">Cliques e cadastros por link encurtado.</p>
+            </div>
+            {renderPeriodActions()}
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-[320px,1fr]">
+            <div className="space-y-2">
+              <Label>Link para visualizar no grafico</Label>
+              <Select value={selectedChartLinkId} onValueChange={setSelectedChartLinkId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um link" />
+                </SelectTrigger>
+                <SelectContent>
+                  {links.map((row) => (
+                    <SelectItem key={row.id} value={row.id}>
+                      {row.name} ({row.slug})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Badge variant="outline">Cliques {periodDays}d: {selectedPeriodStats.clicks}</Badge>
+                <Badge variant="outline">Cadastros {periodDays}d: {selectedPeriodStats.signups}</Badge>
+                <Badge variant="outline">Conversao: {selectedPeriodStats.conversionRate.toFixed(1)}%</Badge>
+              </div>
+            </div>
+
+            <div className="h-[280px] rounded-lg border bg-muted/10 p-2">
+              {!selectedChartLink ? (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Selecione um link para visualizar o grafico.
+                </div>
+              ) : eventsLoading ? (
+                <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Carregando serie do periodo...
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="label" />
+                    <YAxis allowDecimals={false} />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar dataKey="clicks" name="Cliques" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="signups" name="Cadastros" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold">Links curtos cadastrados</h4>
-            <Button type="button" variant="outline" size="sm" onClick={() => void loadLinks()} disabled={loading}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void Promise.all([loadLinks(), loadEvents(periodDays)]);
+              }}
+              disabled={loading}
+            >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Atualizar"}
             </Button>
           </div>
@@ -435,6 +685,8 @@ const UtmShortLinksCard = () => {
                 const clicks = Number(row.click_count || 0);
                 const signups = Number(row.signup_count || 0);
                 const conversionRate = clicks > 0 ? (signups / clicks) * 100 : 0;
+                const periodStats = periodStatsByLink.get(row.id) || { clicks: 0, signups: 0 };
+                const periodRate = periodStats.clicks > 0 ? (periodStats.signups / periodStats.clicks) * 100 : 0;
                 return (
                   <div key={row.id} className="rounded-xl border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -445,7 +697,10 @@ const UtmShortLinksCard = () => {
                         </Badge>
                         <Badge variant="outline">Cliques: {clicks}</Badge>
                         <Badge variant="outline">Cadastros: {signups}</Badge>
-                        <Badge variant="outline">Conversao: {conversionRate.toFixed(1)}%</Badge>
+                        <Badge variant="outline">Conversao total: {conversionRate.toFixed(1)}%</Badge>
+                        <Badge variant="outline">
+                          Periodo {periodDays}d: {periodStats.clicks}/{periodStats.signups} ({periodRate.toFixed(1)}%)
+                        </Badge>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => void copyText(shortUrl, "Link curto copiado.")}>
@@ -455,6 +710,16 @@ const UtmShortLinksCard = () => {
                         <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => void copyText(row.target_url, "URL de destino copiada.")}>
                           <Copy className="h-3.5 w-3.5" />
                           Destino
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={() => setSelectedChartLinkId(row.id)}
+                        >
+                          <BarChart3 className="h-3.5 w-3.5" />
+                          Ver grafico
                         </Button>
                         <Button type="button" size="sm" variant="outline" onClick={() => void handleToggleActive(row)}>
                           {row.is_active ? "Desativar" : "Ativar"}

@@ -538,16 +538,18 @@ const SIGNUP_ACTIONS = [
 ];
 
 const SIGNUP_INTENT_PATTERNS = [
-  /\bcriar\s+(uma\s+)?conta\b/,
-  /\babrir\s+(uma\s+)?conta\b/,
+  /\bcriar\s+((uma|minha|sua|nossa)\s+)?conta\b/,
+  /\babrir\s+((uma|minha|sua|nossa)\s+)?conta\b/,
   /\bfazer\s+(o\s+)?cadastro\b/,
   /\biniciar\s+(o\s+)?cadastro\b/,
   /\brealizar\s+(o\s+)?cadastro\b/,
   /\bme\s+cadastrar\b/,
   /\bcadastrar\b/,
   /\bcomo\s+(me\s+)?cadastrar\b/,
-  /\bcomo\s+criar\s+(uma\s+)?conta\b/,
-  /\bregistrar\s+(uma\s+)?conta\b/,
+  /\bcomo\s+criar\s+((uma|minha|sua|nossa)\s+)?conta\b/,
+  /\bregistrar\s+((uma|minha|sua|nossa)\s+)?conta\b/,
+  /\bquero\s+criar\s+((uma|minha|sua|nossa)\s+)?conta\b/,
+  /\bquero\s+fazer\s+(meu|minha)?\s*cadastro\b/,
   /\binscrever\s+(na\s+plataforma|me)\b/,
 ];
 
@@ -654,6 +656,13 @@ type PlanSummary = {
   description: string;
 };
 
+const sanitizePlanDisplayName = (value: string | null | undefined) => {
+  return String(value || "")
+    .replace(/\(\s*sistema\s*\)/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+};
+
 const buildPlanSummaries = (plans: any[]): PlanSummary[] => {
   const rows = Array.isArray(plans) ? plans : [];
   const uniqueById = new Map<string, PlanSummary>();
@@ -669,12 +678,14 @@ const buildPlanSummaries = (plans: any[]): PlanSummary[] => {
         : normalizedId === "monthly"
         ? "Plano Mensal"
         : normalizedId === "free_trial"
-        ? "Teste Gratis (Sistema)"
+        ? "Teste Gratis"
         : "Plano";
+
+    const resolvedName = sanitizePlanDisplayName(String(row?.name || fallbackName)) || fallbackName;
 
     uniqueById.set(normalizedId, {
       id: normalizedId,
-      name: compact(String(row?.name || fallbackName), 120) || fallbackName,
+      name: compact(resolvedName, 120) || fallbackName,
       price: compact(String(row?.price || "nao informado"), 120) || "nao informado",
       period: compact(String(row?.period || ""), 120),
       description: compact(String(row?.description || ""), 260),
@@ -761,14 +772,11 @@ const buildPlanKnowledgeDocs = (plans: any[], config: any) => {
 
   return rows.flatMap((plan: any, index: number) => {
     const planId = normalizePlanId(plan?.id || "");
+    const rawPlanName =
+      plan?.name ||
+      (planId === "yearly" ? "Plano Anual" : planId === "monthly" ? "Plano Mensal" : "Plano de Assinatura");
     const planName =
-      compact(
-        String(
-          plan?.name ||
-            (planId === "yearly" ? "Plano Anual" : planId === "monthly" ? "Plano Mensal" : "Plano de Assinatura"),
-        ),
-        120,
-      ) || "Plano de Assinatura";
+      compact(sanitizePlanDisplayName(String(rawPlanName)), 120) || "Plano de Assinatura";
     const price = compact(String(plan?.price || ""), 100) || "nao informado";
     const period = compact(String(plan?.period || ""), 80) || "nao informado";
     const description = compact(String(plan?.description || ""), 260);

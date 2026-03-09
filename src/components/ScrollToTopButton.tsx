@@ -37,7 +37,7 @@ const ScrollToTopButton = ({ hideOnMobile = false, className }: ScrollToTopButto
   return (
     <div
       className={cn(
-        "fixed bottom-24 right-4 z-50 transition-all duration-300 transform md:bottom-6 md:right-6",
+        "fixed bottom-40 right-6 z-50 transition-all duration-300 transform md:bottom-24 md:right-6",
         hideOnMobile && "hidden md:block",
         isVisible ? "translate-y-0 opacity-100" : "translate-y-10 opacity-0 pointer-events-none",
         className
@@ -47,7 +47,7 @@ const ScrollToTopButton = ({ hideOnMobile = false, className }: ScrollToTopButto
         variant="default"
         size="icon"
         onClick={scrollToTop}
-        className="h-12 w-12 rounded-full shadow-xl hover:scale-110 active:scale-95 transition-transform border border-white/20"
+        className="h-12 w-12 rounded-full bg-amber-500 text-white shadow-xl hover:bg-amber-600 hover:scale-110 active:scale-95 transition-transform border border-amber-300/40"
         title="Voltar ao topo"
       >
         <ChevronUp className="h-6 w-6" />

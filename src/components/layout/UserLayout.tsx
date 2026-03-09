@@ -326,7 +326,7 @@ const UserLayout = () => {
       <UserNotificationWidget />
       <SupportChatWidget context="dashboard" />
       <Footer />
-      <ScrollToTopButton hideOnMobile />
+      <ScrollToTopButton hideOnMobile className="md:bottom-44 md:right-6" />
       <AppVersion />
     </div>
   );

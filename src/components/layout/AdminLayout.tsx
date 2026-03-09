@@ -228,7 +228,7 @@ const AdminLayout = () => {
         </div>
         <PushManager />
         <AdminNotificationWidget />
-        <ScrollToTopButton hideOnMobile />
+        <ScrollToTopButton hideOnMobile className="md:bottom-40 md:right-6" />
         <AppVersion />
       </main>
     </div>

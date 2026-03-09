@@ -231,6 +231,114 @@
   Mobile:
   Observacoes:
 
+### 2.4 Chatbot da Plataforma (novo)
+- [ ] P1-18 Widget do chatbot visivel e funcional no site publico e no dashboard
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-19 Fluxo inicial com saudacao + botao "Iniciar conversa" antes de liberar envio
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-20 Botao de minimizar funcionando e botao "Encerrar conversa" limpando historico
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-21 Historico da conversa persiste ao clicar fora e ao trocar de pagina
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-22 Chat identifica usuario logado (nome) e diferencia respostas para anonimo x autenticado
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-23 Enquanto processa, exibe estado "Estou lendo..." e fase "Quase pronto..." apos 10s
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-24 Resposta fora de escopo aciona fallback com botoes de acao sem quebrar UX
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-25 Botoes de acao exibidos corretamente (Ver FAQ, Abrir chamado, Navegar para pagina citada)
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-26 Respostas sem exibicao de rotas cruas (ex.: "/dashboard/..."), usando texto amigavel
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-27 Intent de cadastro: bot pergunta tipo de cadastro e direciona com botao apropriado
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-28 Conteudo de planos/pagamentos coerente (incluindo Plano Anual e regra de teste gratis)
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-29 Toggle admin de estrategia do bot (IA first x IA secundaria) aplicado no frontend
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-30 Toggle admin para selo "Resposta por IA/FAQ" funcionando no widget
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-31 Guias de uso consumidos pelo chatbot mas nao expostos no frontend
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-32 Perguntas sem resposta viram sugestoes no admin, com acao de criar FAQ
+  Desktop:
+  Mobile:
+  Observacoes:
+
+### 2.5 Marketing (UTM + Encurtador) (novo)
+- [ ] P1-33 Admin cria URL com UTM e gera link encurtado funcionando no redirecionamento
+  Desktop:
+  Mobile: NA
+  Observacoes:
+
+- [ ] P1-34 Contadores por link (cliques e cadastros) atualizam corretamente
+  Desktop:
+  Mobile: NA
+  Observacoes:
+
+- [ ] P1-35 Filtro por periodo (7/30/90 dias) e grafico por link funcionando
+  Desktop:
+  Mobile: NA
+  Observacoes:
+
+- [ ] P1-36 Campos UTM com textos de ajuda visiveis no admin
+  Desktop:
+  Mobile: NA
+  Observacoes:
+
+### 2.6 Ajustes de Widgets Flutuantes (novo)
+- [ ] P1-37 Botao "voltar ao topo" acima do sino de notificacoes, com nova cor e alinhamento correto
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-38 Distanciamento/empilhamento visual entre icones flutuantes sem sobreposicao
+  Desktop:
+  Mobile:
+  Observacoes:
+
 ### Resumo P1
 - Desktop OK:
 - Mobile OK:
@@ -268,6 +376,16 @@
 - [ ] SMK-06 Fluxos criticos validados no iOS Safari
   Desktop: NA
   Mobile:
+  Observacoes:
+
+- [ ] SMK-07 Fluxo ponta a ponta do chatbot validado (publico + logado + admin)
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] SMK-08 Fluxo ponta a ponta de UTM + encurtador + metricas validado
+  Desktop:
+  Mobile: NA
   Observacoes:
 
 ---

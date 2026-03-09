@@ -13,6 +13,7 @@ import CookieConsent from "../CookieConsent";
 import ScrollToTopButton from "../ScrollToTopButton";
 import PushManager from "../PushManager";
 import PwaInstallPrompt from "../PwaInstallPrompt";
+import SupportChatWidget from "../SupportChatWidget";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -77,6 +78,7 @@ const Layout = ({ children }: LayoutProps) => {
       <main className="flex-1 py-6 pb-24 md:py-12 md:pb-12">{children}</main>
 
       <Footer />
+      <SupportChatWidget context="public" />
       <ScrollToTopButton />
       <AppVersion />
 

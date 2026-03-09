@@ -20,6 +20,15 @@ export interface SiteConfig {
   google_maps_api_key?: string | null;
   vapid_public_key?: string | null;
   gemini_model?: string | null;
+  chatbot_enabled?: boolean;
+  chatbot_use_ai?: boolean;
+  chatbot_welcome_message?: string | null;
+  chatbot_out_of_scope_message?: string | null;
+  chatbot_error_message?: string | null;
+  chatbot_max_requests_anon_per_day?: number | null;
+  chatbot_max_requests_auth_per_day?: number | null;
+  chatbot_history_window?: number | null;
+  chatbot_retention_days?: number | null;
   push_layout_json?: {
     bgColor: string;
     titleColor: string;
@@ -113,6 +122,15 @@ export const useSiteConfig = () => {
           gtm_enabled: false,
           fb_pixel_enabled: false,
           gemini_model: 'gemini-1.5-flash',
+          chatbot_enabled: true,
+          chatbot_use_ai: true,
+          chatbot_welcome_message: "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
+          chatbot_out_of_scope_message: "Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.",
+          chatbot_error_message: "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.",
+          chatbot_max_requests_anon_per_day: 20,
+          chatbot_max_requests_auth_per_day: 80,
+          chatbot_history_window: 12,
+          chatbot_retention_days: 30,
           pwa_app_name: "HomeCare Match",
           pwa_short_name: "HomeCare",
           pwa_description: "Conectando profissionais de saúde às melhores oportunidades em Home Care.",

@@ -37,6 +37,7 @@ import PushManager from "../PushManager";
 import SuggestionDrawer from "../SuggestionDrawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import PwaInstallPrompt from "../PwaInstallPrompt";
+import SupportChatWidget from "../SupportChatWidget";
 
 const UserLayout = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -323,6 +324,7 @@ const UserLayout = () => {
       )}
 
       <UserNotificationWidget />
+      <SupportChatWidget context="dashboard" />
       <Footer />
       <ScrollToTopButton hideOnMobile />
       <AppVersion />

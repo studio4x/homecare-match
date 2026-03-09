@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -62,7 +63,18 @@ const SiteConfigTab = () => {
     asaas_checkout_expiration_minutes: 60,
     google_maps_api_key: "",
     vapid_public_key: "",
-    gemini_model: "gemini-2.0-flash"
+    gemini_model: "gemini-2.0-flash",
+    chatbot_enabled: true,
+    chatbot_use_ai: true,
+    chatbot_welcome_message:
+      "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
+    chatbot_out_of_scope_message:
+      "Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.",
+    chatbot_error_message: "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.",
+    chatbot_max_requests_anon_per_day: 20,
+    chatbot_max_requests_auth_per_day: 80,
+    chatbot_history_window: 12,
+    chatbot_retention_days: 30,
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -109,7 +121,22 @@ const SiteConfigTab = () => {
         asaas_checkout_expiration_minutes: config.asaas_checkout_expiration_minutes ?? 60,
         google_maps_api_key: config.google_maps_api_key || "",
         vapid_public_key: config.vapid_public_key || "",
-        gemini_model: config.gemini_model || "gemini-2.0-flash"
+        gemini_model: config.gemini_model || "gemini-2.0-flash",
+        chatbot_enabled: config.chatbot_enabled ?? true,
+        chatbot_use_ai: config.chatbot_use_ai ?? true,
+        chatbot_welcome_message:
+          config.chatbot_welcome_message ||
+          "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
+        chatbot_out_of_scope_message:
+          config.chatbot_out_of_scope_message ||
+          "Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.",
+        chatbot_error_message:
+          config.chatbot_error_message ||
+          "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.",
+        chatbot_max_requests_anon_per_day: Number(config.chatbot_max_requests_anon_per_day ?? 20),
+        chatbot_max_requests_auth_per_day: Number(config.chatbot_max_requests_auth_per_day ?? 80),
+        chatbot_history_window: Number(config.chatbot_history_window ?? 12),
+        chatbot_retention_days: Number(config.chatbot_retention_days ?? 30),
       });
     }
   }, [config]);
@@ -586,6 +613,15 @@ const SiteConfigTab = () => {
           google_maps_api_key: formData.google_maps_api_key,
           vapid_public_key: formData.vapid_public_key,
           gemini_model: formData.gemini_model,
+          chatbot_enabled: !!formData.chatbot_enabled,
+          chatbot_use_ai: !!formData.chatbot_use_ai,
+          chatbot_welcome_message: formData.chatbot_welcome_message,
+          chatbot_out_of_scope_message: formData.chatbot_out_of_scope_message,
+          chatbot_error_message: formData.chatbot_error_message,
+          chatbot_max_requests_anon_per_day: Math.max(1, Number(formData.chatbot_max_requests_anon_per_day || 20)),
+          chatbot_max_requests_auth_per_day: Math.max(1, Number(formData.chatbot_max_requests_auth_per_day || 80)),
+          chatbot_history_window: Math.max(2, Number(formData.chatbot_history_window || 12)),
+          chatbot_retention_days: Math.max(1, Number(formData.chatbot_retention_days || 30)),
           updated_at: new Date().toISOString()
         })
         .eq('id', 1);
@@ -641,6 +677,127 @@ const SiteConfigTab = () => {
             <p className="text-[10px] text-muted-foreground italic">
               Utilizando a versão <strong>Gemini 2.0 Flash</strong>, otimizada para a melhor performance.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LifeBuoy className="h-5 w-5 text-primary" />
+            Chatbot de Suporte (Funcionalidades)
+          </CardTitle>
+          <CardDescription>Controle disponibilidade, limites e mensagens do widget flutuante.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-0.5">
+                <Label>Chatbot Ativo</Label>
+                <p className="text-[10px] text-muted-foreground">Exibe o widget no site e dashboard.</p>
+              </div>
+              <Switch
+                checked={!!formData.chatbot_enabled}
+                onCheckedChange={(checked) => setFormData({ ...formData, chatbot_enabled: checked })}
+              />
+            </div>
+            <div className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="space-y-0.5">
+                <Label>Modo Hibrido com IA</Label>
+                <p className="text-[10px] text-muted-foreground">Usa Gemini quando a confianca for media.</p>
+              </div>
+              <Switch
+                checked={!!formData.chatbot_use_ai}
+                onCheckedChange={(checked) => setFormData({ ...formData, chatbot_use_ai: checked })}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Limite diario anonimo</Label>
+              <Input
+                type="number"
+                min={1}
+                value={formData.chatbot_max_requests_anon_per_day}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    chatbot_max_requests_anon_per_day: parseInt(e.target.value || "20", 10) || 20,
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Limite diario logado</Label>
+              <Input
+                type="number"
+                min={1}
+                value={formData.chatbot_max_requests_auth_per_day}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    chatbot_max_requests_auth_per_day: parseInt(e.target.value || "80", 10) || 80,
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Janela de historico (mensagens)</Label>
+              <Input
+                type="number"
+                min={2}
+                value={formData.chatbot_history_window}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    chatbot_history_window: parseInt(e.target.value || "12", 10) || 12,
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Retencao de historico (dias)</Label>
+              <Input
+                type="number"
+                min={1}
+                value={formData.chatbot_retention_days}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    chatbot_retention_days: parseInt(e.target.value || "30", 10) || 30,
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Mensagem de boas-vindas</Label>
+            <Textarea
+              rows={3}
+              value={formData.chatbot_welcome_message}
+              onChange={(e) => setFormData({ ...formData, chatbot_welcome_message: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Mensagem fora de escopo</Label>
+            <Textarea
+              rows={3}
+              value={formData.chatbot_out_of_scope_message}
+              onChange={(e) => setFormData({ ...formData, chatbot_out_of_scope_message: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Mensagem de erro</Label>
+            <Textarea
+              rows={3}
+              value={formData.chatbot_error_message}
+              onChange={(e) => setFormData({ ...formData, chatbot_error_message: e.target.value })}
+            />
           </div>
         </CardContent>
       </Card>
@@ -852,7 +1009,7 @@ const SiteConfigTab = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border border-amber-200 rounded-lg bg-white">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-amber-900">Sincronizar Central de Suporte</p>
-              <p className="text-xs text-amber-800/70">Cria tabelas de Tickets, Mensagens e FAQs.</p>
+              <p className="text-xs text-amber-800/70">Cria tabelas de Tickets, Mensagens, FAQs, Guias e Chatbot.</p>
             </div>
             <Button variant="outline" onClick={handleSyncSupport} disabled={isSyncingSupport}>
               {isSyncingSupport ? <Loader2 className="h-4 w-4 animate-spin" /> : <LifeBuoy className="h-4 w-4" />}

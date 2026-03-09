@@ -73,6 +73,7 @@ import ConciergeRequestsPage from "./pages/admin/ConciergeRequestsPage";
 import PaymentsAdminPage from "./pages/admin/PaymentsAdminPage";
 import PwaSettingsPage from "./pages/admin/PwaSettingsPage";
 import BlogAdminPage from "./pages/admin/BlogPage";
+import ChatbotConversationsPage from "./pages/admin/ChatbotConversationsPage";
 
 const queryClient = new QueryClient();
 
@@ -154,6 +155,7 @@ const App = () => (
                 <Route path="concierge" element={<ConciergeRequestsPage />} />
                 <Route path="pwa" element={<PwaSettingsPage />} />
                 <Route path="blog" element={<BlogAdminPage />} />
+                <Route path="chatbot" element={<ChatbotConversationsPage />} />
               </Route>
 
               {/* 404 */}

@@ -32,7 +32,8 @@ import {
   UserPlus, // New import
   Headset,
   Smartphone,
-  Newspaper
+  Newspaper,
+  Bot
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -148,6 +149,7 @@ const AdminLayout = () => {
     { href: "/admin/cursos", label: "Cursos", icon: BookOpen },
     { href: "/admin/videos", label: "Vídeos do Site", icon: Video },
     { href: "/admin/videos-funcionalidades", label: "Vídeos Funcionalidades", icon: PlayCircle },
+    { href: "/admin/chatbot", label: "Conversas Chatbot", icon: Bot },
     { href: "/admin/blog", label: "Blog", icon: Newspaper },
     { href: "/admin/pwa", label: "PWA Android", icon: Smartphone },
     { href: "/admin/concierge", label: "Solicitações Concierge", icon: Headset },

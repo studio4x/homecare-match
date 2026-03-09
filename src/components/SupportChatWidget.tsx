@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { MessageCircle, X, Send, Loader2, Bot, ExternalLink, Minus, Maximize2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Bot, Minus, Maximize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -42,6 +42,8 @@ type ChatMessage = {
 
 const VISITOR_ID_KEY = "hcm_chatbot_visitor_id";
 const MAX_LOCAL_MESSAGES = 60;
+const LINK_PATTERN = /(https?:\/\/[^\s]+|\/[a-zA-Z0-9][^\s]*)/g;
+const TRAILING_PUNCTUATION_PATTERN = /[.,;:!?)]$/;
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -69,6 +71,20 @@ const normalizeLoadedMessages = (raw: unknown): ChatMessage[] => {
     .slice(-MAX_LOCAL_MESSAGES);
 };
 
+const splitTrailingPunctuation = (value: string) => {
+  let clean = String(value || "");
+  let suffix = "";
+
+  while (clean.length > 1 && TRAILING_PUNCTUATION_PATTERN.test(clean)) {
+    suffix = clean.slice(-1) + suffix;
+    clean = clean.slice(0, -1);
+  }
+
+  return { clean, suffix };
+};
+
+const isInternalPath = (value: string) => /^\/[a-zA-Z0-9]/.test(String(value || ""));
+
 const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const { data: siteConfig } = useSiteConfig();
   const { user } = useAuth();
@@ -79,6 +95,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [conversationStarted, setConversationStarted] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
   const [visitorId, setVisitorId] = useState<string>("");
@@ -100,6 +117,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const actorKey = useMemo(() => user?.id || "anon", [user?.id]);
   const storageSessionKey = useMemo(() => `hcm_chatbot_session:${actorKey}`, [actorKey]);
   const storageMessagesKey = useMemo(() => `hcm_chatbot_messages:${actorKey}`, [actorKey]);
+  const storageStartedKey = useMemo(() => `hcm_chatbot_started:${actorKey}`, [actorKey]);
 
   const appendMessage = (message: ChatMessage) => {
     setMessages((prev) => [...prev, message].slice(-MAX_LOCAL_MESSAGES));
@@ -119,38 +137,34 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
       setSessionId(savedSessionId);
 
       const savedRaw = window.localStorage.getItem(storageMessagesKey);
+      const savedStarted = window.localStorage.getItem(storageStartedKey) === "1";
+
       if (savedRaw) {
         const parsed = JSON.parse(savedRaw);
-        setMessages(normalizeLoadedMessages(parsed));
+        const loadedMessages = normalizeLoadedMessages(parsed);
+        setMessages(loadedMessages);
+        setConversationStarted(savedStarted || loadedMessages.length > 0 || !!savedSessionId);
       } else {
         setMessages([]);
+        setConversationStarted(savedStarted || !!savedSessionId);
       }
     } catch (_err) {
       setMessages([]);
+      setConversationStarted(false);
     } finally {
       setStorageReady(true);
     }
-  }, [storageSessionKey, storageMessagesKey]);
-
-  useEffect(() => {
-    if (!storageReady) return;
-    if (!welcomeMessage) return;
-    if (messages.length > 0) return;
-    setMessages([
-      {
-        id: createMessageId(),
-        role: "assistant",
-        content: welcomeMessage,
-        mode: "faq",
-      },
-    ]);
-  }, [storageReady, welcomeMessage, messages.length]);
+  }, [storageSessionKey, storageMessagesKey, storageStartedKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!storageReady) return;
     try {
-      window.localStorage.setItem(storageMessagesKey, JSON.stringify(messages.slice(-MAX_LOCAL_MESSAGES)));
+      if (messages.length > 0) {
+        window.localStorage.setItem(storageMessagesKey, JSON.stringify(messages.slice(-MAX_LOCAL_MESSAGES)));
+      } else {
+        window.localStorage.removeItem(storageMessagesKey);
+      }
     } catch (_err) {
       // ignore storage quota errors
     }
@@ -168,6 +182,17 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   }, [sessionId, storageSessionKey, storageReady]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!storageReady) return;
+    try {
+      if (conversationStarted) window.localStorage.setItem(storageStartedKey, "1");
+      else window.localStorage.removeItem(storageStartedKey);
+    } catch (_err) {
+      // ignore
+    }
+  }, [conversationStarted, storageStartedKey, storageReady]);
+
+  useEffect(() => {
     const fetchRole = async () => {
       if (!user?.id) {
         setRoleContext(null);
@@ -182,7 +207,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   useEffect(() => {
     if (!scrollRef.current) return;
     scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages, open, isSending, isMinimized]);
+  }, [messages, open, isSending, isMinimized, conversationStarted]);
 
   const handleActionClick = (action: ActionItem) => {
     if (!action?.url) return;
@@ -191,9 +216,89 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
     setIsMinimized(false);
   };
 
+  const renderMessageWithLinks = (content: string): ReactNode[] => {
+    const lines = String(content || "").split("\n");
+    const nodes: ReactNode[] = [];
+    let nodeIndex = 0;
+
+    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+      const line = lines[lineIndex];
+      let lastIndex = 0;
+
+      for (const match of line.matchAll(LINK_PATTERN)) {
+        const rawToken = match[0];
+        const startIndex = match.index ?? 0;
+        if (startIndex > lastIndex) {
+          nodes.push(line.slice(lastIndex, startIndex));
+        }
+
+        const { clean, suffix } = splitTrailingPunctuation(rawToken);
+        if (/^https?:\/\//i.test(clean)) {
+          nodes.push(
+            <a
+              key={`msg-link-${nodeIndex++}`}
+              href={clean}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="underline underline-offset-2 hover:opacity-80"
+            >
+              {clean}
+            </a>,
+          );
+        } else if (isInternalPath(clean)) {
+          nodes.push(
+            <button
+              key={`msg-link-${nodeIndex++}`}
+              type="button"
+              className="underline underline-offset-2 hover:opacity-80"
+              onClick={() => handleActionClick({ type: "link", label: clean, url: clean })}
+            >
+              {clean}
+            </button>,
+          );
+        } else {
+          nodes.push(rawToken);
+        }
+
+        if (suffix) nodes.push(suffix);
+        lastIndex = startIndex + rawToken.length;
+      }
+
+      if (lastIndex < line.length) {
+        nodes.push(line.slice(lastIndex));
+      }
+
+      if (lineIndex < lines.length - 1) {
+        nodes.push(<br key={`msg-br-${nodeIndex++}`} />);
+      }
+    }
+
+    return nodes;
+  };
+
+  const handleStartConversation = () => {
+    setConversationStarted(true);
+    if (messages.length === 0) {
+      appendMessage({
+        id: createMessageId(),
+        role: "assistant",
+        content: welcomeMessage,
+        mode: "faq",
+      });
+    }
+  };
+
+  const handleEndConversation = () => {
+    setConversationStarted(false);
+    setMessages([]);
+    setSessionId("");
+    setInput("");
+    setIsSending(false);
+  };
+
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || isSending) return;
+    if (!conversationStarted || !text || isSending) return;
 
     appendMessage({
       id: createMessageId(),
@@ -270,6 +375,16 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
               <span className="text-sm font-semibold">Assistente da Plataforma</span>
             </div>
             <div className="flex items-center gap-1">
+              {conversationStarted && (
+                <button
+                  onClick={handleEndConversation}
+                  className="rounded-md px-2 py-1 text-[11px] font-medium hover:bg-white/20"
+                  aria-label="Encerrar conversa"
+                  title="Encerrar conversa"
+                >
+                  Encerrar
+                </button>
+              )}
               <button
                 onClick={() => setIsMinimized((prev) => !prev)}
                 className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-white/20"
@@ -294,94 +409,90 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
 
           {!isMinimized && (
             <>
-              <div ref={scrollRef} className="flex-1 overflow-y-auto">
-                <div className="space-y-3 p-3">
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[90%] rounded-2xl px-3 py-2 text-sm shadow-sm",
-                          message.role === "user"
-                            ? "rounded-br-sm bg-primary text-primary-foreground"
-                            : "rounded-bl-sm border bg-secondary/40 text-foreground",
-                        )}
-                      >
-                        <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              {conversationStarted ? (
+                <>
+                  <div ref={scrollRef} className="flex-1 overflow-y-auto">
+                    <div className="space-y-3 p-3">
+                      {messages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
+                        >
+                          <div
+                            className={cn(
+                              "max-w-[90%] rounded-2xl px-3 py-2 text-sm shadow-sm",
+                              message.role === "user"
+                                ? "rounded-br-sm bg-primary text-primary-foreground"
+                                : "rounded-bl-sm border bg-secondary/40 text-foreground",
+                            )}
+                          >
+                            <p className="leading-relaxed">{renderMessageWithLinks(message.content)}</p>
 
-                        {message.sources && message.sources.length > 0 && (
-                          <div className="mt-2 space-y-1 border-t border-border/60 pt-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              Fontes
-                            </p>
-                            {message.sources.slice(0, 3).map((source) => (
-                              <button
-                                key={`${message.id}-${source.id}`}
-                                type="button"
-                                className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-2 py-1 text-left text-[11px] hover:bg-secondary"
-                                onClick={() =>
-                                  source.route &&
-                                  handleActionClick({ type: "link", label: source.title, url: source.route })
-                                }
-                              >
-                                <span className="truncate">{source.title}</span>
-                                <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
-                              </button>
-                            ))}
+                            {message.actions && message.actions.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
+                                {message.actions.map((action, index) => (
+                                  <Button
+                                    key={`${message.id}-action-${index}`}
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-[11px]"
+                                    onClick={() => handleActionClick(action)}
+                                  >
+                                    {action.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
+                      ))}
 
-                        {message.actions && message.actions.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
-                            {message.actions.map((action, index) => (
-                              <Button
-                                key={`${message.id}-action-${index}`}
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-[11px]"
-                                onClick={() => handleActionClick(action)}
-                              >
-                                {action.label}
-                              </Button>
-                            ))}
+                      {isSending && (
+                        <div className="flex justify-start">
+                          <div className="rounded-2xl rounded-bl-sm border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  </div>
 
-                  {isSending && (
-                    <div className="flex justify-start">
-                      <div className="rounded-2xl rounded-bl-sm border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      </div>
+                  <div className="border-t p-2.5">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            sendMessage();
+                          }
+                        }}
+                        placeholder="Pergunte sobre funcionalidades..."
+                        disabled={isSending}
+                      />
+                      <Button size="icon" onClick={sendMessage} disabled={isSending || !input.trim()}>
+                        {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      </Button>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="border-t p-2.5">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                    placeholder="Pergunte sobre funcionalidades..."
-                    disabled={isSending}
-                  />
-                  <Button size="icon" onClick={sendMessage} disabled={isSending || !input.trim()}>
-                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5 text-center">
+                  <Bot className="h-10 w-10 text-primary" />
+                  <div className="space-y-2">
+                    <p className="text-base font-semibold">Assistente da Plataforma</p>
+                    <p className="text-sm text-muted-foreground">{welcomeMessage}</p>
+                  </div>
+                  <Button onClick={handleStartConversation} className="w-full">
+                    Iniciar conversa
                   </Button>
+                  <p className="text-[11px] text-muted-foreground">
+                    Depois de iniciar, voce podera enviar mensagens normalmente.
+                  </p>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>

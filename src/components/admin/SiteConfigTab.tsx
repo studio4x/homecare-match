@@ -596,47 +596,107 @@ const SiteConfigTab = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('site_config')
-        .update({
-          logo_height_px: formData.logo_height_px,
-          footer_logo_height_px: formData.footer_logo_height_px,
-          whatsapp_number: formData.whatsapp_number,
-          enable_professional_list: formData.enable_professional_list,
-          payment_provider: formData.payment_provider,
-          asaas_environment: formData.asaas_environment,
-          asaas_checkout_base_url: formData.asaas_checkout_base_url,
-          asaas_allow_credit_card: formData.asaas_allow_credit_card,
-          asaas_allow_pix: false,
-          asaas_default_installment_max: Number(formData.asaas_default_installment_max || 12),
-          asaas_checkout_expiration_minutes: Number(formData.asaas_checkout_expiration_minutes || 60),
-          google_maps_api_key: formData.google_maps_api_key,
-          vapid_public_key: formData.vapid_public_key,
-          gemini_model: formData.gemini_model,
-          chatbot_enabled: !!formData.chatbot_enabled,
-          chatbot_use_ai: !!formData.chatbot_use_ai,
-          chatbot_welcome_message: formData.chatbot_welcome_message,
-          chatbot_out_of_scope_message: formData.chatbot_out_of_scope_message,
-          chatbot_error_message: formData.chatbot_error_message,
-          chatbot_max_requests_anon_per_day: Math.max(1, Number(formData.chatbot_max_requests_anon_per_day || 20)),
-          chatbot_max_requests_auth_per_day: Math.max(1, Number(formData.chatbot_max_requests_auth_per_day || 80)),
-          chatbot_history_window: Math.max(2, Number(formData.chatbot_history_window || 12)),
-          chatbot_retention_days: Math.max(1, Number(formData.chatbot_retention_days || 30)),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', 1);
+      const extractMissingColumn = (message: string) => {
+        const byQuoted = message.match(/Could not find the '([a-zA-Z0-9_]+)' column/i);
+        if (byQuoted?.[1]) return byQuoted[1];
+        const byPlain = message.match(/column\s+"?([a-zA-Z0-9_]+)"?/i);
+        if (byPlain?.[1]) return byPlain[1];
+        return "";
+      };
 
-      if (error) {
-        if (error.message.includes("column") || error.code === "42703") {
+      const payload: Record<string, unknown> = {
+        logo_height_px: formData.logo_height_px,
+        footer_logo_height_px: formData.footer_logo_height_px,
+        whatsapp_number: formData.whatsapp_number,
+        enable_professional_list: formData.enable_professional_list,
+        payment_provider: formData.payment_provider,
+        asaas_environment: formData.asaas_environment,
+        asaas_checkout_base_url: formData.asaas_checkout_base_url,
+        asaas_allow_credit_card: formData.asaas_allow_credit_card,
+        asaas_allow_pix: false,
+        asaas_default_installment_max: Number(formData.asaas_default_installment_max || 12),
+        asaas_checkout_expiration_minutes: Number(formData.asaas_checkout_expiration_minutes || 60),
+        google_maps_api_key: formData.google_maps_api_key,
+        vapid_public_key: formData.vapid_public_key,
+        gemini_model: formData.gemini_model,
+        chatbot_enabled: !!formData.chatbot_enabled,
+        chatbot_use_ai: !!formData.chatbot_use_ai,
+        chatbot_welcome_message: formData.chatbot_welcome_message,
+        chatbot_out_of_scope_message: formData.chatbot_out_of_scope_message,
+        chatbot_error_message: formData.chatbot_error_message,
+        chatbot_max_requests_anon_per_day: Math.max(1, Number(formData.chatbot_max_requests_anon_per_day || 20)),
+        chatbot_max_requests_auth_per_day: Math.max(1, Number(formData.chatbot_max_requests_auth_per_day || 80)),
+        chatbot_history_window: Math.max(2, Number(formData.chatbot_history_window || 12)),
+        chatbot_retention_days: Math.max(1, Number(formData.chatbot_retention_days || 30)),
+        updated_at: new Date().toISOString(),
+      };
+
+      const chatbotColumns = [
+        "chatbot_enabled",
+        "chatbot_use_ai",
+        "chatbot_welcome_message",
+        "chatbot_out_of_scope_message",
+        "chatbot_error_message",
+        "chatbot_max_requests_anon_per_day",
+        "chatbot_max_requests_auth_per_day",
+        "chatbot_history_window",
+        "chatbot_retention_days",
+      ];
+
+      const removedColumns: string[] = [];
+      let saveError: any = null;
+
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        const { error } = await supabase.from('site_config').update(payload).eq('id', 1);
+        if (!error) {
+          saveError = null;
+          break;
+        }
+
+        saveError = error;
+        const message = String(error?.message || "");
+        const isMissingColumnError = error?.code === "42703" || /column/i.test(message);
+        if (!isMissingColumnError) break;
+
+        const missingColumn = extractMissingColumn(message);
+        if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
+          delete payload[missingColumn];
+          removedColumns.push(missingColumn);
+          continue;
+        }
+
+        // Fallback: remove apenas o bloco do chatbot se o parser não identificar a coluna.
+        let removedAnyChatbotField = false;
+        for (const key of chatbotColumns) {
+          if (Object.prototype.hasOwnProperty.call(payload, key)) {
+            delete payload[key];
+            removedColumns.push(key);
+            removedAnyChatbotField = true;
+          }
+        }
+        if (!removedAnyChatbotField) break;
+      }
+
+      if (saveError) {
+        if (String(saveError?.message || "").includes("column") || saveError?.code === "42703") {
           toast.error("Coluna não encontrada no banco!", {
-            description: "Clique no botão 'Sincronizar Estrutura Base' no final da página primeiro."
+            description: "Clique no botão 'Sincronizar Estrutura Base' no final da página primeiro.",
           });
           return;
         }
-        throw error;
+        throw saveError;
       }
+
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
-      toast.success("Configurações salvas!");
+      if (removedColumns.length > 0) {
+        const uniqueRemoved = Array.from(new Set(removedColumns));
+        const preview = uniqueRemoved.slice(0, 4).join(", ");
+        toast.success("Configurações salvas com compatibilidade.", {
+          description: `Algumas colunas ainda não existem no banco remoto (${preview}${uniqueRemoved.length > 4 ? ", ..." : ""}).`,
+        });
+      } else {
+        toast.success("Configurações salvas!");
+      }
     } catch (error: any) {
       toast.error("Erro ao salvar configurações.");
     } finally {

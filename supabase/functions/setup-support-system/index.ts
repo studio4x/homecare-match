@@ -115,12 +115,32 @@ serve(async (req) => {
         CONSTRAINT chatbot_usage_logs_actor_date_key UNIQUE (actor_key, request_date)
       );
 
+      CREATE TABLE IF NOT EXISTS public.chatbot_unanswered_questions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        normalized_question TEXT NOT NULL,
+        question TEXT NOT NULL,
+        occurrences INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'new',
+        first_asked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_asked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        last_reason TEXT,
+        last_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+        last_visitor_hash TEXT,
+        last_session_id UUID REFERENCES public.chatbot_sessions(id) ON DELETE SET NULL,
+        last_page_path TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
       CREATE INDEX IF NOT EXISTS idx_support_guides_position ON public.support_guides(position);
       CREATE INDEX IF NOT EXISTS idx_support_guides_published ON public.support_guides(is_published);
       CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_user ON public.chatbot_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_visitor_hash ON public.chatbot_sessions(visitor_hash);
       CREATE INDEX IF NOT EXISTS idx_chatbot_messages_session_created ON public.chatbot_messages(session_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_chatbot_usage_logs_request_date ON public.chatbot_usage_logs(request_date DESC);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_chatbot_unanswered_questions_normalized_question ON public.chatbot_unanswered_questions(normalized_question);
+      CREATE INDEX IF NOT EXISTS idx_chatbot_unanswered_questions_last_asked ON public.chatbot_unanswered_questions(last_asked_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_chatbot_unanswered_questions_status ON public.chatbot_unanswered_questions(status);
 
       CREATE OR REPLACE FUNCTION public.set_support_guides_updated_at()
       RETURNS TRIGGER
@@ -170,6 +190,22 @@ serve(async (req) => {
       FOR EACH ROW
       EXECUTE FUNCTION public.set_chatbot_usage_logs_updated_at();
 
+      CREATE OR REPLACE FUNCTION public.set_chatbot_unanswered_questions_updated_at()
+      RETURNS TRIGGER
+      LANGUAGE plpgsql
+      AS $fn$
+      BEGIN
+        NEW.updated_at = NOW();
+        RETURN NEW;
+      END;
+      $fn$;
+
+      DROP TRIGGER IF EXISTS trg_chatbot_unanswered_questions_updated_at ON public.chatbot_unanswered_questions;
+      CREATE TRIGGER trg_chatbot_unanswered_questions_updated_at
+      BEFORE UPDATE ON public.chatbot_unanswered_questions
+      FOR EACH ROW
+      EXECUTE FUNCTION public.set_chatbot_unanswered_questions_updated_at();
+
       ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.support_messages ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.support_faqs ENABLE ROW LEVEL SECURITY;
@@ -177,6 +213,7 @@ serve(async (req) => {
       ALTER TABLE public.chatbot_sessions ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.chatbot_messages ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.chatbot_usage_logs ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.chatbot_unanswered_questions ENABLE ROW LEVEL SECURITY;
 
       DO $pub$
       BEGIN
@@ -287,6 +324,13 @@ serve(async (req) => {
           CREATE POLICY "chatbot_usage_logs_admin_read" ON public.chatbot_usage_logs
           FOR SELECT TO authenticated
           USING (check_is_admin());
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'chatbot_unanswered_questions_admin_all') THEN
+          CREATE POLICY "chatbot_unanswered_questions_admin_all" ON public.chatbot_unanswered_questions
+          FOR ALL TO authenticated
+          USING (check_is_admin())
+          WITH CHECK (check_is_admin());
         END IF;
       END
       $policy$;

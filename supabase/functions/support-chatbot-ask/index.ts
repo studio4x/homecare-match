@@ -380,6 +380,86 @@ const callGemini = async ({
   return String(answer).trim();
 };
 
+const buildQuestionKey = (value: string) => compact(normalizeText(value), 320);
+
+const trackUnansweredQuestion = async ({
+  supabaseAdmin,
+  question,
+  reason,
+  userId,
+  visitorHash,
+  sessionId,
+  pagePath,
+}: {
+  supabaseAdmin: any;
+  question: string;
+  reason: "low_confidence" | "ai_out_of_scope";
+  userId: string | null;
+  visitorHash: string;
+  sessionId: string;
+  pagePath: string | null;
+}) => {
+  const normalizedQuestion = buildQuestionKey(question);
+  const rawQuestion = compact(String(question || "").trim(), 900);
+  if (!normalizedQuestion || normalizedQuestion.length < 6 || !rawQuestion) return;
+
+  try {
+    const nowIso = new Date().toISOString();
+    const { data: existingRow, error: existingError } = await supabaseAdmin
+      .from("chatbot_unanswered_questions")
+      .select("id, occurrences")
+      .eq("normalized_question", normalizedQuestion)
+      .maybeSingle();
+
+    if (existingError) throw existingError;
+
+    if (existingRow?.id) {
+      const nextCount = Math.max(1, Number(existingRow.occurrences || 0) + 1);
+      const { error: updateError } = await supabaseAdmin
+        .from("chatbot_unanswered_questions")
+        .update({
+          question: rawQuestion,
+          occurrences: nextCount,
+          last_asked_at: nowIso,
+          last_reason: reason,
+          last_user_id: userId || null,
+          last_visitor_hash: visitorHash,
+          last_session_id: sessionId,
+          last_page_path: pagePath,
+        })
+        .eq("id", existingRow.id);
+
+      if (updateError) throw updateError;
+      return;
+    }
+
+    const { error: insertError } = await supabaseAdmin.from("chatbot_unanswered_questions").insert({
+      normalized_question: normalizedQuestion,
+      question: rawQuestion,
+      occurrences: 1,
+      status: "new",
+      first_asked_at: nowIso,
+      last_asked_at: nowIso,
+      last_reason: reason,
+      last_user_id: userId || null,
+      last_visitor_hash: visitorHash,
+      last_session_id: sessionId,
+      last_page_path: pagePath,
+    });
+
+    if (insertError) throw insertError;
+
+    await supabaseAdmin.from("admin_notifications").insert({
+      title: "Nova pergunta sem resposta do chatbot",
+      content: "Uma pergunta nao encontrada pelo chatbot foi registrada para avaliacao de FAQ/guia.",
+      link: "/admin/sugestoes",
+      type: "info",
+    });
+  } catch (error) {
+    console.error("[support-chatbot-ask] falha ao registrar pergunta sem resposta:", error?.message || error);
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -641,6 +721,7 @@ serve(async (req) => {
 
     let mode: "faq" | "ai" | "fallback" = "fallback";
     let answer = config.chatbot_out_of_scope_message;
+    let unansweredReason: "low_confidence" | "ai_out_of_scope" | null = null;
     const sources = topDocs
       .filter((doc) => Number(doc.score || 0) >= 0.25)
       .slice(0, 3)
@@ -710,6 +791,7 @@ ${rawMessage}
           if (normalizeText(aiAnswer) === normalizeText(config.chatbot_out_of_scope_message)) {
             mode = "fallback";
             answer = config.chatbot_out_of_scope_message;
+            unansweredReason = "ai_out_of_scope";
           } else {
             mode = "ai";
             answer = aiAnswer;
@@ -725,6 +807,7 @@ ${rawMessage}
     } else {
       mode = "fallback";
       answer = config.chatbot_out_of_scope_message;
+      unansweredReason = "low_confidence";
     }
 
     const suggestedActions = buildDefaultActions(!!userId);
@@ -746,6 +829,18 @@ ${rawMessage}
         updated_at: new Date().toISOString(),
       })
       .eq("id", sessionId);
+
+    if (unansweredReason) {
+      await trackUnansweredQuestion({
+        supabaseAdmin,
+        question: rawMessage,
+        reason: unansweredReason,
+        userId,
+        visitorHash,
+        sessionId,
+        pagePath: requestedPagePath,
+      });
+    }
 
     return new Response(
       JSON.stringify({

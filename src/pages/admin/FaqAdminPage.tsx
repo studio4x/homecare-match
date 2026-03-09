@@ -34,7 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Edit2, Trash2, Tag, FolderOpen, Pencil, BookOpenText } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, Tag, FolderOpen, Pencil, BookOpenText, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 
 const csvToArray = (value: string) =>
@@ -50,6 +50,14 @@ type GuideCoverageArea = {
   label: string;
   moduleHints: string[];
   keywords: string[];
+};
+
+type AutoGuideTemplate = {
+  title: string;
+  module: string;
+  audience: string[];
+  question_variants: string[];
+  content: string;
 };
 
 const GUIDE_COVERAGE_AREAS: GuideCoverageArea[] = [
@@ -145,6 +153,129 @@ const GUIDE_COVERAGE_AREAS: GuideCoverageArea[] = [
   },
 ];
 
+const AUTO_GUIDE_TEMPLATES: Record<string, AutoGuideTemplate> = {
+  onboarding: {
+    title: "Guia essencial: onboarding e cadastro",
+    module: "onboarding",
+    audience: ["professional", "company", "family"],
+    question_variants: ["como me cadastrar", "primeiro acesso", "onboarding da plataforma"],
+    content:
+      "1) Crie sua conta no fluxo correto (profissional, empresa ou familia). 2) Confirme acesso e entre no Dashboard. 3) Complete dados principais do perfil. 4) Siga para o primeiro fluxo objetivo da sua rotina.",
+  },
+  login_password: {
+    title: "Guia essencial: login e recuperacao de senha",
+    module: "conta",
+    audience: ["professional", "company", "family"],
+    question_variants: ["como fazer login", "esqueci minha senha", "redefinir senha"],
+    content:
+      "1) Acesse a tela de login e autentique sua conta. 2) Se nao lembrar a senha, use recuperar senha. 3) Abra o link enviado por e-mail. 4) Defina nova senha e retorne ao painel.",
+  },
+  perfil_profissional: {
+    title: "Guia essencial: perfil profissional completo",
+    module: "perfil",
+    audience: ["professional"],
+    question_variants: ["como melhorar meu perfil", "como aumentar visibilidade", "biografia profissional"],
+    content:
+      "1) Atualize bio, experiencias e formacoes. 2) Revise clareza e coerencia dos dados. 3) Mantenha contato e disponibilidade em dia. 4) Reavalie o perfil periodicamente para melhorar conversao.",
+  },
+  busca_e_contato: {
+    title: "Guia essencial: busca e contato com profissionais",
+    module: "busca",
+    audience: ["company", "family"],
+    question_variants: ["como buscar profissional", "filtros de busca", "contato por whatsapp"],
+    content:
+      "1) Aplique filtros de localizacao, especialidade e disponibilidade. 2) Compare perfis aderentes. 3) Inicie contato com os candidatos mais alinhados. 4) Registre andamento no painel de contatos.",
+  },
+  empresa_pacientes: {
+    title: "Guia essencial: fluxo de empresa e pacientes",
+    module: "pacientes",
+    audience: ["company"],
+    question_variants: ["como cadastrar paciente", "fluxo da empresa", "organizar demandas"],
+    content:
+      "1) Cadastre pacientes com informacoes essenciais do caso. 2) Estruture criterios de contratacao. 3) Busque candidatos aderentes. 4) Acompanhe cada etapa do processo com historico.",
+  },
+  familia_fluxo: {
+    title: "Guia essencial: fluxo da familia",
+    module: "processos_familia",
+    audience: ["family"],
+    question_variants: ["como familia encontra cuidador", "fluxo de contratacao familia", "como avaliar profissional"],
+    content:
+      "1) Defina criterios do cuidado. 2) Busque perfis aderentes. 3) Valide experiencia e sinais de confianca. 4) Inicie contato e acompanhe retorno ate fechar a melhor opcao.",
+  },
+  planos_pagamentos: {
+    title: "Guia essencial: planos e pagamentos",
+    module: "pagamentos",
+    audience: ["professional"],
+    question_variants: ["plano mensal ou anual", "como pagar assinatura", "cancelamento de assinatura"],
+    content:
+      "1) Compare plano mensal e anual conforme sua estrategia. 2) Acompanhe cobranca e historico no Dashboard > Pagamentos. 3) Resolva pendencias rapidamente. 4) Use o fluxo de cancelamento quando aplicavel.",
+  },
+  trial_cupom: {
+    title: "Guia essencial: teste gratis e cupom",
+    module: "trial",
+    audience: ["professional"],
+    question_variants: ["quanto dura teste gratis", "cupom no cadastro", "dias de beneficio"],
+    content:
+      "1) O cadastro padrao ativa 30 dias de teste gratis com acesso limitado. 2) Se houver cupom valido no cadastro, valem os dias do cupom. 3) Acompanhe dias restantes no painel e planeje renovacao.",
+  },
+  academy_cursos: {
+    title: "Guia essencial: academy e cursos",
+    module: "cursos",
+    audience: ["professional"],
+    question_variants: ["como iniciar curso", "progresso do curso", "emitir certificado"],
+    content:
+      "1) Inicie cursos na area de cursos do painel. 2) Avance por modulos para registrar progresso. 3) Conclua trilha para liberar certificado quando aplicavel. 4) Use validacao publica para comprovar autenticidade.",
+  },
+  indicacoes_convite: {
+    title: "Guia essencial: indicacoes e convite",
+    module: "indicacoes",
+    audience: ["professional"],
+    question_variants: ["como indicar colega", "link de convite", "acompanhar indicados"],
+    content:
+      "1) Gere seu link de indicacao. 2) Compartilhe com pessoas aderentes ao perfil da plataforma. 3) Monitore cadastros e evolucao dos indicados no painel. 4) Ajuste abordagem para melhorar conversao.",
+  },
+  avisos_notificacoes: {
+    title: "Guia essencial: avisos e notificacoes",
+    module: "notificacoes",
+    audience: ["professional", "company", "family"],
+    question_variants: ["onde ver avisos", "notificacoes em tempo real", "ativar push"],
+    content:
+      "1) Verifique avisos no painel diariamente. 2) Ative notificacoes para nao perder atualizacoes importantes. 3) Priorize alertas urgentes. 4) Mantenha rotina de acompanhamento recorrente.",
+  },
+  suporte_faq: {
+    title: "Guia essencial: suporte, chatbot e FAQ",
+    module: "suporte",
+    audience: ["professional", "company", "family"],
+    question_variants: ["quando usar chatbot", "quando abrir chamado", "onde ver faq"],
+    content:
+      "1) Use chatbot para duvidas de uso e fluxos. 2) Consulte FAQ para respostas rapidas. 3) Abra chamado para erros tecnicos, bloqueios ou casos especificos. 4) Mantenha tudo no mesmo ticket para historico.",
+  },
+  seguranca: {
+    title: "Guia essencial: seguranca, verificacao e denuncias",
+    module: "seguranca",
+    audience: ["professional", "company", "family"],
+    question_variants: ["selo de verificacao", "como denunciar", "seguranca da comunidade"],
+    content:
+      "1) Siga verificacao documental quando solicitada. 2) Use canais de denuncia com fatos objetivos e evidencias. 3) Para situacoes criticas, acione suporte. 4) Mantenha boas praticas em todas as interacoes.",
+  },
+  concierge: {
+    title: "Guia essencial: concierge e urgencias",
+    module: "concierge",
+    audience: ["company", "family"],
+    question_variants: ["como solicitar concierge", "caso urgente", "busca assistida"],
+    content:
+      "1) Acione concierge em urgencias ou casos complexos. 2) Informe criterios clinicos e operacionais do caso. 3) Acompanhe orientacoes da equipe. 4) Use shortlist sugerida para acelerar decisao.",
+  },
+  pwa_blog_funcionalidades: {
+    title: "Guia essencial: pwa, blog e funcionalidades",
+    module: "funcionalidades",
+    audience: ["professional", "company", "family"],
+    question_variants: ["instalar app", "onde ver funcionalidades", "como usar blog"],
+    content:
+      "1) Consulte a pagina de funcionalidades para mapa de recursos. 2) Instale o app (PWA) para acesso rapido no celular. 3) Use o blog para apoio de boas praticas. 4) Aplique os conteudos na rotina da plataforma.",
+  },
+};
+
 const normalizeGuideText = (value: unknown) =>
   String(value || "")
     .toLowerCase()
@@ -178,6 +309,7 @@ const FaqAdminPage = () => {
   const [guideAudienceInput, setGuideAudienceInput] = useState("");
   const [guideVariantsInput, setGuideVariantsInput] = useState("");
   const [isSavingGuide, setIsSavingGuide] = useState(false);
+  const [isGeneratingMissingGuides, setIsGeneratingMissingGuides] = useState(false);
   const [guideModuleFilter, setGuideModuleFilter] = useState("all");
 
   const defaultFaqCategory = useMemo(() => {
@@ -307,6 +439,72 @@ const FaqAdminPage = () => {
       missing: coverage.filter((item) => !item.covered),
     };
   }, [guides]);
+
+  const handleCreateMissingGuides = async () => {
+    if (guideCoverageSummary.missing.length === 0) {
+      toast.success("A cobertura ja esta completa. Nenhum guia faltando.");
+      return;
+    }
+
+    if (!confirm("Deseja criar automaticamente os guias faltantes da cobertura?")) return;
+
+    setIsGeneratingMissingGuides(true);
+    try {
+      const existingKeys = new Set(
+        guides.map((guide) => {
+          const title = normalizeGuideText(guide?.title || "");
+          const module = normalizeGuideText(guide?.module || "geral");
+          return `${title}::${module}`;
+        }),
+      );
+
+      let nextPosition =
+        guides.reduce((maxPos, guide) => Math.max(maxPos, Number(guide?.position) || 0), 0) + 10;
+
+      const payload = guideCoverageSummary.missing
+        .map((area) => AUTO_GUIDE_TEMPLATES[area.id])
+        .filter((template): template is AutoGuideTemplate => !!template)
+        .filter((template) => {
+          const key = `${normalizeGuideText(template.title)}::${normalizeGuideText(template.module)}`;
+          if (existingKeys.has(key)) return false;
+          existingKeys.add(key);
+          return true;
+        })
+        .map((template) => {
+          const row = {
+            title: template.title,
+            module: template.module,
+            audience: template.audience,
+            question_variants: template.question_variants,
+            content: template.content,
+            position: nextPosition,
+            is_published: true,
+          };
+          nextPosition += 10;
+          return row;
+        });
+
+      if (payload.length === 0) {
+        toast.success("Guias faltantes ja existem no banco. Nada novo para criar.");
+        return;
+      }
+
+      const { error } = await supabase.from("support_guides").insert(payload);
+      if (error) throw error;
+
+      toast.success(`${payload.length} guia(s) criado(s) automaticamente.`);
+      await fetchKnowledgeBase(true);
+    } catch (error) {
+      console.error(error);
+      const message =
+        String((error as any)?.code || "") === "42P01"
+          ? "Tabela support_guides nao encontrada. Execute a sincronizacao da Central de Suporte."
+          : "Erro ao criar guias faltantes.";
+      toast.error(message);
+    } finally {
+      setIsGeneratingMissingGuides(false);
+    }
+  };
 
   const handleNewFaq = (category?: string) => {
     setSelectedFaq({
@@ -672,6 +870,19 @@ const FaqAdminPage = () => {
                       Cobertura completa das areas essenciais mapeadas para o chatbot.
                     </p>
                   )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2"
+                      onClick={handleCreateMissingGuides}
+                      disabled={isGeneratingMissingGuides || guideCoverageSummary.missing.length === 0}
+                    >
+                      {isGeneratingMissingGuides ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                      Criar guias faltantes automaticamente
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 

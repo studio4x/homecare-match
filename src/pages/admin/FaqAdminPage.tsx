@@ -45,6 +45,114 @@ const csvToArray = (value: string) =>
 
 const arrayToCsv = (value: unknown) => (Array.isArray(value) ? value.filter(Boolean).join(", ") : "");
 
+type GuideCoverageArea = {
+  id: string;
+  label: string;
+  moduleHints: string[];
+  keywords: string[];
+};
+
+const GUIDE_COVERAGE_AREAS: GuideCoverageArea[] = [
+  {
+    id: "onboarding",
+    label: "Onboarding e cadastro",
+    moduleHints: ["onboarding", "conta"],
+    keywords: ["cadastro", "criar conta", "primeiro acesso", "onboarding", "tipo de cadastro"],
+  },
+  {
+    id: "login_password",
+    label: "Login e recuperacao de senha",
+    moduleHints: ["conta"],
+    keywords: ["login", "entrar", "redefinir senha", "esqueci a senha", "recuperar acesso"],
+  },
+  {
+    id: "perfil_profissional",
+    label: "Perfil profissional e bio",
+    moduleHints: ["perfil"],
+    keywords: ["perfil profissional", "biografia", "bio", "visibilidade", "experiencias"],
+  },
+  {
+    id: "busca_e_contato",
+    label: "Busca de profissionais e contato",
+    moduleHints: ["busca", "contatos"],
+    keywords: ["buscar profissional", "filtros", "geolocalizacao", "whatsapp", "contato"],
+  },
+  {
+    id: "empresa_pacientes",
+    label: "Fluxo de empresa e pacientes",
+    moduleHints: ["pacientes", "processos_empresa"],
+    keywords: ["pacientes", "empresa", "vaga", "demanda", "recrutamento"],
+  },
+  {
+    id: "familia_fluxo",
+    label: "Fluxo de familia",
+    moduleHints: ["processos_familia"],
+    keywords: ["familia", "contratar profissional", "cuidador", "caso familiar"],
+  },
+  {
+    id: "planos_pagamentos",
+    label: "Planos e pagamentos",
+    moduleHints: ["planos", "pagamentos", "assinatura"],
+    keywords: ["plano mensal", "plano anual", "fatura", "cobranca", "cancelamento", "parcelamento"],
+  },
+  {
+    id: "trial_cupom",
+    label: "Teste gratis e cupom",
+    moduleHints: ["trial", "planos", "pagamentos"],
+    keywords: ["teste gratis", "30 dias", "cupom", "dias bonus", "acesso limitado"],
+  },
+  {
+    id: "academy_cursos",
+    label: "Academy e cursos",
+    moduleHints: ["academy", "cursos", "certificados"],
+    keywords: ["academy", "curso", "progresso", "certificado", "validar certificado"],
+  },
+  {
+    id: "indicacoes_convite",
+    label: "Indicacoes e convite",
+    moduleHints: ["indicacoes"],
+    keywords: ["indicacao", "convite", "link de convite", "embaixador"],
+  },
+  {
+    id: "avisos_notificacoes",
+    label: "Avisos e notificacoes",
+    moduleHints: ["avisos", "notificacoes"],
+    keywords: ["avisos", "comunicados", "notificacao", "push"],
+  },
+  {
+    id: "suporte_faq",
+    label: "Suporte, chatbot e FAQ",
+    moduleHints: ["suporte", "faq"],
+    keywords: ["ticket", "chamado", "chatbot", "faq", "duvidas frequentes"],
+  },
+  {
+    id: "seguranca",
+    label: "Seguranca, verificacao e denuncias",
+    moduleHints: ["seguranca", "qualidade"],
+    keywords: ["selo", "verificacao", "documentos", "denuncia", "seguranca"],
+  },
+  {
+    id: "concierge",
+    label: "Concierge e casos urgentes",
+    moduleHints: ["concierge", "processos_criticos"],
+    keywords: ["concierge", "urgencia", "busca assistida", "caso complexo"],
+  },
+  {
+    id: "pwa_blog_funcionalidades",
+    label: "PWA, blog e pagina de funcionalidades",
+    moduleHints: ["app", "blog", "funcionalidades"],
+    keywords: ["pwa", "instalar app", "blog", "funcionalidades", "recursos da plataforma"],
+  },
+];
+
+const normalizeGuideText = (value: unknown) =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const FaqAdminPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("faqs");
@@ -70,6 +178,7 @@ const FaqAdminPage = () => {
   const [guideAudienceInput, setGuideAudienceInput] = useState("");
   const [guideVariantsInput, setGuideVariantsInput] = useState("");
   const [isSavingGuide, setIsSavingGuide] = useState(false);
+  const [guideModuleFilter, setGuideModuleFilter] = useState("all");
 
   const defaultFaqCategory = useMemo(() => {
     const categorySet = new Set<string>();
@@ -152,6 +261,52 @@ const FaqAdminPage = () => {
   }, [faqs]);
 
   const categories = useMemo(() => Object.keys(groupedFaqs).sort(), [groupedFaqs]);
+
+  const guideModuleOptions = useMemo(() => {
+    const modules = new Set<string>();
+    for (const guide of guides) {
+      const moduleName = String(guide?.module || "").trim();
+      if (moduleName) modules.add(moduleName);
+    }
+    return Array.from(modules).sort();
+  }, [guides]);
+
+  const filteredGuides = useMemo(() => {
+    if (guideModuleFilter === "all") return guides;
+    return guides.filter((guide) => String(guide?.module || "").trim() === guideModuleFilter);
+  }, [guides, guideModuleFilter]);
+
+  const guideCoverageSummary = useMemo(() => {
+    const publishedGuides = guides.filter((guide) => guide?.is_published);
+    const guideBlobs = publishedGuides.map((guide) => {
+      const variants = Array.isArray(guide?.question_variants) ? guide.question_variants.join(" ") : "";
+      const audience = Array.isArray(guide?.audience) ? guide.audience.join(" ") : "";
+      const blob = [guide?.title, guide?.module, guide?.content, variants, audience].join(" ");
+      return normalizeGuideText(blob);
+    });
+
+    const coverage = GUIDE_COVERAGE_AREAS.map((area) => {
+      const covered = guideBlobs.some((blob) => {
+        const hasModuleHint = area.moduleHints.some((hint) => blob.includes(normalizeGuideText(hint)));
+        const hasKeyword = area.keywords.some((keyword) => blob.includes(normalizeGuideText(keyword)));
+        return hasModuleHint || hasKeyword;
+      });
+
+      return { ...area, covered };
+    });
+
+    const coveredCount = coverage.filter((item) => item.covered).length;
+    const totalCount = coverage.length;
+    const percent = totalCount > 0 ? Math.round((coveredCount / totalCount) * 100) : 0;
+
+    return {
+      coverage,
+      coveredCount,
+      totalCount,
+      percent,
+      missing: coverage.filter((item) => !item.covered),
+    };
+  }, [guides]);
 
   const handleNewFaq = (category?: string) => {
     setSelectedFaq({
@@ -469,12 +624,78 @@ const FaqAdminPage = () => {
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : (
-            <Card className="border-none bg-card/50 shadow-sm">
-              <CardHeader>
+            <div className="space-y-4">
+              <Card className="border-none bg-card/50 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-base">Cobertura de Guias da Plataforma</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                      Cobertura: {guideCoverageSummary.coveredCount}/{guideCoverageSummary.totalCount}
+                    </Badge>
+                    <Badge
+                      className={
+                        guideCoverageSummary.percent >= 90
+                          ? "bg-success hover:bg-success"
+                          : guideCoverageSummary.percent >= 70
+                          ? "bg-amber-500 hover:bg-amber-500 text-white"
+                          : "bg-destructive hover:bg-destructive"
+                      }
+                    >
+                      {guideCoverageSummary.percent}%
+                    </Badge>
+                    <Badge variant="outline">Guias publicados: {guides.filter((guide) => guide?.is_published).length}</Badge>
+                  </div>
+
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${guideCoverageSummary.percent}%` }}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {guideCoverageSummary.coverage.map((item) => (
+                      <Badge key={item.id} variant={item.covered ? "default" : "outline"} className={item.covered ? "bg-success hover:bg-success" : "border-destructive/40 text-destructive"}>
+                        {item.label}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  {guideCoverageSummary.missing.length > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Pendentes para cobrir 100%: {guideCoverageSummary.missing.map((item) => item.label).join(", ")}.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Cobertura completa das areas essenciais mapeadas para o chatbot.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border-none bg-card/50 shadow-sm">
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg text-primary">
                   <BookOpenText className="h-5 w-5" />
                   Guias de Uso
                 </CardTitle>
+                <div className="w-full sm:w-64">
+                  <Select value={guideModuleFilter} onValueChange={setGuideModuleFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filtrar por modulo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os modulos</SelectItem>
+                      {guideModuleOptions.map((moduleName) => (
+                        <SelectItem key={moduleName} value={moduleName}>
+                          {moduleName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border bg-card">
@@ -490,8 +711,8 @@ const FaqAdminPage = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {guides.length > 0 ? (
-                        guides.map((guide) => (
+                      {filteredGuides.length > 0 ? (
+                        filteredGuides.map((guide) => (
                           <TableRow key={guide.id}>
                             <TableCell className="font-mono text-xs text-muted-foreground">{guide.position}</TableCell>
                             <TableCell className="max-w-xs truncate font-medium">{guide.title}</TableCell>
@@ -528,7 +749,7 @@ const FaqAdminPage = () => {
                       ) : (
                         <TableRow>
                           <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
-                            Nenhum guia de uso cadastrado.
+                            Nenhum guia de uso encontrado para este filtro.
                           </TableCell>
                         </TableRow>
                       )}
@@ -537,6 +758,7 @@ const FaqAdminPage = () => {
                 </div>
               </CardContent>
             </Card>
+            </div>
           )}
         </TabsContent>
       </Tabs>

@@ -379,10 +379,23 @@ const normalizePlanId = (value: string | null | undefined) => {
   return normalized;
 };
 
-const buildPlanKnowledgeDocs = (plans: any[]) => {
-  const rows = Array.isArray(plans) ? plans : [];
+const resolveDefaultInstallments = (config: any) => {
+  const raw = Number(config?.asaas_default_installment_max || 12);
+  if (!Number.isFinite(raw) || raw < 1) return 12;
+  return Math.min(12, Math.floor(raw));
+};
 
-  return rows.map((plan: any, index: number) => {
+const resolvePlanInstallments = (plan: any, config: any) => {
+  const raw = Number(plan?.asaas_installment_max || 0);
+  if (Number.isFinite(raw) && raw > 0) return Math.min(12, Math.floor(raw));
+  return resolveDefaultInstallments(config);
+};
+
+const buildPlanKnowledgeDocs = (plans: any[], config: any) => {
+  const rows = Array.isArray(plans) ? plans : [];
+  const allowCreditCard = config?.asaas_allow_credit_card !== false;
+
+  return rows.flatMap((plan: any, index: number) => {
     const planId = normalizePlanId(plan?.id || "");
     const planName =
       compact(
@@ -395,12 +408,7 @@ const buildPlanKnowledgeDocs = (plans: any[]) => {
     const price = compact(String(plan?.price || ""), 100) || "nao informado";
     const period = compact(String(plan?.period || ""), 80) || "nao informado";
     const description = compact(String(plan?.description || ""), 260);
-    const installmentMaxRaw = Number(plan?.asaas_installment_max || 0);
-    const installmentMax = Number.isFinite(installmentMaxRaw) && installmentMaxRaw > 0
-      ? Math.floor(installmentMaxRaw)
-      : planId === "yearly"
-      ? 12
-      : 1;
+    const installmentMax = resolvePlanInstallments(plan, config);
     const features = Array.isArray(plan?.features)
       ? plan.features
           .map((item: unknown) => compact(String(item || ""), 140))
@@ -422,10 +430,26 @@ const buildPlanKnowledgeDocs = (plans: any[]) => {
         ? "Vigencia/fidelidade: ciclo mensal."
         : "Vigencia/fidelidade: conforme periodo do plano.";
 
+    const paymentMethodsText =
+      planId === "free_trial"
+        ? "Forma de pagamento: nao se aplica para teste gratis."
+        : !allowCreditCard
+        ? "Forma de pagamento: no momento nao ha metodo de pagamento habilitado para assinaturas."
+        : planId === "monthly"
+        ? "Forma de pagamento: cartao de credito com cobranca recorrente automatica."
+        : planId === "yearly"
+        ? `Forma de pagamento: cartao de credito, com opcao de parcelamento em ate ${installmentMax}x.`
+        : "Forma de pagamento: cartao de credito para assinaturas.";
+
+    const pixPolicyText =
+      "PIX: atualmente nao disponivel para planos de assinatura (PIX e disponibilizado no fluxo de cursos).";
+
     const content = [
       `Plano: ${planName}.`,
       `Preco exibido: ${price}.`,
       `Periodo: ${period}.`,
+      paymentMethodsText,
+      pixPolicyText,
       renewalText,
       fidelityText,
       description ? `Resumo: ${description}.` : "",
@@ -434,7 +458,7 @@ const buildPlanKnowledgeDocs = (plans: any[]) => {
       .filter(Boolean)
       .join(" ");
 
-    return buildDocTokens({
+    const baseDoc = buildDocTokens({
       id: `plan:${planId || compact(String(plan?.id || index), 40)}`,
       type: "plan",
       title: planName,
@@ -450,9 +474,39 @@ const buildPlanKnowledgeDocs = (plans: any[]) => {
         "carencia",
         "cancelamento",
         "renovacao",
+        "formas de pagamento",
+        "metodos de pagamento",
+        "cartao de credito",
+        "pix",
       ],
       audience: ["professional"],
     });
+
+    const paymentDoc = buildDocTokens({
+      id: `plan-payment:${planId || compact(String(plan?.id || index), 40)}`,
+      type: "policy",
+      title: `Formas de pagamento do ${planName}`,
+      content: `${paymentMethodsText} ${pixPolicyText} ${
+        planId === "yearly"
+          ? `No plano anual, a cobranca ocorre no checkout e pode ser parcelada em ate ${installmentMax}x no cartao.`
+          : ""
+      }`.trim(),
+      route: "/dashboard/pagamentos",
+      tags: [
+        planId || "",
+        "formas de pagamento",
+        "metodo de pagamento",
+        "cartao",
+        "credito",
+        "pix",
+        "plano anual",
+        "plano mensal",
+        "parcelamento",
+      ],
+      audience: ["professional"],
+    });
+
+    return [baseDoc, paymentDoc];
   });
 };
 
@@ -683,6 +737,8 @@ serve(async (req) => {
           "chatbot_history_window",
           "chatbot_retention_days",
           "gemini_model",
+          "asaas_allow_credit_card",
+          "asaas_default_installment_max",
         ].join(","),
       )
       .eq("id", 1)
@@ -900,7 +956,7 @@ serve(async (req) => {
           audience: Array.isArray(guide.audience) ? guide.audience : [],
         }),
       ),
-      ...buildPlanKnowledgeDocs(plans || []),
+      ...buildPlanKnowledgeDocs(plans || [], config),
       ...SUBSCRIPTION_POLICY_DOCS.map((policy) => buildDocTokens(policy)),
       ...FEATURE_CATALOG.map((feature) =>
         buildDocTokens({

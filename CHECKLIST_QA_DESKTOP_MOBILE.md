@@ -103,35 +103,35 @@
   Mobile: OK
   Observacoes:
 
-- [ ] P0-18 Fluxo de contato iniciado por empresa funcionando
-  Desktop:
-  Mobile:
+- [OK] P0-18 Fluxo de contato iniciado por empresa funcionando
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P0-19 Fluxo de contato iniciado por familia funcionando
-  Desktop:
-  Mobile:
+- [OK] P0-19 Fluxo de contato iniciado por familia funcionando
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 ### 1.4 PWA e Estabilidade
-- [ ] P0-20 Instalacao PWA no Android sem erro critico
+- [OK] P0-20 Instalacao PWA no Android sem erro critico
   Desktop: NA
-  Mobile:
+  Mobile: OK
   Observacoes:
 
-- [ ] P0-21 Instalacao PWA no iOS sem erro critico
+- [NA] P0-21 Instalacao PWA no iOS sem erro critico
   Desktop: NA
-  Mobile:
+  Mobile: NA
   Observacoes:
 
-- [ ] P0-22 Console sem erro critico na home publica
-  Desktop:
-  Mobile:
+- [OK] P0-22 Console sem erro critico na home publica
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P0-23 Console sem erro critico no dashboard principal
-  Desktop:
-  Mobile:
+- [OK] P0-23 Console sem erro critico no dashboard principal
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 ### Resumo P0
@@ -145,7 +145,7 @@
 
 ### 2.1 Dashboards e Navegacao
 - [ ] P1-01 Dashboard do profissional carregando e navegando sem quebra
-  Desktop:
+  Desktop: Ajustando erros
   Mobile:
   Observacoes:
 

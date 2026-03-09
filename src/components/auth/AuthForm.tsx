@@ -313,7 +313,14 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
       if (mode === "login" && loginMethod === "magic_link" && error.status === 400) {
          setShowUserNotFoundModal(true);
       } else {
-        console.error("Auth error:", error);
+        const errorMessage = String(error?.message || "").toLowerCase();
+        const isExpectedInvalidCredentialError =
+          mode === "login" &&
+          loginMethod === "password" &&
+          (errorMessage.includes("invalid login credentials") || errorMessage.includes("invalid_credentials"));
+        if (!isExpectedInvalidCredentialError) {
+          console.error("Auth error:", error);
+        }
         toast.error(translateAuthError(error.message));
       }
     } finally {

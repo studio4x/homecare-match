@@ -29,7 +29,6 @@ import Footer from "./Footer";
 import AppVersion from "./AppVersion";
 import FaviconUpdater from "./FaviconUpdater";
 import ScrollToTop from "../ScrollToTop";
-import MarketingScripts from "../MarketingScripts";
 import ImpersonationBar from "../ImpersonationBar";
 import ScrollToTopButton from "../ScrollToTopButton";
 import UserNotificationWidget from "../UserNotificationWidget";
@@ -175,7 +174,6 @@ const UserLayout = () => {
       <ScrollToTop />
       <Navbar />
       <ImpersonationBar />
-      <MarketingScripts />
       <PushManager />
       <PwaInstallPrompt />
       <SuggestionDrawer autoPromptEnabled showTrigger={false} />

@@ -537,7 +537,15 @@ const SIGNUP_ACTIONS = [
   { type: "link", label: "Sou Familia", url: "/cadastro-empresa?role=family" },
 ];
 
-const SIGNUP_INTENT_PATTERNS = [
+const SIGNUP_STRONG_INTENT_PATTERNS = [
+  /\b(quero|preciso|gostaria)\s+(me\s+)?(cadastrar|criar\s+((uma|minha|sua|nossa)\s+)?conta)\b/,
+  /\bcomo\s+(me\s+)?(cadastrar|criar\s+((uma|minha|sua|nossa)\s+)?conta)\b/,
+  /\b(tipo|opcao)\s+de\s+cadastro\b/,
+  /\bsou\s+(profissional|empresa|familia)\s+e\s+quero\s+(me\s+)?cadastrar\b/,
+  /\bcriar\s+conta\s+de\s+(profissional|empresa|familia)\b/,
+];
+
+const SIGNUP_WEAK_INTENT_PATTERNS = [
   /\bcriar\s+((uma|minha|sua|nossa)\s+)?conta\b/,
   /\babrir\s+((uma|minha|sua|nossa)\s+)?conta\b/,
   /\bfazer\s+(o\s+)?cadastro\b/,
@@ -557,13 +565,108 @@ const SIGNUP_INTENT_BLOCKLIST = [
   /\bcadastro\s+de\s+pacientes?\b/,
   /\b(atualizar|editar|alterar|completar)\s+(meu|minha)\s+cadastro\b/,
   /\b(meu|minha)\s+perfil\b/,
+  /\b(sem|com)\s+cartao\b/,
+  /\bcartao\b/,
+  /\bcupom\b/,
+  /\bteste\s+gratis\b/,
+  /\bteste\s+gratuito\b/,
+  /\bgratuit[oa]\b/,
+  /\bdias?\b/,
+  /\bacesso\s+(total|limitad[oa])\b/,
+  /\bplano\b/,
+  /\bassinatura\b/,
+  /\bpagamento\b/,
+  /\bfidelidade\b/,
+  /\brenovacao\b/,
+  /\bcancelamento\b/,
 ];
 
-const isSignupIntent = (message: string) => {
+const classifySignupIntentWithAi = async ({
+  apiKey,
+  modelName,
+  message,
+  isLoggedIn,
+  roleContext,
+}: {
+  apiKey: string;
+  modelName: string;
+  message: string;
+  isLoggedIn: boolean;
+  roleContext?: string | null;
+}) => {
+  const prompt = `
+Classifique a mensagem abaixo e responda SOMENTE com SIM ou NAO.
+
+Objetivo:
+- SIM: usuario quer iniciar criacao de conta/cadastro agora e faz sentido mostrar botoes de tipo de cadastro.
+- NAO: pergunta sobre politica/regra/duvida de cadastro (ex.: cartao, cupom, dias, plano), ou cadastro em outro contexto (ex.: cadastro de pacientes, editar cadastro/perfil).
+
+Exemplos:
+- "quero criar minha conta" -> SIM
+- "sou empresa, como me cadastrar?" -> SIM
+- "posso me cadastrar sem cartao?" -> NAO
+- "quantos dias de teste gratis no cadastro?" -> NAO
+- "como atualizar cadastro de pacientes?" -> NAO
+- "como editar meu cadastro?" -> NAO
+
+Contexto do usuario:
+- Logado: ${isLoggedIn ? "sim" : "nao"}
+- Papel: ${roleContext || "nao informado"}
+
+Mensagem:
+${message}
+`.trim();
+
+  const answer = await callGemini({
+    apiKey,
+    modelName,
+    prompt,
+  });
+
+  const normalized = normalizeText(answer);
+  if (normalized.startsWith("sim")) return true;
+  if (normalized.startsWith("nao")) return false;
+  return false;
+};
+
+const shouldOfferSignupActions = async ({
+  message,
+  config,
+  isLoggedIn,
+  roleContext,
+}: {
+  message: string;
+  config: any;
+  isLoggedIn: boolean;
+  roleContext?: string | null;
+}) => {
   const normalized = normalizeText(message);
   if (!normalized) return false;
+
   if (SIGNUP_INTENT_BLOCKLIST.some((pattern) => pattern.test(normalized))) return false;
-  return SIGNUP_INTENT_PATTERNS.some((pattern) => pattern.test(normalized));
+
+  const hasStrongSignal = SIGNUP_STRONG_INTENT_PATTERNS.some((pattern) => pattern.test(normalized));
+  if (hasStrongSignal) return true;
+
+  const hasWeakSignal = SIGNUP_WEAK_INTENT_PATTERNS.some((pattern) => pattern.test(normalized));
+  if (!hasWeakSignal) return false;
+
+  // Nos casos ambiguos, valida com IA antes de mostrar botoes de tipo de cadastro.
+  if (!config?.chatbot_use_ai) return false;
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!GEMINI_API_KEY) return false;
+
+  try {
+    return await classifySignupIntentWithAi({
+      apiKey: GEMINI_API_KEY,
+      modelName: String(config?.gemini_model || DEFAULTS.gemini_model),
+      message,
+      isLoggedIn,
+      roleContext,
+    });
+  } catch (_err) {
+    return false;
+  }
 };
 
 const buildSignupActions = () => SIGNUP_ACTIONS.map((action) => ({ ...action }));
@@ -1289,7 +1392,14 @@ serve(async (req) => {
       sources: [],
     });
 
-    if (isSignupIntent(rawMessage)) {
+    const signupIntentDetected = await shouldOfferSignupActions({
+      message: rawMessage,
+      config,
+      isLoggedIn: !!userId,
+      roleContext,
+    });
+
+    if (signupIntentDetected) {
       const mode: "faq" = "faq";
       const answer = sanitizeAnswer(buildSignupIntentAnswer(userFirstName || null));
       const sources: any[] = [];

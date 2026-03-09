@@ -245,7 +245,6 @@ const DEFAULTS = {
   gemini_model: "gemini-2.0-flash",
 };
 
-const HIGH_CONFIDENCE = 0.7;
 const MEDIUM_CONFIDENCE = 0.45;
 
 const normalizeText = (value: string) =>
@@ -345,6 +344,32 @@ const buildFaqModeAnswer = (question: string, topDocs: any[]) => {
     .join("\n");
 
   return `${intro}\n\n${compact(top.content, 1200)}${related ? `\n\nTambem pode ajudar:\n${related}` : ""}`;
+};
+
+const selectAiContextDocs = (scoredDocs: any[]) => {
+  const selected: any[] = [];
+  const seen = new Set<string>();
+  const tryPush = (doc: any) => {
+    if (!doc?.id || seen.has(doc.id)) return;
+    seen.add(doc.id);
+    selected.push(doc);
+  };
+
+  scoredDocs.slice(0, 8).forEach(tryPush);
+  scoredDocs
+    .filter((doc) => doc.type === "faq" && Number(doc.score || 0) >= 0.08)
+    .slice(0, 3)
+    .forEach(tryPush);
+  scoredDocs
+    .filter((doc) => doc.type === "guide" && Number(doc.score || 0) >= 0.08)
+    .slice(0, 3)
+    .forEach(tryPush);
+  scoredDocs
+    .filter((doc) => doc.type === "feature" && Number(doc.score || 0) >= 0.05)
+    .slice(0, 3)
+    .forEach(tryPush);
+
+  return selected.slice(0, 12);
 };
 
 const callGemini = async ({
@@ -717,14 +742,16 @@ serve(async (req) => {
       .map((doc) => ({ ...doc, score: scoreDoc(questionTokens, normalizedQuestion, doc, roleContext) }))
       .sort((a, b) => b.score - a.score);
     const topDocs = scored.slice(0, 4);
+    const aiContextDocs = selectAiContextDocs(scored);
     const topScore = Number(topDocs[0]?.score || 0);
 
     let mode: "faq" | "ai" | "fallback" = "fallback";
     let answer = config.chatbot_out_of_scope_message;
     let unansweredReason: "low_confidence" | "ai_out_of_scope" | null = null;
-    const sources = topDocs
-      .filter((doc) => Number(doc.score || 0) >= 0.25)
-      .slice(0, 3)
+    const sourceCandidates = aiContextDocs.length > 0 ? aiContextDocs : topDocs;
+    const sources = sourceCandidates
+      .filter((doc) => Number(doc.score || 0) >= 0.08)
+      .slice(0, 4)
       .map((doc) => ({
         id: doc.id,
         type: doc.type,
@@ -734,35 +761,30 @@ serve(async (req) => {
         score: Number(doc.score.toFixed(3)),
       }));
 
-    if (topScore >= HIGH_CONFIDENCE) {
-      mode = "faq";
-      answer = buildFaqModeAnswer(rawMessage, topDocs);
-    } else if (topScore >= MEDIUM_CONFIDENCE) {
-      if (config.chatbot_use_ai) {
-        try {
-          const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-          if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente.");
+    if (config.chatbot_use_ai) {
+      try {
+        const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+        if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY ausente.");
 
-          const modelName = String(config.gemini_model || DEFAULTS.gemini_model);
-          const history = (historyMessages || [])
-            .slice()
-            .reverse()
-            .filter((item: any) => item.role === "user" || item.role === "assistant")
-            .map((item: any) => `${item.role === "user" ? "Usuario" : "Assistente"}: ${compact(item.content, 350)}`)
-            .join("\n");
+        const modelName = String(config.gemini_model || DEFAULTS.gemini_model);
+        const history = (historyMessages || [])
+          .slice()
+          .reverse()
+          .filter((item: any) => item.role === "user" || item.role === "assistant")
+          .map((item: any) => `${item.role === "user" ? "Usuario" : "Assistente"}: ${compact(item.content, 350)}`)
+          .join("\n");
 
-          const context = topDocs
-            .slice(0, 4)
-            .map(
-              (doc, index) =>
-                `[Fonte ${index + 1} | ${doc.type}] ${doc.title}\nRota: ${doc.route}\nConteudo: ${compact(
-                  doc.content,
-                  900,
-                )}`,
-            )
-            .join("\n\n");
+        const context = sourceCandidates
+          .slice(0, 12)
+          .map(
+            (doc, index) =>
+              `[Fonte ${index + 1} | ${doc.type}] ${doc.title}\nRota: ${doc.route}\nScore: ${Number(
+                doc.score || 0,
+              ).toFixed(3)}\nConteudo: ${compact(doc.content, 700)}`,
+          )
+          .join("\n\n");
 
-          const prompt = `
+        const prompt = `
 Voce e o assistente oficial da plataforma HomeCare Match.
 
 Regras obrigatorias:
@@ -771,9 +793,10 @@ Regras obrigatorias:
 - Nao invente telas, links, recursos ou regras.
 - Resposta curta, pratica e em portugues (pt-BR), mantendo o idioma do usuario se a pergunta vier em outro idioma.
 - Quando possivel, inclua o caminho da tela (ex: /dashboard/suporte).
+- Se o contexto estiver incompleto, responda com o que for seguro e em seguida sugira "Ver FAQ" ou "Abrir chamado".
 
 Contexto autorizado:
-${context}
+${context || "(nenhuma fonte especifica encontrada no momento)"}
 
 Historico recente:
 ${history || "(sem historico relevante)"}
@@ -782,32 +805,44 @@ Pergunta do usuario:
 ${rawMessage}
 `.trim();
 
-          const aiAnswer = await callGemini({
-            apiKey: GEMINI_API_KEY,
-            modelName,
-            prompt,
-          });
+        const aiAnswer = await callGemini({
+          apiKey: GEMINI_API_KEY,
+          modelName,
+          prompt,
+        });
 
-          if (normalizeText(aiAnswer) === normalizeText(config.chatbot_out_of_scope_message)) {
-            mode = "fallback";
-            answer = config.chatbot_out_of_scope_message;
-            unansweredReason = "ai_out_of_scope";
-          } else {
-            mode = "ai";
-            answer = aiAnswer;
-          }
-        } catch (_err) {
+        if (normalizeText(aiAnswer) === normalizeText(config.chatbot_out_of_scope_message)) {
           mode = "fallback";
-          answer = config.chatbot_error_message;
+          answer = config.chatbot_out_of_scope_message;
+          unansweredReason = "ai_out_of_scope";
+        } else {
+          mode = "ai";
+          answer = aiAnswer;
         }
-      } else {
-        mode = "faq";
-        answer = buildFaqModeAnswer(rawMessage, topDocs);
+      } catch (_err) {
+        mode = "fallback";
+        answer = config.chatbot_error_message;
       }
+    } else if (topScore >= MEDIUM_CONFIDENCE) {
+      mode = "faq";
+      answer = buildFaqModeAnswer(rawMessage, topDocs);
     } else {
       mode = "fallback";
       answer = config.chatbot_out_of_scope_message;
       unansweredReason = "low_confidence";
+    }
+
+    if (!sources.length && topDocs.length > 0) {
+      for (const doc of topDocs.slice(0, 2)) {
+        sources.push({
+          id: doc.id,
+          type: doc.type,
+          title: doc.title,
+          route: doc.route,
+          snippet: compact(doc.content, 180),
+          score: Number(Number(doc.score || 0).toFixed(3)),
+        });
+      }
     }
 
     const suggestedActions = buildDefaultActions(!!userId);

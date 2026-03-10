@@ -90,20 +90,20 @@ const CertificateDisplayContent = ({ certificateId }: CertificateDisplayContentP
   const isCorrupted = data.validation_code?.includes("${"); // Check for corrupted code
 
   return (
-    <div className="certificate-content relative w-full bg-white p-8 md:p-12 flex flex-col items-center text-center overflow-hidden">
-      <Award className="absolute -top-10 -right-10 h-48 w-48 md:h-64 md:w-64 text-primary/5 rotate-12 pointer-events-none" />
-      <Award className="absolute -bottom-10 -left-10 h-48 w-48 md:h-64 md:w-64 text-primary/5 -rotate-12 pointer-events-none" />
+    <div className="certificate-content relative w-full bg-white p-4 sm:p-6 md:p-10 lg:p-12 flex flex-col items-center text-center overflow-hidden">
+      <Award className="absolute -top-10 -right-10 h-32 w-32 sm:h-40 sm:w-40 md:h-64 md:w-64 text-primary/5 rotate-12 pointer-events-none" />
+      <Award className="absolute -bottom-10 -left-10 h-32 w-32 sm:h-40 sm:w-40 md:h-64 md:w-64 text-primary/5 -rotate-12 pointer-events-none" />
 
       <div className="mb-4 md:mb-6">
         <img src={config?.logo_url || ""} alt="Logo" className="h-10 md:h-14 mx-auto mb-2 object-contain" />
         <div className="h-0.5 w-16 md:w-20 bg-primary mx-auto rounded-full" />
       </div>
 
-      <h1 className="text-2xl md:text-4xl font-serif font-bold text-slate-800 mb-1 uppercase tracking-widest">Selo de Conclusão</h1>
-      <p className="text-primary font-semibold tracking-[0.2em] mb-6 md:mb-8 uppercase text-[10px] md:text-xs">Conquista Academy</p>
+      <h1 className="text-lg sm:text-2xl md:text-4xl font-serif font-bold text-slate-800 mb-1 uppercase tracking-widest">Selo de Conclusão</h1>
+      <p className="text-primary font-semibold tracking-[0.2em] mb-4 sm:mb-6 md:mb-8 uppercase text-[10px] md:text-xs">Conquista Academy</p>
 
       <p className="text-sm md:text-lg text-slate-600 mb-1">Reconhecemos que o(a) profissional</p>
-      <h2 className="text-xl md:text-3xl font-bold text-slate-900 mb-1 border-b-2 border-slate-200 px-4 md:px-8 pb-1 inline-block">
+      <h2 className="text-lg sm:text-xl md:text-3xl font-bold text-slate-900 mb-1 border-b-2 border-slate-200 px-4 md:px-8 pb-1 inline-block">
         {data.user?.full_name || "Profissional"}
       </h2>
       
@@ -111,7 +111,7 @@ const CertificateDisplayContent = ({ certificateId }: CertificateDisplayContentP
         <p className="text-sm md:text-base text-slate-600 leading-relaxed">
           concluiu com aproveitamento o conteúdo educativo de
         </p>
-        <h3 className="text-lg md:text-xl font-bold text-primary mt-1 mb-4 md:mb-6 uppercase leading-tight">
+        <h3 className="text-base sm:text-lg md:text-xl font-bold text-primary mt-1 mb-4 md:mb-6 uppercase leading-tight">
           {data.course?.title || "Curso"}
         </h3>
         
@@ -134,7 +134,7 @@ const CertificateDisplayContent = ({ certificateId }: CertificateDisplayContentP
         </div>
 
         {/* Disclaimer Legal */}
-        <div className="max-w-2xl mx-auto p-3 bg-slate-50 border rounded-lg flex gap-3 items-start text-left mb-4">
+        <div className="max-w-2xl mx-auto hidden p-3 bg-slate-50 border rounded-lg sm:flex gap-3 items-start text-left mb-4 print:flex">
           <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
           <p className="text-[8px] md:text-[9px] text-slate-500 leading-tight">
             <strong>AVISO LEGAL:</strong> Este documento é um registro de participação e aproveitamento em conteúdo educativo digital interno da plataforma <strong>HomeCare Match</strong>. Este selo não possui validade como título acadêmico, técnico ou profissional perante órgãos reguladores, universidades ou conselhos de classe (MEC, COREN, CREFITO, etc). Sua finalidade é exclusivamente para destaque de perfil dentro do ecossistema HomeCare Match.

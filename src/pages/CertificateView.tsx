@@ -150,7 +150,7 @@ const CertificateView = () => {
               {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
               Baixar PDF (paisagem)
             </Button>
-            <Button onClick={handlePrint} className="gap-2 bg-primary">
+            <Button onClick={handlePrint} className="hidden gap-2 bg-primary sm:inline-flex">
               <Printer size={16} /> Imprimir / Salvar PDF
             </Button>
           </div>

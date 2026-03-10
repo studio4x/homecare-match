@@ -49,6 +49,11 @@ const isTransientNetworkError = (error: unknown) => {
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const normalizeRole = (value: unknown) => {
+  const role = String(value || "").toLowerCase();
+  if (role === "professional" || role === "company" || role === "family" || role === "admin") return role;
+  return "professional";
+};
 
 const UserLayout = () => {
   const { user, signOut, loading: authLoading } = useAuth();
@@ -63,6 +68,43 @@ const UserLayout = () => {
   const [isForbiddenAdmin, setIsForbiddenAdmin] = useState(false);
 
   useEffect(() => {
+    const ensureProfileForUser = async () => {
+      if (!user) return null;
+
+      const role = normalizeRole(user.user_metadata?.role);
+      const fallbackName =
+        String(user.user_metadata?.full_name || "").trim() ||
+        String(user.email || "").split("@")[0] ||
+        "Usuario";
+
+      const payload: Record<string, unknown> = {
+        id: user.id,
+        full_name: fallbackName,
+        email: user.email || null,
+        role,
+        is_admin: role === "admin",
+        email_confirmed: Boolean((user as any)?.email_confirmed_at),
+        cancel_at_period_end: false,
+      };
+
+      if (role === "professional") {
+        payload.subscription_tier = "free_trial";
+        payload.trial_started_at = new Date().toISOString();
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .upsert(payload, { onConflict: "id" })
+        .select("*")
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      return data || null;
+    };
+
     const fetchProfile = async () => {
       if (!user) {
         setLoading(false);
@@ -90,7 +132,18 @@ const UserLayout = () => {
         if (error) throw error;
 
         if (!data) {
-          console.warn("[UserLayout] Perfil nao encontrado. Forcando logout...");
+          try {
+            const ensuredProfile = await ensureProfileForUser();
+            if (ensuredProfile) {
+              data = ensuredProfile;
+            }
+          } catch (ensureError) {
+            console.error("[UserLayout] Falha ao criar perfil automaticamente:", ensureError);
+          }
+        }
+
+        if (!data) {
+          console.warn("[UserLayout] Perfil nao encontrado apos tentativa de bootstrap. Forcando logout...");
           await signOut();
           navigate("/login", { replace: true });
           return;

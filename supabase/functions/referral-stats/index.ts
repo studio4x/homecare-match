@@ -16,44 +16,57 @@ const hasDigitsBetween = (value: unknown, min: number, max: number) => {
 };
 const isUuid = (value: unknown) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
+const normalizeRole = (value: unknown) => {
+  const role = String(value || "").toLowerCase();
+  if (role === "professional" || role === "company" || role === "family" || role === "admin") return role;
+  return "professional";
+};
 
-const isProfileCompleted = (profile: any) => {
-  if (!profile) return false;
+const getProfileCompleteness = (profile: any) => {
+  if (!profile) {
+    return {
+      isComplete: false,
+      missingFields: ["perfil_nao_encontrado"],
+    };
+  }
 
+  const missingFields: string[] = [];
   const role = String(profile.role || "professional").toLowerCase();
-  const hasBase =
-    hasText(profile.avatar_url) &&
-    hasText(profile.full_name) &&
-    hasDigitsBetween(profile.phone, 10, 11) &&
-    hasText(profile.address_zip) &&
-    hasText(profile.address_street) &&
-    hasText(profile.neighborhood) &&
-    hasText(profile.city) &&
-    hasText(profile.state) &&
-    hasText(profile.bio);
+  const ensure = (condition: boolean, key: string) => {
+    if (!condition) missingFields.push(key);
+  };
 
-  if (!hasBase) return false;
+  ensure(hasText(profile.avatar_url), "avatar_url");
+  ensure(hasText(profile.full_name), "full_name");
+  ensure(hasDigitsBetween(profile.phone, 10, 13), "phone");
+  ensure(hasText(profile.address_zip), "address_zip");
+  ensure(hasText(profile.address_street), "address_street");
+  ensure(hasText(profile.neighborhood), "neighborhood");
+  ensure(hasText(profile.city), "city");
+  ensure(hasText(profile.state), "state");
+  ensure(hasText(profile.bio), "bio");
 
   if (role === "professional") {
-    return hasText(profile.specialty) && hasValidDigits(profile.cpf, 11);
+    ensure(hasText(profile.specialty), "specialty");
+    ensure(hasValidDigits(profile.cpf, 11), "cpf");
   }
 
   if (role === "company") {
-    return hasValidDigits(profile.cnpj, 14);
+    ensure(hasValidDigits(profile.cnpj, 14), "cnpj");
   }
 
   if (role === "family") {
-    return (
-      hasValidDigits(profile.cpf, 11) &&
-      hasText(profile.patient_name) &&
-      Number(profile.patient_age || 0) > 0 &&
-      hasText(profile.patient_medical_conditions) &&
-      Array.isArray(profile.availability) &&
-      profile.availability.length > 0
-    );
+    ensure(hasValidDigits(profile.cpf, 11), "cpf");
+    ensure(hasText(profile.patient_name), "patient_name");
+    ensure(Number(profile.patient_age || 0) > 0, "patient_age");
+    ensure(hasText(profile.patient_medical_conditions), "patient_medical_conditions");
+    ensure(Array.isArray(profile.availability) && profile.availability.length > 0, "availability");
   }
 
-  return true;
+  return {
+    isComplete: missingFields.length === 0,
+    missingFields,
+  };
 };
 
 const getCurrentStatusLabel = (stages: {
@@ -154,6 +167,7 @@ serve(async (req) => {
     }
 
     const authUsersMap = new Map<string, any>();
+    const profilesByEmailMap = new Map<string, any>();
     const missingProfileIds = validReferredIds.filter((id) => !profilesMap.has(id));
     if (missingProfileIds.length > 0) {
       const authLookups = await Promise.allSettled(
@@ -166,16 +180,85 @@ serve(async (req) => {
         if (!authUser?.id) return;
         authUsersMap.set(missingProfileIds[index], authUser);
       });
+
+      const missingEmails = Array.from(
+        new Set(
+          missingProfileIds
+            .map((id) => String(authUsersMap.get(id)?.email || "").trim().toLowerCase())
+            .filter(Boolean),
+        ),
+      );
+
+      if (missingEmails.length > 0) {
+        const { data: profilesByEmail } = await supabaseAdmin
+          .from("profiles")
+          .select(profileFields)
+          .in("email", missingEmails);
+
+        (profilesByEmail || []).forEach((profile) => {
+          const key = String(profile?.email || "").trim().toLowerCase();
+          if (key) profilesByEmailMap.set(key, profile);
+        });
+      }
+
+      // Backfill defensivo: cria perfil minimo para usuarios autenticados sem linha em profiles.
+      const profilesToUpsert = missingProfileIds
+        .map((id) => authUsersMap.get(id))
+        .filter(Boolean)
+        .map((authUser) => {
+          const role = normalizeRole(authUser.user_metadata?.role || authUser.raw_user_meta_data?.role);
+          const nameFromMeta =
+            authUser.user_metadata?.full_name ||
+            authUser.raw_user_meta_data?.full_name ||
+            String(authUser.email || "").split("@")[0] ||
+            "Usuario";
+
+          return {
+            id: authUser.id,
+            full_name: nameFromMeta,
+            email: authUser.email || null,
+            role,
+            is_admin: role === "admin",
+            email_confirmed: Boolean(authUser.email_confirmed_at),
+            subscription_tier: role === "professional" ? "free_trial" : null,
+            trial_started_at: role === "professional" ? authUser.created_at || new Date().toISOString() : null,
+            cancel_at_period_end: false,
+          };
+        });
+
+      if (profilesToUpsert.length > 0) {
+        const { error: backfillError } = await supabaseAdmin
+          .from("profiles")
+          .upsert(profilesToUpsert, { onConflict: "id" });
+
+        if (!backfillError) {
+          const { data: backfilledProfiles } = await supabaseAdmin
+            .from("profiles")
+            .select(profileFields)
+            .in(
+              "id",
+              profilesToUpsert.map((row) => row.id),
+            );
+
+          (backfilledProfiles || []).forEach((profile) => profilesMap.set(profile.id, profile));
+        }
+      }
     }
 
     const registeredUsers = referralFiles
       .map((entry) => {
         const id = entry.name.replace(".json", "");
-        const profile = profilesMap.get(id) || null;
         const authUser = authUsersMap.get(id) || null;
+        const profileById = profilesMap.get(id) || null;
+        const profileByEmail =
+          !profileById && authUser?.email
+            ? profilesByEmailMap.get(String(authUser.email).trim().toLowerCase()) || null
+            : null;
+        const profile = profileById || profileByEmail || null;
         const role = String(profile?.role || authUser?.user_metadata?.role || "professional").toLowerCase();
         const emailConfirmed = Boolean(profile?.email_confirmed || authUser?.email_confirmed_at);
-        const profileCompleted = profile ? isProfileCompleted(profile) : false;
+        const profileCompleteness = getProfileCompleteness(profile);
+        const profileCompleted = profileCompleteness.isComplete;
 
         const stages = {
           signup_created: true,
@@ -201,6 +284,7 @@ serve(async (req) => {
             new Date().toISOString(),
           role,
           stages,
+          profile_missing_fields: profileCompleteness.missingFields,
           current_status: getCurrentStatusLabel(stages),
           is_valid_referral: isValidReferral,
         };

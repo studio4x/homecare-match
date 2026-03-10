@@ -180,6 +180,11 @@ const CertificateView = () => {
 
               .pdf-export-force .certificate-content {
                 padding: 8mm !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
               }
 
               .certificate-print-area {
@@ -258,6 +263,11 @@ const CertificateView = () => {
 
               .certificate-content {
                 padding: 8mm !important;
+                height: 100% !important;
+                min-height: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
               }
 
               * {

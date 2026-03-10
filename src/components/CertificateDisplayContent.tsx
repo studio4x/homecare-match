@@ -90,7 +90,7 @@ const CertificateDisplayContent = ({ certificateId }: CertificateDisplayContentP
   const isCorrupted = data.validation_code?.includes("${"); // Check for corrupted code
 
   return (
-    <div className="certificate-content relative w-full bg-white p-4 sm:p-6 md:p-10 lg:p-12 flex flex-col items-center text-center overflow-hidden">
+    <div className="certificate-content relative w-full h-full min-h-0 bg-white p-4 sm:p-6 md:p-10 lg:p-12 flex flex-col items-center text-center overflow-hidden">
       <Award className="absolute -top-10 -right-10 h-32 w-32 sm:h-40 sm:w-40 md:h-64 md:w-64 text-primary/5 rotate-12 pointer-events-none" />
       <Award className="absolute -bottom-10 -left-10 h-32 w-32 sm:h-40 sm:w-40 md:h-64 md:w-64 text-primary/5 -rotate-12 pointer-events-none" />
 

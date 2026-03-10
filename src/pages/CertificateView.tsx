@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Loader2, Award, Printer, ArrowLeft } from "lucide-react";
+import { Loader2, Award, Printer, ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CertificateDisplayContent from "@/components/CertificateDisplayContent";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const CertificateView = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [certificateExists, setCertificateExists] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const certificateExportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const checkCertificateExistence = async () => {
@@ -42,6 +45,74 @@ const CertificateView = () => {
   }, [id]);
 
   const handlePrint = () => window.print();
+
+  const handleDownloadPdf = async () => {
+    if (!certificateExportRef.current || !id) return;
+
+    setIsGeneratingPdf(true);
+    const toastId = toast.loading("Gerando PDF em paisagem...");
+    let clonedNode: HTMLDivElement | null = null;
+
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import("html2canvas"),
+        import("jspdf"),
+      ]);
+
+      clonedNode = certificateExportRef.current.cloneNode(true) as HTMLDivElement;
+      clonedNode.classList.add("pdf-export-force");
+      clonedNode.style.position = "fixed";
+      clonedNode.style.left = "-100000px";
+      clonedNode.style.top = "0";
+      clonedNode.style.margin = "0";
+      clonedNode.style.boxShadow = "none";
+      clonedNode.style.zIndex = "-1";
+      document.body.appendChild(clonedNode);
+
+      const canvas = await html2canvas(clonedNode, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+      });
+
+      const imageData = canvas.toDataURL("image/jpeg", 0.98);
+      const pdf = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+        compress: true,
+      });
+
+      const pageWidth = 297;
+      const pageHeight = 210;
+      const imageProps = pdf.getImageProperties(imageData);
+
+      let renderWidth = pageWidth;
+      let renderHeight = (imageProps.height * renderWidth) / imageProps.width;
+
+      if (renderHeight > pageHeight) {
+        renderHeight = pageHeight;
+        renderWidth = (imageProps.width * renderHeight) / imageProps.height;
+      }
+
+      const offsetX = (pageWidth - renderWidth) / 2;
+      const offsetY = (pageHeight - renderHeight) / 2;
+
+      pdf.addImage(imageData, "JPEG", offsetX, offsetY, renderWidth, renderHeight, undefined, "FAST");
+      pdf.save(`selo-${id}.pdf`);
+      toast.success("PDF gerado com sucesso.", { id: toastId });
+    } catch (err) {
+      console.error("[CertificateView] Erro ao gerar PDF:", err);
+      toast.error("Nao foi possivel gerar o PDF agora.", { id: toastId });
+    } finally {
+      setIsGeneratingPdf(false);
+      if (clonedNode && clonedNode.parentNode) {
+        clonedNode.parentNode.removeChild(clonedNode);
+      }
+    }
+  };
 
   if (loading) {
     return (
@@ -74,13 +145,22 @@ const CertificateView = () => {
               <ArrowLeft size={16} /> Voltar
             </Link>
           </Button>
-          <Button onClick={handlePrint} className="gap-2 bg-primary">
-            <Printer size={16} /> Imprimir / Salvar PDF
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleDownloadPdf} variant="outline" className="gap-2" disabled={isGeneratingPdf}>
+              {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+              Baixar PDF (paisagem)
+            </Button>
+            <Button onClick={handlePrint} className="gap-2 bg-primary">
+              <Printer size={16} /> Imprimir / Salvar PDF
+            </Button>
+          </div>
         </div>
 
         <div className="certificate-print-area">
-          <div className="certificate-container relative w-full overflow-hidden border-2 border-primary/10 bg-white shadow-2xl sm:border-4 md:border-8 print:m-0 print:border-[10mm] print:border-primary/20 print:shadow-none">
+          <div
+            ref={certificateExportRef}
+            className="certificate-container relative w-full overflow-hidden border-2 border-primary/10 bg-white shadow-2xl sm:border-4 md:border-8 print:m-0 print:border-[10mm] print:border-primary/20 print:shadow-none"
+          >
             <CertificateDisplayContent certificateId={id!} />
           </div>
         </div>
@@ -90,6 +170,18 @@ const CertificateView = () => {
         dangerouslySetInnerHTML={{
           __html: `
             @media screen {
+              .pdf-export-force {
+                width: 297mm !important;
+                height: 210mm !important;
+                aspect-ratio: auto !important;
+                border-width: 10mm !important;
+                overflow: hidden !important;
+              }
+
+              .pdf-export-force .certificate-content {
+                padding: 8mm !important;
+              }
+
               .certificate-print-area {
                 width: 100%;
               }

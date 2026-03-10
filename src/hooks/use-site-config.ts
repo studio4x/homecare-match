@@ -148,11 +148,11 @@ export const useSiteConfig = () => {
           chatbot_retention_days: 30,
           pwa_app_name: "HomeCare Match",
           pwa_short_name: "HomeCare",
-          pwa_description: "Conectando profissionais de saÃºde Ã s melhores oportunidades em Home Care.",
+          pwa_description: "Conectando profissionais de saude as melhores oportunidades em Home Care.",
           pwa_theme_color: "#0f172a",
           pwa_background_color: "#ffffff",
           pwa_install_title: "Instale o app HomeCare Match",
-          pwa_install_description: "Acesse mais rÃ¡pido pelo seu celular, direto da tela inicial.",
+          pwa_install_description: "Acesse mais rapido pelo seu celular, direto da tela inicial.",
           pwa_assets_json: {},
           pwa_screenshots_json: []
         };
@@ -160,7 +160,7 @@ export const useSiteConfig = () => {
 
       return data;
     },
-    // Reduzido de 5 minutos para 30 segundos para refletir mudanÃ§as de layout mais rÃ¡pido
+    // Reduzido de 5 minutos para 30 segundos para refletir mudancas de layout mais rapido
     staleTime: 1000 * 30,
   });
 };

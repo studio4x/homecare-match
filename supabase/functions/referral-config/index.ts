@@ -28,23 +28,10 @@ serve(async (req) => {
     // sem body, assume get
   }
   const action = body?.action || "get";
-
-  const authHeader = req.headers.get("Authorization") || "";
-  const token = authHeader.replace("Bearer ", "");
-  const { data: userData } = await supabasePublic.auth.getUser(token);
-
-  if (!userData?.user) {
-    console.error("[referral-config] unauthorized");
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   const path = "referrals/tiers.json";
 
+  // Leitura publica de niveis de indicacao (apenas configuracao).
   if (action === "get") {
-    // Tenta baixar tiers do Storage
     const { data: file, error } = await supabaseAdmin.storage.from("uploads").download(path);
     if (error || !file) {
       console.warn("[referral-config] no tiers file, returning empty list");
@@ -62,6 +49,18 @@ serve(async (req) => {
     }
     return new Response(JSON.stringify({ tiers }), {
       status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const authHeader = req.headers.get("Authorization") || "";
+  const token = authHeader.replace("Bearer ", "");
+  const { data: userData } = await supabasePublic.auth.getUser(token);
+
+  if (!userData?.user) {
+    console.error("[referral-config] unauthorized");
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

@@ -96,8 +96,19 @@ const CertificateView = () => {
 
               .certificate-container {
                 width: 100%;
-                aspect-ratio: 297 / 210;
                 min-height: 0;
+              }
+            }
+
+            @media screen and (min-width: 640px) {
+              .certificate-container {
+                aspect-ratio: 297 / 210;
+              }
+            }
+
+            @media screen and (max-width: 639px) {
+              .certificate-container {
+                aspect-ratio: auto;
               }
             }
 
@@ -160,6 +171,20 @@ const CertificateView = () => {
               * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+              }
+            }
+
+            @media print and (orientation: portrait) {
+              .certificate-print-area {
+                width: 210mm !important;
+                height: 297mm !important;
+              }
+
+              .certificate-container {
+                width: 297mm !important;
+                height: 210mm !important;
+                transform-origin: top left !important;
+                transform: translateY(297mm) rotate(-90deg) !important;
               }
             }
           `,

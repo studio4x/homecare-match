@@ -43,7 +43,7 @@ const AdminNotificationWidget = () => {
       const { data, error } = await supabase
         .from("admin_notifications")
         .select("*")
-        .eq("is_completed", false)
+        .or("is_completed.is.null,is_completed.eq.false")
         .order("created_at", { ascending: false })
         .limit(MAX_NOTIFICATIONS);
 
@@ -114,6 +114,9 @@ const AdminNotificationWidget = () => {
         },
       )
       .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          fetchNotifications(true);
+        }
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
           fetchNotifications(true);
         }
@@ -138,7 +141,8 @@ const AdminNotificationWidget = () => {
       const { data, error } = await supabase
         .from("admin_notifications")
         .update({ is_completed: true, is_read: true })
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
 
       if (error) throw error;
 
@@ -196,10 +200,13 @@ const AdminNotificationWidget = () => {
 
     setIsDeletingAll(true);
     try {
-      const { error } = await supabase.from("admin_notifications").delete().eq("is_completed", false);
+      const { error } = await supabase
+        .from("admin_notifications")
+        .update({ is_completed: true, is_read: true })
+        .or("is_completed.is.null,is_completed.eq.false");
       if (error) throw error;
       setNotifications([]);
-      toast.success("Todas as notificacoes foram excluidas.");
+      toast.success("Todas as notificacoes foram concluidas.");
     } catch (err) {
       toast.error("Erro ao excluir notificacoes.");
     } finally {

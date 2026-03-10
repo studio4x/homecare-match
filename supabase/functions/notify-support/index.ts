@@ -25,23 +25,39 @@ serve(async (req) => {
       .from("support_tickets")
       .select("*")
       .eq("id", ticketId)
-      .single();
+      .maybeSingle();
 
-    if (ticketError || !ticket) {
-      throw new Error("Ticket nao encontrado.");
+    if (ticketError) {
+      console.warn("[notify-support] erro ao buscar ticket:", ticketError.message);
     }
 
-    const { data: ticketOwner } = await supabaseAdmin
-      .from("profiles")
-      .select("full_name, email")
-      .eq("id", ticket.user_id)
-      .maybeSingle();
+    let ticketOwner = null;
+    if (ticket?.user_id) {
+      const { data: ownerData, error: ownerError } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", ticket.user_id)
+        .maybeSingle();
 
-    const { data: sender } = await supabaseAdmin
-      .from("profiles")
-      .select("full_name, role, is_admin")
-      .eq("id", senderId)
-      .maybeSingle();
+      if (ownerError) {
+        console.warn("[notify-support] erro ao buscar dono do ticket:", ownerError.message);
+      }
+      ticketOwner = ownerData;
+    }
+
+    let sender = null;
+    if (senderId) {
+      const { data: senderData, error: senderError } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name, role, is_admin")
+        .eq("id", senderId)
+        .maybeSingle();
+
+      if (senderError) {
+        console.warn("[notify-support] erro ao buscar remetente:", senderError.message);
+      }
+      sender = senderData;
+    }
 
     const isAdminAction = Boolean(sender?.is_admin || sender?.role === "admin");
 
@@ -73,7 +89,7 @@ serve(async (req) => {
       });
     };
 
-    if (isAdminAction) {
+    if (isAdminAction && ticket) {
       let title = "Nova resposta no suporte";
       let content = `Nossa equipe respondeu ao seu chamado: "${ticket.subject}"`;
 
@@ -95,23 +111,24 @@ serve(async (req) => {
     }
 
     if (type === "new_ticket") {
-      await supabaseAdmin.from("admin_notifications").insert({
-        title: "Novo ticket aberto",
-        content: `O usuario ${ticketOwner?.full_name || "Usuario"} abriu um chamado: "${ticket.subject}"`,
-        link: `/admin/suporte/${ticketId}`,
-        type: "warning",
-      });
-
+      const ticketSubject = ticket?.subject || "Sem assunto";
       const ownerName = ticketOwner?.full_name || "Usuario";
       const ownerEmail = ticketOwner?.email || "E-mail nao informado";
-      const ticketSubject = ticket?.subject || "Sem assunto";
       const ticketCategory = ticket?.category || "nao informada";
       const ticketPriority = ticket?.priority || "nao definida";
       const ticketUrl = `${siteUrl}/admin/suporte/${ticketId}`;
 
-      await sendAdminEmail(
-        `Novo ticket de suporte: ${ticketSubject}`,
-        `
+      await supabaseAdmin.from("admin_notifications").insert({
+        title: "Novo ticket aberto",
+        content: `O usuario ${ownerName} abriu um chamado: "${ticketSubject}"`,
+        link: `/admin/suporte/${ticketId}`,
+        type: "warning",
+      });
+
+      try {
+        await sendAdminEmail(
+          `Novo ticket de suporte: ${ticketSubject}`,
+          `
           <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
             <h2 style="margin: 0 0 12px; color: #2563eb;">Novo Ticket de Suporte</h2>
             <p style="margin: 0 0 16px;">Um novo chamado foi aberto na plataforma.</p>
@@ -127,7 +144,10 @@ serve(async (req) => {
             </a>
           </div>
         `,
-      );
+        );
+      } catch (emailError) {
+        console.error("[notify-support] falha ao enviar e-mail admin:", emailError?.message || emailError);
+      }
     } else if (type === "new_message" && !isAdminAction) {
       await supabaseAdmin.from("admin_notifications").insert({
         title: "Nova mensagem em ticket",

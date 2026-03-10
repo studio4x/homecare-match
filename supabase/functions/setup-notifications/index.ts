@@ -34,6 +34,46 @@ serve(async (req) => {
 
       ALTER TABLE public.admin_notifications ENABLE ROW LEVEL SECURITY;
 
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies
+          WHERE schemaname = 'public'
+            AND tablename = 'admin_notifications'
+            AND policyname = 'admin_notifications_admin_read'
+        ) THEN
+          CREATE POLICY "admin_notifications_admin_read"
+          ON public.admin_notifications
+          FOR SELECT TO authenticated
+          USING (check_is_admin());
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies
+          WHERE schemaname = 'public'
+            AND tablename = 'admin_notifications'
+            AND policyname = 'admin_notifications_admin_update'
+        ) THEN
+          CREATE POLICY "admin_notifications_admin_update"
+          ON public.admin_notifications
+          FOR UPDATE TO authenticated
+          USING (check_is_admin())
+          WITH CHECK (check_is_admin());
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies
+          WHERE schemaname = 'public'
+            AND tablename = 'admin_notifications'
+            AND policyname = 'admin_notifications_admin_delete'
+        ) THEN
+          CREATE POLICY "admin_notifications_admin_delete"
+          ON public.admin_notifications
+          FOR DELETE TO authenticated
+          USING (check_is_admin());
+        END IF;
+      END $$;
+
       -- Habilitar Realtime
       DO $$
       BEGIN

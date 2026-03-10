@@ -141,9 +141,18 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
 
       if (error) throw error;
 
-      supabase.functions.invoke('notify-support', {
-        body: { type: 'new_ticket', ticketId: data.id, senderId: user?.id }
-      }).catch(() => {});
+      supabase.functions
+        .invoke('notify-support', {
+          body: { type: 'new_ticket', ticketId: data.id, senderId: user?.id }
+        })
+        .then(({ error: notifyError }) => {
+          if (notifyError) {
+            console.warn("[SupportTicketModal] Falha ao notificar admin:", notifyError);
+          }
+        })
+        .catch((notifyErr) => {
+          console.warn("[SupportTicketModal] Falha inesperada ao notificar admin:", notifyErr);
+        });
 
       toast.success("Chamado aberto com sucesso!");
       onOpenChange(false);

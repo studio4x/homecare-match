@@ -21,6 +21,14 @@ serve(async (req) => {
   const supabasePublic = createClient(SUPABASE_URL, ANON);
   const supabaseAdmin = createClient(SUPABASE_URL, SERVICE);
 
+  let body: any = {};
+  try {
+    body = await req.json();
+  } catch {
+    // sem body, assume get
+  }
+  const action = body?.action || "get";
+
   const authHeader = req.headers.get("Authorization") || "";
   const token = authHeader.replace("Bearer ", "");
   const { data: userData } = await supabasePublic.auth.getUser(token);
@@ -33,29 +41,6 @@ serve(async (req) => {
     });
   }
 
-  // Verifica admin
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("is_admin, role")
-    .eq("id", userData.user.id)
-    .maybeSingle();
-
-  const isAdmin = !!(profile?.is_admin || profile?.role === "admin");
-  if (!isAdmin) {
-    console.error("[referral-config] forbidden");
-    return new Response(JSON.stringify({ error: "forbidden" }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  let body: any = {};
-  try {
-    body = await req.json();
-  } catch {
-    // sem body, assume get
-  }
-  const action = body?.action || "get";
   const path = "referrals/tiers.json";
 
   if (action === "get") {
@@ -77,6 +62,22 @@ serve(async (req) => {
     }
     return new Response(JSON.stringify({ tiers }), {
       status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Ação de escrita segue restrita a administrador.
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("is_admin, role")
+    .eq("id", userData.user.id)
+    .maybeSingle();
+
+  const isAdmin = !!(profile?.is_admin || profile?.role === "admin");
+  if (!isAdmin) {
+    console.error("[referral-config] forbidden");
+    return new Response(JSON.stringify({ error: "forbidden" }), {
+      status: 403,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

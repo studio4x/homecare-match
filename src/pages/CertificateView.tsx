@@ -148,7 +148,7 @@ const CertificateView = () => {
           <div className="flex gap-2">
             <Button onClick={handleDownloadPdf} variant="outline" className="gap-2" disabled={isGeneratingPdf}>
               {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-              Baixar PDF (paisagem)
+              Baixar PDF
             </Button>
             <Button onClick={handlePrint} className="hidden gap-2 bg-primary sm:inline-flex">
               <Printer size={16} /> Imprimir / Salvar PDF

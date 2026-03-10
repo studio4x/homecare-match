@@ -144,9 +144,9 @@
 ## 2) Validacoes P1 (recomendado para liberar com seguranca)
 
 ### 2.1 Dashboards e Navegacao
-- [ ] P1-01 Dashboard do profissional carregando e navegando sem quebra
-  Desktop: Ajustando erros
-  Mobile:
+- [OK] P1-01 Dashboard do profissional carregando e navegando sem quebra
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [ ] P1-02 Dashboard da empresa carregando e navegando sem quebra

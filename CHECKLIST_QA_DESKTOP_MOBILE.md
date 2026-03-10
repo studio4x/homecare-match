@@ -202,9 +202,9 @@
   Observacoes:
 
 - [ ] P1-12 Abertura de ticket de suporte funcionando
-  Desktop:
+  Desktop: 
   Mobile:
-  Observacoes:
+  Observacoes: Ajustar recebimento de e-mail no admin
 
 - [ ] P1-13 Resposta em ticket de suporte funcionando
   Desktop:

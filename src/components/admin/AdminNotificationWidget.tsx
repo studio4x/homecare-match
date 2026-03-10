@@ -2,23 +2,22 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Bell, 
-  X, 
-  Check, 
-  Trash2, 
-  Loader2, 
-  ExternalLink, 
+import {
+  Bell,
+  Check,
+  Trash2,
+  Loader2,
+  ExternalLink,
   Inbox,
   Circle,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -26,6 +25,8 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
+
+const MAX_NOTIFICATIONS = 50;
 
 const AdminNotificationWidget = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -44,12 +45,12 @@ const AdminNotificationWidget = () => {
         .select("*")
         .eq("is_completed", false)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(MAX_NOTIFICATIONS);
 
       if (error) throw error;
       setNotifications(data || []);
     } catch (err) {
-      console.error("[Notifications] Erro ao carregar:", err);
+      console.error("[AdminNotifications] Erro ao carregar:", err);
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -59,109 +60,195 @@ const AdminNotificationWidget = () => {
   useEffect(() => {
     fetchNotifications();
 
+    const upsertNotification = (incoming: any) => {
+      if (!incoming?.id) return;
+
+      if (incoming.is_completed) {
+        setNotifications((prev) => prev.filter((item) => item.id !== incoming.id));
+        return;
+      }
+
+      setNotifications((prev) => {
+        const existingIndex = prev.findIndex((item) => item.id === incoming.id);
+
+        if (existingIndex >= 0) {
+          const next = [...prev];
+          next[existingIndex] = { ...next[existingIndex], ...incoming };
+          return next
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, MAX_NOTIFICATIONS);
+        }
+
+        return [incoming, ...prev]
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, MAX_NOTIFICATIONS);
+      });
+    };
+
+    const removeNotification = (oldRow: any) => {
+      if (!oldRow?.id) return;
+      setNotifications((prev) => prev.filter((item) => item.id !== oldRow.id));
+    };
+
     const channel = supabase
       .channel("admin-notifications-realtime")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "admin_notifications" },
+        { event: "INSERT", schema: "public", table: "admin_notifications" },
         (payload) => {
+          upsertNotification(payload.new);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "admin_notifications" },
+        (payload) => {
+          upsertNotification(payload.new);
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "admin_notifications" },
+        (payload) => {
+          removeNotification(payload.old);
+        },
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
           fetchNotifications(true);
         }
-      )
-      .subscribe();
+      });
+
+    const fallbackInterval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchNotifications(true);
+      }
+    }, 30000);
 
     return () => {
+      clearInterval(fallbackInterval);
       supabase.removeChannel(channel);
     };
   }, [fetchNotifications]);
 
   const handleMarkAsCompleted = async (id: string) => {
+    setNotifications((prev) => prev.filter((item) => item.id !== id));
+
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("admin_notifications")
         .update({ is_completed: true, is_read: true })
         .eq("id", id);
 
       if (error) throw error;
-      toast.success("Notificação concluída.");
+
+      const affected = Array.isArray(data) ? data.length : 0;
+      if (affected === 0) {
+        throw new Error("Nenhuma notificacao foi atualizada.");
+      }
+
+      toast.success("Notificacao concluida.");
     } catch (err) {
+      fetchNotifications(true);
       toast.error("Erro ao atualizar status.");
     }
   };
 
   const handleDelete = async (id: string) => {
+    setNotifications((prev) => prev.filter((item) => item.id !== id));
+
     try {
-      const { error } = await supabase
+      const { data: deletedRows, error: deleteError } = await supabase
         .from("admin_notifications")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
 
-      if (error) throw error;
-      toast.success("Notificação excluída.");
+      if (deleteError) throw deleteError;
+
+      const deletedCount = Array.isArray(deletedRows) ? deletedRows.length : 0;
+
+      if (deletedCount === 0) {
+        const { data: fallbackRows, error: fallbackError } = await supabase
+          .from("admin_notifications")
+          .update({ is_completed: true, is_read: true })
+          .eq("id", id)
+          .select("id");
+
+        if (fallbackError) throw fallbackError;
+
+        const fallbackCount = Array.isArray(fallbackRows) ? fallbackRows.length : 0;
+        if (fallbackCount === 0) {
+          throw new Error("Nenhuma notificacao foi removida.");
+        }
+      }
+
+      toast.success("Notificacao removida.");
     } catch (err) {
+      fetchNotifications(true);
       toast.error("Erro ao excluir.");
     }
   };
 
   const handleDeleteAll = async () => {
     if (notifications.length === 0) return;
-    if (!confirm("Deseja excluir todas as notificações administrativas pendentes?")) return;
+    if (!confirm("Deseja excluir todas as notificacoes administrativas pendentes?")) return;
 
     setIsDeletingAll(true);
     try {
-      const { error } = await supabase
-        .from("admin_notifications")
-        .delete()
-        .eq("is_completed", false);
-
+      const { error } = await supabase.from("admin_notifications").delete().eq("is_completed", false);
       if (error) throw error;
       setNotifications([]);
-      toast.success("Todas as notificações foram excluídas.");
+      toast.success("Todas as notificacoes foram excluidas.");
     } catch (err) {
-      toast.error("Erro ao excluir notificações.");
+      toast.error("Erro ao excluir notificacoes.");
     } finally {
       setIsDeletingAll(false);
     }
   };
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
     <div className="fixed bottom-20 right-6 z-[60]">
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
         <DropdownMenuTrigger asChild>
-          <Button 
-            size="icon" 
-            className="h-14 w-14 rounded-full shadow-2xl animate-bounce-slow relative bg-primary hover:bg-primary/90"
+          <Button
+            size="icon"
+            className="relative h-14 w-14 rounded-full bg-primary shadow-2xl animate-bounce-slow hover:bg-primary/90"
           >
             <Bell className="h-6 w-6" />
             {unreadCount > 0 && (
-              <Badge 
-                className="absolute -top-1 -right-1 h-6 w-6 flex items-center justify-center p-0 bg-destructive text-white border-2 border-white rounded-full"
-              >
+              <Badge className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-destructive p-0 text-white">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </Badge>
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[380px] p-0 overflow-hidden border-none shadow-2xl">
-          <div className="bg-primary p-4 text-primary-foreground flex items-center justify-between">
+
+        <DropdownMenuContent align="end" className="w-[380px] overflow-hidden border-none p-0 shadow-2xl">
+          <div className="flex items-center justify-between bg-primary p-4 text-primary-foreground">
             <div className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
-              <h3 className="font-bold">Notificações Admin</h3>
+              <h3 className="font-bold">Notificacoes Admin</h3>
             </div>
             <div className="flex items-center gap-2">
               {notifications.length > 0 && (
-                <button 
-                  onClick={handleDeleteAll} 
+                <button
+                  onClick={handleDeleteAll}
                   disabled={isDeletingAll}
-                  className="p-1 hover:bg-white/20 rounded text-white/80 hover:text-white transition-colors"
+                  className="rounded p-1 text-white/80 transition-colors hover:bg-white/20 hover:text-white"
                   title="Excluir todas"
                 >
                   {isDeletingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 </button>
               )}
-              <button onClick={() => fetchNotifications(true)} disabled={isRefreshing} className="p-1 hover:bg-white/20 rounded">
+              <button
+                onClick={() => fetchNotifications(true)}
+                disabled={isRefreshing}
+                className="rounded p-1 hover:bg-white/20"
+                title="Atualizar"
+              >
                 <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
               </button>
             </div>
@@ -169,27 +256,25 @@ const AdminNotificationWidget = () => {
 
           <ScrollArea className="h-[400px]">
             {loading ? (
-              <div className="flex items-center justify-center h-full p-8">
+              <div className="flex h-full items-center justify-center p-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : notifications.length > 0 ? (
               <div className="divide-y">
                 {notifications.map((n) => (
-                  <div 
-                    key={n.id} 
+                  <div
+                    key={n.id}
                     className={cn(
-                      "p-4 hover:bg-secondary/30 transition-colors group relative",
-                      !n.is_read && "bg-primary/5"
+                      "group relative p-4 transition-colors hover:bg-secondary/30",
+                      !n.is_read && "bg-primary/5",
                     )}
                   >
                     <div className="flex items-start gap-3">
-                      {!n.is_read && <Circle className="h-2 w-2 fill-primary text-primary mt-1.5 shrink-0" />}
-                      <div className="flex-1 space-y-1 min-w-0">
+                      {!n.is_read && <Circle className="mt-1.5 h-2 w-2 shrink-0 fill-primary text-primary" />}
+                      <div className="min-w-0 flex-1 space-y-1">
                         <p className="text-sm font-bold leading-none">{n.title}</p>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          {n.content}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground pt-1">
+                        <p className="text-xs leading-relaxed text-muted-foreground">{n.content}</p>
+                        <p className="pt-1 text-[10px] text-muted-foreground">
                           {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}
                         </p>
                       </div>
@@ -197,26 +282,33 @@ const AdminNotificationWidget = () => {
 
                     <div className="mt-3 flex items-center justify-between gap-2">
                       {n.link && (
-                        <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1 px-2" asChild onClick={() => setIsOpen(false)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 px-2 text-[10px]"
+                          asChild
+                          onClick={() => setIsOpen(false)}
+                        >
                           <Link to={n.link}>
                             <ExternalLink className="h-3 w-3" /> Ver Detalhes
                           </Link>
                         </Button>
                       )}
-                      <div className="flex items-center gap-1 ml-auto">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-7 w-7 p-0 text-success hover:bg-success/10 border-success/20"
+
+                      <div className="ml-auto flex items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 w-7 border-success/20 p-0 text-success hover:bg-success/10"
                           onClick={() => handleMarkAsCompleted(n.id)}
-                          title="Marcar como Concluído"
+                          title="Marcar como concluido"
                         >
                           <Check className="h-3.5 w-3.5" />
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 border-destructive/20"
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 w-7 border-destructive/20 p-0 text-destructive hover:bg-destructive/10"
                           onClick={() => handleDelete(n.id)}
                           title="Excluir"
                         >
@@ -228,10 +320,10 @@ const AdminNotificationWidget = () => {
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground p-8 text-center">
-                <Inbox className="h-12 w-12 mb-4 opacity-20" />
+              <div className="flex h-[300px] flex-col items-center justify-center p-8 text-center text-muted-foreground">
+                <Inbox className="mb-4 h-12 w-12 opacity-20" />
                 <p className="text-sm font-medium">Tudo limpo por aqui!</p>
-                <p className="text-xs">Nenhuma notificação pendente no momento.</p>
+                <p className="text-xs">Nenhuma notificacao pendente no momento.</p>
               </div>
             )}
           </ScrollArea>

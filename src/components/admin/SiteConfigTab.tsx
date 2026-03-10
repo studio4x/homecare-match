@@ -292,11 +292,26 @@ const SiteConfigTab = () => {
   const handleSyncNotifications = async () => {
     setIsSyncingNotifications(true);
     try {
-      const { error } = await supabase.functions.invoke('setup-notifications');
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Entre novamente para configurar notificacoes.");
+      }
+
+      const { error } = await supabase.functions.invoke('setup-notifications', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       if (error) throw error;
       toast.success("Sistema de notificações configurado!");
     } catch (error: any) {
-      toast.error("Erro ao configurar notificações.");
+      const message = error?.message || "Erro ao configurar notificações.";
+      toast.error(message);
     } finally {
       setIsSyncingNotifications(false);
     }
@@ -305,11 +320,26 @@ const SiteConfigTab = () => {
   const handleSyncUserNotifications = async () => {
     setIsSyncingUserNotifications(true);
     try {
-      const { error } = await supabase.functions.invoke('setup-user-notifications');
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Entre novamente para configurar notificacoes de usuario.");
+      }
+
+      const { error } = await supabase.functions.invoke('setup-user-notifications', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       if (error) throw error;
       toast.success("Sistema de notificações de usuário configurado!");
     } catch (error: any) {
-      toast.error("Erro ao configurar notificações de usuário.");
+      const message = error?.message || "Erro ao configurar notificações de usuário.";
+      toast.error(message);
     } finally {
       setIsSyncingUserNotifications(false);
     }

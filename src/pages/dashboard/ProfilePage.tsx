@@ -101,6 +101,7 @@ const ProfilePage = () => {
 
   const specialties = [
     { value: "assistente-social", label: "Assistente Social" },
+    { value: "auxiliar-enfermagem", label: "Auxiliar de Enfermagem" },
     { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
     { value: "dentista", label: "Dentista" },
     { value: "enfermeiro", label: "Enfermeiro(a)" },

@@ -58,6 +58,7 @@ const Familias = () => {
 
   const featuredSpecialties = [
     { value: "cuidador-idosos", label: "Cuidador(a) de Idosos" },
+    { value: "auxiliar-enfermagem", label: "Auxiliar de Enfermagem" },
     { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
     { value: "enfermeiro", label: "Enfermeiro(a)" },
     { value: "fisioterapeuta", label: "Fisioterapeuta" },

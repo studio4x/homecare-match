@@ -202,13 +202,13 @@
   Observacoes:
 
 - [ ] P1-12 Abertura de ticket de suporte funcionando
-  Desktop: 
-  Mobile:
+  Desktop: OK
+  Mobile: OK
   Observacoes: Ajustar recebimento de e-mail no admin
 
 - [ ] P1-13 Resposta em ticket de suporte funcionando
-  Desktop:
-  Mobile:
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [ ] P1-14 Notificacoes do painel funcionando
@@ -221,9 +221,9 @@
   Mobile:
   Observacoes:
 
-- [ ] P1-16 Banner de privacidade/cookies sem sobreposicao indevida
-  Desktop:
-  Mobile:
+- [OK] P1-16 Banner de privacidade/cookies sem sobreposicao indevida
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [ ] P1-17 Permissao/prompt de push sem sobreposicao indevida

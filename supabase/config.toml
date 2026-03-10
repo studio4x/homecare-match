@@ -398,6 +398,12 @@ verify_jwt = false
 [functions.setup-cron-job]
 verify_jwt = false
 
+[functions.setup-notifications]
+verify_jwt = false
+
+[functions.setup-user-notifications]
+verify_jwt = false
+
 [functions.process-pending-refunds]
 verify_jwt = false
 

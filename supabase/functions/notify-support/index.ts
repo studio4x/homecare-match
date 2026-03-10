@@ -98,7 +98,7 @@ serve(async (req) => {
     const smtpPort = Deno.env.get("SMTP_PORT");
     const adminEmail = Deno.env.get("ADMIN_EMAIL") || "contato@homecarematch.com.br";
 
-    const sendAdminEmail = async (subject: string, html: string) => {
+    const sendEmail = async (to: string, subject: string, html: string) => {
       if (!smtpHost || !smtpUser || !smtpPass || !smtpPort) {
         console.warn("[notify-support] SMTP nao configurado. E-mail nao enviado.");
         return;
@@ -113,10 +113,14 @@ serve(async (req) => {
 
       await transporter.sendMail({
         from: `"HomeCare Match" <${smtpUser}>`,
-        to: adminEmail,
+        to,
         subject,
         html,
       });
+    };
+
+    const sendAdminEmail = async (subject: string, html: string) => {
+      await sendEmail(adminEmail, subject, html);
     };
 
     if (actorIsAdmin) {
@@ -138,6 +142,44 @@ serve(async (req) => {
         link: `/dashboard/suporte/${ticketId}`,
         type: "info",
       });
+
+      const ownerEmail = ticketOwner?.email || "";
+      const ownerName = ticketOwner?.full_name || "Usuario";
+      const ticketSubject = ticket?.subject || "Sem assunto";
+      const userTicketUrl = `${siteUrl}/dashboard/suporte/${ticketId}`;
+      const canEmailOwner = ownerEmail.includes("@");
+
+      if (canEmailOwner && (type === "new_message" || type === "ticket_closed")) {
+        const emailSubject =
+          type === "ticket_closed"
+            ? `Chamado encerrado: ${ticketSubject}`
+            : `Seu ticket recebeu nova resposta: ${ticketSubject}`;
+
+        const emailTitle = type === "ticket_closed" ? "Chamado Encerrado" : "Nova Resposta no Suporte";
+        const emailDescription =
+          type === "ticket_closed"
+            ? `Seu chamado "${ticketSubject}" foi encerrado por nossa equipe.`
+            : `Nossa equipe respondeu ao seu chamado "${ticketSubject}".`;
+
+        try {
+          await sendEmail(
+            ownerEmail,
+            emailSubject,
+            `
+              <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
+                <h2 style="margin: 0 0 12px; color: #2563eb;">${emailTitle}</h2>
+                <p style="margin: 0 0 16px;">Ola, ${ownerName}.</p>
+                <p style="margin: 0 0 16px;">${emailDescription}</p>
+                <a href="${userTicketUrl}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
+                  Abrir meu chamado
+                </a>
+              </div>
+            `,
+          );
+        } catch (emailError) {
+          console.error("[notify-support] falha ao enviar e-mail para usuario:", emailError?.message || emailError);
+        }
+      }
     }
 
     if (type === "new_ticket") {

@@ -201,7 +201,7 @@
   Mobile:
   Observacoes:
 
-- [ ] P1-12 Abertura de ticket de suporte funcionando
+- [OK] P1-12 Abertura de ticket de suporte funcionando
   Desktop: OK
   Mobile: OK
   Observacoes: Ajustar recebimento de e-mail no admin
@@ -209,7 +209,7 @@
 - [ ] P1-13 Resposta em ticket de suporte funcionando
   Desktop: OK
   Mobile: OK
-  Observacoes:
+  Observacoes: Ajustar recebimento de resposta de ticket par ao usário
 
 - [ ] P1-14 Notificacoes do painel funcionando
   Desktop:

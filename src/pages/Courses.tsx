@@ -179,6 +179,54 @@ const Courses = () => {
     loadEnrollment();
   }, [user]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`academy-enrollments-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "academy_enrollments",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const enrolledCourseSlug = String((payload.new as any)?.course_slug || "").trim();
+          if (!enrolledCourseSlug) return;
+
+          setEnrollments((prev) => ({
+            enrolledSlugs: Array.from(new Set([...(prev.enrolledSlugs || []), enrolledCourseSlug])),
+            progress: prev.progress || {},
+          }));
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "academy_enrollments",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const enrolledCourseSlug = String((payload.new as any)?.course_slug || "").trim();
+          if (!enrolledCourseSlug) return;
+
+          setEnrollments((prev) => ({
+            enrolledSlugs: Array.from(new Set([...(prev.enrolledSlugs || []), enrolledCourseSlug])),
+            progress: prev.progress || {},
+          }));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
   // Checa conclusão dos cursos do usuário
   useEffect(() => {
     const checkCompletion = async () => {

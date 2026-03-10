@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -94,6 +94,11 @@ const CourseDetail = () => {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [viewInside, setViewInside] = useState(false);
   const hasCheckoutSuccess = searchParams.get("success") === "true";
+  const enrollmentRealtimeToastShownRef = useRef(false);
+
+  useEffect(() => {
+    enrollmentRealtimeToastShownRef.current = false;
+  }, [slug, user?.id]);
 
   const isAdmin = userProfile?.is_admin || userProfile?.role === 'admin';
 
@@ -221,6 +226,60 @@ const CourseDetail = () => {
       clearTimeout(timeout);
     };
   }, [hasCheckoutSuccess, isEnrolled, searchParams, setSearchParams, slug, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id || !slug) return;
+
+    const channel = supabase
+      .channel(`academy-enrollment-${user.id}-${slug}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "academy_enrollments",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const enrolledCourseSlug = String((payload.new as any)?.course_slug || "").trim();
+          if (enrolledCourseSlug !== slug) return;
+
+          setIsEnrolled(true);
+          void fetchCourseData(true);
+
+          if (!enrollmentRealtimeToastShownRef.current) {
+            toast.success("Curso liberado! Acesso atualizado automaticamente.");
+            enrollmentRealtimeToastShownRef.current = true;
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "academy_enrollments",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const enrolledCourseSlug = String((payload.new as any)?.course_slug || "").trim();
+          if (enrolledCourseSlug !== slug) return;
+
+          setIsEnrolled(true);
+          void fetchCourseData(true);
+
+          if (!enrollmentRealtimeToastShownRef.current) {
+            toast.success("Curso liberado! Acesso atualizado automaticamente.");
+            enrollmentRealtimeToastShownRef.current = true;
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [slug, user?.id]);
 
   useEffect(() => {
     if (!course) {

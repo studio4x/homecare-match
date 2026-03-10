@@ -119,30 +119,7 @@ serve(async (req) => {
     const referralFiles = (files || []).filter((entry) => entry.name.endsWith(".json"));
     const referredIds = referralFiles.map((entry) => entry.name.replace(".json", ""));
 
-    const profileFields = [
-      "id",
-      "full_name",
-      "email",
-      "created_at",
-      "role",
-      "email_confirmed",
-      "is_verified",
-      "avatar_url",
-      "phone",
-      "specialty",
-      "cpf",
-      "cnpj",
-      "address_zip",
-      "address_street",
-      "neighborhood",
-      "city",
-      "state",
-      "bio",
-      "patient_name",
-      "patient_age",
-      "patient_medical_conditions",
-      "availability",
-    ].join(",");
+    const profileFields = "*";
 
     const validReferredIds = referredIds.filter(isUuid);
     const profilesMap = new Map<string, any>();

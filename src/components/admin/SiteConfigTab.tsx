@@ -302,12 +302,28 @@ const SiteConfigTab = () => {
         throw new Error("Sessao expirada. Entre novamente para configurar notificacoes.");
       }
 
-      const { error } = await supabase.functions.invoke('setup-notifications', {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/setup-notifications`, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify({}),
       });
-      if (error) throw error;
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          const message = typeof payload?.error === "string" ? payload.error : "";
+          const extra = typeof payload?.details === "string" ? payload.details : "";
+          const text = [message, extra].filter(Boolean).join(" - ");
+          if (text) detail = text;
+        } catch {
+          // noop
+        }
+        throw new Error(`Falha ao configurar notificacoes: ${detail}`);
+      }
       toast.success("Sistema de notificações configurado!");
     } catch (error: any) {
       const message = error?.message || "Erro ao configurar notificações.";
@@ -330,12 +346,28 @@ const SiteConfigTab = () => {
         throw new Error("Sessao expirada. Entre novamente para configurar notificacoes de usuario.");
       }
 
-      const { error } = await supabase.functions.invoke('setup-user-notifications', {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/setup-user-notifications`, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify({}),
       });
-      if (error) throw error;
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`;
+        try {
+          const payload = await response.json();
+          const message = typeof payload?.error === "string" ? payload.error : "";
+          const extra = typeof payload?.details === "string" ? payload.details : "";
+          const text = [message, extra].filter(Boolean).join(" - ");
+          if (text) detail = text;
+        } catch {
+          // noop
+        }
+        throw new Error(`Falha ao configurar notificacoes de usuario: ${detail}`);
+      }
       toast.success("Sistema de notificações de usuário configurado!");
     } catch (error: any) {
       const message = error?.message || "Erro ao configurar notificações de usuário.";

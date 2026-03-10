@@ -24,6 +24,8 @@ serve(async (req) => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         code TEXT UNIQUE NOT NULL,
         free_days INTEGER NOT NULL DEFAULT 30,
+        apply_mode TEXT NOT NULL DEFAULT 'signup_only',
+        target_tier TEXT NOT NULL DEFAULT 'monthly',
         max_uses INTEGER NOT NULL DEFAULT 100,
         current_uses INTEGER NOT NULL DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
@@ -33,6 +35,47 @@ serve(async (req) => {
 
       -- Garantir que a coluna existe caso a tabela já tenha sido criada
       ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS only_new_users BOOLEAN DEFAULT TRUE;
+      ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS apply_mode TEXT;
+      ALTER TABLE public.coupons ADD COLUMN IF NOT EXISTS target_tier TEXT;
+
+      UPDATE public.coupons
+      SET apply_mode = CASE WHEN only_new_users THEN 'signup_only' ELSE 'dashboard_only' END
+      WHERE apply_mode IS NULL OR btrim(apply_mode) = '';
+
+      UPDATE public.coupons
+      SET target_tier = COALESCE(NULLIF(lower(target_tier), ''), 'monthly')
+      WHERE target_tier IS NULL OR btrim(target_tier) = '';
+
+      ALTER TABLE public.coupons ALTER COLUMN apply_mode SET DEFAULT 'signup_only';
+      ALTER TABLE public.coupons ALTER COLUMN apply_mode SET NOT NULL;
+      ALTER TABLE public.coupons ALTER COLUMN target_tier SET DEFAULT 'monthly';
+      ALTER TABLE public.coupons ALTER COLUMN target_tier SET NOT NULL;
+
+      DO $coupon_constraints$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'coupons_apply_mode_check'
+            AND conrelid = 'public.coupons'::regclass
+        ) THEN
+          ALTER TABLE public.coupons
+            ADD CONSTRAINT coupons_apply_mode_check
+            CHECK (apply_mode IN ('signup_only', 'dashboard_only', 'signup_and_dashboard'));
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'coupons_target_tier_check'
+            AND conrelid = 'public.coupons'::regclass
+        ) THEN
+          ALTER TABLE public.coupons
+            ADD CONSTRAINT coupons_target_tier_check
+            CHECK (target_tier IN ('monthly', 'yearly'));
+        END IF;
+      END
+      $coupon_constraints$;
 
       -- 2. Tabela de Uso
       CREATE TABLE IF NOT EXISTS public.coupon_usages (

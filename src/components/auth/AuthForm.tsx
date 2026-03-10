@@ -173,6 +173,20 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
             setLoading(false);
             return;
           }
+          const rawMode = String(coupon.apply_mode || "").toLowerCase().trim();
+          const applyMode =
+            rawMode === "signup_only" || rawMode === "dashboard_only" || rawMode === "signup_and_dashboard"
+              ? rawMode
+              : coupon.only_new_users
+                ? "signup_only"
+                : "dashboard_only";
+          const canUseOnSignup = applyMode === "signup_only" || applyMode === "signup_and_dashboard";
+
+          if (!canUseOnSignup) {
+            toast.error("Este cupom nao pode ser usado no cadastro.");
+            setLoading(false);
+            return;
+          }
         } catch (err) {
           console.error("[Coupon Validation Error]", err);
         }

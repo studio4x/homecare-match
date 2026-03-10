@@ -258,6 +258,50 @@ serve(async (req) => {
       END
       $$;
 
+      -- Coupon behavior fields
+      ALTER TABLE public.coupons
+        ADD COLUMN IF NOT EXISTS apply_mode TEXT,
+        ADD COLUMN IF NOT EXISTS target_tier TEXT;
+
+      UPDATE public.coupons
+      SET apply_mode = CASE WHEN only_new_users THEN 'signup_only' ELSE 'dashboard_only' END
+      WHERE apply_mode IS NULL OR btrim(apply_mode) = '';
+
+      UPDATE public.coupons
+      SET target_tier = COALESCE(NULLIF(lower(target_tier), ''), 'monthly')
+      WHERE target_tier IS NULL OR btrim(target_tier) = '';
+
+      ALTER TABLE public.coupons ALTER COLUMN apply_mode SET DEFAULT 'signup_only';
+      ALTER TABLE public.coupons ALTER COLUMN apply_mode SET NOT NULL;
+      ALTER TABLE public.coupons ALTER COLUMN target_tier SET DEFAULT 'monthly';
+      ALTER TABLE public.coupons ALTER COLUMN target_tier SET NOT NULL;
+
+      DO $coupon_constraints$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'coupons_apply_mode_check'
+            AND conrelid = 'public.coupons'::regclass
+        ) THEN
+          ALTER TABLE public.coupons
+            ADD CONSTRAINT coupons_apply_mode_check
+            CHECK (apply_mode IN ('signup_only', 'dashboard_only', 'signup_and_dashboard'));
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'coupons_target_tier_check'
+            AND conrelid = 'public.coupons'::regclass
+        ) THEN
+          ALTER TABLE public.coupons
+            ADD CONSTRAINT coupons_target_tier_check
+            CHECK (target_tier IN ('monthly', 'yearly'));
+        END IF;
+      END
+      $coupon_constraints$;
+
       -- Keep handle_new_user aligned with current app model
       CREATE OR REPLACE FUNCTION public.handle_new_user()
       RETURNS trigger
@@ -271,6 +315,8 @@ serve(async (req) => {
         meta_coupon TEXT;
         coupon_id_found UUID;
         coupon_days_found INTEGER;
+        coupon_apply_mode_found TEXT;
+        coupon_target_tier_found TEXT;
         final_tier TEXT;
         final_end_at TIMESTAMP WITH TIME ZONE;
         final_coupon_days INTEGER;
@@ -293,15 +339,22 @@ serve(async (req) => {
         final_coupon_days := NULL;
 
         IF meta_coupon IS NOT NULL AND user_role = 'professional' THEN
-          SELECT id, free_days INTO coupon_id_found, coupon_days_found
+          SELECT
+            id,
+            free_days,
+            COALESCE(NULLIF(lower(apply_mode), ''), CASE WHEN only_new_users THEN 'signup_only' ELSE 'dashboard_only' END),
+            COALESCE(NULLIF(lower(target_tier), ''), 'monthly')
+          INTO coupon_id_found, coupon_days_found, coupon_apply_mode_found, coupon_target_tier_found
           FROM public.coupons
           WHERE upper(code) = upper(meta_coupon)
             AND is_active = true
             AND current_uses < max_uses
+            AND COALESCE(NULLIF(lower(apply_mode), ''), CASE WHEN only_new_users THEN 'signup_only' ELSE 'dashboard_only' END)
+              IN ('signup_only', 'signup_and_dashboard')
           LIMIT 1;
 
           IF coupon_id_found IS NOT NULL THEN
-            final_tier := 'monthly';
+            final_tier := CASE WHEN coupon_target_tier_found = 'yearly' THEN 'yearly' ELSE 'monthly' END;
             final_end_at := NOW() + (coupon_days_found || ' days')::interval;
             final_coupon_days := coupon_days_found;
           END IF;

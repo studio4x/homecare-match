@@ -149,30 +149,30 @@
   Mobile: OK
   Observacoes:
 
-- [ ] P1-02 Dashboard da empresa carregando e navegando sem quebra
-  Desktop:
-  Mobile:
+- [OK] P1-02 Dashboard da empresa carregando e navegando sem quebra
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-03 Dashboard da familia carregando e navegando sem quebra
-  Desktop:
-  Mobile:
+- [OK] P1-03 Dashboard da familia carregando e navegando sem quebra
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 ### 2.2 UX Mobile e Responsividade
-- [ ] P1-04 Modais respeitando altura da viewport
-  Desktop:
-  Mobile:
+- [OK] P1-04 Modais respeitando altura da viewport
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-05 Safe area sem cobrir conteudo
+- [OK] P1-05 Safe area sem cobrir conteudo
   Desktop: NA
-  Mobile:
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-06 Menu inferior sem cobrir conteudo
+- [OK] P1-06 Menu inferior sem cobrir conteudo
   Desktop: NA
-  Mobile:
+  Mobile: OK
   Observacoes:
 
 ### 2.3 Funcionalidades Complementares

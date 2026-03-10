@@ -1096,7 +1096,7 @@ const ProfilePage = () => {
                   </div>
                 </div>
               )}
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-4">
                 <div className="grid gap-2">
                   <Label>CEP *</Label>
                   <div className="relative">
@@ -1105,9 +1105,9 @@ const ProfilePage = () => {
                   </div>
                 </div>
                 <div className="grid gap-2 md:col-span-2"><Label>Rua *</Label><Input value={profile.address_street || ""} onChange={e => setProfile({...profile, address_street: e.target.value})} /></div>
+                <div className="grid gap-2"><Label>Número</Label><Input value={profile.address_number || ""} onChange={e => setProfile({...profile, address_number: e.target.value})} onBlur={() => handleValidateLocation()} /></div>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="grid gap-2"><Label>Bairro *</Label><Input value={profile.neighborhood || ""} onChange={e => setProfile({...profile, neighborhood: e.target.value})} /></div>
                 <div className="grid gap-2">
                   <Label>Estado (UF) *</Label>
                   <Select value={profile.state || ""} onValueChange={handleStateProfileChange}>
@@ -1153,9 +1153,9 @@ const ProfilePage = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="grid gap-2"><Label>Bairro *</Label><Input value={profile.neighborhood || ""} onChange={e => setProfile({...profile, neighborhood: e.target.value})} /></div>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2"><Label>Número</Label><Input value={profile.address_number || ""} onChange={e => setProfile({...profile, address_number: e.target.value})} onBlur={() => handleValidateLocation()} /></div>
+              <div className="grid gap-4 md:grid-cols-1">
                 <div className="grid gap-2"><Label>Complemento</Label><Input value={profile.address_complement || ""} onChange={e => setProfile({...profile, address_complement: e.target.value})} /></div>
               </div>
 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Share2, Link as LinkIcon, CheckCircle, Circle, Award, MessageSquare, Loader2 } from "lucide-react";
+import { Copy, Share2, Link as LinkIcon, CheckCircle, Circle, Award, MessageSquare, Loader2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -137,8 +137,19 @@ const ReferralLinkCard = () => {
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Indique outros profissionais e ganhe destaque no topo das buscas!
-              A cada indicação que se cadastrar, você sobe de nível e aumenta sua visibilidade.
+              A indicacao so e valida quando o indicado conclui ate "Validou documentos".
             </p>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-amber-800">Regra de validacao da indicacao</p>
+                  <p className="text-xs text-amber-700">
+                    A indicacao so conta como valida quando o indicado chega na etapa final: <strong>Validou documentos</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
             {stats && (
               <div className="rounded-lg border bg-secondary/50 p-4 space-y-3">
                 <div className="flex items-center justify-center">

@@ -339,6 +339,47 @@
   Mobile:
   Observacoes:
 
+### 2.7 Programa de Indicacoes (novo)
+- [ ] P1-39 Cadastro via link de indicacao aparece na lista do indicador
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-40 Card do indicado exibe nome e e-mail de cadastro corretamente
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-41 Etapa "Validou e-mail" atualiza apos confirmacao pelo admin
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-42 Etapa "Preencheu perfil" atualiza apos completar campos obrigatorios
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-43 Etapa "Validou documentos" atualiza apos verificacao e marca indicacao valida
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-44 Contadores e bloco de nivel (indicacoes validas / faltam para proximo selo) atualizam corretamente
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-45 Lista de indicados atualiza sem recarregar manualmente (polling/foco da aba)
+  Desktop:
+  Mobile:
+  Observacoes:
+
+- [ ] P1-46 Textos da pagina de indicacoes exibidos com acentuacao correta
+  Desktop:
+  Mobile:
+  Observacoes:
+
 ### Resumo P1
 - Desktop OK:
 - Mobile OK:
@@ -386,6 +427,11 @@
 - [ ] SMK-08 Fluxo ponta a ponta de UTM + encurtador + metricas validado
   Desktop:
   Mobile: NA
+  Observacoes:
+
+- [ ] SMK-09 Fluxo ponta a ponta de indicacoes validado (cadastro por link -> etapas -> selo)
+  Desktop:
+  Mobile:
   Observacoes:
 
 ---

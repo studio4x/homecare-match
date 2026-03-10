@@ -17,6 +17,7 @@ interface ReferralStages {
 interface ReferralRegisteredUser {
   id: string;
   full_name: string;
+  email?: string | null;
   created_at: string;
   role: string;
   current_status: string;
@@ -45,14 +46,16 @@ const ReferralsPage = () => {
   const [stats, setStats] = useState<ReferralStatsResponse>(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (options?: { silent?: boolean }) => {
     if (!user?.id) {
       setStats(EMPTY_STATS);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    if (!options?.silent) {
+      setLoading(true);
+    }
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -77,13 +80,39 @@ const ReferralsPage = () => {
       console.error("Erro ao buscar estatisticas de indicacao:", err);
       setStats(EMPTY_STATS);
     } finally {
-      setLoading(false);
+      if (!options?.silent) {
+        setLoading(false);
+      }
     }
   }, [user?.id]);
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const refreshSilently = () => {
+      fetchStats({ silent: true });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshSilently();
+      }
+    };
+
+    const intervalId = window.setInterval(refreshSilently, 15000);
+    window.addEventListener("focus", refreshSilently);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshSilently);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchStats, user?.id]);
 
   if (!user) {
     return (

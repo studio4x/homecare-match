@@ -8,15 +8,21 @@ const corsHeaders = {
 };
 
 const hasText = (value: unknown) => String(value || "").trim().length > 0;
-const hasValidDigits = (value: unknown, length: number) => String(value || "").replace(/\D/g, "").length === length;
+const countDigits = (value: unknown) => String(value || "").replace(/\D/g, "").length;
+const hasValidDigits = (value: unknown, length: number) => countDigits(value) === length;
+const hasDigitsBetween = (value: unknown, min: number, max: number) => {
+  const total = countDigits(value);
+  return total >= min && total <= max;
+};
 
 const isProfileCompleted = (profile: any) => {
   if (!profile) return false;
 
   const role = String(profile.role || "professional").toLowerCase();
   const hasBase =
+    hasText(profile.avatar_url) &&
     hasText(profile.full_name) &&
-    hasValidDigits(profile.phone, 10) &&
+    hasDigitsBetween(profile.phone, 10, 11) &&
     hasText(profile.address_zip) &&
     hasText(profile.address_street) &&
     hasText(profile.neighborhood) &&
@@ -106,10 +112,12 @@ serve(async (req) => {
           [
             "id",
             "full_name",
+            "email",
             "created_at",
             "role",
             "email_confirmed",
             "is_verified",
+            "avatar_url",
             "phone",
             "specialty",
             "cpf",
@@ -149,6 +157,7 @@ serve(async (req) => {
         return {
           id,
           full_name: profile?.full_name || "Usuario em conclusao",
+          email: profile?.email || null,
           created_at: profile?.created_at || entry.created_at || new Date().toISOString(),
           role,
           stages,

@@ -3,7 +3,7 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, CheckCircle2, Circle, UserCheck, Users } from "lucide-react";
+import { Calendar, CheckCircle2, Circle, Mail, UserCheck, Users } from "lucide-react";
 
 interface ReferralStages {
   signup_created: boolean;
@@ -15,6 +15,7 @@ interface ReferralStages {
 interface RegisteredUser {
   id: string;
   full_name: string;
+  email?: string | null;
   created_at: string;
   role: string;
   current_status: string;
@@ -71,6 +72,10 @@ const ReferredUsersList = ({ users, loading }: ReferredUsersListProps) => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                       <p className="text-sm font-bold text-foreground">{user.full_name || "Usuario em conclusao"}</p>
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Mail className="h-3 w-3" />
+                        <span className="truncate">{user.email || "E-mail nao informado"}</span>
+                      </div>
                       <div className="flex items-center gap-3">
                         <Badge variant="outline" className="h-4 text-[9px] uppercase">
                           {ROLE_LABEL[user.role] || "Profissional"}

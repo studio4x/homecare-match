@@ -107,6 +107,7 @@ const SupportAdminPage = () => {
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
+  const [sortBy, setSortBy] = useState<"priority" | "date">("priority");
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -197,14 +198,21 @@ const SupportAdminPage = () => {
         return matchesStatus && matchesSearch;
       })
       .sort((a, b) => {
-        const priorityDiff = getPriorityMeta(b.priority).weight - getPriorityMeta(a.priority).weight;
-        if (priorityDiff !== 0) return priorityDiff;
-
+        const priorityDiff =
+          getPriorityMeta(b.priority).weight - getPriorityMeta(a.priority).weight;
         const dateA = new Date(a.created_at).getTime();
         const dateB = new Date(b.created_at).getTime();
-        return dateB - dateA;
+        const dateDiff = dateB - dateA;
+
+        if (sortBy === "date") {
+          if (dateDiff !== 0) return dateDiff;
+          return priorityDiff;
+        }
+
+        if (priorityDiff !== 0) return priorityDiff;
+        return dateDiff;
       });
-  }, [tickets, filterStatus, searchTerm]);
+  }, [tickets, filterStatus, searchTerm, sortBy]);
 
   return (
     <div className="space-y-6">
@@ -252,6 +260,15 @@ const SupportAdminPage = () => {
               <SelectItem value="open">Abertos</SelectItem>
               <SelectItem value="in_progress">Em Atendimento</SelectItem>
               <SelectItem value="closed">Fechados</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as "priority" | "date")}>
+            <SelectTrigger className="w-[210px]">
+              <SelectValue placeholder="Ordenacao" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="priority">Ordenar por prioridade</SelectItem>
+              <SelectItem value="date">Ordenar por data</SelectItem>
             </SelectContent>
           </Select>
         </div>

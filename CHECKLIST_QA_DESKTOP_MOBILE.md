@@ -176,14 +176,14 @@
   Observacoes:
 
 ### 2.3 Funcionalidades Complementares
-- [ ] P1-07 Upload de avatar funcionando
-  Desktop:
-  Mobile:
+- [OK] P1-07 Upload de avatar funcionando
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-08 Upload de documento funcionando
-  Desktop:
-  Mobile:
+- [OK] P1-08 Upload de documento funcionando
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [ ] P1-09 Cursos carregando e liberando acesso corretamente (quando aplicavel)

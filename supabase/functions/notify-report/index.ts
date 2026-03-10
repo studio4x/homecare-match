@@ -32,6 +32,7 @@ serve(async (req) => {
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASS');
+    const adminEmail = Deno.env.get("ADMIN_EMAIL") || "contato@homecarematch.com.br";
 
     if (smtpHost && smtpUser && smtpPass) {
       const transporter = nodemailer.createTransport({
@@ -42,7 +43,7 @@ serve(async (req) => {
 
       await transporter.sendMail({
         from: `"Segurança HomeCare Match" <${smtpUser}>`,
-        to: "contato@homecarematch.com.br",
+        to: adminEmail,
         subject: `🚨 Nova Denúncia: ${report.reported.full_name}`,
         html: `<div style="font-family: sans-serif; padding: 20px;"><h2 style="color: #ef4444;">Nova denúncia</h2><p><strong>Perfil:</strong> ${report.reported.full_name}</p><p><strong>Motivo:</strong> ${report.reason}</p></div>`,
       });

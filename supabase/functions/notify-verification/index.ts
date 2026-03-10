@@ -27,6 +27,7 @@ serve(async (req) => {
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASS');
     const smtpPort = Deno.env.get('SMTP_PORT');
+    const adminEmail = Deno.env.get("ADMIN_EMAIL") || "contato@homecarematch.com.br";
 
     if (smtpHost && smtpUser && smtpPass && smtpPort) {
       const transporter = nodemailer.createTransport({
@@ -39,7 +40,7 @@ serve(async (req) => {
       // --- E-MAIL PARA O ADMIN ---
       await transporter.sendMail({
         from: `"HomeCare Match" <${smtpUser}>`,
-        to: "contato@homecarematch.com.br", // E-mail do admin
+        to: adminEmail, // E-mail do admin
         subject: `⚠️ Verificação Pendente: ${userName}`,
         html: `
           <div style="font-family: sans-serif; padding: 20px; color: #333;">

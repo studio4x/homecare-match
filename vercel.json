@@ -1,12 +1,23 @@
 {
-  "rewrites": [
+  "routes": [
     {
-      "source": "/sitemap.xml",
-      "destination": "/api/sitemap.xml"
+      "handle": "filesystem"
     },
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "src": "^/sitemap\\.xml$",
+      "dest": "/api/sitemap.xml"
+    },
+    {
+      "src": "^/assets/(.*)$",
+      "status": 404
+    },
+    {
+      "src": "^/(.*\\.(?:js|mjs|css|map|json|txt|xml|ico|png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot|webmanifest))$",
+      "status": 404
+    },
+    {
+      "src": "^/(.*)$",
+      "dest": "/index.html"
     }
   ]
 }

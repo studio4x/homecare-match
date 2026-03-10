@@ -35,6 +35,7 @@ import { subDays } from "date-fns";
 import { calculateDistance } from "@/lib/geo-utils";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { BRAZIL_STATES, fetchCitiesByState } from "@/lib/brazil-locations";
 
 const getInitialSpecialtyFromUrl = () => {
   const value = new URLSearchParams(window.location.search).get("specialty");
@@ -101,6 +102,8 @@ const Buscar = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [availableCities, setAvailableCities] = useState<string[]>([]);
   const [loadingCities, setLoadingCities] = useState(false);
+  const [conciergeCities, setConciergeCities] = useState<string[]>([]);
+  const [loadingConciergeCities, setLoadingConciergeCities] = useState(false);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const pendingMobileResultsScrollRef = useRef(false);
 
@@ -146,27 +149,11 @@ const Buscar = () => {
 
       setLoadingCities(true);
       try {
-        const { data, error } = await supabase
-          .from("professional_discovery")
-          .select("city")
-          .eq("state", filters.state)
-          .not("city", "is", null);
-
-        if (error) {
-          console.error("[Buscar] Erro ao carregar cidades por estado:", error);
-          setAvailableCities([]);
-          return;
-        }
-
-        const uniqueCities = Array.from(
-          new Set(
-            (data || [])
-              .map((item: any) => String(item?.city || "").trim())
-              .filter(Boolean),
-          ),
-        ).sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-        setAvailableCities(uniqueCities);
+        const cities = await fetchCitiesByState(filters.state);
+        setAvailableCities(cities);
+      } catch (err) {
+        console.error("[Buscar] Erro ao carregar cidades por estado:", err);
+        setAvailableCities([]);
       } finally {
         setLoadingCities(false);
       }
@@ -174,6 +161,28 @@ const Buscar = () => {
 
     loadCitiesByState();
   }, [filters.state]);
+
+  useEffect(() => {
+    const loadConciergeCitiesByState = async () => {
+      if (!conciergeForm.state) {
+        setConciergeCities([]);
+        return;
+      }
+
+      setLoadingConciergeCities(true);
+      try {
+        const cities = await fetchCitiesByState(conciergeForm.state);
+        setConciergeCities(cities);
+      } catch (err) {
+        console.error("[Buscar] Erro ao carregar cidades do concierge por estado:", err);
+        setConciergeCities([]);
+      } finally {
+        setLoadingConciergeCities(false);
+      }
+    };
+
+    loadConciergeCitiesByState();
+  }, [conciergeForm.state]);
 
   useEffect(() => {
     const geocodeZipWithCache = async (zipRaw?: string | null) => {
@@ -511,7 +520,7 @@ const Buscar = () => {
     { value: "sem-urgencia", label: "Sem urgência" },
   ];
 
-  const states = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+  const states = BRAZIL_STATES;
 
   const handleStateChange = (state: string) => {
     if (isMobileViewport()) {
@@ -917,11 +926,36 @@ const Buscar = () => {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="grid gap-2 md:col-span-2">
                 <Label>Cidade</Label>
-                <Input value={conciergeForm.city} onChange={(e) => setConciergeForm(prev => ({ ...prev, city: e.target.value }))} placeholder="Ex: São Paulo" />
+                <Select
+                  value={conciergeForm.city || "all"}
+                  onValueChange={(v) => setConciergeForm(prev => ({ ...prev, city: v === "all" ? "" : v }))}
+                  disabled={!conciergeForm.state || loadingConciergeCities}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        !conciergeForm.state
+                          ? "Selecione o estado primeiro"
+                          : loadingConciergeCities
+                            ? "Carregando cidades..."
+                            : "Selecione a cidade"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Nao especificar</SelectItem>
+                    {conciergeForm.city && !conciergeCities.includes(conciergeForm.city) && (
+                      <SelectItem value={conciergeForm.city}>{conciergeForm.city}</SelectItem>
+                    )}
+                    {conciergeCities.map((city) => (
+                      <SelectItem key={city} value={city}>{city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid gap-2">
                 <Label>UF</Label>
-                <Select value={conciergeForm.state || "all"} onValueChange={(v) => setConciergeForm(prev => ({ ...prev, state: v === "all" ? "" : v }))}>
+                <Select value={conciergeForm.state || "all"} onValueChange={(v) => setConciergeForm(prev => ({ ...prev, state: v === "all" ? "" : v, city: "" }))}>
                   <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Não especificar</SelectItem>

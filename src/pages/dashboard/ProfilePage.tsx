@@ -69,6 +69,7 @@ import OnboardingModal from "@/components/OnboardingModal";
 import { getCoordinates } from "@/lib/geo-utils";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { Link } from "react-router-dom";
+import { BRAZIL_STATES, fetchCitiesByState } from "@/lib/brazil-locations";
 
 type UploadType = "avatar" | "id_doc" | "prof_doc" | "patient_doc" | "patient_address_proof";
 type VerificationUploadType = Exclude<UploadType, "avatar">;
@@ -84,6 +85,8 @@ const ProfilePage = () => {
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [citiesByState, setCitiesByState] = useState<string[]>([]);
+  const [loadingCitiesByState, setLoadingCitiesByState] = useState(false);
   const [isDangerZoneOpen, setIsDangerZoneOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   
@@ -177,6 +180,59 @@ const ProfilePage = () => {
     "patient_document_url",
     "patient_address_proof_url",
   ];
+
+  useEffect(() => {
+    let active = true;
+
+    const loadCities = async () => {
+      const selectedState = String(profile?.state || "").trim().toUpperCase();
+      if (!selectedState) {
+        if (active) {
+          setCitiesByState([]);
+          setLoadingCitiesByState(false);
+        }
+        return;
+      }
+
+      setLoadingCitiesByState(true);
+      try {
+        const cities = await fetchCitiesByState(selectedState);
+        if (active) {
+          setCitiesByState(cities);
+        }
+      } catch (err) {
+        console.error("[ProfilePage] Erro ao carregar cidades por estado:", err);
+        if (active) {
+          setCitiesByState([]);
+        }
+      } finally {
+        if (active) {
+          setLoadingCitiesByState(false);
+        }
+      }
+    };
+
+    loadCities();
+
+    return () => {
+      active = false;
+    };
+  }, [profile?.state]);
+
+  const handleStateProfileChange = (stateValue: string) => {
+    setProfile((prev: any) => ({
+      ...prev,
+      state: stateValue,
+      city: "",
+    }));
+  };
+
+  const handleCityProfileChange = (cityValue: string) => {
+    setProfile((prev: any) => ({
+      ...prev,
+      city: cityValue,
+    }));
+  };
 
   const verificationUploadTypeToField: Record<VerificationUploadType, VerificationFieldKey> = {
     id_doc: "id_document_url",
@@ -1052,8 +1108,51 @@ const ProfilePage = () => {
               </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-2"><Label>Bairro *</Label><Input value={profile.neighborhood || ""} onChange={e => setProfile({...profile, neighborhood: e.target.value})} /></div>
-                <div className="grid gap-2"><Label>Cidade *</Label><Input value={profile.city || ""} onChange={e => setProfile({...profile, city: e.target.value})} /></div>
-                <div className="grid gap-2"><Label>Estado (UF) *</Label><Input value={profile.state || ""} onChange={e => setProfile({...profile, state: e.target.value})} maxLength={2} /></div>
+                <div className="grid gap-2">
+                  <Label>Estado (UF) *</Label>
+                  <Select value={profile.state || ""} onValueChange={handleStateProfileChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o estado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BRAZIL_STATES.map((uf) => (
+                        <SelectItem key={uf} value={uf}>
+                          {uf}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Cidade *</Label>
+                  <Select
+                    value={profile.city || ""}
+                    onValueChange={handleCityProfileChange}
+                    disabled={!profile.state || loadingCitiesByState}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          !profile.state
+                            ? "Selecione o estado primeiro"
+                            : loadingCitiesByState
+                              ? "Carregando cidades..."
+                              : "Selecione a cidade"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {profile.city && !citiesByState.includes(profile.city) && (
+                        <SelectItem value={profile.city}>{profile.city}</SelectItem>
+                      )}
+                      {citiesByState.map((city) => (
+                        <SelectItem key={city} value={city}>
+                          {city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2"><Label>Número</Label><Input value={profile.address_number || ""} onChange={e => setProfile({...profile, address_number: e.target.value})} onBlur={() => handleValidateLocation()} /></div>

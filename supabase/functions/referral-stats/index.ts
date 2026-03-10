@@ -14,6 +14,8 @@ const hasDigitsBetween = (value: unknown, min: number, max: number) => {
   const total = countDigits(value);
   return total >= min && total <= max;
 };
+const isUuid = (value: unknown) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
 
 const isProfileCompleted = (profile: any) => {
   if (!profile) return false;
@@ -104,51 +106,81 @@ serve(async (req) => {
     const referralFiles = (files || []).filter((entry) => entry.name.endsWith(".json"));
     const referredIds = referralFiles.map((entry) => entry.name.replace(".json", ""));
 
-    const profilesMap = new Map<string, any>();
-    if (referredIds.length > 0) {
-      const { data: profiles } = await supabaseAdmin
-        .from("profiles")
-        .select(
-          [
-            "id",
-            "full_name",
-            "email",
-            "created_at",
-            "role",
-            "email_confirmed",
-            "is_verified",
-            "avatar_url",
-            "phone",
-            "specialty",
-            "cpf",
-            "cnpj",
-            "address_zip",
-            "address_street",
-            "neighborhood",
-            "city",
-            "state",
-            "bio",
-            "patient_name",
-            "patient_age",
-            "patient_medical_conditions",
-            "availability",
-          ].join(","),
-        )
-        .in("id", referredIds);
+    const profileFields = [
+      "id",
+      "full_name",
+      "email",
+      "created_at",
+      "role",
+      "email_confirmed",
+      "is_verified",
+      "avatar_url",
+      "phone",
+      "specialty",
+      "cpf",
+      "cnpj",
+      "address_zip",
+      "address_street",
+      "neighborhood",
+      "city",
+      "state",
+      "bio",
+      "patient_name",
+      "patient_age",
+      "patient_medical_conditions",
+      "availability",
+    ].join(",");
 
-      (profiles || []).forEach((profile) => profilesMap.set(profile.id, profile));
+    const validReferredIds = referredIds.filter(isUuid);
+    const profilesMap = new Map<string, any>();
+
+    if (validReferredIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from("profiles")
+        .select(profileFields)
+        .in("id", validReferredIds);
+
+      if (!profilesError) {
+        (profiles || []).forEach((profile) => profilesMap.set(profile.id, profile));
+      } else {
+        // Fallback defensivo: evita perder todos os dados caso o filtro em lote falhe.
+        for (const userId of validReferredIds) {
+          const { data: profile } = await supabaseAdmin.from("profiles").select(profileFields).eq("id", userId).maybeSingle();
+          if (profile) {
+            profilesMap.set(profile.id, profile);
+          }
+        }
+      }
+    }
+
+    const authUsersMap = new Map<string, any>();
+    const missingProfileIds = validReferredIds.filter((id) => !profilesMap.has(id));
+    if (missingProfileIds.length > 0) {
+      const authLookups = await Promise.allSettled(
+        missingProfileIds.map((id) => supabaseAdmin.auth.admin.getUserById(id)),
+      );
+
+      authLookups.forEach((lookup, index) => {
+        if (lookup.status !== "fulfilled") return;
+        const authUser = lookup.value?.data?.user;
+        if (!authUser?.id) return;
+        authUsersMap.set(missingProfileIds[index], authUser);
+      });
     }
 
     const registeredUsers = referralFiles
       .map((entry) => {
         const id = entry.name.replace(".json", "");
         const profile = profilesMap.get(id) || null;
-        const role = String(profile?.role || "professional").toLowerCase();
+        const authUser = authUsersMap.get(id) || null;
+        const role = String(profile?.role || authUser?.user_metadata?.role || "professional").toLowerCase();
+        const emailConfirmed = Boolean(profile?.email_confirmed || authUser?.email_confirmed_at);
+        const profileCompleted = profile ? isProfileCompleted(profile) : false;
 
         const stages = {
           signup_created: true,
-          email_confirmed: !!profile?.email_confirmed,
-          profile_completed: isProfileCompleted(profile),
+          email_confirmed: emailConfirmed,
+          profile_completed: profileCompleted,
           documents_verified: !!profile?.is_verified,
         };
 
@@ -156,9 +188,17 @@ serve(async (req) => {
 
         return {
           id,
-          full_name: profile?.full_name || "Usuario em conclusao",
-          email: profile?.email || null,
-          created_at: profile?.created_at || entry.created_at || new Date().toISOString(),
+          full_name:
+            profile?.full_name ||
+            authUser?.user_metadata?.full_name ||
+            authUser?.email ||
+            "Usuario em conclusao",
+          email: profile?.email || authUser?.email || null,
+          created_at:
+            profile?.created_at ||
+            authUser?.created_at ||
+            entry.created_at ||
+            new Date().toISOString(),
           role,
           stages,
           current_status: getCurrentStatusLabel(stages),

@@ -252,7 +252,7 @@ serve(async (req) => {
             profile?.full_name ||
             authUser?.user_metadata?.full_name ||
             authUser?.email ||
-            "Usuario em conclusao",
+            "Usuário em conclusão",
           email: profile?.email || authUser?.email || null,
           created_at:
             profile?.created_at ||

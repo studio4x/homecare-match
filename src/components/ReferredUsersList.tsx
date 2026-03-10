@@ -31,7 +31,7 @@ interface ReferredUsersListProps {
 const ROLE_LABEL: Record<string, string> = {
   professional: "Profissional",
   company: "Empresa",
-  family: "Familia",
+  family: "Família",
 };
 
 const STAGE_META: Array<{ key: keyof ReferralStages; label: string }> = [
@@ -71,10 +71,10 @@ const ReferredUsersList = ({ users, loading }: ReferredUsersListProps) => {
                 <div key={user.id} className="space-y-2 rounded-lg border bg-secondary/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <p className="text-sm font-bold text-foreground">{user.full_name || "Usuario em conclusao"}</p>
+                      <p className="text-sm font-bold text-foreground">{user.full_name || "Usuário em conclusão"}</p>
                       <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <Mail className="h-3 w-3" />
-                        <span className="truncate">{user.email || "E-mail nao informado"}</span>
+                        <span className="truncate">{user.email || "E-mail não informado"}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <Badge variant="outline" className="h-4 text-[9px] uppercase">
@@ -88,7 +88,7 @@ const ReferredUsersList = ({ users, loading }: ReferredUsersListProps) => {
                     </div>
                     <div className="flex flex-col items-end gap-1">
                       <Badge className={user.is_valid_referral ? "bg-success hover:bg-success/90" : ""} variant={user.is_valid_referral ? "default" : "outline"}>
-                        {user.is_valid_referral ? "Indicacao valida" : "Em andamento"}
+                        {user.is_valid_referral ? "Indicação válida" : "Em andamento"}
                       </Badge>
                       <Badge variant="secondary" className="h-5 text-[10px]">
                         {completedStages}/{STAGE_META.length} etapas
@@ -103,7 +103,7 @@ const ReferredUsersList = ({ users, loading }: ReferredUsersListProps) => {
                         style={{ width: `${progressPercent}%` }}
                       />
                     </div>
-                    <p className="text-[10px] text-muted-foreground">Progresso da indicacao: {progressPercent}%</p>
+                    <p className="text-[10px] text-muted-foreground">Progresso da indicação: {progressPercent}%</p>
                   </div>
 
                   <p className="text-xs text-muted-foreground">Status atual: {user.current_status}</p>
@@ -127,7 +127,7 @@ const ReferredUsersList = ({ users, loading }: ReferredUsersListProps) => {
           <div className="py-8 text-center text-muted-foreground">
             <Users className="mx-auto mb-3 h-10 w-10 opacity-20" />
             <p className="text-sm">Nenhum cadastro realizado pelo seu link ainda.</p>
-            <p className="mt-1 text-[10px]">A indicacao so se torna valida ao chegar em "Validou documentos".</p>
+            <p className="mt-1 text-[10px]">A indicação só se torna válida ao chegar em "Validou documentos".</p>
           </div>
         )}
       </CardContent>

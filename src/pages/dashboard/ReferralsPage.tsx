@@ -77,7 +77,7 @@ const ReferralsPage = () => {
 
       setStats((data as ReferralStatsResponse) || EMPTY_STATS);
     } catch (err) {
-      console.error("Erro ao buscar estatisticas de indicacao:", err);
+      console.error("Erro ao buscar estatísticas de indicação:", err);
       setStats(EMPTY_STATS);
     } finally {
       if (!options?.silent) {
@@ -119,7 +119,7 @@ const ReferralsPage = () => {
       <div className="space-y-6 max-w-4xl">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Carregando dados de indicacao...
+          Carregando dados de indicação...
         </div>
       </div>
     );
@@ -130,7 +130,7 @@ const ReferralsPage = () => {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
           <Award className="h-6 w-6 text-primary" />
-          Programa de Indicacoes
+          Programa de Indicações
         </h1>
         <p className="text-muted-foreground">Indique colegas e ganhe destaque no topo das buscas.</p>
       </div>

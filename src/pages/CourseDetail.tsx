@@ -93,6 +93,7 @@ const CourseDetail = () => {
   const [videoLoading, setVideoLoading] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [viewInside, setViewInside] = useState(false);
+  const hasCheckoutSuccess = searchParams.get("success") === "true";
 
   const isAdmin = userProfile?.is_admin || userProfile?.role === 'admin';
 
@@ -173,24 +174,53 @@ const CourseDetail = () => {
   }, [slug, user]);
 
   useEffect(() => {
-    if (searchParams.get("success") === "true") {
-      toast.success("Pagamento confirmado! Sua matrícula está sendo liberada...", {
-        duration: 5000,
-      });
-      
-      const interval = setInterval(() => fetchCourseData(true), 3000);
-      const timeout = setTimeout(() => {
-        clearInterval(interval);
-        searchParams.delete("success");
-        setSearchParams(searchParams);
-      }, 15000);
+    if (!hasCheckoutSuccess || !slug || !user?.id) return;
 
-      return () => {
-        clearInterval(interval);
-        clearTimeout(timeout);
-      };
+    const clearSuccessParam = () => {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("success");
+      setSearchParams(nextParams, { replace: true });
+    };
+
+    if (isEnrolled) {
+      clearSuccessParam();
+      return;
     }
-  }, [searchParams]);
+
+    toast.success("Pagamento confirmado! Estamos liberando seu curso...", {
+      duration: 5000,
+    });
+
+    let active = true;
+
+    const pollEnrollment = async () => {
+      if (!active) return;
+      await fetchCourseData(true);
+    };
+
+    void pollEnrollment();
+
+    const interval = setInterval(() => {
+      if (!active) return;
+      void pollEnrollment();
+    }, 2000);
+
+    const timeout = setTimeout(() => {
+      if (!active) return;
+      clearInterval(interval);
+      clearSuccessParam();
+
+      if (!isEnrolled) {
+        toast.message("Ainda estamos processando sua matricula. Tente novamente em alguns segundos.");
+      }
+    }, 45000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [hasCheckoutSuccess, isEnrolled, searchParams, setSearchParams, slug, user?.id]);
 
   useEffect(() => {
     if (!course) {
@@ -833,3 +863,4 @@ const CourseDetail = () => {
 };
 
 export default CourseDetail;
+

@@ -17,7 +17,7 @@ const ConversionCourse = () => {
     // Ex: gtag('event', 'purchase', { ... }); fbq('track', 'Purchase', { ... });
     // A lógica para isso será adicionada em MarketingScripts.tsx
     toast.success("Compra de curso confirmada!", {
-      description: `Seu acesso ao curso "${courseTitle || 'selecionado'}" foi liberado.`,
+      description: `Estamos finalizando a liberacao do curso "${courseTitle || "selecionado"}".`,
       duration: 8000,
     });
   }, [courseSlug, courseTitle]);
@@ -34,7 +34,7 @@ const ConversionCourse = () => {
         </p>
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button asChild size="lg" className="gap-2">
-            <Link to={courseSlug ? `/cursos/${courseSlug}` : "/dashboard/cursos"}>
+            <Link to={courseSlug ? `/cursos/${courseSlug}?success=true` : "/dashboard/cursos"}>
               <BookOpen className="h-5 w-5" />
               Acessar o Curso
             </Link>

@@ -186,18 +186,18 @@
   Mobile: OK
   Observacoes:
 
-- [ ] P1-09 Cursos carregando e liberando acesso corretamente (quando aplicavel)
-  Desktop:
-  Mobile:
+- [OK] P1-09 Cursos carregando e liberando acesso corretamente (quando aplicavel)
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-10 Progresso de curso salvando e retomando corretamente (quando aplicavel)
-  Desktop:
-  Mobile:
+- [NA] P1-10 Progresso de curso salvando e retomando corretamente (quando aplicavel)
+  Desktop: NA
+  Mobile: NA
   Observacoes:
 
 - [ ] P1-11 Certificado gerando corretamente (quando aplicavel)
-  Desktop:
+  Desktop: OK
   Mobile:
   Observacoes:
 

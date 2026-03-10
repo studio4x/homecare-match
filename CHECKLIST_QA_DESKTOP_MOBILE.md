@@ -206,19 +206,19 @@
   Mobile: OK
   Observacoes: Ajustar recebimento de e-mail no admin
 
-- [ ] P1-13 Resposta em ticket de suporte funcionando
+- [OK] P1-13 Resposta em ticket de suporte funcionando
   Desktop: OK
   Mobile: OK
   Observacoes: Ajustar recebimento de resposta de ticket par ao usário
 
-- [ ] P1-14 Notificacoes do painel funcionando
-  Desktop:
-  Mobile:
+- [OK] P1-14 Notificacoes do painel funcionando
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-15 Configuracoes alteradas no admin refletindo no frontend
-  Desktop:
-  Mobile:
+- [OK] P1-15 Configuracoes alteradas no admin refletindo no frontend
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [OK] P1-16 Banner de privacidade/cookies sem sobreposicao indevida

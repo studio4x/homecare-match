@@ -1,38 +1,39 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Loader2, 
-  MessageSquare, 
-  Eye, 
-  Search, 
-  Filter, 
+import {
+  Loader2,
+  MessageSquare,
+  Eye,
+  Search,
+  Filter,
   AlertCircle,
   Trash2,
-  ShieldAlert
+  ShieldAlert,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,15 +45,72 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+type TicketPriority = "low" | "medium" | "high" | "urgent";
+
+type TicketItem = {
+  id: string;
+  user_id: string;
+  subject: string;
+  description: string;
+  status: "open" | "in_progress" | "closed";
+  priority: TicketPriority;
+  created_at: string;
+  updated_at: string;
+  user?: {
+    full_name?: string;
+    email?: string;
+  } | null;
+};
+
+const getPriorityMeta = (priority: string) => {
+  switch (priority) {
+    case "urgent":
+      return {
+        label: "Urgente",
+        weight: 4,
+        rowClass:
+          "bg-red-50/70 hover:bg-red-100/70 dark:bg-red-950/25 dark:hover:bg-red-950/40",
+        badgeClass:
+          "bg-red-100 text-red-800 border-red-200 dark:bg-red-950/40 dark:text-red-200 dark:border-red-900",
+      };
+    case "high":
+      return {
+        label: "Alta",
+        weight: 3,
+        rowClass:
+          "bg-orange-50/70 hover:bg-orange-100/70 dark:bg-orange-950/25 dark:hover:bg-orange-950/40",
+        badgeClass:
+          "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950/40 dark:text-orange-200 dark:border-orange-900",
+      };
+    case "medium":
+      return {
+        label: "Média",
+        weight: 2,
+        rowClass:
+          "bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-950/25 dark:hover:bg-amber-950/40",
+        badgeClass:
+          "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-900",
+      };
+    default:
+      return {
+        label: "Baixa",
+        weight: 1,
+        rowClass:
+          "bg-emerald-50/70 hover:bg-emerald-100/70 dark:bg-emerald-950/25 dark:hover:bg-emerald-950/40",
+        badgeClass:
+          "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-900",
+      };
+  }
+};
+
 const SupportAdminPage = () => {
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
-  
-  // Estado para exclusão
-  const [ticketToDelete, setTicketToDelete] = useState<any>(null);
+
+  const [ticketToDelete, setTicketToDelete] = useState<TicketItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -62,6 +120,7 @@ const SupportAdminPage = () => {
   const fetchTickets = async () => {
     setLoading(true);
     setError(null);
+
     try {
       const { data, error: fetchError } = await supabase
         .from("support_tickets")
@@ -74,7 +133,7 @@ const SupportAdminPage = () => {
         return;
       }
 
-      setTickets(data || []);
+      setTickets((data || []) as TicketItem[]);
     } catch (err: any) {
       console.error("[SupportAdmin] Erro inesperado:", err);
       setError(err.message || "Erro ao carregar dados.");
@@ -85,31 +144,38 @@ const SupportAdminPage = () => {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from("support_tickets")
         .update({ status, updated_at: new Date().toISOString() })
         .eq("id", id);
-      if (error) throw error;
+
+      if (updateError) {
+        throw updateError;
+      }
+
       toast.success("Status atualizado!");
       fetchTickets();
-    } catch (err) {
+    } catch {
       toast.error("Erro ao atualizar status.");
     }
   };
 
   const handleDeleteTicket = async () => {
     if (!ticketToDelete) return;
+
     setIsDeleting(true);
     try {
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from("support_tickets")
         .delete()
         .eq("id", ticketToDelete.id);
 
-      if (error) throw error;
+      if (deleteError) {
+        throw deleteError;
+      }
 
       toast.success("Ticket excluído com sucesso!");
-      setTickets(prev => prev.filter(t => t.id !== ticketToDelete.id));
+      setTickets((prev) => prev.filter((ticket) => ticket.id !== ticketToDelete.id));
       setTicketToDelete(null);
     } catch (err: any) {
       console.error("[SupportAdmin] Erro ao excluir ticket:", err);
@@ -119,14 +185,26 @@ const SupportAdminPage = () => {
     }
   };
 
-  const filteredTickets = tickets.filter(t => {
-    const matchesStatus = filterStatus === "all" || t.status === filterStatus;
-    const matchesSearch = 
-      t.subject.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (t.user?.full_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.user?.email || "").toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const filteredTickets = useMemo(() => {
+    return tickets
+      .filter((ticket) => {
+        const matchesStatus = filterStatus === "all" || ticket.status === filterStatus;
+        const matchesSearch =
+          ticket.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (ticket.user?.full_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (ticket.user?.email || "").toLowerCase().includes(searchTerm.toLowerCase());
+
+        return matchesStatus && matchesSearch;
+      })
+      .sort((a, b) => {
+        const priorityDiff = getPriorityMeta(b.priority).weight - getPriorityMeta(a.priority).weight;
+        if (priorityDiff !== 0) return priorityDiff;
+
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
+        return dateB - dateA;
+      });
+  }, [tickets, filterStatus, searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -146,7 +224,9 @@ const SupportAdminPage = () => {
           <div className="text-sm">
             <p className="font-bold">Erro ao carregar chamados</p>
             <p>{error}</p>
-            <p className="mt-2 text-xs opacity-80">Dica: Certifique-se de ter clicado em "Sincronizar Central de Suporte" nas Configurações.</p>
+            <p className="mt-2 text-xs opacity-80">
+              Dica: certifique-se de clicar em "Sincronizar Central de Suporte" nas Configurações.
+            </p>
           </div>
         </div>
       )}
@@ -154,11 +234,11 @@ const SupportAdminPage = () => {
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por assunto, nome ou e-mail..." 
+          <Input
+            placeholder="Buscar por assunto, nome ou e-mail..."
             className="pl-10"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(event) => setSearchTerm(event.target.value)}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -180,28 +260,45 @@ const SupportAdminPage = () => {
       <Card>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" /></div>
+            <div className="flex justify-center py-12">
+              <Loader2 className="animate-spin text-primary" />
+            </div>
           ) : filteredTickets.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Usuário</TableHead>
                   <TableHead>Assunto</TableHead>
+                  <TableHead>Prioridade</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTickets.map((t) => (
-                  <TableRow key={t.id}>
+                {filteredTickets.map((ticket) => (
+                  <TableRow
+                    key={ticket.id}
+                    className={cn("transition-colors", getPriorityMeta(ticket.priority).rowClass)}
+                  >
                     <TableCell>
-                      <div className="font-medium text-sm">{t.user?.full_name || "Usuário Desconhecido"}</div>
-                      <div className="text-[10px] text-muted-foreground">{t.user?.email || "N/A"}</div>
+                      <div className="font-medium text-sm">{ticket.user?.full_name || "Usuário desconhecido"}</div>
+                      <div className="text-[10px] text-muted-foreground">{ticket.user?.email || "N/A"}</div>
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate font-medium">{t.subject}</TableCell>
+                    <TableCell className="max-w-[280px] truncate font-medium">{ticket.subject}</TableCell>
                     <TableCell>
-                      <Select defaultValue={t.status} onValueChange={(v) => handleUpdateStatus(t.id, v)}>
+                      <Badge
+                        variant="outline"
+                        className={cn("font-semibold", getPriorityMeta(ticket.priority).badgeClass)}
+                      >
+                        {getPriorityMeta(ticket.priority).label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={ticket.status}
+                        onValueChange={(value) => handleUpdateStatus(ticket.id, value)}
+                      >
                         <SelectTrigger className="h-8 text-xs w-[140px]">
                           <SelectValue />
                         </SelectTrigger>
@@ -213,20 +310,20 @@ const SupportAdminPage = () => {
                       </Select>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {new Date(t.created_at).toLocaleDateString('pt-BR')}
+                      {new Date(ticket.created_at).toLocaleString("pt-BR")}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="sm" asChild className="gap-2">
-                          <Link to={`/admin/suporte/${t.id}`}>
+                          <Link to={`/admin/suporte/${ticket.id}`}>
                             <Eye className="h-4 w-4" /> Responder
                           </Link>
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           className="text-destructive hover:bg-destructive/10"
-                          onClick={() => setTicketToDelete(t)}
+                          onClick={() => setTicketToDelete(ticket)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -245,30 +342,35 @@ const SupportAdminPage = () => {
         </CardContent>
       </Card>
 
-      <AlertDialog open={!!ticketToDelete} onOpenChange={(open) => !open && setTicketToDelete(null)}>
+      <AlertDialog
+        open={Boolean(ticketToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setTicketToDelete(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <ShieldAlert className="h-5 w-5" />
-              Excluir Chamado Permanentemente
+              Excluir chamado permanentemente
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Você tem certeza que deseja excluir o ticket <strong>"{ticketToDelete?.subject}"</strong>? 
+              Você tem certeza que deseja excluir o ticket <strong>"{ticketToDelete?.subject}"</strong>?
               Esta ação é irreversível e apagará todo o histórico de mensagens para você e para o usuário.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={(event) => {
+                event.preventDefault();
                 handleDeleteTicket();
               }}
               disabled={isDeleting}
             >
               {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Confirmar Exclusão
+              Confirmar exclusão
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

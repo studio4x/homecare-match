@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface SiteConfig {
@@ -93,6 +93,15 @@ export interface SiteConfig {
   }> | null;
 }
 
+const isTransientNetworkError = (error: unknown) => {
+  const message = String((error as any)?.message || "").toLowerCase();
+  return (
+    message.includes("networkerror") ||
+    message.includes("failed to fetch") ||
+    message.includes("fetch resource") ||
+    message.includes("network request failed")
+  );
+};
 export const useSiteConfig = () => {
   return useQuery({
     queryKey: ["site-config"],
@@ -104,7 +113,9 @@ export const useSiteConfig = () => {
         .single();
 
       if (error) {
-        console.error("Erro ao buscar configurações do site:", error);
+        if (!isTransientNetworkError(error)) {
+          console.error("Erro ao buscar configurações do site:", error);
+        }
         return {
           id: 1,
           logo_url: null,
@@ -137,11 +148,11 @@ export const useSiteConfig = () => {
           chatbot_retention_days: 30,
           pwa_app_name: "HomeCare Match",
           pwa_short_name: "HomeCare",
-          pwa_description: "Conectando profissionais de saúde às melhores oportunidades em Home Care.",
+          pwa_description: "Conectando profissionais de saÃºde Ã s melhores oportunidades em Home Care.",
           pwa_theme_color: "#0f172a",
           pwa_background_color: "#ffffff",
           pwa_install_title: "Instale o app HomeCare Match",
-          pwa_install_description: "Acesse mais rápido pelo seu celular, direto da tela inicial.",
+          pwa_install_description: "Acesse mais rÃ¡pido pelo seu celular, direto da tela inicial.",
           pwa_assets_json: {},
           pwa_screenshots_json: []
         };
@@ -149,7 +160,8 @@ export const useSiteConfig = () => {
 
       return data;
     },
-    // Reduzido de 5 minutos para 30 segundos para refletir mudanças de layout mais rápido
+    // Reduzido de 5 minutos para 30 segundos para refletir mudanÃ§as de layout mais rÃ¡pido
     staleTime: 1000 * 30,
   });
 };
+

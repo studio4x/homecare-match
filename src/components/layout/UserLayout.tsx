@@ -38,6 +38,18 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import PwaInstallPrompt from "../PwaInstallPrompt";
 import SupportChatWidget from "../SupportChatWidget";
 
+const isTransientNetworkError = (error: unknown) => {
+  const message = String((error as any)?.message || "").toLowerCase();
+  return (
+    message.includes("networkerror") ||
+    message.includes("failed to fetch") ||
+    message.includes("fetch resource") ||
+    message.includes("network request failed")
+  );
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const UserLayout = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -57,11 +69,23 @@ const UserLayout = () => {
         return;
       }
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle();
+        let data: any = null;
+        let error: any = null;
+
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const response = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          data = response.data;
+          error = response.error;
+
+          if (!error) break;
+          if (!isTransientNetworkError(error) || attempt === 1) break;
+          await sleep(500);
+        }
 
         if (error) throw error;
 
@@ -81,7 +105,9 @@ const UserLayout = () => {
         setRole(data.role);
         setProfile(data);
       } catch (err) {
-        console.error("Erro ao carregar perfil no layout:", err);
+        if (!isTransientNetworkError(err)) {
+          console.error("Erro ao carregar perfil no layout:", err);
+        }
       } finally {
         setLoading(false);
       }

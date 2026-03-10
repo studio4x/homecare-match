@@ -72,6 +72,18 @@ type PlanCatalogItem = {
   features: string[];
 };
 
+const isTransientNetworkError = (error: unknown) => {
+  const message = String((error as any)?.message || "").toLowerCase();
+  return (
+    message.includes("networkerror") ||
+    message.includes("failed to fetch") ||
+    message.includes("fetch resource") ||
+    message.includes("network request failed")
+  );
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const OverviewPage = () => {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -115,11 +127,20 @@ const OverviewPage = () => {
     if (showToast) setIsRefreshing(true);
     
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      let data: any = null;
+      let error: any = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        data = response.data;
+        error = response.error;
+        if (!error) break;
+        if (!isTransientNetworkError(error) || attempt === 1) break;
+        await sleep(500);
+      }
       
       if (error) throw error;
 
@@ -152,7 +173,9 @@ const OverviewPage = () => {
 
       if (showToast) toast.success("Dados atualizados!");
     } catch (err) {
-      console.error("[Overview] Erro ao carregar perfil:", err);
+      if (!isTransientNetworkError(err)) {
+        console.error("[Overview] Erro ao carregar perfil:", err);
+      }
       if (showToast) toast.error("Erro ao atualizar dados.");
     } finally {
       setLoading(false);

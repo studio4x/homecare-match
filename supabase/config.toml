@@ -404,6 +404,9 @@ verify_jwt = false
 [functions.setup-user-notifications]
 verify_jwt = false
 
+[functions.notify-support]
+verify_jwt = false
+
 [functions.process-pending-refunds]
 verify_jwt = false
 

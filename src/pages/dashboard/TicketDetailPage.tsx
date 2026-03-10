@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,41 @@ const TicketDetailPage = () => {
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const notifySupport = async (payload: Record<string, any>) => {
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        console.warn("[SupportChat] Sem token para notify-support.");
+        return;
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/notify-support`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          ...payload,
+          access_token: accessToken,
+        }),
+      });
+
+      if (!response.ok) {
+        const detail = await response.text();
+        console.warn("[SupportChat] Falha notify-support:", response.status, detail);
+      }
+    } catch (error) {
+      console.warn("[SupportChat] Falha inesperada notify-support:", error);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -146,9 +181,7 @@ const TicketDetailPage = () => {
       if (error) throw error;
 
       if (newStatus === 'closed') {
-        supabase.functions.invoke('notify-support', {
-          body: { type: 'ticket_closed', ticketId: id, senderId: user?.id }
-        }).catch(err => console.warn("Falha ao notificar fechamento:", err));
+        notifySupport({ type: "ticket_closed", ticketId: id, senderId: user?.id });
       }
 
       toast.success("Status atualizado!");
@@ -201,14 +234,12 @@ const TicketDetailPage = () => {
 
       if (error) throw error;
 
-      supabase.functions.invoke('notify-support', {
-        body: { 
-          type: 'new_message', 
-          ticketId: id, 
-          senderId: user?.id, 
-          message: messageText || (attachment ? "[Arquivo Anexo]" : "") 
-        }
-      }).catch(err => console.warn("Falha ao notificar nova mensagem:", err));
+      notifySupport({
+        type: "new_message",
+        ticketId: id,
+        senderId: user?.id,
+        message: messageText || (attachment ? "[Arquivo Anexo]" : ""),
+      });
 
       setNewMessage("");
       setAttachment(null);

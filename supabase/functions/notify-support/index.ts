@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
 
@@ -14,12 +14,49 @@ serve(async (req) => {
   }
 
   try {
-    const { type, ticketId, senderId } = await req.json();
+    const payload = await req.json();
+    const { type, ticketId, senderId } = payload || {};
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
+
+    const authHeader = req.headers.get("Authorization");
+    const bearerToken = authHeader?.replace("Bearer ", "").trim() || "";
+    const bodyToken = typeof payload?.access_token === "string" ? payload.access_token.trim() : "";
+    const token = bearerToken || bodyToken;
+
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Nao autorizado: token ausente." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: "Nao autorizado: token invalido." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const actorId = authData.user.id;
+    const { data: actorProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email, role, is_admin")
+      .eq("id", actorId)
+      .maybeSingle();
+
+    const actorIsAdmin = Boolean(actorProfile?.is_admin || actorProfile?.role === "admin");
+
+    if (senderId && senderId !== actorId && !actorIsAdmin) {
+      return new Response(JSON.stringify({ error: "Acesso negado: remetente invalido." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from("support_tickets")
@@ -27,39 +64,32 @@ serve(async (req) => {
       .eq("id", ticketId)
       .maybeSingle();
 
-    if (ticketError) {
-      console.warn("[notify-support] erro ao buscar ticket:", ticketError.message);
+    if (ticketError || !ticket) {
+      return new Response(JSON.stringify({ error: "Ticket nao encontrado." }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    let ticketOwner = null;
-    if (ticket?.user_id) {
-      const { data: ownerData, error: ownerError } = await supabaseAdmin
-        .from("profiles")
-        .select("full_name, email")
-        .eq("id", ticket.user_id)
-        .maybeSingle();
-
-      if (ownerError) {
-        console.warn("[notify-support] erro ao buscar dono do ticket:", ownerError.message);
-      }
-      ticketOwner = ownerData;
+    if (!actorIsAdmin && ticket.user_id !== actorId) {
+      return new Response(JSON.stringify({ error: "Acesso negado ao ticket." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    let sender = null;
-    if (senderId) {
-      const { data: senderData, error: senderError } = await supabaseAdmin
-        .from("profiles")
-        .select("full_name, role, is_admin")
-        .eq("id", senderId)
-        .maybeSingle();
-
-      if (senderError) {
-        console.warn("[notify-support] erro ao buscar remetente:", senderError.message);
-      }
-      sender = senderData;
+    if (type === "ticket_closed" && !actorIsAdmin) {
+      return new Response(JSON.stringify({ error: "Apenas admin pode encerrar ticket." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const isAdminAction = Boolean(sender?.is_admin || sender?.role === "admin");
+    const { data: ticketOwner } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", ticket.user_id)
+      .maybeSingle();
 
     const siteUrl = Deno.env.get("SITE_URL") || "https://www.homecarematch.com.br";
     const smtpHost = Deno.env.get("SMTP_HOST");
@@ -89,7 +119,7 @@ serve(async (req) => {
       });
     };
 
-    if (isAdminAction && ticket) {
+    if (actorIsAdmin) {
       let title = "Nova resposta no suporte";
       let content = `Nossa equipe respondeu ao seu chamado: "${ticket.subject}"`;
 
@@ -111,9 +141,9 @@ serve(async (req) => {
     }
 
     if (type === "new_ticket") {
-      const ticketSubject = ticket?.subject || "Sem assunto";
       const ownerName = ticketOwner?.full_name || "Usuario";
       const ownerEmail = ticketOwner?.email || "E-mail nao informado";
+      const ticketSubject = ticket?.subject || "Sem assunto";
       const ticketCategory = ticket?.category || "nao informada";
       const ticketPriority = ticket?.priority || "nao definida";
       const ticketUrl = `${siteUrl}/admin/suporte/${ticketId}`;
@@ -129,26 +159,26 @@ serve(async (req) => {
         await sendAdminEmail(
           `Novo ticket de suporte: ${ticketSubject}`,
           `
-          <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
-            <h2 style="margin: 0 0 12px; color: #2563eb;">Novo Ticket de Suporte</h2>
-            <p style="margin: 0 0 16px;">Um novo chamado foi aberto na plataforma.</p>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
-              <tr><td style="padding: 6px 0;"><strong>Usuario:</strong></td><td>${ownerName}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>E-mail:</strong></td><td>${ownerEmail}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Assunto:</strong></td><td>${ticketSubject}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Categoria:</strong></td><td>${ticketCategory}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Prioridade:</strong></td><td>${ticketPriority}</td></tr>
-            </table>
-            <a href="${ticketUrl}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
-              Abrir ticket no admin
-            </a>
-          </div>
-        `,
+            <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
+              <h2 style="margin: 0 0 12px; color: #2563eb;">Novo Ticket de Suporte</h2>
+              <p style="margin: 0 0 16px;">Um novo chamado foi aberto na plataforma.</p>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+                <tr><td style="padding: 6px 0;"><strong>Usuario:</strong></td><td>${ownerName}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>E-mail:</strong></td><td>${ownerEmail}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Assunto:</strong></td><td>${ticketSubject}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Categoria:</strong></td><td>${ticketCategory}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Prioridade:</strong></td><td>${ticketPriority}</td></tr>
+              </table>
+              <a href="${ticketUrl}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
+                Abrir ticket no admin
+              </a>
+            </div>
+          `,
         );
       } catch (emailError) {
         console.error("[notify-support] falha ao enviar e-mail admin:", emailError?.message || emailError);
       }
-    } else if (type === "new_message" && !isAdminAction) {
+    } else if (type === "new_message" && !actorIsAdmin) {
       await supabaseAdmin.from("admin_notifications").insert({
         title: "Nova mensagem em ticket",
         content: `${ticketOwner?.full_name || "Usuario"} respondeu no ticket #${String(ticketId).slice(0, 8)}`,

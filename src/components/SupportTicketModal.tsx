@@ -31,7 +31,7 @@ import {
   FileText,
   Lock
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
@@ -141,18 +141,43 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
 
       if (error) throw error;
 
-      supabase.functions
-        .invoke('notify-support', {
-          body: { type: 'new_ticket', ticketId: data.id, senderId: user?.id }
-        })
-        .then(({ error: notifyError }) => {
-          if (notifyError) {
-            console.warn("[SupportTicketModal] Falha ao notificar admin:", notifyError);
+      (async () => {
+        try {
+          const {
+            data: { session: currentSession },
+          } = await supabase.auth.getSession();
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          const accessToken =
+            refreshed.session?.access_token || currentSession?.access_token || session?.access_token || "";
+
+          if (!accessToken) {
+            console.warn("[SupportTicketModal] Sem token para notificar admin.");
+            return;
           }
-        })
-        .catch((notifyErr) => {
+
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/notify-support`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              type: "new_ticket",
+              ticketId: data.id,
+              senderId: user?.id,
+              access_token: accessToken,
+            }),
+          });
+
+          if (!response.ok) {
+            const detail = await response.text();
+            console.warn("[SupportTicketModal] Falha ao notificar admin:", response.status, detail);
+          }
+        } catch (notifyErr) {
           console.warn("[SupportTicketModal] Falha inesperada ao notificar admin:", notifyErr);
-        });
+        }
+      })();
 
       toast.success("Chamado aberto com sucesso!");
       onOpenChange(false);

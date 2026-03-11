@@ -267,9 +267,9 @@
   Mobile: ok
   Observacoes:
 
-- [ ] P1-25 Botoes de acao exibidos corretamente (Ver FAQ, Abrir chamado, Navegar para pagina citada)
-  Desktop:
-  Mobile:
+- [OK] P1-25 Botoes de acao exibidos corretamente (Ver FAQ, Abrir chamado, Navegar para pagina citada)
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [OK] P1-26 Respostas sem exibicao de rotas cruas (ex.: "/dashboard/..."), usando texto amigavel
@@ -287,22 +287,43 @@
   Mobile: OK
   Observacoes:
 
-- [ ] P1-29 Toggle admin de estrategia do bot (IA first x IA secundaria) aplicado no frontend
+- [OK] P1-29 Toggle admin de estrategia do bot (IA first x IA secundaria) aplicado no frontend
+  Desktop: OK
+  Mobile: OK
+  Observacoes:
+
+- [OK] P1-30 Toggle admin para selo "Resposta por IA/FAQ" funcionando no widget
+  Desktop: OK
+  Mobile: OK
+  Observacoes:
+
+- [OK] P1-31 Guias de uso consumidos pelo chatbot mas nao expostos no frontend
+  Desktop: OK
+  Mobile: OK
+  Observacoes:
+
+- [ OK P1-32 Perguntas sem resposta viram sugestoes no admin, com acao de criar FAQ
+  Desktop: OK
+  Mobile: OK
+  Observacoes:
+
+### 2.4.1 Chatbot - Encerramento por Inatividade (novo)
+- [ ] P1-47 Chat envia aviso de inatividade apos 5 minutos sem interacao do usuario
+  Desktop: OK
+  Mobile: OK
+  Observacoes:
+
+- [ ] P1-48 Chat encerra automaticamente apos 10 minutos sem interacao e limpa o widget no frontend
   Desktop:
   Mobile:
   Observacoes:
 
-- [ ] P1-30 Toggle admin para selo "Resposta por IA/FAQ" funcionando no widget
+- [ ] P1-49 Sessao encerrada por inatividade fica marcada no admin com badge e data/hora
   Desktop:
   Mobile:
   Observacoes:
 
-- [ ] P1-31 Guias de uso consumidos pelo chatbot mas nao expostos no frontend
-  Desktop:
-  Mobile:
-  Observacoes:
-
-- [ ] P1-32 Perguntas sem resposta viram sugestoes no admin, com acao de criar FAQ
+- [ ] P1-50 Sessao encerrada manualmente pelo usuario continua marcada no admin sem conflitar com autoencerramento
   Desktop:
   Mobile:
   Observacoes:
@@ -419,7 +440,7 @@
   Mobile:
   Observacoes:
 
-- [ ] SMK-07 Fluxo ponta a ponta do chatbot validado (publico + logado + admin)
+- [ ] SMK-07 Fluxo ponta a ponta do chatbot validado (publico + logado + admin + inatividade 5/10 min)
   Desktop:
   Mobile:
   Observacoes:

@@ -123,7 +123,7 @@ serve(async (req) => {
     await supabaseAdmin.from("chatbot_messages").insert({
       session_id: sessionId,
       role: "system",
-      content: "Conversa encerrada pelo usuario.",
+      content: "Conversa encerrada pelo usuário.",
       mode: "system",
       sources: [],
     } as any);

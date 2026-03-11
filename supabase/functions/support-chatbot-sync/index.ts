@@ -12,7 +12,7 @@ const corsHeaders = {
 const INACTIVITY_WARNING_MS = 5 * 60 * 1000;
 const INACTIVITY_CLOSE_MS = 10 * 60 * 1000;
 const INACTIVITY_WARNING_TEXT =
-  "Estou sem novas mensagens suas ha 5 minutos. Se nao houver interacao, esta conversa sera encerrada automaticamente em 5 minutos.";
+  "Estou sem novas mensagens suas há 5 minutos. Se não houver interação, esta conversa será encerrada automaticamente em 5 minutos.";
 const INACTIVITY_CLOSE_TEXT = "Conversa encerrada automaticamente por inatividade de 10 minutos.";
 
 const isUuidLike = (value: string) =>
@@ -224,29 +224,38 @@ serve(async (req) => {
 
     if (idleMs >= INACTIVITY_WARNING_MS && !warningAlreadySent) {
       const warningCreatedAt = new Date().toISOString();
-      await supabaseAdmin.from("chatbot_messages").insert({
-        session_id: sessionId,
-        role: "assistant",
-        content: INACTIVITY_WARNING_TEXT,
-        mode: "system",
-        sources: [],
-      } as any);
-
-      await supabaseAdmin
+      const { data: warningLockRow, error: warningLockError } = await supabaseAdmin
         .from("chatbot_sessions")
         .update({
           inactivity_warning_sent_at: warningCreatedAt,
           last_mode: "system",
           updated_at: warningCreatedAt,
         } as any)
-        .eq("id", sessionId);
+        .eq("id", sessionId)
+        .eq("auto_closed_session", false)
+        .eq("user_closed_session", false)
+        .is("inactivity_warning_sent_at", null)
+        .select("id")
+        .maybeSingle();
 
-      session = {
-        ...session,
-        inactivity_warning_sent_at: warningCreatedAt,
-        last_mode: "system",
-        updated_at: warningCreatedAt,
-      };
+      if (warningLockError) throw warningLockError;
+
+      if (warningLockRow?.id) {
+        await supabaseAdmin.from("chatbot_messages").insert({
+          session_id: sessionId,
+          role: "assistant",
+          content: INACTIVITY_WARNING_TEXT,
+          mode: "system",
+          sources: [],
+        } as any);
+
+        session = {
+          ...session,
+          inactivity_warning_sent_at: warningCreatedAt,
+          last_mode: "system",
+          updated_at: warningCreatedAt,
+        };
+      }
     }
 
     let query = supabaseAdmin

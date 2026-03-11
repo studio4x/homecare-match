@@ -2,10 +2,10 @@
 import path from "node:path";
 
 const isCI = process.env.CI === "true" || process.env.CI === "1";
-const allowCiBump = process.env.HCM_BUMP_IN_CI === "true" || process.env.HCM_BUMP_IN_CI === "1";
+const skipCiBump = process.env.HCM_SKIP_BUMP_IN_CI === "true" || process.env.HCM_SKIP_BUMP_IN_CI === "1";
 
-if (isCI && !allowCiBump) {
-  console.log("[bump:build-version] Skipped in CI (set HCM_BUMP_IN_CI=1 to force bump).");
+if (isCI && skipCiBump) {
+  console.log("[bump:build-version] Skipped in CI (HCM_SKIP_BUMP_IN_CI=1).");
   process.exit(0);
 }
 

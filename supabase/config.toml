@@ -446,6 +446,12 @@ verify_jwt = false
 [functions.support-chatbot-ask]
 verify_jwt = false
 
+[functions.support-chatbot-sync]
+verify_jwt = false
+
+[functions.support-chatbot-close-session]
+verify_jwt = false
+
 [functions.referral-config]
 verify_jwt = false
 

@@ -113,7 +113,9 @@ serve(async (req) => {
       ADD COLUMN IF NOT EXISTS human_handoff_admin_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
       ADD COLUMN IF NOT EXISTS human_handoff_admin_name TEXT,
       ADD COLUMN IF NOT EXISTS human_handoff_started_at TIMESTAMPTZ,
-      ADD COLUMN IF NOT EXISTS human_handoff_ended_at TIMESTAMPTZ;
+      ADD COLUMN IF NOT EXISTS human_handoff_ended_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS user_closed_session BOOLEAN NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS user_closed_at TIMESTAMPTZ;
 
       DO $chatbot_mode$
       BEGIN
@@ -168,6 +170,7 @@ serve(async (req) => {
       CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_user ON public.chatbot_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_visitor_hash ON public.chatbot_sessions(visitor_hash);
       CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_handoff_active ON public.chatbot_sessions(human_handoff_active, updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_user_closed ON public.chatbot_sessions(user_closed_session, updated_at DESC);
       CREATE INDEX IF NOT EXISTS idx_chatbot_messages_session_created ON public.chatbot_messages(session_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_chatbot_usage_logs_request_date ON public.chatbot_usage_logs(request_date DESC);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_chatbot_unanswered_questions_normalized_question ON public.chatbot_unanswered_questions(normalized_question);

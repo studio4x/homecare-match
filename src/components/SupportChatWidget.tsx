@@ -442,6 +442,22 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   };
 
   const handleEndConversation = () => {
+    const sessionToClose = sessionId;
+    const visitorHeader = visitorId;
+
+    if (sessionToClose) {
+      void supabase.functions
+        .invoke("support-chatbot-close-session", {
+          body: { session_id: sessionToClose },
+          headers: {
+            "x-chatbot-visitor-id": visitorHeader,
+          },
+        })
+        .catch((error) => {
+          console.error("[SupportChatWidget] erro ao encerrar sessao:", error);
+        });
+    }
+
     setConversationStarted(false);
     setMessages([]);
     setSessionId("");

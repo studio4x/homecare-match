@@ -126,7 +126,7 @@ const ChatbotConversationsPage = () => {
     try {
       const { data, error } = await supabase
         .from("chatbot_sessions")
-        .select("id,user_id,visitor_hash,page_path,role_context,last_mode,created_at,updated_at,human_handoff_active,human_handoff_admin_id,human_handoff_admin_name,human_handoff_started_at,human_handoff_ended_at")
+        .select("id,user_id,visitor_hash,page_path,role_context,last_mode,created_at,updated_at,human_handoff_active,human_handoff_admin_id,human_handoff_admin_name,human_handoff_started_at,human_handoff_ended_at,user_closed_session,user_closed_at")
         .order("updated_at", { ascending: false })
         .limit(200);
 
@@ -464,6 +464,13 @@ const ChatbotConversationsPage = () => {
                                 <Badge className={`h-5 px-2 text-[10px] ${slaStyle.className}`}>SLA: {slaLabel || "-"}</Badge>
                               </div>
                             )}
+                            {session.user_closed_session && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge variant="outline" className="h-5 border-rose-300 px-2 text-[10px] text-rose-700">
+                                  Encerrada pelo usuario
+                                </Badge>
+                              </div>
+                            )}
                             <p className="line-clamp-1 text-[10px] text-muted-foreground">{session.page_path || "-"}</p>
                           </TableCell>
                           <TableCell>{modeBadge(session.last_mode)}</TableCell>
@@ -514,6 +521,11 @@ const ChatbotConversationsPage = () => {
                     </>
                   ) : (
                     <Badge variant="outline">Chatbot automatico ativo</Badge>
+                  )}
+                  {selectedSession.user_closed_session && (
+                    <Badge variant="outline" className="border-rose-300 text-rose-700">
+                      Encerrada pelo usuario em {formatDateTime(selectedSession.user_closed_at)}
+                    </Badge>
                   )}
                   {selectedSession.human_handoff_active ? (
                     <Button

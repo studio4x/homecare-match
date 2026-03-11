@@ -329,35 +329,35 @@
   Observacoes:
 
 ### 2.5 Marketing (UTM + Encurtador) (novo)
-- [ ] P1-33 Admin cria URL com UTM e gera link encurtado funcionando no redirecionamento
-  Desktop:
+- [OK] P1-33 Admin cria URL com UTM e gera link encurtado funcionando no redirecionamento
+  Desktop: OK
   Mobile: NA
   Observacoes:
 
-- [ ] P1-34 Contadores por link (cliques e cadastros) atualizam corretamente
-  Desktop:
+- [OK] P1-34 Contadores por link (cliques e cadastros) atualizam corretamente
+  Desktop: OK
   Mobile: NA
   Observacoes:
 
-- [ ] P1-35 Filtro por periodo (7/30/90 dias) e grafico por link funcionando
-  Desktop:
+- [OK] P1-35 Filtro por periodo (7/30/90 dias) e grafico por link funcionando
+  Desktop: OK
   Mobile: NA
   Observacoes:
 
-- [ ] P1-36 Campos UTM com textos de ajuda visiveis no admin
-  Desktop:
+- [OK] P1-36 Campos UTM com textos de ajuda visiveis no admin
+  Desktop: OK
   Mobile: NA
   Observacoes:
 
 ### 2.6 Ajustes de Widgets Flutuantes (novo)
-- [ ] P1-37 Botao "voltar ao topo" acima do sino de notificacoes, com nova cor e alinhamento correto
-  Desktop:
-  Mobile:
+- [OK] P1-37 Botao "voltar ao topo" acima do sino de notificacoes, com nova cor e alinhamento correto
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-38 Distanciamento/empilhamento visual entre icones flutuantes sem sobreposicao
-  Desktop:
-  Mobile:
+- [OK] P1-38 Distanciamento/empilhamento visual entre icones flutuantes sem sobreposicao
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 ### 2.7 Programa de Indicacoes (novo)

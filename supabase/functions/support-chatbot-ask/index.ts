@@ -375,7 +375,7 @@ const sha256Hex = async (value: string) => {
 const isUuidLike = (value: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || "").trim());
 
-const buildDefaultActions = (isLoggedIn: boolean) => {
+const buildSupportActions = (isLoggedIn: boolean) => {
   if (isLoggedIn) {
     return [
       { type: "link", label: "Ver FAQ", url: "/suporte" },
@@ -535,17 +535,56 @@ const buildContextualAction = (route: string, isLoggedIn: boolean) => {
 const buildSuggestedActions = ({
   isLoggedIn,
   primaryRoute,
+  fallbackToSupport = false,
 }: {
   isLoggedIn: boolean;
   primaryRoute?: string;
+  fallbackToSupport?: boolean;
 }) => {
-  const actions = buildDefaultActions(isLoggedIn).map((item) => ({ ...item }));
   const contextualAction = buildContextualAction(primaryRoute || "", isLoggedIn);
-  if (!contextualAction) return actions;
+  if (contextualAction) return [contextualAction];
+  if (fallbackToSupport) return buildSupportActions(isLoggedIn).map((item) => ({ ...item }));
+  return [];
+};
 
-  const exists = actions.some((item) => item.label === contextualAction.label && item.url === contextualAction.url);
-  if (!exists) actions.push(contextualAction);
-  return actions;
+const resolvePrimaryRouteFromAnswer = (answer: string) => {
+  const normalized = normalizeText(answer);
+  if (!normalized) return "";
+
+  const matchFromPath = String(answer || "").match(INTERNAL_PATH_REGEX);
+  if (matchFromPath && matchFromPath.length > 0) {
+    for (const token of matchFromPath) {
+      const candidate = token.trim().replace(/^[^(\/a-z0-9-]*/i, "");
+      const route = normalizeRoutePath(candidate);
+      if (!route) continue;
+      if (route === "/suporte") continue;
+      return route;
+    }
+  }
+
+  const textHints: Array<{ tokens: string[]; route: string }> = [
+    { tokens: ["dashboard", "pagamentos"], route: "/dashboard/pagamentos" },
+    { tokens: ["dashboard", "perfil"], route: "/dashboard/perfil" },
+    { tokens: ["dashboard", "contatos"], route: "/dashboard/contatos" },
+    { tokens: ["dashboard", "suporte"], route: "/dashboard/suporte" },
+    { tokens: ["dashboard", "cursos"], route: "/dashboard/cursos" },
+    { tokens: ["dashboard", "pacientes"], route: "/dashboard/pacientes" },
+    { tokens: ["dashboard", "avisos"], route: "/dashboard/avisos" },
+    { tokens: ["dashboard"], route: "/dashboard" },
+    { tokens: ["busca de profissionais"], route: "/buscar" },
+    { tokens: ["buscar profissionais"], route: "/buscar" },
+    { tokens: ["cursos"], route: "/cursos" },
+    { tokens: ["funcionalidades"], route: "/funcionalidades" },
+    { tokens: ["cadastro de empresa"], route: "/cadastro-empresa" },
+    { tokens: ["login"], route: "/login" },
+  ];
+
+  for (const hint of textHints) {
+    const ok = hint.tokens.every((token) => normalized.includes(normalizeText(token)));
+    if (ok) return hint.route;
+  }
+
+  return "";
 };
 
 const SIGNUP_ACTIONS = [
@@ -1381,7 +1420,7 @@ serve(async (req) => {
           answer:
             "Voce atingiu o limite diario de perguntas do assistente. Tente novamente amanha ou abra um chamado de suporte.",
           can_open_ticket: !!userId,
-          suggested_actions: buildDefaultActions(!!userId),
+          suggested_actions: buildSupportActions(!!userId),
           sources: [],
           handoff_active: false,
           handoff_admin_name: null,
@@ -1545,7 +1584,7 @@ serve(async (req) => {
           sources: Array.isArray(sources) ? sources : [],
           mode,
           can_open_ticket: !!userId,
-          suggested_actions: Array.isArray(suggestedActions) ? suggestedActions : buildDefaultActions(!!userId),
+          suggested_actions: Array.isArray(suggestedActions) ? suggestedActions : buildSupportActions(!!userId),
           handoff_active: false,
           handoff_admin_name: null,
         }),
@@ -1561,7 +1600,7 @@ serve(async (req) => {
         answer: config.chatbot_out_of_scope_message,
         mode: "fallback",
         sources: [],
-        suggestedActions: buildDefaultActions(!!userId),
+        suggestedActions: buildSupportActions(!!userId),
         decisionMeta: {
           intent_detected: "competitor",
           effective_intent: "competitor",
@@ -1635,7 +1674,7 @@ serve(async (req) => {
         answer: adaptAnswerForDisplay(buildClarificationAnswer(userFirstName || null), !!userId),
         mode: "fallback",
         sources: [],
-        suggestedActions: buildDefaultActions(!!userId),
+        suggestedActions: buildSupportActions(!!userId),
         decisionMeta: {
           intent_detected: intentDetected,
           effective_intent: effectiveIntent,
@@ -2005,12 +2044,14 @@ ${rawMessage}
     answer = adaptAnswerForDisplay(answer, !!userId);
 
     const finalSources = mode === "fallback" || decisionPath === "clarify" ? [] : sources;
+    const primaryRoute =
+      resolvePrimaryRouteFromSources(finalSources) || resolvePrimaryRouteFromAnswer(answer);
     const suggestedActions =
       mode === "fallback" || decisionPath === "clarify"
-        ? buildDefaultActions(!!userId)
+        ? buildSupportActions(!!userId)
         : buildSuggestedActions({
             isLoggedIn: !!userId,
-            primaryRoute: resolvePrimaryRouteFromSources(finalSources),
+            primaryRoute,
           });
 
     if (unansweredReason) {

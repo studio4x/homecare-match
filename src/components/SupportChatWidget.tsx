@@ -49,6 +49,16 @@ const TRAILING_PUNCTUATION_PATTERN = /[.,;:!?)]$/;
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+const formatMessageTime = (value?: string) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
 const getOrCreateVisitorId = () => {
   const current = window.localStorage.getItem(VISITOR_ID_KEY);
   if (current) return current;
@@ -648,6 +658,17 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
                                   </Button>
                                 ))}
                               </div>
+                            )}
+
+                            {message.createdAt && (
+                              <p
+                                className={cn(
+                                  "mt-1 text-right text-[10px]",
+                                  message.role === "user" ? "text-primary-foreground/80" : "text-muted-foreground",
+                                )}
+                              >
+                                {formatMessageTime(message.createdAt)}
+                              </p>
                             )}
                           </div>
                         </div>

@@ -389,6 +389,12 @@ const buildDefaultActions = (isLoggedIn: boolean) => {
   ];
 };
 
+const buildHandoffPausedAnswer = (userName?: string | null, adminName?: string | null) => {
+  const prefix = userName ? `${userName}, ` : "";
+  const owner = adminName ? `por ${adminName}` : "pela equipe de atendimento";
+  return `${prefix}seu atendimento foi assumido ${owner}. O chatbot automatico esta pausado. Pode continuar enviando suas mensagens por aqui que o admin responde em seguida.`;
+};
+
 const ROUTE_META = [
   { path: "/dashboard/pagamentos", label: "Dashboard > Pagamentos", authRequired: true },
   { path: "/dashboard/perfil", label: "Dashboard > Perfil", authRequired: true },
@@ -1303,6 +1309,8 @@ serve(async (req) => {
           session_id: requestedSessionId || "",
           mode: "fallback",
           answer: config.chatbot_error_message,
+          handoff_active: false,
+          handoff_admin_name: null,
         }),
         {
           status: 403,
@@ -1375,6 +1383,8 @@ serve(async (req) => {
           can_open_ticket: !!userId,
           suggested_actions: buildDefaultActions(!!userId),
           sources: [],
+          handoff_active: false,
+          handoff_admin_name: null,
         }),
         {
           status: 429,
@@ -1405,10 +1415,12 @@ serve(async (req) => {
     }
 
     let sessionId = "";
+    let sessionHandoffActive = false;
+    let sessionHandoffAdminName: string | null = null;
     if (requestedSessionId && isUuidLike(requestedSessionId)) {
       const { data: existingSession } = await supabaseAdmin
         .from("chatbot_sessions")
-        .select("id, user_id, visitor_hash")
+        .select("id, user_id, visitor_hash, human_handoff_active, human_handoff_admin_name")
         .eq("id", requestedSessionId)
         .maybeSingle();
 
@@ -1419,6 +1431,8 @@ serve(async (req) => {
 
       if (isOwner) {
         sessionId = existingSession.id;
+        sessionHandoffActive = !!existingSession.human_handoff_active;
+        sessionHandoffAdminName = existingSession.human_handoff_admin_name || null;
       }
     }
 
@@ -1432,13 +1446,15 @@ serve(async (req) => {
           role_context: roleContext,
           last_mode: "system",
         })
-        .select("id")
+        .select("id, human_handoff_active, human_handoff_admin_name")
         .single();
 
       if (sessionError || !createdSession?.id) {
         throw new Error(sessionError?.message || "Falha ao criar sessao do chatbot.");
       }
       sessionId = createdSession.id;
+      sessionHandoffActive = !!createdSession.human_handoff_active;
+      sessionHandoffAdminName = createdSession.human_handoff_admin_name || null;
     } else {
       await supabaseAdmin
         .from("chatbot_sessions")
@@ -1457,6 +1473,25 @@ serve(async (req) => {
       mode: "system",
       sources: [],
     });
+
+    if (sessionHandoffActive) {
+      return new Response(
+        JSON.stringify({
+          session_id: sessionId,
+          answer: buildHandoffPausedAnswer(userFirstName || null, sessionHandoffAdminName || null),
+          sources: [],
+          mode: "fallback",
+          can_open_ticket: !!userId,
+          suggested_actions: [],
+          handoff_active: true,
+          handoff_admin_name: sessionHandoffAdminName || null,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     const respondWithAssistantMessage = async ({
       answer,
@@ -1511,6 +1546,8 @@ serve(async (req) => {
           mode,
           can_open_ticket: !!userId,
           suggested_actions: Array.isArray(suggestedActions) ? suggestedActions : buildDefaultActions(!!userId),
+          handoff_active: false,
+          handoff_admin_name: null,
         }),
         {
           status,

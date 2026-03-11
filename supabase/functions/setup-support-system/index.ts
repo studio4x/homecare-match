@@ -108,6 +108,31 @@ serve(async (req) => {
       ALTER TABLE IF EXISTS public.chatbot_messages
       ADD COLUMN IF NOT EXISTS decision_meta JSONB NOT NULL DEFAULT '{}'::jsonb;
 
+      ALTER TABLE IF EXISTS public.chatbot_sessions
+      ADD COLUMN IF NOT EXISTS human_handoff_active BOOLEAN NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS human_handoff_admin_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS human_handoff_admin_name TEXT,
+      ADD COLUMN IF NOT EXISTS human_handoff_started_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS human_handoff_ended_at TIMESTAMPTZ;
+
+      DO $chatbot_mode$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'chatbot_messages_mode_check'
+            AND conrelid = 'public.chatbot_messages'::regclass
+        ) THEN
+          ALTER TABLE public.chatbot_messages
+            DROP CONSTRAINT chatbot_messages_mode_check;
+        END IF;
+      END
+      $chatbot_mode$;
+
+      ALTER TABLE IF EXISTS public.chatbot_messages
+      ADD CONSTRAINT chatbot_messages_mode_check
+      CHECK (mode IS NULL OR mode IN ('faq', 'ai', 'fallback', 'system', 'human'));
+
       CREATE TABLE IF NOT EXISTS public.chatbot_usage_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         actor_key TEXT NOT NULL,
@@ -142,6 +167,7 @@ serve(async (req) => {
       CREATE INDEX IF NOT EXISTS idx_support_guides_published ON public.support_guides(is_published);
       CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_user ON public.chatbot_sessions(user_id);
       CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_visitor_hash ON public.chatbot_sessions(visitor_hash);
+      CREATE INDEX IF NOT EXISTS idx_chatbot_sessions_handoff_active ON public.chatbot_sessions(human_handoff_active, updated_at DESC);
       CREATE INDEX IF NOT EXISTS idx_chatbot_messages_session_created ON public.chatbot_messages(session_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_chatbot_usage_logs_request_date ON public.chatbot_usage_logs(request_date DESC);
       CREATE UNIQUE INDEX IF NOT EXISTS idx_chatbot_unanswered_questions_normalized_question ON public.chatbot_unanswered_questions(normalized_question);
@@ -307,6 +333,13 @@ serve(async (req) => {
           USING (check_is_admin());
         END IF;
 
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'chatbot_sessions_admin_update') THEN
+          CREATE POLICY "chatbot_sessions_admin_update" ON public.chatbot_sessions
+          FOR UPDATE TO authenticated
+          USING (check_is_admin())
+          WITH CHECK (check_is_admin());
+        END IF;
+
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'chatbot_messages_user_read_own') THEN
           CREATE POLICY "chatbot_messages_user_read_own" ON public.chatbot_messages
           FOR SELECT TO authenticated
@@ -324,6 +357,12 @@ serve(async (req) => {
           CREATE POLICY "chatbot_messages_admin_read" ON public.chatbot_messages
           FOR SELECT TO authenticated
           USING (check_is_admin());
+        END IF;
+
+        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'chatbot_messages_admin_insert') THEN
+          CREATE POLICY "chatbot_messages_admin_insert" ON public.chatbot_messages
+          FOR INSERT TO authenticated
+          WITH CHECK (check_is_admin());
         END IF;
 
         IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'chatbot_usage_logs_admin_read') THEN

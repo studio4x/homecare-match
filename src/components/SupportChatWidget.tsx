@@ -15,7 +15,7 @@ interface SupportChatWidgetProps {
   context?: "public" | "dashboard";
 }
 
-type ChatMode = "faq" | "ai" | "fallback";
+type ChatMode = "faq" | "ai" | "fallback" | "human";
 
 type SourceItem = {
   id: string;
@@ -39,6 +39,7 @@ type ChatMessage = {
   mode?: ChatMode;
   sources?: SourceItem[];
   actions?: ActionItem[];
+  createdAt?: string;
 };
 
 const VISITOR_ID_KEY = "hcm_chatbot_visitor_id";
@@ -67,6 +68,7 @@ const normalizeLoadedMessages = (raw: unknown): ChatMessage[] => {
       mode: item.mode,
       sources: Array.isArray(item.sources) ? item.sources : [],
       actions: Array.isArray(item.actions) ? item.actions : [],
+      createdAt: typeof item.createdAt === "string" ? item.createdAt : typeof item.created_at === "string" ? item.created_at : undefined,
     }))
     .filter((item) => item.content.trim().length > 0)
     .slice(-MAX_LOCAL_MESSAGES);
@@ -116,6 +118,7 @@ const getModeBadge = (mode?: ChatMode) => {
   if (mode === "ai") return { label: "Resposta por IA", className: "bg-blue-600 hover:bg-blue-600 text-white" };
   if (mode === "faq") return { label: "Resposta por FAQ", className: "bg-emerald-600 hover:bg-emerald-600 text-white" };
   if (mode === "fallback") return { label: "Resposta fallback", className: "bg-amber-600 hover:bg-amber-600 text-white" };
+  if (mode === "human") return { label: "Atendimento Humano", className: "bg-indigo-600 hover:bg-indigo-600 text-white" };
   return null;
 };
 
@@ -133,11 +136,14 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const [isSending, setIsSending] = useState(false);
   const [isSlowThinking, setIsSlowThinking] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
+  const [handoffActive, setHandoffActive] = useState(false);
+  const [handoffAdminName, setHandoffAdminName] = useState("");
   const [visitorId, setVisitorId] = useState<string>("");
   const [roleContext, setRoleContext] = useState<string | null>(null);
   const [userFirstName, setUserFirstName] = useState("");
   const [storageReady, setStorageReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const lastSyncedAtRef = useRef<string>("");
 
   const chatbotEnabled = siteConfig?.chatbot_enabled ?? true;
   const showModeBadge = siteConfig?.chatbot_show_mode_badge ?? false;
@@ -167,6 +173,21 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
     setMessages((prev) => [...prev, message].slice(-MAX_LOCAL_MESSAGES));
   };
 
+  const mergeIncomingAssistantMessages = (incoming: ChatMessage[]) => {
+    if (!Array.isArray(incoming) || incoming.length === 0) return;
+
+    setMessages((prev) => {
+      const existingIds = new Set(prev.map((msg) => msg.id));
+      const next = [...prev];
+      for (const msg of incoming) {
+        if (!msg?.id || existingIds.has(msg.id)) continue;
+        existingIds.add(msg.id);
+        next.push(msg);
+      }
+      return next.slice(-MAX_LOCAL_MESSAGES);
+    });
+  };
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const id = getOrCreateVisitorId();
@@ -187,13 +208,22 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
         const parsed = JSON.parse(savedRaw);
         const loadedMessages = normalizeLoadedMessages(parsed);
         setMessages(loadedMessages);
+        const latestCreatedAt =
+          loadedMessages
+            .map((msg) => msg.createdAt)
+            .filter((value): value is string => typeof value === "string" && value.length > 0)
+            .sort()
+            .slice(-1)[0] || "";
+        lastSyncedAtRef.current = latestCreatedAt;
         setConversationStarted(savedStarted || loadedMessages.length > 0 || !!savedSessionId);
       } else {
         setMessages([]);
+        lastSyncedAtRef.current = "";
         setConversationStarted(savedStarted || !!savedSessionId);
       }
     } catch (_err) {
       setMessages([]);
+      lastSyncedAtRef.current = "";
       setConversationStarted(false);
     } finally {
       setStorageReady(true);
@@ -264,6 +294,16 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   }, [messages, open, isSending, isMinimized, conversationStarted]);
 
   useEffect(() => {
+    const latestCreatedAt =
+      messages
+        .map((msg) => msg.createdAt)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+        .sort()
+        .slice(-1)[0] || "";
+    if (latestCreatedAt) lastSyncedAtRef.current = latestCreatedAt;
+  }, [messages]);
+
+  useEffect(() => {
     if (!isSending) {
       setIsSlowThinking(false);
       return;
@@ -276,6 +316,62 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
 
     return () => window.clearTimeout(timeoutId);
   }, [isSending]);
+
+  useEffect(() => {
+    if (!open || !conversationStarted || !sessionId) return;
+
+    let cancelled = false;
+
+    const syncMessages = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("support-chatbot-sync", {
+          body: {
+            session_id: sessionId,
+            after: lastSyncedAtRef.current || undefined,
+          },
+          headers: {
+            "x-chatbot-visitor-id": visitorId,
+          },
+        });
+
+        if (cancelled || error) return;
+
+        if (typeof data?.handoff_active === "boolean") {
+          setHandoffActive(!!data.handoff_active);
+          setHandoffAdminName(String(data?.handoff_admin_name || "").trim());
+        }
+
+        const incomingRows = Array.isArray(data?.messages) ? data.messages : [];
+        if (incomingRows.length > 0) {
+          const incomingMessages = incomingRows
+            .filter((row: any) => row?.id && row?.role === "assistant" && String(row?.content || "").trim().length > 0)
+            .map((row: any) => ({
+              id: String(row.id),
+              role: "assistant" as const,
+              content: String(row.content || ""),
+              mode: (String(row.mode || "fallback") as ChatMode) || "fallback",
+              sources: Array.isArray(row.sources) ? row.sources : [],
+              actions: [],
+              createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
+            }));
+
+          mergeIncomingAssistantMessages(incomingMessages);
+        }
+      } catch (_err) {
+        // silent sync errors; send flow remains primary path
+      }
+    };
+
+    void syncMessages();
+    const intervalId = window.setInterval(() => {
+      void syncMessages();
+    }, 4000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [open, conversationStarted, sessionId, visitorId]);
 
   const handleActionClick = (action: ActionItem) => {
     if (!action?.url) return;
@@ -340,6 +436,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
         id: createMessageId(),
         role: "assistant",
         content: personalizedWelcomeMessage,
+        createdAt: new Date().toISOString(),
       });
     }
   };
@@ -348,6 +445,9 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
     setConversationStarted(false);
     setMessages([]);
     setSessionId("");
+    setHandoffActive(false);
+    setHandoffAdminName("");
+    lastSyncedAtRef.current = "";
     setInput("");
     setIsSending(false);
   };
@@ -360,6 +460,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
       id: createMessageId(),
       role: "user",
       content: text,
+      createdAt: new Date().toISOString(),
     });
     setInput("");
     setIsSending(true);
@@ -383,6 +484,10 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
 
       const nextSessionId = String(data?.session_id || "");
       if (nextSessionId) setSessionId(nextSessionId);
+      if (typeof data?.handoff_active === "boolean") {
+        setHandoffActive(!!data.handoff_active);
+        setHandoffAdminName(String(data?.handoff_admin_name || "").trim());
+      }
 
       appendMessage({
         id: createMessageId(),
@@ -391,6 +496,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
         mode: (String(data?.mode || "fallback") as ChatMode) || "fallback",
         sources: Array.isArray(data?.sources) ? data.sources : [],
         actions: Array.isArray(data?.suggested_actions) ? data.suggested_actions : [],
+        createdAt: new Date().toISOString(),
       });
     } catch (error) {
       console.error("[SupportChatWidget] erro:", error);
@@ -408,6 +514,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
               { type: "link", label: "Ver FAQ", url: "/suporte" },
               { type: "link", label: "Entrar para abrir chamado", url: "/login" },
             ],
+        createdAt: new Date().toISOString(),
       });
     } finally {
       setIsSending(false);
@@ -469,6 +576,13 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
                 <>
                   <div ref={scrollRef} className="flex-1 overflow-y-auto">
                     <div className="space-y-3 p-3">
+                      {handoffActive && (
+                        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-700">
+                          Atendimento humano ativo
+                          {handoffAdminName ? ` com ${handoffAdminName}` : ""}. O chatbot automatico esta pausado.
+                        </div>
+                      )}
+
                       {messages.map((message) => (
                         <div
                           key={message.id}
@@ -537,7 +651,11 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
                             sendMessage();
                           }
                         }}
-                        placeholder="Pergunte sobre funcionalidades..."
+                        placeholder={
+                          handoffActive
+                            ? "Envie sua mensagem para o atendimento humano..."
+                            : "Pergunte sobre funcionalidades..."
+                        }
                         disabled={isSending}
                       />
                       <Button size="icon" onClick={sendMessage} disabled={isSending || !input.trim()}>

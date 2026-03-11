@@ -272,9 +272,9 @@
   Mobile:
   Observacoes:
 
-- [ ] P1-26 Respostas sem exibicao de rotas cruas (ex.: "/dashboard/..."), usando texto amigavel
-  Desktop:
-  Mobile:
+- [OK] P1-26 Respostas sem exibicao de rotas cruas (ex.: "/dashboard/..."), usando texto amigavel
+  Desktop: ok
+  Mobile: ok
   Observacoes:
 
 - [OK] P1-27 Intent de cadastro: bot pergunta tipo de cadastro e direciona com botao apropriado
@@ -282,9 +282,9 @@
   Mobile: OK
   Observacoes:
 
-- [ ] P1-28 Conteudo de planos/pagamentos coerente (incluindo Plano Anual e regra de teste gratis)
-  Desktop:
-  Mobile:
+- [OK] P1-28 Conteudo de planos/pagamentos coerente (incluindo Plano Anual e regra de teste gratis)
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [ ] P1-29 Toggle admin de estrategia do bot (IA first x IA secundaria) aplicado no frontend

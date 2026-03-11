@@ -302,30 +302,30 @@
   Mobile: OK
   Observacoes:
 
-- [ OK P1-32 Perguntas sem resposta viram sugestoes no admin, com acao de criar FAQ
+- [OK] P1-32 Perguntas sem resposta viram sugestoes no admin, com acao de criar FAQ
   Desktop: OK
   Mobile: OK
   Observacoes:
 
 ### 2.4.1 Chatbot - Encerramento por Inatividade (novo)
-- [ ] P1-47 Chat envia aviso de inatividade apos 5 minutos sem interacao do usuario
+- [OK] P1-47 Chat envia aviso de inatividade apos 5 minutos sem interacao do usuario
   Desktop: OK
   Mobile: OK
   Observacoes:
 
-- [ ] P1-48 Chat encerra automaticamente apos 10 minutos sem interacao e limpa o widget no frontend
-  Desktop:
-  Mobile:
+- [OK] P1-48 Chat encerra automaticamente apos 10 minutos sem interacao e limpa o widget no frontend
+  Desktop: ok
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-49 Sessao encerrada por inatividade fica marcada no admin com badge e data/hora
-  Desktop:
-  Mobile:
+- [OK] P1-49 Sessao encerrada por inatividade fica marcada no admin com badge e data/hora
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-50 Sessao encerrada manualmente pelo usuario continua marcada no admin sem conflitar com autoencerramento
-  Desktop:
-  Mobile:
+- [OK] P1-50 Sessao encerrada manualmente pelo usuario continua marcada no admin sem conflitar com autoencerramento
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 ### 2.5 Marketing (UTM + Encurtador) (novo)

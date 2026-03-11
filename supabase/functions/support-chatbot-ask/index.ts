@@ -1,6 +1,15 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  buildClarificationAnswer,
+  buildCompanyContextAnswer,
+  isCompetitorIntent,
+  isLikelyConfirmationLoopAnswer,
+  resolveConversationSignals,
+  resolveDecisionPath,
+  shouldForceConcreteFollowup,
+} from "./intent-guard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -287,6 +296,8 @@ const DEFAULTS = {
 
 const HIGH_CONFIDENCE = 0.7;
 const MEDIUM_CONFIDENCE = 0.45;
+const SOURCE_MIN_SCORE = 0.12;
+const STRICT_CHATBOT_MODE = true;
 
 const normalizeText = (value: string) =>
   String(value || "")
@@ -983,6 +994,61 @@ const buildPlanKnowledgeDocs = (plans: any[], config: any) => {
 
     return [baseDoc, paymentDoc];
   });
+};
+
+const docMatchesIntent = (doc: any, effectiveIntent: string) => {
+  const intent = String(effectiveIntent || "unknown");
+  if (intent === "unknown" || intent === "competitor") return true;
+
+  const contentBlob = normalizeText(
+    `${doc?.title || ""} ${doc?.content || ""} ${Array.isArray(doc?.tags) ? doc.tags.join(" ") : ""}`,
+  );
+  if (!contentBlob) return false;
+
+  if (intent === "signup") {
+    return (
+      /\bcadastro\b/.test(contentBlob) ||
+      /\bcriar conta\b/.test(contentBlob) ||
+      /\bempresa\b/.test(contentBlob) ||
+      /\bfamilia\b/.test(contentBlob) ||
+      /\bprofissional\b/.test(contentBlob)
+    );
+  }
+
+  if (intent === "company_context") {
+    return (
+      /\bempresa\b/.test(contentBlob) ||
+      /\bhome care\b/.test(contentBlob) ||
+      /\bconcierge\b/.test(contentBlob) ||
+      /\bbusca\b/.test(contentBlob) ||
+      /\bprofissiona/.test(contentBlob)
+    );
+  }
+
+  if (intent === "plans") {
+    return (
+      doc?.type === "plan" ||
+      doc?.type === "policy" ||
+      /\bplano\b/.test(contentBlob) ||
+      /\bassinatura\b/.test(contentBlob) ||
+      /\bpagamento\b/.test(contentBlob) ||
+      /\bmensal\b/.test(contentBlob) ||
+      /\banual\b/.test(contentBlob)
+    );
+  }
+
+  if (intent === "trial_policy") {
+    return (
+      /\bteste gratis\b/.test(contentBlob) ||
+      /\bteste gratuito\b/.test(contentBlob) ||
+      /\bcupom\b/.test(contentBlob) ||
+      /\bacesso limitado\b/.test(contentBlob) ||
+      /\bdias de acesso\b/.test(contentBlob) ||
+      /\btrial\b/.test(contentBlob)
+    );
+  }
+
+  return true;
 };
 
 const scoreDoc = (questionTokens: string[], normalizedQuestion: string, doc: any, roleContext?: string | null) => {

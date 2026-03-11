@@ -24,16 +24,17 @@ describe("intent guard", () => {
     const signals = resolveConversationSignals({
       currentMessage: "explique",
       historyMessages: [
-        { role: "assistant", content: "Quer saber mais sobre isso?" },
-        {
-          role: "user",
-          content: "tenho uma empresa de home care",
-        },
         {
           role: "assistant",
           content:
             "Para empresas de home care o uso e gratuito e voce pode usar concierge para triagem urgente.",
         },
+        {
+          role: "user",
+          content: "tenho uma empresa de home care",
+        },
+        { role: "assistant", content: "Quer saber mais sobre isso?" },
+        { role: "user", content: "explique" },
       ],
     });
 

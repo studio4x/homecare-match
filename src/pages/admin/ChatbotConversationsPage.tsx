@@ -19,6 +19,16 @@ import { Loader2, RefreshCw, Bot, UserRound, Globe, MessageSquareText } from "lu
 import { toast } from "sonner";
 
 type ChatMode = "faq" | "ai" | "fallback" | "system" | null;
+type DecisionPath = "faq" | "ai" | "fallback" | "clarify" | null;
+
+type DecisionMeta = {
+  intent_detected?: string | null;
+  effective_intent?: string | null;
+  top_score?: number | null;
+  top_public_score?: number | null;
+  decision_path?: DecisionPath;
+  loop_guard_triggered?: boolean;
+};
 
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
@@ -35,6 +45,14 @@ const modeBadge = (mode: ChatMode) => {
   if (mode === "fallback") return <Badge variant="secondary">Fallback</Badge>;
   if (mode === "system") return <Badge variant="outline">System</Badge>;
   return <Badge variant="outline">-</Badge>;
+};
+
+const decisionPathBadge = (path: DecisionPath) => {
+  if (path === "ai") return <Badge className="bg-cyan-600">Path AI</Badge>;
+  if (path === "faq") return <Badge className="bg-emerald-600">Path FAQ</Badge>;
+  if (path === "clarify") return <Badge className="bg-amber-600">Path Clarify</Badge>;
+  if (path === "fallback") return <Badge variant="secondary">Path Fallback</Badge>;
+  return null;
 };
 
 const ChatbotConversationsPage = () => {
@@ -102,11 +120,25 @@ const ChatbotConversationsPage = () => {
     try {
       const { data, error } = await supabase
         .from("chatbot_messages")
-        .select("id,session_id,role,content,mode,sources,created_at")
+        .select("id,session_id,role,content,mode,sources,decision_meta,created_at")
         .eq("session_id", sessionId)
         .order("created_at", { ascending: true })
         .limit(400);
-      if (error) throw error;
+      if (error) {
+        const fallbackNeeded = String((error as any)?.message || "").toLowerCase().includes("decision_meta");
+        if (!fallbackNeeded) throw error;
+
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("chatbot_messages")
+          .select("id,session_id,role,content,mode,sources,created_at")
+          .eq("session_id", sessionId)
+          .order("created_at", { ascending: true })
+          .limit(400);
+        if (fallbackError) throw fallbackError;
+        setMessages((fallbackData || []).map((row) => ({ ...row, decision_meta: null })));
+        return;
+      }
+
       setMessages(data || []);
     } catch (error) {
       console.error(error);
@@ -284,6 +316,26 @@ const ChatbotConversationsPage = () => {
                         <span>{formatDateTime(msg.created_at)}</span>
                       </div>
                       <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                      {msg.role === "assistant" && msg.decision_meta && typeof msg.decision_meta === "object" && (
+                        <div className="mt-2 rounded-lg border bg-background/70 p-2 text-xs text-foreground">
+                          <div className="mb-1 flex items-center gap-2">
+                            <span className="font-semibold">Decision</span>
+                            {decisionPathBadge((msg.decision_meta as DecisionMeta)?.decision_path || null)}
+                          </div>
+                          <div className="space-y-0.5 text-[11px] text-muted-foreground">
+                            <p>intent_detected: {(msg.decision_meta as DecisionMeta)?.intent_detected || "-"}</p>
+                            <p>effective_intent: {(msg.decision_meta as DecisionMeta)?.effective_intent || "-"}</p>
+                            <p>
+                              top_score: {(msg.decision_meta as DecisionMeta)?.top_score ?? "-"} | top_public_score:{" "}
+                              {(msg.decision_meta as DecisionMeta)?.top_public_score ?? "-"}
+                            </p>
+                            <p>
+                              loop_guard_triggered:{" "}
+                              {(msg.decision_meta as DecisionMeta)?.loop_guard_triggered ? "true" : "false"}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       {Array.isArray(msg.sources) && msg.sources.length > 0 && (
                         <div className="mt-2 rounded-lg border bg-background/70 p-2 text-xs text-foreground">
                           <p className="mb-1 font-semibold">Fontes:</p>

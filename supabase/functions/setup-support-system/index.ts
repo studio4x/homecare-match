@@ -101,8 +101,12 @@ serve(async (req) => {
         content TEXT NOT NULL,
         mode TEXT CHECK (mode IN ('faq', 'ai', 'fallback', 'system')),
         sources JSONB NOT NULL DEFAULT '[]'::jsonb,
+        decision_meta JSONB NOT NULL DEFAULT '{}'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      ALTER TABLE IF EXISTS public.chatbot_messages
+      ADD COLUMN IF NOT EXISTS decision_meta JSONB NOT NULL DEFAULT '{}'::jsonb;
 
       CREATE TABLE IF NOT EXISTS public.chatbot_usage_logs (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

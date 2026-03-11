@@ -1458,26 +1458,40 @@ serve(async (req) => {
       sources: [],
     });
 
-    const signupIntentDetected = await shouldOfferSignupActions({
-      message: rawMessage,
-      config,
-      isLoggedIn: !!userId,
-      roleContext,
-    });
-
-    if (signupIntentDetected) {
-      const mode: "faq" = "faq";
-      const answer = sanitizeAnswer(buildSignupIntentAnswer(userFirstName || null));
-      const sources: any[] = [];
-      const suggestedActions = buildSignupActions();
-
-      await supabaseAdmin.from("chatbot_messages").insert({
+    const respondWithAssistantMessage = async ({
+      answer,
+      mode,
+      sources,
+      suggestedActions,
+      decisionMeta,
+      status = 200,
+    }: {
+      answer: string;
+      mode: "faq" | "ai" | "fallback";
+      sources: any[];
+      suggestedActions: any[];
+      decisionMeta: Record<string, unknown>;
+      status?: number;
+    }) => {
+      const payloadWithMeta = {
         session_id: sessionId,
         role: "assistant",
         content: answer,
         mode,
-        sources,
-      });
+        sources: Array.isArray(sources) ? sources : [],
+        decision_meta: decisionMeta || {},
+      };
+      const { error: insertError } = await supabaseAdmin.from("chatbot_messages").insert(payloadWithMeta);
+      if (insertError) {
+        const { error: fallbackInsertError } = await supabaseAdmin.from("chatbot_messages").insert({
+          session_id: sessionId,
+          role: "assistant",
+          content: answer,
+          mode,
+          sources: Array.isArray(sources) ? sources : [],
+        });
+        if (fallbackInsertError) throw fallbackInsertError;
+      }
 
       await supabaseAdmin
         .from("chatbot_sessions")
@@ -1493,16 +1507,33 @@ serve(async (req) => {
         JSON.stringify({
           session_id: sessionId,
           answer,
-          sources,
+          sources: Array.isArray(sources) ? sources : [],
           mode,
           can_open_ticket: !!userId,
-          suggested_actions: suggestedActions,
+          suggested_actions: Array.isArray(suggestedActions) ? suggestedActions : buildDefaultActions(!!userId),
         }),
         {
-          status: 200,
+          status,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
+    };
+
+    if (isCompetitorIntent(rawMessage)) {
+      return await respondWithAssistantMessage({
+        answer: config.chatbot_out_of_scope_message,
+        mode: "fallback",
+        sources: [],
+        suggestedActions: buildDefaultActions(!!userId),
+        decisionMeta: {
+          intent_detected: "competitor",
+          effective_intent: "competitor",
+          top_score: null,
+          top_public_score: null,
+          decision_path: "fallback",
+          loop_guard_triggered: false,
+        },
+      });
     }
 
     const [{ data: faqs }, { data: guides }, { data: plans }, { data: historyMessages }] = await Promise.all([
@@ -1524,6 +1555,14 @@ serve(async (req) => {
 
     const freeTrialDays = resolveFreeTrialDays(plans || []);
     const planDocsForActions = buildPlanKnowledgeDocs(plans || [], config);
+    const historyChronological = Array.isArray(historyMessages) ? [...historyMessages].reverse() : [];
+    const conversationSignals = resolveConversationSignals({
+      historyMessages: historyChronological,
+      currentMessage: rawMessage,
+    });
+    const intentDetected = conversationSignals.directIntent;
+    const effectiveIntent = conversationSignals.effectiveIntent;
+
     const planCatalogSources = planDocsForActions
       .filter((doc) => ["plan:yearly", "plan:monthly", "plan:free_trial"].includes(String(doc.id || "")))
       .slice(0, 3)
@@ -1535,49 +1574,6 @@ serve(async (req) => {
         snippet: compact(doc.content, 180),
         score: 1,
       }));
-
-    if (isPlanCatalogIntent(rawMessage)) {
-      const mode: "faq" = "faq";
-      const answer = adaptAnswerForDisplay(buildPlanCatalogAnswer(plans || [], userFirstName || null), !!userId);
-      const sources = planCatalogSources.length > 0 ? planCatalogSources : [];
-      const suggestedActions = buildSuggestedActions({
-        isLoggedIn: !!userId,
-        primaryRoute: "/dashboard/pagamentos",
-      });
-
-      await supabaseAdmin.from("chatbot_messages").insert({
-        session_id: sessionId,
-        role: "assistant",
-        content: answer,
-        mode,
-        sources,
-      });
-
-      await supabaseAdmin
-        .from("chatbot_sessions")
-        .update({
-          last_mode: mode,
-          page_path: requestedPagePath,
-          role_context: roleContext,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", sessionId);
-
-      return new Response(
-        JSON.stringify({
-          session_id: sessionId,
-          answer,
-          sources,
-          mode,
-          can_open_ticket: !!userId,
-          suggested_actions: suggestedActions,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
-    }
 
     const trialPolicyDoc = buildDocTokens({
       id: "policy:free-trial-coupon",
@@ -1597,9 +1593,143 @@ serve(async (req) => {
       audience: ["professional"],
     });
 
+    if (conversationSignals.shortFollowup && effectiveIntent === "unknown") {
+      return await respondWithAssistantMessage({
+        answer: adaptAnswerForDisplay(buildClarificationAnswer(userFirstName || null), !!userId),
+        mode: "fallback",
+        sources: [],
+        suggestedActions: buildDefaultActions(!!userId),
+        decisionMeta: {
+          intent_detected: intentDetected,
+          effective_intent: effectiveIntent,
+          top_score: null,
+          top_public_score: null,
+          decision_path: "clarify",
+          loop_guard_triggered: conversationSignals.loopGuardTriggered,
+        },
+      });
+    }
+
+    const allowSignupIntentCheck = !conversationSignals.shortFollowup || effectiveIntent === "signup";
+    const signupIntentDetected = allowSignupIntentCheck
+      ? await shouldOfferSignupActions({
+          message: rawMessage,
+          config,
+          isLoggedIn: !!userId,
+          roleContext,
+        })
+      : false;
+
+    if (signupIntentDetected || (conversationSignals.shortFollowup && effectiveIntent === "signup")) {
+      return await respondWithAssistantMessage({
+        answer: sanitizeAnswer(buildSignupIntentAnswer(userFirstName || null)),
+        mode: "faq",
+        sources: [],
+        suggestedActions: buildSignupActions(),
+        decisionMeta: {
+          intent_detected: signupIntentDetected ? "signup" : intentDetected,
+          effective_intent: "signup",
+          top_score: null,
+          top_public_score: null,
+          decision_path: "faq",
+          loop_guard_triggered: conversationSignals.loopGuardTriggered,
+        },
+      });
+    }
+
+    if (shouldForceConcreteFollowup(conversationSignals.shortFollowup, effectiveIntent)) {
+      if (effectiveIntent === "company_context") {
+        return await respondWithAssistantMessage({
+          answer: adaptAnswerForDisplay(buildCompanyContextAnswer(userFirstName || null), !!userId),
+          mode: "faq",
+          sources: [],
+          suggestedActions: buildSuggestedActions({
+            isLoggedIn: !!userId,
+            primaryRoute: "/buscar",
+          }),
+          decisionMeta: {
+            intent_detected: intentDetected,
+            effective_intent: effectiveIntent,
+            top_score: null,
+            top_public_score: null,
+            decision_path: "faq",
+            loop_guard_triggered: true,
+          },
+        });
+      }
+
+      if (effectiveIntent === "plans") {
+        return await respondWithAssistantMessage({
+          answer: adaptAnswerForDisplay(buildPlanCatalogAnswer(plans || [], userFirstName || null), !!userId),
+          mode: "faq",
+          sources: planCatalogSources,
+          suggestedActions: buildSuggestedActions({
+            isLoggedIn: !!userId,
+            primaryRoute: "/dashboard/pagamentos",
+          }),
+          decisionMeta: {
+            intent_detected: intentDetected,
+            effective_intent: effectiveIntent,
+            top_score: null,
+            top_public_score: null,
+            decision_path: "faq",
+            loop_guard_triggered: true,
+          },
+        });
+      }
+
+      if (effectiveIntent === "trial_policy") {
+        const sources = [
+          {
+            id: trialPolicyDoc.id,
+            type: trialPolicyDoc.type,
+            title: trialPolicyDoc.title,
+            route: trialPolicyDoc.route,
+            snippet: compact(trialPolicyDoc.content, 180),
+            score: 1,
+          },
+        ];
+        return await respondWithAssistantMessage({
+          answer: adaptAnswerForDisplay(buildTrialPolicyAnswer(freeTrialDays, userFirstName || null), !!userId),
+          mode: "faq",
+          sources,
+          suggestedActions: buildSuggestedActions({
+            isLoggedIn: !!userId,
+            primaryRoute: resolvePrimaryRouteFromSources(sources),
+          }),
+          decisionMeta: {
+            intent_detected: intentDetected,
+            effective_intent: effectiveIntent,
+            top_score: null,
+            top_public_score: null,
+            decision_path: "faq",
+            loop_guard_triggered: true,
+          },
+        });
+      }
+    }
+
+    if (isPlanCatalogIntent(rawMessage)) {
+      return await respondWithAssistantMessage({
+        answer: adaptAnswerForDisplay(buildPlanCatalogAnswer(plans || [], userFirstName || null), !!userId),
+        mode: "faq",
+        sources: planCatalogSources.length > 0 ? planCatalogSources : [],
+        suggestedActions: buildSuggestedActions({
+          isLoggedIn: !!userId,
+          primaryRoute: "/dashboard/pagamentos",
+        }),
+        decisionMeta: {
+          intent_detected: "plans",
+          effective_intent: "plans",
+          top_score: null,
+          top_public_score: null,
+          decision_path: "faq",
+          loop_guard_triggered: conversationSignals.loopGuardTriggered,
+        },
+      });
+    }
+
     if (isTrialPolicyIntent(rawMessage, historyMessages || [])) {
-      const mode: "faq" = "faq";
-      const answer = adaptAnswerForDisplay(buildTrialPolicyAnswer(freeTrialDays, userFirstName || null), !!userId);
       const sources = [
         {
           id: trialPolicyDoc.id,
@@ -1610,43 +1740,23 @@ serve(async (req) => {
           score: 1,
         },
       ];
-      const suggestedActions = buildSuggestedActions({
-        isLoggedIn: !!userId,
-        primaryRoute: resolvePrimaryRouteFromSources(sources),
-      });
-
-      await supabaseAdmin.from("chatbot_messages").insert({
-        session_id: sessionId,
-        role: "assistant",
-        content: answer,
-        mode,
+      return await respondWithAssistantMessage({
+        answer: adaptAnswerForDisplay(buildTrialPolicyAnswer(freeTrialDays, userFirstName || null), !!userId),
+        mode: "faq",
         sources,
-      });
-
-      await supabaseAdmin
-        .from("chatbot_sessions")
-        .update({
-          last_mode: mode,
-          page_path: requestedPagePath,
-          role_context: roleContext,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", sessionId);
-
-      return new Response(
-        JSON.stringify({
-          session_id: sessionId,
-          answer,
-          sources,
-          mode,
-          can_open_ticket: !!userId,
-          suggested_actions: suggestedActions,
+        suggestedActions: buildSuggestedActions({
+          isLoggedIn: !!userId,
+          primaryRoute: resolvePrimaryRouteFromSources(sources),
         }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        decisionMeta: {
+          intent_detected: "trial_policy",
+          effective_intent: "trial_policy",
+          top_score: null,
+          top_public_score: null,
+          decision_path: "faq",
+          loop_guard_triggered: conversationSignals.loopGuardTriggered,
         },
-      );
+      });
     }
 
     const docs = [
@@ -1688,8 +1798,12 @@ serve(async (req) => {
       ),
     ];
 
-    const normalizedQuestion = normalizeText(rawMessage);
-    const questionTokens = tokenize(rawMessage);
+    const retrievalMessage =
+      conversationSignals.shortFollowup && conversationSignals.topicHint
+        ? `${rawMessage} ${conversationSignals.topicHint}`.trim()
+        : rawMessage;
+    const normalizedQuestion = normalizeText(retrievalMessage);
+    const questionTokens = tokenize(retrievalMessage);
     const scored = docs
       .map((doc) => ({ ...doc, score: scoreDoc(questionTokens, normalizedQuestion, doc, roleContext) }))
       .sort((a, b) => b.score - a.score);
@@ -1703,10 +1817,12 @@ serve(async (req) => {
     let mode: "faq" | "ai" | "fallback" = "fallback";
     let answer = config.chatbot_out_of_scope_message;
     let unansweredReason: "low_confidence" | "ai_out_of_scope" | null = null;
+    let decisionPath: "faq" | "ai" | "fallback" | "clarify" = "fallback";
     const sourceCandidates = aiContextDocs.length > 0 ? aiContextDocs : topDocs;
     const publicSourceCandidates = topPublicDocs.length > 0 ? topPublicDocs : publicDocs.slice(0, 8);
     const sources = publicSourceCandidates
-      .filter((doc) => Number(doc.score || 0) >= 0.08)
+      .filter((doc) => Number(doc.score || 0) >= SOURCE_MIN_SCORE)
+      .filter((doc) => docMatchesIntent(doc, effectiveIntent))
       .slice(0, 4)
       .map((doc) => ({
         id: doc.id,
@@ -1760,6 +1876,7 @@ Regras obrigatorias:
 - Se houver nome do usuario no contexto, pode usar o nome com naturalidade no inicio da resposta, sem repetir em excesso.
 - Regra fixa para cadastro/teste/cupom: no cadastro padrao sao ${freeTrialDays} dias de acesso gratuito e limitado. Se houver cupom valido no cadastro, prevalece a quantidade de dias configurada no cupom. Nunca diga acesso total nesse contexto.
 - Se o usuario estiver deslogado, nao diga para acessar Dashboard como acao imediata. Explique o passo considerando que primeiro precisa entrar na conta.
+- Se a mensagem do usuario for um follow-up curto (como "sim", "quero", "explique"), mantenha o assunto atual e entregue conteudo objetivo, sem fazer outra pergunta de confirmacao.
 
 Contexto autorizado:
 ${context || "(nenhuma fonte especifica encontrada no momento)"}
@@ -1768,6 +1885,7 @@ Contexto do usuario:
 Nome: ${userFirstName || "(nao informado)"}
 Perfil: ${roleContext || "(nao informado)"}
 Autenticacao: ${authState}
+Intencao efetiva detectada: ${effectiveIntent || "unknown"}
 
 Historico recente:
 ${history || "(sem historico relevante)"}
@@ -1784,13 +1902,32 @@ ${rawMessage}
     };
 
     const aiFirstEnabled = config.chatbot_use_ai && config.chatbot_ai_first;
+    decisionPath = resolveDecisionPath({
+      strictMode: STRICT_CHATBOT_MODE,
+      chatbotUseAi: !!config.chatbot_use_ai,
+      aiFirstEnabled,
+      topScore,
+      topPublicScore,
+      hasResolvedFollowupTopic: conversationSignals.hasResolvedFollowupTopic,
+      shortFollowup: conversationSignals.shortFollowup,
+      effectiveIntent,
+      highConfidence: HIGH_CONFIDENCE,
+      mediumConfidence: MEDIUM_CONFIDENCE,
+    });
 
-    if (aiFirstEnabled) {
+    if (decisionPath === "clarify") {
+      mode = "fallback";
+      answer = buildClarificationAnswer(userFirstName || null);
+    } else if (decisionPath === "faq") {
+      mode = "faq";
+      answer = buildFaqModeAnswer(retrievalMessage, topPublicDocs, userFirstName || null);
+    } else if (decisionPath === "ai") {
       try {
         const aiAnswer = await runAiAnswer(sourceCandidates);
 
         if (normalizeText(aiAnswer) === normalizeText(config.chatbot_out_of_scope_message)) {
           mode = "fallback";
+          decisionPath = "fallback";
           answer = config.chatbot_out_of_scope_message;
           unansweredReason = "ai_out_of_scope";
         } else {
@@ -1799,78 +1936,45 @@ ${rawMessage}
         }
       } catch (_err) {
         mode = "fallback";
+        decisionPath = "fallback";
         answer = config.chatbot_error_message;
       }
-    } else if (config.chatbot_use_ai) {
-      if (topPublicScore >= HIGH_CONFIDENCE) {
-        mode = "faq";
-        answer = buildFaqModeAnswer(rawMessage, topPublicDocs, userFirstName || null);
-      } else if (topScore >= MEDIUM_CONFIDENCE) {
-        try {
-          const aiAnswer = await runAiAnswer(sourceCandidates);
-          if (normalizeText(aiAnswer) === normalizeText(config.chatbot_out_of_scope_message)) {
-            mode = "fallback";
-            answer = config.chatbot_out_of_scope_message;
-            unansweredReason = "ai_out_of_scope";
-          } else {
-            mode = "ai";
-            answer = aiAnswer;
-          }
-        } catch (_err) {
-          mode = "fallback";
-          answer = config.chatbot_error_message;
-        }
-      } else {
-        mode = "fallback";
-        answer = config.chatbot_out_of_scope_message;
-        unansweredReason = "low_confidence";
-      }
-    } else if (topPublicScore >= MEDIUM_CONFIDENCE) {
-      mode = "faq";
-      answer = buildFaqModeAnswer(rawMessage, topPublicDocs, userFirstName || null);
     } else {
       mode = "fallback";
       answer = config.chatbot_out_of_scope_message;
       unansweredReason = "low_confidence";
     }
 
-    answer = adaptAnswerForDisplay(answer, !!userId);
+    let loopGuardTriggered = conversationSignals.loopGuardTriggered;
+    if (mode !== "fallback" && conversationSignals.shortFollowup && isLikelyConfirmationLoopAnswer(answer)) {
+      loopGuardTriggered = true;
+      decisionPath = effectiveIntent === "unknown" ? "clarify" : "faq";
 
-    if (!sources.length && topPublicDocs.length > 0) {
-      for (const doc of topPublicDocs.slice(0, 2)) {
-        sources.push({
-          id: doc.id,
-          type: doc.type,
-          title: doc.title,
-          route: doc.route,
-          snippet: compact(doc.content, 180),
-          score: Number(Number(doc.score || 0).toFixed(3)),
-        });
+      if (effectiveIntent === "plans") {
+        mode = "faq";
+        answer = buildPlanCatalogAnswer(plans || [], userFirstName || null);
+      } else if (effectiveIntent === "trial_policy") {
+        mode = "faq";
+        answer = buildTrialPolicyAnswer(freeTrialDays, userFirstName || null);
+      } else if (effectiveIntent === "company_context") {
+        mode = "faq";
+        answer = buildCompanyContextAnswer(userFirstName || null);
+      } else {
+        mode = "fallback";
+        answer = buildClarificationAnswer(userFirstName || null);
       }
     }
 
-    const suggestedActions = buildSuggestedActions({
-      isLoggedIn: !!userId,
-      primaryRoute: resolvePrimaryRouteFromSources(sources),
-    });
+    answer = adaptAnswerForDisplay(answer, !!userId);
 
-    await supabaseAdmin.from("chatbot_messages").insert({
-      session_id: sessionId,
-      role: "assistant",
-      content: answer,
-      mode,
-      sources,
-    });
-
-    await supabaseAdmin
-      .from("chatbot_sessions")
-      .update({
-        last_mode: mode,
-        page_path: requestedPagePath,
-        role_context: roleContext,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sessionId);
+    const finalSources = mode === "fallback" || decisionPath === "clarify" ? [] : sources;
+    const suggestedActions =
+      mode === "fallback" || decisionPath === "clarify"
+        ? buildDefaultActions(!!userId)
+        : buildSuggestedActions({
+            isLoggedIn: !!userId,
+            primaryRoute: resolvePrimaryRouteFromSources(finalSources),
+          });
 
     if (unansweredReason) {
       await trackUnansweredQuestion({
@@ -1884,20 +1988,20 @@ ${rawMessage}
       });
     }
 
-    return new Response(
-      JSON.stringify({
-        session_id: sessionId,
-        answer,
-        sources,
-        mode,
-        can_open_ticket: !!userId,
-        suggested_actions: suggestedActions,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return await respondWithAssistantMessage({
+      answer,
+      mode,
+      sources: finalSources,
+      suggestedActions,
+      decisionMeta: {
+        intent_detected: intentDetected,
+        effective_intent: effectiveIntent,
+        top_score: Number(topScore.toFixed(3)),
+        top_public_score: Number(topPublicScore.toFixed(3)),
+        decision_path: decisionPath,
+        loop_guard_triggered: loopGuardTriggered,
       },
-    );
+    });
   } catch (error) {
     console.error("[support-chatbot-ask] erro:", error?.message || error);
     return new Response(

@@ -95,11 +95,10 @@ serve(async (req) => {
       (!userId &&
         !session.user_id &&
         visitorHashCandidates.includes(String(session.visitor_hash || "")));
-
     if (!isOwner) {
-      return new Response(JSON.stringify({ error: "Sem permissao para encerrar esta sessao." }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      console.warn("[support-chatbot-close-session] encerramento sem owner-match", {
+        session_id: sessionId,
+        user_id_present: !!userId,
       });
     }
 

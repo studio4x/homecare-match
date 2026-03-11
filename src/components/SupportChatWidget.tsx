@@ -42,10 +42,14 @@ type ChatMessage = {
   createdAt?: string;
 };
 
+type SessionClosedReason = "user" | "inactivity";
+
 const VISITOR_ID_KEY = "hcm_chatbot_visitor_id";
 const MAX_LOCAL_MESSAGES = 60;
 const LINK_PATTERN = /(https?:\/\/[^\s]+)/g;
 const TRAILING_PUNCTUATION_PATTERN = /[.,;:!?)]$/;
+const AUTO_CLOSE_AFTER_MS = 10 * 60 * 1000;
+const USER_INACTIVITY_CLOSED_TEXT = "Chat encerrado por inatividade. Clique em \"Iniciar novo chat\" para continuar.";
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -149,12 +153,16 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const [sessionId, setSessionId] = useState<string>("");
   const [handoffActive, setHandoffActive] = useState(false);
   const [handoffAdminName, setHandoffAdminName] = useState("");
+  const [sessionClosedReason, setSessionClosedReason] = useState<SessionClosedReason | null>(null);
+  const [sessionClosedAt, setSessionClosedAt] = useState("");
   const [visitorId, setVisitorId] = useState<string>("");
   const [roleContext, setRoleContext] = useState<string | null>(null);
   const [userFirstName, setUserFirstName] = useState("");
   const [storageReady, setStorageReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const lastSyncedAtRef = useRef<string>("");
+  const lastUserInteractionAtRef = useRef<number>(Date.now());
+  const autoCloseInFlightRef = useRef(false);
 
   const chatbotEnabled = siteConfig?.chatbot_enabled ?? true;
   const showModeBadge = siteConfig?.chatbot_show_mode_badge ?? false;
@@ -190,10 +198,55 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
     setSessionId("");
     setHandoffActive(false);
     setHandoffAdminName("");
+    setSessionClosedReason(null);
+    setSessionClosedAt("");
     lastSyncedAtRef.current = "";
+    lastUserInteractionAtRef.current = Date.now();
+    autoCloseInFlightRef.current = false;
     setInput("");
     setIsSending(false);
   }, []);
+
+  const appendSystemClosureMessage = useCallback((reason: SessionClosedReason, closedAt?: string) => {
+    const content =
+      reason === "inactivity"
+        ? USER_INACTIVITY_CLOSED_TEXT
+        : "Conversa encerrada. Clique em \"Iniciar novo chat\" para continuar.";
+    const createdAt = closedAt || new Date().toISOString();
+
+    setMessages((prev) => {
+      const alreadyExists = prev.some(
+        (msg) => msg.role === "assistant" && msg.mode === "system" && String(msg.content || "").trim() === content,
+      );
+      if (alreadyExists) return prev;
+      return [
+        ...prev,
+        {
+          id: createMessageId(),
+          role: "assistant",
+          content,
+          mode: "system",
+          actions: [],
+          createdAt,
+        },
+      ].slice(-MAX_LOCAL_MESSAGES);
+    });
+  }, []);
+
+  const markSessionClosed = useCallback(
+    (reason: SessionClosedReason, closedAt?: string) => {
+      const resolvedClosedAt = closedAt || new Date().toISOString();
+      setSessionClosedReason(reason);
+      setSessionClosedAt(resolvedClosedAt);
+      setIsSending(false);
+      setInput("");
+      setHandoffActive(false);
+      setHandoffAdminName("");
+      autoCloseInFlightRef.current = false;
+      appendSystemClosureMessage(reason, resolvedClosedAt);
+    },
+    [appendSystemClosureMessage],
+  );
 
   const mergeIncomingAssistantMessages = (incoming: ChatMessage[]) => {
     if (!Array.isArray(incoming) || incoming.length === 0) return;
@@ -230,6 +283,16 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
         const parsed = JSON.parse(savedRaw);
         const loadedMessages = normalizeLoadedMessages(parsed);
         setMessages(loadedMessages);
+        const latestUserInteractionAt =
+          loadedMessages
+            .filter((msg) => msg.role === "user")
+            .map((msg) => msg.createdAt)
+            .filter((value): value is string => typeof value === "string" && value.length > 0)
+            .sort()
+            .slice(-1)[0] || "";
+        lastUserInteractionAtRef.current = latestUserInteractionAt
+          ? new Date(latestUserInteractionAt).getTime()
+          : Date.now();
         const latestCreatedAt =
           loadedMessages
             .map((msg) => msg.createdAt)
@@ -241,11 +304,13 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
       } else {
         setMessages([]);
         lastSyncedAtRef.current = "";
+        lastUserInteractionAtRef.current = Date.now();
         setConversationStarted(savedStarted || !!savedSessionId);
       }
     } catch (_err) {
       setMessages([]);
       lastSyncedAtRef.current = "";
+      lastUserInteractionAtRef.current = Date.now();
       setConversationStarted(false);
     } finally {
       setStorageReady(true);
@@ -364,19 +429,25 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
         }
 
         if (data?.session_closed) {
-          resetConversationLocally();
+          const closedReason = String(data?.closed_reason || "").trim() === "inactivity" ? "inactivity" : "user";
+          markSessionClosed(closedReason, String(data?.closed_at || ""));
           return;
         }
 
         const incomingRows = Array.isArray(data?.messages) ? data.messages : [];
         if (incomingRows.length > 0) {
           const incomingMessages = incomingRows
-            .filter((row: any) => row?.id && row?.role === "assistant" && String(row?.content || "").trim().length > 0)
+            .filter(
+              (row: any) =>
+                row?.id &&
+                (row?.role === "assistant" || row?.role === "system") &&
+                String(row?.content || "").trim().length > 0,
+            )
             .map((row: any) => ({
               id: String(row.id),
               role: "assistant" as const,
               content: String(row.content || ""),
-              mode: (String(row.mode || "fallback") as ChatMode) || "fallback",
+              mode: (String(row.mode || "system") as ChatMode) || "system",
               sources: Array.isArray(row.sources) ? row.sources : [],
               actions: [],
               createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
@@ -398,7 +469,47 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [open, conversationStarted, sessionId, visitorId, resetConversationLocally]);
+  }, [open, conversationStarted, sessionId, visitorId, markSessionClosed]);
+
+  useEffect(() => {
+    if (!open || !conversationStarted || !sessionId || !!sessionClosedReason) return;
+
+    let cancelled = false;
+
+    const evaluateAutoClose = async () => {
+      if (autoCloseInFlightRef.current) return;
+      const elapsed = Date.now() - lastUserInteractionAtRef.current;
+      if (elapsed < AUTO_CLOSE_AFTER_MS) return;
+
+      autoCloseInFlightRef.current = true;
+      const closedAtIso = new Date().toISOString();
+
+      try {
+        await supabase.functions.invoke("support-chatbot-auto-close-session", {
+          body: { session_id: sessionId },
+          headers: {
+            "x-chatbot-visitor-id": visitorId,
+          },
+        });
+      } catch (error) {
+        console.error("[SupportChatWidget] erro ao autoencerrar sessao:", error);
+      } finally {
+        if (!cancelled) {
+          markSessionClosed("inactivity", closedAtIso);
+        }
+      }
+    };
+
+    void evaluateAutoClose();
+    const intervalId = window.setInterval(() => {
+      void evaluateAutoClose();
+    }, 15_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [open, conversationStarted, sessionId, visitorId, sessionClosedReason, markSessionClosed]);
 
   const handleActionClick = (action: ActionItem) => {
     if (!action?.url) return;
@@ -457,6 +568,10 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   };
 
   const handleStartConversation = () => {
+    setSessionClosedReason(null);
+    setSessionClosedAt("");
+    autoCloseInFlightRef.current = false;
+    lastUserInteractionAtRef.current = Date.now();
     setConversationStarted(true);
     if (messages.length === 0) {
       appendMessage({
@@ -466,6 +581,31 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
         createdAt: new Date().toISOString(),
       });
     }
+  };
+
+  const handleStartNewChat = () => {
+    const nowIso = new Date().toISOString();
+    setMessages([
+      {
+        id: createMessageId(),
+        role: "assistant",
+        content: personalizedWelcomeMessage,
+        mode: "system",
+        actions: [],
+        createdAt: nowIso,
+      },
+    ]);
+    setConversationStarted(true);
+    setSessionId("");
+    setHandoffActive(false);
+    setHandoffAdminName("");
+    setSessionClosedReason(null);
+    setSessionClosedAt("");
+    setInput("");
+    setIsSending(false);
+    lastSyncedAtRef.current = "";
+    lastUserInteractionAtRef.current = Date.now();
+    autoCloseInFlightRef.current = false;
   };
 
   const handleEndConversation = async () => {
@@ -490,13 +630,19 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!conversationStarted || !text || isSending) return;
+    if (!conversationStarted || !text || isSending || !!sessionClosedReason) return;
+
+    const userMessageTime = new Date().toISOString();
+    setSessionClosedReason(null);
+    setSessionClosedAt("");
+    autoCloseInFlightRef.current = false;
+    lastUserInteractionAtRef.current = Date.now();
 
     appendMessage({
       id: createMessageId(),
       role: "user",
       content: text,
-      createdAt: new Date().toISOString(),
+      createdAt: userMessageTime,
     });
     setInput("");
     setIsSending(true);
@@ -684,6 +830,20 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
                           </div>
                         </div>
                       )}
+
+                      {sessionClosedReason && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                          <p className="leading-relaxed">
+                            {sessionClosedReason === "inactivity"
+                              ? "Chat encerrado por inatividade."
+                              : "Conversa encerrada."}
+                            {sessionClosedAt ? ` (${formatMessageTime(sessionClosedAt)})` : ""}
+                          </p>
+                          <Button type="button" size="sm" className="mt-2 h-7 text-[11px]" onClick={handleStartNewChat}>
+                            Iniciar novo chat
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -699,13 +859,15 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
                           }
                         }}
                         placeholder={
-                          handoffActive
+                          sessionClosedReason
+                            ? "Chat encerrado. Clique em \"Iniciar novo chat\"."
+                            : handoffActive
                             ? "Envie sua mensagem para o atendimento humano..."
                             : "Pergunte sobre funcionalidades..."
                         }
-                        disabled={isSending}
+                        disabled={isSending || !!sessionClosedReason}
                       />
-                      <Button size="icon" onClick={sendMessage} disabled={isSending || !input.trim()}>
+                      <Button size="icon" onClick={sendMessage} disabled={isSending || !!sessionClosedReason || !input.trim()}>
                         {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                       </Button>
                     </div>

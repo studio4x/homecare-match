@@ -452,6 +452,9 @@ verify_jwt = false
 [functions.support-chatbot-close-session]
 verify_jwt = false
 
+[functions.support-chatbot-auto-close-session]
+verify_jwt = false
+
 [functions.referral-config]
 verify_jwt = false
 

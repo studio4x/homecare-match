@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import {
@@ -19,13 +22,22 @@ import {
   SupportImpactTab,
   SupportTab,
 } from "@/components/admin/tabs/metrics";
-import { toCurrency } from "@/components/admin/tabs/metrics/shared";
 
 const PAID = new Set(["paid", "succeeded"]);
 const CANCELED = new Set(["canceled", "cancelled", "void"]);
 const REFUND = new Set(["refunded", "refund_pending"]);
 const DEFAULT_RAW = new Set(["OVERDUE", "CHARGEBACK_REQUESTED", "CHARGEBACK_DISPUTE", "REFUND_REQUESTED"]);
 const CHECKOUT_PAID = new Set(["CONFIRMED", "RECEIVED", "PAID", "SUCCEEDED"]);
+const PERIOD_FILTER_VALUES = ["7d", "30d", "90d", "all", "custom"] as const;
+type PeriodFilterValue = (typeof PERIOD_FILTER_VALUES)[number];
+
+const PERIOD_FILTER_LABELS: Record<PeriodFilterValue, string> = {
+  "7d": "Ultimos 7 dias",
+  "30d": "Ultimos 30 dias",
+  "90d": "Ultimos 90 dias",
+  all: "Todo periodo",
+  custom: "Personalizado",
+};
 
 const EMPTY_STATS: any = {
   profileViews: [],
@@ -96,6 +108,69 @@ const addMonthsToKey = (key: string, offset: number) => {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 };
 
+const parseDateInput = (value: string, endOfDay = false) => {
+  const [year, month, day] = String(value || "")
+    .split("-")
+    .map((part) => Number(part));
+  if (!year || !month || !day) return null;
+  if (endOfDay) return new Date(year, month - 1, day, 23, 59, 59, 999);
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
+};
+
+const resolveFilterRange = (preset: PeriodFilterValue, customFrom: string, customTo: string) => {
+  if (preset === "all") {
+    return {
+      from: null as Date | null,
+      to: null as Date | null,
+      label: PERIOD_FILTER_LABELS.all,
+    };
+  }
+
+  if (preset === "custom") {
+    const from = parseDateInput(customFrom, false);
+    const to = parseDateInput(customTo, true);
+    if (from && to && from.getTime() > to.getTime()) {
+      return {
+        from: to,
+        to: from,
+        label: `${PERIOD_FILTER_LABELS.custom}: ${customTo} ate ${customFrom}`,
+      };
+    }
+    return {
+      from,
+      to,
+      label: `${PERIOD_FILTER_LABELS.custom}: ${customFrom || "..."} ate ${customTo || "..."}`,
+    };
+  }
+
+  const daysMap: Record<Exclude<PeriodFilterValue, "all" | "custom">, number> = {
+    "7d": 7,
+    "30d": 30,
+    "90d": 90,
+  };
+
+  const days = daysMap[preset];
+  const now = new Date();
+  const from = new Date(now);
+  from.setDate(from.getDate() - (days - 1));
+  from.setHours(0, 0, 0, 0);
+
+  return {
+    from,
+    to: now,
+    label: PERIOD_FILTER_LABELS[preset],
+  };
+};
+
+const withinRange = (value: string | null | undefined, from: Date | null, to: Date | null) => {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  if (from && date.getTime() < from.getTime()) return false;
+  if (to && date.getTime() > to.getTime()) return false;
+  return true;
+};
+
 const methodLabel = (value?: string | null) => {
   const m = String(value || "").toLowerCase();
   if (m === "credit_card") return "Cartao";
@@ -164,6 +239,26 @@ const buildSales = (payments: any[], type: "course" | "plan", fallbackName: stri
 const AnalyticsPage = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(EMPTY_STATS);
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilterValue>("30d");
+  const [customDateFrom, setCustomDateFrom] = useState("");
+  const [customDateTo, setCustomDateTo] = useState("");
+  const [analyticsSource, setAnalyticsSource] = useState<{
+    payments: any[];
+    checkouts: any[];
+    progress: any[];
+    certs: any[];
+    modules: any[];
+    lessons: any[];
+    courses: any[];
+  }>({
+    payments: [],
+    checkouts: [],
+    progress: [],
+    certs: [],
+    modules: [],
+    lessons: [],
+    courses: [],
+  });
 
   useEffect(() => {
     const run = async () => {
@@ -194,7 +289,9 @@ const AnalyticsPage = () => {
           supabase.from("academy_lessons").select("id,module_id").limit(30000),
           supabase.from("certificates").select("user_id,course_slug,issued_at").limit(20000),
           supabase.from("academy_courses").select("slug,title").limit(3000),
-          supabase.functions.invoke("get-admin-payment-history"),
+          supabase.functions.invoke("get-admin-payment-history", {
+            body: { max_rows: 50000 },
+          }),
         ]);
 
         const views = viewsRes.data || [];
@@ -210,6 +307,16 @@ const AnalyticsPage = () => {
         const courses = coursesRes.data || [];
         const payments = Array.isArray((adminRes.data as any)?.payments) ? (adminRes.data as any).payments : [];
         const checkouts = Array.isArray((adminRes.data as any)?.checkouts) ? (adminRes.data as any).checkouts : [];
+
+        setAnalyticsSource({
+          payments,
+          checkouts,
+          progress,
+          certs,
+          modules,
+          lessons,
+          courses,
+        });
 
         const courseSales = buildSales(payments, "course", "Curso");
         const planSales = buildSales(payments, "plan", "Plano");
@@ -694,7 +801,162 @@ const AnalyticsPage = () => {
     run();
   }, []);
 
-  const totalRevenue = useMemo(() => stats.courseSales.paidRevenue + stats.planSales.paidRevenue, [stats.courseSales.paidRevenue, stats.planSales.paidRevenue]);
+  const selectedRange = useMemo(
+    () => resolveFilterRange(periodFilter, customDateFrom, customDateTo),
+    [periodFilter, customDateFrom, customDateTo],
+  );
+
+  const filteredCheckoutAndCoursesFunnel = useMemo(() => {
+    const payments = analyticsSource.payments || [];
+    const checkouts = analyticsSource.checkouts || [];
+    const progress = analyticsSource.progress || [];
+    const certs = analyticsSource.certs || [];
+    const modules = analyticsSource.modules || [];
+    const lessons = analyticsSource.lessons || [];
+    const courses = analyticsSource.courses || [];
+
+    const filterBySelectedRange = (value: string | null | undefined) =>
+      withinRange(value, selectedRange.from, selectedRange.to);
+
+    const checkoutsInRange = checkouts.filter((checkout: any) =>
+      filterBySelectedRange(checkout.created_at || checkout.updated_at || checkout.paid_at),
+    );
+
+    const checkoutSummary: any = {
+      course: { started: 0, paid: 0, abandoned: 0, conversionRate: 0 },
+      plan: { started: 0, paid: 0, abandoned: 0, conversionRate: 0 },
+    };
+
+    checkoutsInRange.forEach((checkout: any) => {
+      if (checkout.transaction_type !== "course" && checkout.transaction_type !== "plan") return;
+      const type = checkout.transaction_type;
+      checkoutSummary[type].started += 1;
+      if (isCheckoutPaid(checkout.payment_status, checkout.status)) checkoutSummary[type].paid += 1;
+    });
+
+    ["course", "plan"].forEach((type) => {
+      checkoutSummary[type].abandoned = Math.max(checkoutSummary[type].started - checkoutSummary[type].paid, 0);
+      checkoutSummary[type].conversionRate =
+        checkoutSummary[type].started > 0
+          ? Number(((checkoutSummary[type].paid / checkoutSummary[type].started) * 100).toFixed(2))
+          : 0;
+    });
+
+    const checkoutRows = [
+      {
+        name: "Cursos",
+        started: checkoutSummary.course.started,
+        paid: checkoutSummary.course.paid,
+        abandoned: checkoutSummary.course.abandoned,
+      },
+      {
+        name: "Planos",
+        started: checkoutSummary.plan.started,
+        paid: checkoutSummary.plan.paid,
+        abandoned: checkoutSummary.plan.abandoned,
+      },
+    ];
+
+    const moduleToCourse = new Map<string, string>();
+    modules.forEach((module: any) => moduleToCourse.set(module.id, module.course_slug));
+
+    const lessonsByCourse = new Map<string, number>();
+    lessons.forEach((lesson: any) => {
+      const courseSlug = moduleToCourse.get(lesson.module_id);
+      if (!courseSlug) return;
+      lessonsByCourse.set(courseSlug, (lessonsByCourse.get(courseSlug) || 0) + 1);
+    });
+
+    const paidCoursePaymentsInRange = payments.filter((payment: any) => {
+      const dateRef = payment.date || payment.confirmed_at || payment.created_at;
+      return payment.transaction_type === "course" && isPaid(payment.status) && filterBySelectedRange(dateRef);
+    });
+
+    const purchasedPairs = new Set<string>();
+    paidCoursePaymentsInRange.forEach((payment: any) => {
+      if (!payment.user_id || !payment.course_slug) return;
+      purchasedPairs.add(`${payment.user_id}::${payment.course_slug}`);
+    });
+
+    const progressByPair = new Map<string, { started: boolean; completedLessons: Set<string> }>();
+    progress
+      .filter((row: any) => filterBySelectedRange(row.updated_at))
+      .forEach((row: any) => {
+        const key = `${row.user_id}::${row.course_slug}`;
+        const data = progressByPair.get(key) || { started: false, completedLessons: new Set<string>() };
+        if (row.status === "in-progress" || row.status === "completed") data.started = true;
+        if (row.status === "completed" && row.lesson_id) data.completedLessons.add(row.lesson_id);
+        progressByPair.set(key, data);
+      });
+
+    const certifiedPairs = new Set<string>();
+    certs
+      .filter((certificate: any) => filterBySelectedRange(certificate.issued_at))
+      .forEach((certificate: any) => {
+        certifiedPairs.add(`${certificate.user_id}::${certificate.course_slug}`);
+      });
+
+    const titleBySlug: Record<string, string> = {};
+    courses.forEach((course: any) => {
+      titleBySlug[course.slug] = course.title || course.slug;
+    });
+
+    const courseFunnelMap = new Map<string, { purchased: number; started: number; completed: number; certified: number }>();
+    let purchased = 0;
+    let started = 0;
+    let completed = 0;
+    let certified = 0;
+
+    purchasedPairs.forEach((pairKey) => {
+      const [, courseSlug] = pairKey.split("::");
+      const progressData = progressByPair.get(pairKey);
+      const totalLessons = lessonsByCourse.get(courseSlug) || 0;
+      const completedLessons = progressData?.completedLessons.size || 0;
+      const startedFlag = Boolean(progressData?.started);
+      const completedFlag = totalLessons > 0 ? completedLessons >= totalLessons : false;
+      const certifiedFlag = certifiedPairs.has(pairKey);
+
+      purchased += 1;
+      if (startedFlag) started += 1;
+      if (completedFlag) completed += 1;
+      if (certifiedFlag) certified += 1;
+
+      const current = courseFunnelMap.get(courseSlug) || { purchased: 0, started: 0, completed: 0, certified: 0 };
+      current.purchased += 1;
+      if (startedFlag) current.started += 1;
+      if (completedFlag) current.completed += 1;
+      if (certifiedFlag) current.certified += 1;
+      courseFunnelMap.set(courseSlug, current);
+    });
+
+    const courseFunnelRows = Array.from(courseFunnelMap.entries())
+      .map(([slug, values]) => ({
+        course: titleBySlug[slug] || slug,
+        purchased: values.purchased,
+        started: values.started,
+        completed: values.completed,
+        certified: values.certified,
+      }))
+      .sort((a, b) => b.purchased - a.purchased)
+      .slice(0, 12);
+
+    return {
+      checkoutRows,
+      checkoutCourse: checkoutSummary.course,
+      checkoutPlan: checkoutSummary.plan,
+      courseFunnelOverall: { purchased, started, completed, certified },
+      courseFunnelRows,
+    };
+  }, [analyticsSource, selectedRange]);
+
+  const statsForScopedTabs = useMemo(
+    () => ({
+      ...stats,
+      ...filteredCheckoutAndCoursesFunnel,
+      metricsPeriodLabel: selectedRange.label,
+    }),
+    [stats, filteredCheckoutAndCoursesFunnel, selectedRange.label],
+  );
 
   if (loading) {
     return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
@@ -707,11 +969,51 @@ const AnalyticsPage = () => {
         <p className="text-muted-foreground">Painel completo de vendas, funis, coortes e impacto operacional.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Receita Cursos (Pago)</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{toCurrency(stats.courseSales.paidRevenue)}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Receita Planos (Pago)</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{toCurrency(stats.planSales.paidRevenue)}</div></CardContent></Card>
-        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Receita Total (Pago)</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{toCurrency(totalRevenue)}</div></CardContent></Card>
-      </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Filtro de Periodo (Checkout e Funil Cursos)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="space-y-1">
+              <Label>Periodo</Label>
+              <Select value={periodFilter} onValueChange={(value) => setPeriodFilter(value as PeriodFilterValue)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Ultimos 7 dias</SelectItem>
+                  <SelectItem value="30d">Ultimos 30 dias</SelectItem>
+                  <SelectItem value="90d">Ultimos 90 dias</SelectItem>
+                  <SelectItem value="all">Todo periodo</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Data inicial</Label>
+              <Input
+                type="date"
+                value={customDateFrom}
+                onChange={(event) => setCustomDateFrom(event.target.value)}
+                disabled={periodFilter !== "custom"}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Data final</Label>
+              <Input
+                type="date"
+                value={customDateTo}
+                onChange={(event) => setCustomDateTo(event.target.value)}
+                disabled={periodFilter !== "custom"}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Aplicado somente nas abas Checkout e Funil Cursos. Periodo ativo: <strong>{selectedRange.label}</strong>.
+          </p>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="engagement" className="space-y-4">
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0">
@@ -754,7 +1056,7 @@ const AnalyticsPage = () => {
         </TabsContent>
 
         <TabsContent value="checkout" className="space-y-4">
-          <CheckoutTab stats={stats} />
+          <CheckoutTab stats={statsForScopedTabs} />
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
@@ -770,7 +1072,7 @@ const AnalyticsPage = () => {
         </TabsContent>
 
         <TabsContent value="courses-funnel" className="space-y-4">
-          <CoursesFunnelTab stats={stats} />
+          <CoursesFunnelTab stats={statsForScopedTabs} />
         </TabsContent>
 
         <TabsContent value="courses-performance" className="space-y-4">

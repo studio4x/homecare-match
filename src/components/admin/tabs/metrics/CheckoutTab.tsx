@@ -16,6 +16,9 @@ type CheckoutTabProps = {
 
 export const CheckoutTab = ({ stats }: CheckoutTabProps) => (
   <div className="space-y-4">
+    <p className="text-sm text-muted-foreground">
+      Periodo aplicado: <strong>{stats.metricsPeriodLabel || "Todo periodo"}</strong>
+    </p>
     <div className="grid gap-4 md:grid-cols-2">
       <Card>
         <CardHeader>
@@ -76,4 +79,3 @@ export const CheckoutTab = ({ stats }: CheckoutTabProps) => (
     </Card>
   </div>
 );
-

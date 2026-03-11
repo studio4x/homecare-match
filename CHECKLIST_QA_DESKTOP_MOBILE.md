@@ -226,45 +226,45 @@
   Mobile: OK
   Observacoes:
 
-- [ ] P1-17 Permissao/prompt de push sem sobreposicao indevida
-  Desktop:
-  Mobile:
+- [OK] P1-17 Permissao/prompt de push sem sobreposicao indevida
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 ### 2.4 Chatbot da Plataforma (novo)
-- [ ] P1-18 Widget do chatbot visivel e funcional no site publico e no dashboard
-  Desktop:
-  Mobile:
+- [OK] P1-18 Widget do chatbot visivel e funcional no site publico e no dashboard
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-19 Fluxo inicial com saudacao + botao "Iniciar conversa" antes de liberar envio
-  Desktop:
-  Mobile:
+- [OK] P1-19 Fluxo inicial com saudacao + botao "Iniciar conversa" antes de liberar envio
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-20 Botao de minimizar funcionando e botao "Encerrar conversa" limpando historico
-  Desktop:
-  Mobile:
+- [OK] P1-20 Botao de minimizar funcionando e botao "Encerrar conversa" limpando historico
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-21 Historico da conversa persiste ao clicar fora e ao trocar de pagina
-  Desktop:
-  Mobile:
+- [OK] P1-21 Historico da conversa persiste ao clicar fora e ao trocar de pagina
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-22 Chat identifica usuario logado (nome) e diferencia respostas para anonimo x autenticado
-  Desktop:
-  Mobile:
+- [OK] P1-22 Chat identifica usuario logado (nome) e diferencia respostas para anonimo x autenticado
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-23 Enquanto processa, exibe estado "Estou lendo..." e fase "Quase pronto..." apos 10s
-  Desktop:
-  Mobile:
+- [OK] P1-23 Enquanto processa, exibe estado "Estou lendo..." e fase "Quase pronto..." apos 10s
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-24 Resposta fora de escopo aciona fallback com botoes de acao sem quebrar UX
-  Desktop:
-  Mobile:
+- [OK] P1-24 Resposta fora de escopo aciona fallback com botoes de acao sem quebrar UX
+  Desktop: ok
+  Mobile: ok
   Observacoes:
 
 - [ ] P1-25 Botoes de acao exibidos corretamente (Ver FAQ, Abrir chamado, Navegar para pagina citada)
@@ -277,9 +277,9 @@
   Mobile:
   Observacoes:
 
-- [ ] P1-27 Intent de cadastro: bot pergunta tipo de cadastro e direciona com botao apropriado
-  Desktop:
-  Mobile:
+- [OK] P1-27 Intent de cadastro: bot pergunta tipo de cadastro e direciona com botao apropriado
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [ ] P1-28 Conteudo de planos/pagamentos coerente (incluindo Plano Anual e regra de teste gratis)

@@ -7,6 +7,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const PAGE_SIZE = 1000;
+const DEFAULT_MAX_ROWS = 20000;
+const MAX_ALLOWED_ROWS = 50000;
+
 const normalizeStatus = (status?: string | null) => String(status || "").trim().toUpperCase();
 
 const statusToDisplay = (status?: string | null) => {
@@ -122,10 +126,75 @@ const resolveCheckoutMethod = (checkout: any) => {
   );
 };
 
+const parseDateBound = (value: unknown) => {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+};
+
+const parseMaxRows = (value: unknown) => {
+  const fallback = DEFAULT_MAX_ROWS;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.max(Math.floor(parsed), PAGE_SIZE), MAX_ALLOWED_ROWS);
+};
+
+const fetchPaginated = async ({
+  supabaseAdmin,
+  table,
+  select,
+  orderBy = "created_at",
+  dateFrom = null,
+  dateTo = null,
+  maxRows = DEFAULT_MAX_ROWS,
+}: {
+  supabaseAdmin: any;
+  table: string;
+  select: string;
+  orderBy?: string;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  maxRows?: number;
+}) => {
+  const safeMaxRows = parseMaxRows(maxRows);
+  const rows: any[] = [];
+  let from = 0;
+  let truncated = false;
+
+  while (rows.length < safeMaxRows) {
+    const to = Math.min(from + PAGE_SIZE - 1, safeMaxRows - 1);
+    let query = supabaseAdmin.from(table).select(select).order(orderBy, { ascending: false }).range(from, to);
+
+    if (dateFrom) query = query.gte("created_at", dateFrom);
+    if (dateTo) query = query.lt("created_at", dateTo);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const batch = Array.isArray(data) ? data : [];
+    rows.push(...batch);
+
+    if (batch.length < to - from + 1) break;
+    from += PAGE_SIZE;
+  }
+
+  if (rows.length >= safeMaxRows) {
+    truncated = true;
+  }
+
+  return { rows, truncated, maxRows: safeMaxRows };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const dateFrom = parseDateBound(body?.date_from ?? body?.dateFrom);
+    const dateTo = parseDateBound(body?.date_to ?? body?.dateTo);
+    const requestedMaxRows = parseMaxRows(body?.max_rows ?? body?.maxRows);
+
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -158,27 +227,31 @@ serve(async (req) => {
       });
     }
 
-    const [{ data: transactions, error: txError }, { data: checkouts, error: checkoutError }] =
-      await Promise.all([
-        supabaseAdmin
-          .from("payment_transactions")
-          .select(
-            "id,payment_id,user_id,transaction_type,plan_id,course_slug,status,amount,currency,description,invoice_url,payment_date,confirmed_at,created_at,asaas_checkout_id,raw_payload,last_event",
-          )
-          .order("payment_date", { ascending: false, nullsFirst: false })
-          .order("created_at", { ascending: false })
-          .limit(3000),
-        supabaseAdmin
-          .from("asaas_checkout_sessions")
-          .select(
-            "id,checkout_id,payment_id,user_id,plan_id,course_slug,status,payment_status,amount,checkout_url,created_at,updated_at,paid_at,raw_response",
-          )
-          .order("created_at", { ascending: false })
-          .limit(3000),
-      ]);
+    const [transactionsRes, checkoutsRes] = await Promise.all([
+      fetchPaginated({
+        supabaseAdmin,
+        table: "payment_transactions",
+        select:
+          "id,payment_id,user_id,transaction_type,plan_id,course_slug,status,amount,currency,description,invoice_url,payment_date,confirmed_at,created_at,asaas_checkout_id,raw_payload,last_event",
+        orderBy: "created_at",
+        dateFrom,
+        dateTo,
+        maxRows: requestedMaxRows,
+      }),
+      fetchPaginated({
+        supabaseAdmin,
+        table: "asaas_checkout_sessions",
+        select:
+          "id,checkout_id,payment_id,user_id,plan_id,course_slug,status,payment_status,amount,checkout_url,created_at,updated_at,paid_at,raw_response",
+        orderBy: "created_at",
+        dateFrom,
+        dateTo,
+        maxRows: requestedMaxRows,
+      }),
+    ]);
 
-    if (txError) throw txError;
-    if (checkoutError && !checkoutError.message?.includes("asaas_checkout_sessions")) throw checkoutError;
+    const transactions = transactionsRes.rows;
+    const checkouts = checkoutsRes.rows;
 
     const uniqueUserIds = Array.from(
       new Set(
@@ -289,10 +362,25 @@ serve(async (req) => {
       };
     });
 
-    return new Response(JSON.stringify({ payments, checkouts: checkoutItems }), {
+    return new Response(
+      JSON.stringify({
+        payments,
+        checkouts: checkoutItems,
+        meta: {
+          date_from: dateFrom,
+          date_to: dateTo,
+          max_rows: requestedMaxRows,
+          payments_count: payments.length,
+          checkouts_count: checkoutItems.length,
+          payments_truncated: transactionsRes.truncated,
+          checkouts_truncated: checkoutsRes.truncated,
+        },
+      }),
+      {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
-    });
+      },
+    );
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message || "Erro ao consultar pagamentos." }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

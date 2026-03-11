@@ -7,6 +7,9 @@ type CoursesFunnelTabProps = {
 
 export const CoursesFunnelTab = ({ stats }: CoursesFunnelTabProps) => (
   <div className="space-y-4">
+    <p className="text-sm text-muted-foreground">
+      Periodo aplicado: <strong>{stats.metricsPeriodLabel || "Todo periodo"}</strong>
+    </p>
     <div className="grid gap-4 md:grid-cols-4">
       <Card>
         <CardHeader className="pb-2">

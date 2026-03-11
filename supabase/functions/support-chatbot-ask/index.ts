@@ -298,6 +298,8 @@ const HIGH_CONFIDENCE = 0.7;
 const MEDIUM_CONFIDENCE = 0.45;
 const SOURCE_MIN_SCORE = 0.12;
 const STRICT_CHATBOT_MODE = true;
+const INACTIVITY_WARNING_MS = 5 * 60 * 1000;
+const INACTIVITY_CLOSE_MS = 10 * 60 * 1000;
 
 const normalizeText = (value: string) =>
   String(value || "")
@@ -418,6 +420,21 @@ const buildHandoffPausedAnswer = (userName?: string | null, adminName?: string |
   const prefix = userName ? `${userName}, ` : "";
   const owner = adminName ? `por ${adminName}` : "pela equipe de atendimento";
   return `${prefix}seu atendimento foi assumido ${owner}. O chatbot automatico esta pausado. Pode continuar enviando suas mensagens por aqui que o admin responde em seguida.`;
+};
+
+const parseIsoDate = (value: unknown) => {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
+};
+
+const getSessionLastInteractionTime = (session: any) => {
+  return (
+    parseIsoDate(session?.last_user_interaction_at) ||
+    parseIsoDate(session?.updated_at) ||
+    parseIsoDate(session?.created_at)
+  );
 };
 
 const ROUTE_META = [
@@ -1489,13 +1506,27 @@ serve(async (req) => {
       });
     }
 
+    const requestNowIso = new Date().toISOString();
     let sessionId = "";
     let sessionHandoffActive = false;
     let sessionHandoffAdminName: string | null = null;
     if (requestedSessionId && isUuidLike(requestedSessionId)) {
       const { data: existingSession } = await supabaseAdmin
         .from("chatbot_sessions")
-        .select("id, user_id, visitor_hash, human_handoff_active, human_handoff_admin_name")
+        .select(
+          [
+            "id",
+            "user_id",
+            "visitor_hash",
+            "created_at",
+            "updated_at",
+            "human_handoff_active",
+            "human_handoff_admin_name",
+            "last_user_interaction_at",
+            "user_closed_session",
+            "auto_closed_session",
+          ].join(","),
+        )
         .eq("id", requestedSessionId)
         .maybeSingle();
 
@@ -1506,10 +1537,42 @@ serve(async (req) => {
             !existingSession.user_id &&
             visitorHashCandidates.includes(String(existingSession.visitor_hash || ""))));
 
-      if (isOwner) {
-        sessionId = existingSession.id;
-        sessionHandoffActive = !!existingSession.human_handoff_active;
-        sessionHandoffAdminName = existingSession.human_handoff_admin_name || null;
+      if (isOwner && existingSession) {
+        const lastInteractionDate = getSessionLastInteractionTime(existingSession);
+        const idleMs = lastInteractionDate ? Date.now() - lastInteractionDate.getTime() : 0;
+        const shouldAutoCloseByInactivity = idleMs >= INACTIVITY_CLOSE_MS;
+        const isSessionClosed =
+          !!existingSession.user_closed_session ||
+          !!existingSession.auto_closed_session ||
+          shouldAutoCloseByInactivity;
+
+        if (shouldAutoCloseByInactivity && !existingSession.auto_closed_session && !existingSession.user_closed_session) {
+          await supabaseAdmin
+            .from("chatbot_sessions")
+            .update({
+              auto_closed_session: true,
+              auto_closed_at: requestNowIso,
+              human_handoff_active: false,
+              human_handoff_ended_at: requestNowIso,
+              last_mode: "system",
+              updated_at: requestNowIso,
+            } as any)
+            .eq("id", existingSession.id);
+
+          await supabaseAdmin.from("chatbot_messages").insert({
+            session_id: existingSession.id,
+            role: "assistant",
+            content: "Conversa encerrada automaticamente por inatividade de 10 minutos.",
+            mode: "system",
+            sources: [],
+          } as any);
+        }
+
+        if (!isSessionClosed) {
+          sessionId = existingSession.id;
+          sessionHandoffActive = !!existingSession.human_handoff_active;
+          sessionHandoffAdminName = existingSession.human_handoff_admin_name || null;
+        }
       }
     }
 
@@ -1522,6 +1585,12 @@ serve(async (req) => {
           page_path: requestedPagePath,
           role_context: roleContext,
           last_mode: "system",
+          user_closed_session: false,
+          user_closed_at: null,
+          last_user_interaction_at: requestNowIso,
+          inactivity_warning_sent_at: null,
+          auto_closed_session: false,
+          auto_closed_at: null,
         })
         .select("id, human_handoff_active, human_handoff_admin_name")
         .single();
@@ -1538,7 +1607,13 @@ serve(async (req) => {
         .update({
           page_path: requestedPagePath,
           role_context: roleContext,
-          updated_at: new Date().toISOString(),
+          updated_at: requestNowIso,
+          user_closed_session: false,
+          user_closed_at: null,
+          last_user_interaction_at: requestNowIso,
+          inactivity_warning_sent_at: null,
+          auto_closed_session: false,
+          auto_closed_at: null,
         })
         .eq("id", sessionId);
     }

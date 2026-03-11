@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { MessageCircle, X, Send, Loader2, Bot, Minus, Maximize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,7 @@ interface SupportChatWidgetProps {
   context?: "public" | "dashboard";
 }
 
-type ChatMode = "faq" | "ai" | "fallback" | "human";
+type ChatMode = "faq" | "ai" | "fallback" | "human" | "system";
 
 type SourceItem = {
   id: string;
@@ -119,6 +119,7 @@ const getModeBadge = (mode?: ChatMode) => {
   if (mode === "faq") return { label: "Resposta por FAQ", className: "bg-emerald-600 hover:bg-emerald-600 text-white" };
   if (mode === "fallback") return { label: "Resposta fallback", className: "bg-amber-600 hover:bg-amber-600 text-white" };
   if (mode === "human") return { label: "Atendimento Humano", className: "bg-indigo-600 hover:bg-indigo-600 text-white" };
+  if (mode === "system") return { label: "Mensagem do Sistema", className: "bg-slate-600 hover:bg-slate-600 text-white" };
   return null;
 };
 
@@ -172,6 +173,17 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const appendMessage = (message: ChatMessage) => {
     setMessages((prev) => [...prev, message].slice(-MAX_LOCAL_MESSAGES));
   };
+
+  const resetConversationLocally = useCallback(() => {
+    setConversationStarted(false);
+    setMessages([]);
+    setSessionId("");
+    setHandoffActive(false);
+    setHandoffAdminName("");
+    lastSyncedAtRef.current = "";
+    setInput("");
+    setIsSending(false);
+  }, []);
 
   const mergeIncomingAssistantMessages = (incoming: ChatMessage[]) => {
     if (!Array.isArray(incoming) || incoming.length === 0) return;
@@ -341,6 +353,11 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
           setHandoffAdminName(String(data?.handoff_admin_name || "").trim());
         }
 
+        if (data?.session_closed) {
+          resetConversationLocally();
+          return;
+        }
+
         const incomingRows = Array.isArray(data?.messages) ? data.messages : [];
         if (incomingRows.length > 0) {
           const incomingMessages = incomingRows
@@ -371,7 +388,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [open, conversationStarted, sessionId, visitorId]);
+  }, [open, conversationStarted, sessionId, visitorId, resetConversationLocally]);
 
   const handleActionClick = (action: ActionItem) => {
     if (!action?.url) return;
@@ -458,14 +475,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
       }
     }
 
-    setConversationStarted(false);
-    setMessages([]);
-    setSessionId("");
-    setHandoffActive(false);
-    setHandoffAdminName("");
-    lastSyncedAtRef.current = "";
-    setInput("");
-    setIsSending(false);
+    resetConversationLocally();
   };
 
   const sendMessage = async () => {

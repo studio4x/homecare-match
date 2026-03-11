@@ -108,6 +108,9 @@ serve(async (req) => {
       .update({
         user_closed_session: true,
         user_closed_at: now,
+        auto_closed_session: false,
+        auto_closed_at: null,
+        inactivity_warning_sent_at: null,
         human_handoff_active: false,
         human_handoff_ended_at: now,
         last_mode: "system",

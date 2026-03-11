@@ -31,6 +31,8 @@ type DecisionMeta = {
   loop_guard_triggered?: boolean;
 };
 
+const CHATBOT_INACTIVITY_CLOSE_MS = 10 * 60 * 1000;
+
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "-";
   try {
@@ -124,9 +126,42 @@ const ChatbotConversationsPage = () => {
   const fetchSessions = async () => {
     setLoading(true);
     try {
+      const nowIso = new Date().toISOString();
+      const inactivityThresholdIso = new Date(Date.now() - CHATBOT_INACTIVITY_CLOSE_MS).toISOString();
+
+      await supabase
+        .from("chatbot_sessions")
+        .update({
+          auto_closed_session: true,
+          auto_closed_at: nowIso,
+          human_handoff_active: false,
+          human_handoff_ended_at: nowIso,
+          last_mode: "system",
+          updated_at: nowIso,
+        } as any)
+        .eq("auto_closed_session", false)
+        .eq("user_closed_session", false)
+        .not("last_user_interaction_at", "is", null)
+        .lte("last_user_interaction_at", inactivityThresholdIso);
+
+      await supabase
+        .from("chatbot_sessions")
+        .update({
+          auto_closed_session: true,
+          auto_closed_at: nowIso,
+          human_handoff_active: false,
+          human_handoff_ended_at: nowIso,
+          last_mode: "system",
+          updated_at: nowIso,
+        } as any)
+        .eq("auto_closed_session", false)
+        .eq("user_closed_session", false)
+        .is("last_user_interaction_at", null)
+        .lte("updated_at", inactivityThresholdIso);
+
       const { data, error } = await supabase
         .from("chatbot_sessions")
-        .select("id,user_id,visitor_hash,page_path,role_context,last_mode,created_at,updated_at,human_handoff_active,human_handoff_admin_id,human_handoff_admin_name,human_handoff_started_at,human_handoff_ended_at,user_closed_session,user_closed_at")
+        .select("id,user_id,visitor_hash,page_path,role_context,last_mode,created_at,updated_at,human_handoff_active,human_handoff_admin_id,human_handoff_admin_name,human_handoff_started_at,human_handoff_ended_at,user_closed_session,user_closed_at,auto_closed_session,auto_closed_at,last_user_interaction_at")
         .order("updated_at", { ascending: false })
         .limit(200);
 
@@ -471,6 +506,13 @@ const ChatbotConversationsPage = () => {
                                 </Badge>
                               </div>
                             )}
+                            {session.auto_closed_session && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge variant="outline" className="h-5 border-amber-300 px-2 text-[10px] text-amber-700">
+                                  Encerrada por inatividade
+                                </Badge>
+                              </div>
+                            )}
                             <p className="line-clamp-1 text-[10px] text-muted-foreground">{session.page_path || "-"}</p>
                           </TableCell>
                           <TableCell>{modeBadge(session.last_mode)}</TableCell>
@@ -525,6 +567,11 @@ const ChatbotConversationsPage = () => {
                   {selectedSession.user_closed_session && (
                     <Badge variant="outline" className="border-rose-300 text-rose-700">
                       Encerrada pelo usuario em {formatDateTime(selectedSession.user_closed_at)}
+                    </Badge>
+                  )}
+                  {selectedSession.auto_closed_session && (
+                    <Badge variant="outline" className="border-amber-300 text-amber-700">
+                      Encerrada por inatividade em {formatDateTime(selectedSession.auto_closed_at)}
                     </Badge>
                   )}
                   {selectedSession.human_handoff_active ? (

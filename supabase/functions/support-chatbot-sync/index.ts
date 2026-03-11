@@ -20,6 +20,31 @@ const sha256Hex = async (value: string) => {
   return toHex(new Uint8Array(digest));
 };
 
+const buildVisitorHashCandidates = async ({
+  visitorId,
+  forwardedFor,
+  userAgent,
+}: {
+  visitorId: string;
+  forwardedFor: string;
+  userAgent: string;
+}) => {
+  const normalizedVisitorId = String(visitorId || "").trim();
+  const normalizedForwardedFor = String(forwardedFor || "").trim();
+  const normalizedUserAgent = String(userAgent || "").trim();
+
+  const rawCandidates = [
+    normalizedVisitorId,
+    [normalizedVisitorId, normalizedUserAgent].filter(Boolean).join("|"),
+    [normalizedVisitorId, normalizedForwardedFor, normalizedUserAgent].filter(Boolean).join("|"),
+    [normalizedForwardedFor, normalizedUserAgent].filter(Boolean).join("|"),
+  ].filter((value) => value.length > 0);
+
+  const uniqueRaw = Array.from(new Set(rawCandidates));
+  const hashed = await Promise.all(uniqueRaw.map((value) => sha256Hex(value)));
+  return Array.from(new Set(hashed.filter((value) => value.length > 0)));
+};
+
 const parseAfter = (value: unknown) => {
   if (typeof value !== "string" || !value.trim()) return null;
   const date = new Date(value);
@@ -59,7 +84,7 @@ serve(async (req) => {
     const visitorId = String(req.headers.get("x-chatbot-visitor-id") || "").trim();
     const forwardedFor = String(req.headers.get("x-forwarded-for") || "").trim();
     const userAgent = String(req.headers.get("user-agent") || "").trim();
-    const visitorHash = await sha256Hex([visitorId, forwardedFor, userAgent].join("|"));
+    const visitorHashCandidates = await buildVisitorHashCandidates({ visitorId, forwardedFor, userAgent });
 
     const { data: session, error: sessionError } = await supabaseAdmin
       .from("chatbot_sessions")
@@ -76,7 +101,9 @@ serve(async (req) => {
 
     const isOwner =
       (userId && session.user_id === userId) ||
-      (!userId && !session.user_id && String(session.visitor_hash || "") === String(visitorHash || ""));
+      (!userId &&
+        !session.user_id &&
+        visitorHashCandidates.includes(String(session.visitor_hash || "")));
 
     if (!isOwner) {
       return new Response(JSON.stringify({ error: "Sem permissao para acessar esta sessao." }), {

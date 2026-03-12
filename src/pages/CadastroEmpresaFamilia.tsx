@@ -229,7 +229,7 @@ const CadastroEmpresaFamilia = () => {
         <DialogContent className="max-w-2xl p-0 overflow-hidden border-none shadow-2xl animate-scale-in">
           <div className="relative bg-card p-12 md:p-16 flex flex-col items-center text-center space-y-8">
             <button 
-              onClick={() => navigate('/login')}
+              onClick={() => setShowSuccessModal(false)}
               className="absolute right-6 top-6 p-2 rounded-full hover:bg-secondary transition-colors"
             >
               <X className="h-6 w-6 text-muted-foreground" />
@@ -248,9 +248,9 @@ const CadastroEmpresaFamilia = () => {
             <Button 
               size="lg" 
               className="w-full max-w-xs h-14 text-lg font-semibold shadow-lg"
-              onClick={() => navigate('/login')}
+              onClick={() => setShowSuccessModal(false)}
             >
-              Ir para Login
+              Entendido
             </Button>
           </div>
         </DialogContent>

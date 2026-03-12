@@ -41,6 +41,7 @@ import {
   PlayCircle,
   HelpCircle,
   Navigation,
+  Users,
   User, // Added User icon for patient name
   HeartPulse, // Added HeartPulse for medical conditions
   Footprints, // Replaced Walk with Footprints for mobility
@@ -178,6 +179,7 @@ const ProfilePage = () => {
     "patient_name",
     "patient_age",
     "patient_medical_conditions",
+    "patient_specialties",
     "patient_mobility_level",
     "patient_cognitive_state",
     "patient_special_equipment",
@@ -357,6 +359,10 @@ const ProfilePage = () => {
           patient_name: data.patient_name || "",
           patient_age: data.patient_age ?? "",
           patient_medical_conditions: data.patient_medical_conditions || "",
+          patient_specialties:
+            (Array.isArray(data.patient_specialties) && data.patient_specialties.length > 0)
+              ? data.patient_specialties
+              : (data.specialty ? [data.specialty] : []),
           patient_mobility_level: data.patient_mobility_level || [],
           patient_cognitive_state: data.patient_cognitive_state || [],
           patient_special_equipment: data.patient_special_equipment || [],
@@ -639,6 +645,10 @@ const ProfilePage = () => {
         toast.error("A condição médica do paciente é obrigatória.");
         return;
       }
+      if ((profile.patient_specialties?.length || 0) === 0) {
+        toast.error("Selecione ao menos uma especialidade necessária.");
+        return;
+      }
       if (profile.availability?.length === 0) {
         toast.error("O horário de atendimento é obrigatório.");
         return;
@@ -703,7 +713,11 @@ const ProfilePage = () => {
         city: profile.city,
         state: profile.state,
         neighborhood: profile.neighborhood,
-        specialty: profile.specialty,
+        specialty: isFamily
+          ? (Array.isArray(profile.patient_specialties) && profile.patient_specialties.length > 0
+              ? profile.patient_specialties[0]
+              : null)
+          : profile.specialty,
         registration: profile.registration,
         company_name: profile.company_name,
         cpf: profile.cpf,
@@ -723,6 +737,7 @@ const ProfilePage = () => {
         patient_name: profile.patient_name,
         patient_age: normalizedPatientAge,
         patient_medical_conditions: profile.patient_medical_conditions,
+        patient_specialties: profile.patient_specialties,
         patient_mobility_level: profile.patient_mobility_level,
         patient_cognitive_state: profile.patient_cognitive_state,
         patient_special_equipment: profile.patient_special_equipment,
@@ -756,7 +771,17 @@ const ProfilePage = () => {
     }
   };
 
-  const handleCheckboxChange = (field: 'availability' | 'patient_profiles' | 'patient_mobility_level' | 'patient_cognitive_state' | 'patient_special_equipment' | 'patient_communication_skills', value: string) => {
+  const handleCheckboxChange = (
+    field:
+      | 'availability'
+      | 'patient_profiles'
+      | 'patient_specialties'
+      | 'patient_mobility_level'
+      | 'patient_cognitive_state'
+      | 'patient_special_equipment'
+      | 'patient_communication_skills',
+    value: string,
+  ) => {
     const current = profile[field] || [];
     const updated = current.includes(value) ? current.filter((i: any) => i !== value) : [...current, value];
     setProfile({ ...profile, [field]: updated });
@@ -1137,15 +1162,6 @@ const ProfilePage = () => {
                       <div className="grid gap-2"><Label>Registro ANS</Label><Input value={profile.ans_registration || ""} onChange={e => setProfile({...profile, ans_registration: e.target.value})} /></div>
                     </>
                   )}
-                  {isFamily && (
-                    <div className="grid gap-2">
-                      <Label>Especialidade que deseja contratar</Label>
-                      <Select value={profile.specialty || ""} onValueChange={v => setProfile({ ...profile, specialty: v })}>
-                        <SelectTrigger><SelectValue placeholder="Selecione a especialidade" /></SelectTrigger>
-                        <SelectContent>{specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                  )}
                   {!isCompany && (
                     <div className="grid gap-2">
                       <Label>{isFamily ? "CPF do Responsável *" : "CPF *"}</Label>
@@ -1339,6 +1355,29 @@ const ProfilePage = () => {
                     placeholder="Ex: AVC com sequelas motoras, Alzheimer em estágio inicial, Diabetes tipo 2."
                   />
                   <p className="text-[10px] text-muted-foreground">Descreva o diagnóstico principal e outras condições relevantes.</p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" /> Especialidades Necessárias *
+                  </Label>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {specialties.map((option) => (
+                      <div key={`family-specialty-${option.value}`} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`family-specialty-${option.value}`}
+                          checked={profile.patient_specialties?.includes(option.value)}
+                          onCheckedChange={() => handleCheckboxChange("patient_specialties", option.value)}
+                        />
+                        <label htmlFor={`family-specialty-${option.value}`} className="text-sm">{option.label}</label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Selecione uma ou mais especialidades para o atendimento do paciente.
+                  </p>
                 </div>
 
                 <Separator />

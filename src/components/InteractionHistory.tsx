@@ -71,6 +71,7 @@ interface Interaction {
     patient_name?: string;
     patient_age?: number;
     patient_medical_conditions?: string;
+    patient_specialties?: string[];
     patient_mobility_level?: string[];
     patient_cognitive_state?: string[];
     patient_special_equipment?: string[];

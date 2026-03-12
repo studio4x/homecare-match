@@ -47,7 +47,7 @@ const RecruiterProfile = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, avatar_url, city, state, bio, role, ans_registration, specialty")
+        .select("id, full_name, avatar_url, city, state, bio, role, ans_registration, specialty, patient_specialties")
         .eq("id", id)
         .single();
 
@@ -121,9 +121,9 @@ const RecruiterProfile = () => {
     .toUpperCase() || "??";
 
   const isCompany = profile.role === 'company';
-  const desiredSpecialtyLabel = typeof profile.specialty === "string"
-    ? profile.specialty.replace(/-/g, " ")
-    : "";
+  const desiredSpecialties = Array.isArray(profile.patient_specialties) && profile.patient_specialties.length > 0
+    ? profile.patient_specialties
+    : (typeof profile.specialty === "string" && profile.specialty ? [profile.specialty] : []);
 
   const renderPatientDetail = (label: string, value: string | number | string[] | undefined, Icon: any) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return null;
@@ -197,10 +197,17 @@ const RecruiterProfile = () => {
                       Registro ANS: <span className="font-medium">{profile.ans_registration}</span>
                     </p>
                   )}
-                  {!isCompany && desiredSpecialtyLabel && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Especialidade desejada: <span className="font-medium">{desiredSpecialtyLabel}</span>
-                    </p>
+                  {!isCompany && desiredSpecialties.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground mb-1">Especialidades necessárias:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {desiredSpecialties.map((item: string) => (
+                          <Badge key={`family-specialty-${item}`} variant="secondary" className="text-xs">
+                            {item.replace(/-/g, " ")}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

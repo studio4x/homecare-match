@@ -24,6 +24,7 @@ const familyRequiredFields: RequiredField[] = [
   { key: "patient_name", label: "Nome do Paciente" },
   { key: "patient_age", label: "Idade do Paciente" },
   { key: "patient_medical_conditions", label: "Condição Médica" },
+  { key: "patient_specialties", label: "Especialidades Necessárias" },
   { key: "bio", label: "Outras Observações" },
   { key: "availability", label: "Horário de Atendimento" },
 ];

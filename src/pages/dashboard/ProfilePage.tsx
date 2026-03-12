@@ -786,9 +786,9 @@ const ProfilePage = () => {
       console.log("[handleRequestVerification] Erro: Documentação obrigatória ausente para família.");
       return;
     }
-    if (isCompany && (!profile?.cnpj || !profile?.id_document_url)) {
-      toast.error("Envie o CNPJ e o documento de identidade do responsável antes de solicitar análise.");
-      console.log("[handleRequestVerification] Erro: CNPJ ou documento de identidade ausente para empresa.");
+    if (isCompany && (!profile?.id_document_url || !profile?.prof_registration_url)) {
+      toast.error("Envie o cartão CNPJ e o documento de identidade do responsável antes de solicitar análise.");
+      console.log("[handleRequestVerification] Erro: documentação obrigatória ausente para empresa.");
       return;
     }
     if (!isFamily && !isCompany && (!profile?.id_document_url || !profile?.prof_registration_url)) {
@@ -936,7 +936,6 @@ const ProfilePage = () => {
             <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
             <div className="space-y-1">
               <Label className="text-[10px] uppercase">{doc1Label}</Label>
-              {isCompany && <Input value={profile.cnpj || ""} onChange={e => setProfile({...profile, cnpj: e.target.value})} placeholder="CNPJ da Empresa" className="mb-2" />}
               <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" className="flex-1 justify-start text-xs h-9 truncate" onClick={() => idDocRef.current?.click()} disabled={!!isUploading}>
                   {isUploading === "id_doc" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -1001,7 +1000,7 @@ const ProfilePage = () => {
                 </div>
               </>
             )}
-            <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && (!profile.id_document_url || !profile.patient_document_url || !profile.patient_address_proof_url)) || (isCompany && (!profile.cnpj || !profile.id_document_url)) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
+            <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && (!profile.id_document_url || !profile.patient_document_url || !profile.patient_address_proof_url)) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
           </div>
         )}
       </CardContent>

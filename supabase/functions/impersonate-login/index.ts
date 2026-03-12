@@ -25,16 +25,13 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Token de autenticação ausente." }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const body = await req.json().catch(() => ({}));
+    const headerToken = authHeader?.startsWith("Bearer ") ? authHeader.replace("Bearer ", "").trim() : "";
+    const bodyToken = typeof body?.access_token === "string" ? body.access_token.trim() : "";
+    const token = headerToken || bodyToken;
 
-    const token = authHeader.replace("Bearer ", "").trim();
     if (!token) {
-      return new Response(JSON.stringify({ error: "Token de autenticação inválido." }), {
+      return new Response(JSON.stringify({ error: "Token de autenticação ausente." }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -56,13 +53,23 @@ serve(async (req) => {
       });
     }
 
-    const { targetUserId, expectedEmail } = await req.json();
+    const { targetUserId, expectedEmail } = body;
     if (!targetUserId || typeof targetUserId !== "string") {
       return new Response(JSON.stringify({ error: "targetUserId inválido." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { data: targetAuthUser, error: targetAuthUserError } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
+    if (targetAuthUserError) {
+      return new Response(JSON.stringify({ error: `Falha ao buscar usuário de autenticação: ${targetAuthUserError.message}` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let targetEmail = String(targetAuthUser?.user?.email || "").trim();
 
     const { data: targetProfile, error: targetProfileError } = await supabaseAdmin
       .from("profiles")
@@ -71,22 +78,11 @@ serve(async (req) => {
       .maybeSingle();
 
     if (targetProfileError) {
-      return new Response(JSON.stringify({ error: `Falha ao buscar perfil de destino: ${targetProfileError.message}` }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.warn("[impersonate-login] Falha ao buscar perfil de destino:", targetProfileError.message);
     }
 
-    let targetEmail = String(targetProfile?.email || "").trim();
     if (!targetEmail) {
-      const { data: targetAuthUser, error: targetAuthUserError } = await supabaseAdmin.auth.admin.getUserById(targetUserId);
-      if (targetAuthUserError) {
-        return new Response(JSON.stringify({ error: `Falha ao buscar usuário de autenticação: ${targetAuthUserError.message}` }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      targetEmail = String(targetAuthUser?.user?.email || "").trim();
+      targetEmail = String(targetProfile?.email || "").trim();
     }
 
     if (!targetEmail) {

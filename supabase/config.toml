@@ -407,6 +407,9 @@ verify_jwt = false
 [functions.notify-support]
 verify_jwt = false
 
+[functions.notify-contact]
+verify_jwt = false
+
 [functions.process-pending-refunds]
 verify_jwt = false
 

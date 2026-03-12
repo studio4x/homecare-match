@@ -402,17 +402,17 @@
   Observacoes:
 
 ### Resumo P1
-- Desktop OK:
-- Mobile OK:
-- Itens com NOK:
+- Desktop OK: OK
+- Mobile OK: OK
+- Itens com NOK: OK
 
 ---
 
 ## 3) Smoke Final (antes de publicar)
 
-- [ ] SMK-01 Fluxo completo do profissional validado
-  Desktop:
-  Mobile:
+- [OK] SMK-01 Fluxo completo do profissional validado
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [ ] SMK-02 Fluxo completo da empresa validado

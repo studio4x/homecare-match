@@ -322,14 +322,13 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[80px]">Foto</TableHead>
-              <TableHead>Nome</TableHead>
-              <TableHead>E-mail (Conta)</TableHead>
+              <TableHead className="w-[180px]">Nome</TableHead>
+              <TableHead className="w-[210px]">E-mail (Conta)</TableHead>
               <TableHead>Função</TableHead>
               <TableHead>Plano / Status</TableHead>
               <TableHead>Docs Verificados</TableHead>
               <TableHead>E-mail Verificado</TableHead>
               <TableHead>Busca</TableHead>
-              <TableHead>Registro ANS</TableHead> {/* New TableHead */}
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -366,7 +365,11 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                       <span className="truncate max-w-[120px]">{u.full_name || "Sem nome"}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-xs">{u.email}</TableCell>
+                  <TableCell className="text-xs">
+                    <span className="block max-w-[210px] truncate" title={u.email || ""}>
+                      {u.email}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     {isUpdatingRole === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (
                       <Select 
@@ -467,9 +470,6 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                     ) : (
                       <span className="text-[9px] text-muted-foreground italic">N/A</span>
                     )}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {u.role === 'company' ? (u.ans_registration || 'N/A') : 'N/A'}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">

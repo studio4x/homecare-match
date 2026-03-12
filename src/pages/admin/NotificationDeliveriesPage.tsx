@@ -91,6 +91,12 @@ type WhatsAppQueueRow = {
   created_at: string;
 };
 
+type UserSuggestion = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+};
+
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (error && typeof error === "object" && "message" in error) {
     const candidate = (error as { message?: unknown }).message;
@@ -152,6 +158,10 @@ const NotificationDeliveriesPage = () => {
   const [isClearing, setIsClearing] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [subscriptionTestTarget, setSubscriptionTestTarget] = useState("");
+  const [subscriptionSearchInput, setSubscriptionSearchInput] = useState("");
+  const [userSuggestions, setUserSuggestions] = useState<UserSuggestion[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [selectedUserSuggestion, setSelectedUserSuggestion] = useState<UserSuggestion | null>(null);
   const [isTriggeringSubscriptionTest, setIsTriggeringSubscriptionTest] = useState(false);
 
   const defaultTo = formatDateInput(new Date());
@@ -244,6 +254,55 @@ const NotificationDeliveriesPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const term = subscriptionSearchInput.trim();
+    if (term.length < 2) {
+      setUserSuggestions([]);
+      setIsSearchingUsers(false);
+      return;
+    }
+
+    const sanitized = term.replace(/[%_,]/g, " ").trim();
+    if (!sanitized) {
+      setUserSuggestions([]);
+      setIsSearchingUsers(false);
+      return;
+    }
+
+    let isCancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      setIsSearchingUsers(true);
+      try {
+        const like = `%${sanitized}%`;
+        const { data, error: usersError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .or(`full_name.ilike.${like},email.ilike.${like}`)
+          .order("full_name", { ascending: true })
+          .limit(8);
+
+        if (usersError) throw usersError;
+        if (!isCancelled) {
+          setUserSuggestions((data || []) as UserSuggestion[]);
+        }
+      } catch (usersError: unknown) {
+        console.error("[NotificationDeliveriesPage] erro ao buscar usuarios:", usersError);
+        if (!isCancelled) {
+          setUserSuggestions([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsSearchingUsers(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [subscriptionSearchInput]);
+
   const handleClearAll = async () => {
     setIsClearing(true);
     setError(null);
@@ -326,6 +385,13 @@ const NotificationDeliveriesPage = () => {
     } finally {
       setIsTriggeringSubscriptionTest(false);
     }
+  };
+
+  const handleSelectUserSuggestion = (user: UserSuggestion) => {
+    setSelectedUserSuggestion(user);
+    setSubscriptionTestTarget(user.id);
+    setSubscriptionSearchInput(`${user.full_name || "Usuario"} (${user.email || user.id})`);
+    setUserSuggestions([]);
   };
 
   const filteredItems = useMemo(() => {
@@ -414,12 +480,37 @@ const NotificationDeliveriesPage = () => {
             </p>
           </div>
           <div className="flex flex-col gap-2 md:flex-row">
-            <Input
-              placeholder="ID ou e-mail do usuario"
-              value={subscriptionTestTarget}
-              onChange={(event) => setSubscriptionTestTarget(event.target.value)}
-              disabled={isTriggeringSubscriptionTest}
-            />
+            <div className="relative flex-1">
+              <Input
+                placeholder="Busque por nome/e-mail ou cole o ID do usuario"
+                value={subscriptionSearchInput}
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setSubscriptionSearchInput(nextValue);
+                  setSubscriptionTestTarget(nextValue.trim());
+                  setSelectedUserSuggestion(null);
+                }}
+                disabled={isTriggeringSubscriptionTest}
+              />
+              {isSearchingUsers ? (
+                <p className="mt-1 text-[11px] text-muted-foreground">Buscando usuarios...</p>
+              ) : null}
+              {!isSearchingUsers && userSuggestions.length > 0 ? (
+                <div className="absolute z-20 mt-1 w-full rounded-md border bg-background p-1 shadow-md">
+                  {userSuggestions.map((user) => (
+                    <button
+                      key={user.id}
+                      type="button"
+                      className="w-full rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent"
+                      onClick={() => handleSelectUserSuggestion(user)}
+                    >
+                      <p className="font-medium">{user.full_name || "Usuario sem nome"}</p>
+                      <p className="text-muted-foreground">{user.email || user.id}</p>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <Button
               onClick={handleTriggerSubscriptionTest}
               disabled={isTriggeringSubscriptionTest || !subscriptionTestTarget.trim()}
@@ -434,6 +525,15 @@ const NotificationDeliveriesPage = () => {
               )}
             </Button>
           </div>
+          {selectedUserSuggestion ? (
+            <p className="text-[11px] text-muted-foreground">
+              Usuario selecionado: {selectedUserSuggestion.full_name || "Usuario"} ({selectedUserSuggestion.email || selectedUserSuggestion.id})
+            </p>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">
+              Dica: voce pode selecionar na lista ou informar diretamente o ID/e-mail.
+            </p>
+          )}
         </CardContent>
       </Card>
 

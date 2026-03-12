@@ -1083,7 +1083,7 @@ const ProfilePage = () => {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label>{isFamily ? "Nome Completo do Responsável *" : "Nome Completo *"}</Label>
+                  <Label>{isFamily ? "Nome Completo do Responsável *" : isCompany ? "Nome Fantasia *" : "Nome Completo *"}</Label>
                   <Input value={profile.full_name || ""} onChange={e => setProfile({...profile, full_name: e.target.value})} />
                 </div>
                 <div className="grid gap-2"><Label>WhatsApp *</Label><Input value={profile.phone || ""} onChange={handlePhoneChange} placeholder="(11) 99999-9999" /></div>

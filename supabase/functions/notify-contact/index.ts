@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
+import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,13 +19,28 @@ serve(async (req) => {
     const { data: sender } = await supabaseAdmin.from('profiles').select('full_name, role').eq('id', sender_id).single();
 
     const senderType = sender.role === 'company' ? 'Uma empresa' : 'Uma família';
-    await supabaseAdmin.from('notifications').insert({
+    const { error: widgetError } = await supabaseAdmin.from('notifications').insert({
       user_id: professional_id,
       title: "👤 Novo Interesse no seu Perfil!",
       content: `${senderType} (${sender.full_name}) salvou seu contato e pode te chamar no WhatsApp em breve.`,
       link: "/dashboard/contatos",
       type: 'info'
     });
+
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "new_contact_interest_user",
+      channel: "widget",
+      status: widgetError ? "failed" : "sent",
+      recipientKind: "user",
+      recipientUserId: professional_id,
+      title: "Novo Interesse no seu Perfil",
+      content: `${senderType} (${sender.full_name}) salvou seu contato.`,
+      errorMessage: widgetError?.message || null,
+      metadata: { sender_id },
+    });
+
+    if (widgetError) throw widgetError;
 
     try {
       await enqueueUserWhatsappNotification({

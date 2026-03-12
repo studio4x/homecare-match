@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import nodemailer from "npm:nodemailer"
 import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
+import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +23,7 @@ serve(async (req) => {
     const { status, reason, userName, userEmail, userId } = await req.json()
 
     // Notificação no painel do usuário
-    await supabaseAdmin.from('notifications').insert({
+    const { error: widgetError } = await supabaseAdmin.from('notifications').insert({
       user_id: userId,
       title: status === 'approved' ? "✅ Documentos Aprovados!" : "⚠️ Documentos Rejeitados",
       content: status === 'approved' 
@@ -31,6 +32,22 @@ serve(async (req) => {
       link: "/dashboard/perfil",
       type: status === 'approved' ? 'success' : 'error'
     });
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: status === "approved" ? "verification_approved_user" : "verification_rejected_user",
+      channel: "widget",
+      status: widgetError ? "failed" : "sent",
+      recipientKind: "user",
+      recipientUserId: userId || null,
+      recipientContact: userEmail || null,
+      title: status === 'approved' ? "Documentos Aprovados" : "Documentos Rejeitados",
+      content: status === 'approved' 
+        ? "Seus documentos foram validados."
+        : `Motivo da reprovacao: ${reason || "nao informado"}.`,
+      errorMessage: widgetError?.message || null,
+      metadata: { status, reason: reason || null },
+    });
+    if (widgetError) throw widgetError;
 
     // Log de auditoria
     await supabaseAdmin.from('admin_logs').insert({
@@ -114,14 +131,53 @@ serve(async (req) => {
         `;
       }
 
-      await transporter.sendMail({
-        from: `"HomeCare Match" <${smtpUser}>`,
-        to: userEmail,
-        subject: emailSubject,
-        html: emailHtml,
-      });
+      try {
+        await transporter.sendMail({
+          from: `"HomeCare Match" <${smtpUser}>`,
+          to: userEmail,
+          subject: emailSubject,
+          html: emailHtml,
+        });
+        await logNotificationDelivery({
+          supabaseAdmin,
+          eventType: status === "approved" ? "verification_approved_user" : "verification_rejected_user",
+          channel: "email",
+          status: "sent",
+          recipientKind: "user",
+          recipientUserId: userId || null,
+          recipientContact: userEmail || null,
+          title: emailSubject,
+          metadata: { status, reason: reason || null },
+        });
+      } catch (emailError) {
+        await logNotificationDelivery({
+          supabaseAdmin,
+          eventType: status === "approved" ? "verification_approved_user" : "verification_rejected_user",
+          channel: "email",
+          status: "failed",
+          recipientKind: "user",
+          recipientUserId: userId || null,
+          recipientContact: userEmail || null,
+          title: emailSubject,
+          errorMessage: emailError?.message || String(emailError),
+          metadata: { status, reason: reason || null },
+        });
+        throw emailError;
+      }
     } else {
       console.warn("[verification-result] Variáveis SMTP não configuradas. E-mail para o profissional não enviado.");
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType: status === "approved" ? "verification_approved_user" : "verification_rejected_user",
+        channel: "email",
+        status: "skipped",
+        recipientKind: "user",
+        recipientUserId: userId || null,
+        recipientContact: userEmail || null,
+        title: status === "approved" ? "Sua Verificacao de Perfil Foi Aprovada" : "Sua Verificacao de Perfil Foi Rejeitada",
+        errorMessage: "smtp_not_configured",
+        metadata: { status, reason: reason || null },
+      });
     }
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })

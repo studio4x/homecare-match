@@ -223,6 +223,21 @@ serve(async (req) => {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS public.notification_delivery_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        event_type TEXT NOT NULL,
+        channel TEXT NOT NULL CHECK (channel IN ('email', 'widget', 'whatsapp')),
+        status TEXT NOT NULL CHECK (status IN ('queued', 'pending', 'retry', 'sent', 'failed', 'skipped')),
+        recipient_kind TEXT NOT NULL CHECK (recipient_kind IN ('user', 'admin', 'external')),
+        recipient_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+        recipient_contact TEXT,
+        title TEXT,
+        content TEXT,
+        error_message TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
       CREATE INDEX IF NOT EXISTS idx_payment_transactions_user_date
         ON public.payment_transactions (user_id, created_at DESC);
 
@@ -238,9 +253,16 @@ serve(async (req) => {
       CREATE INDEX IF NOT EXISTS idx_whatsapp_queue_created_at
         ON public.whatsapp_notification_queue (created_at DESC);
 
+      CREATE INDEX IF NOT EXISTS idx_notification_delivery_logs_created
+        ON public.notification_delivery_logs (created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_notification_delivery_logs_channel_status
+        ON public.notification_delivery_logs (channel, status);
+
       ALTER TABLE public.asaas_checkout_sessions ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
       ALTER TABLE public.whatsapp_notification_queue ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.notification_delivery_logs ENABLE ROW LEVEL SECURITY;
 
       DO $policy$
       BEGIN
@@ -255,6 +277,40 @@ serve(async (req) => {
             FOR SELECT
             TO authenticated
             USING (auth.uid() = user_id);
+        END IF;
+      END
+      $policy$;
+
+      DO $policy$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies
+          WHERE schemaname = 'public'
+            AND tablename = 'whatsapp_notification_queue'
+            AND policyname = 'whatsapp_queue_admin_read'
+        ) THEN
+          CREATE POLICY "whatsapp_queue_admin_read"
+            ON public.whatsapp_notification_queue
+            FOR SELECT
+            TO authenticated
+            USING (check_is_admin());
+        END IF;
+      END
+      $policy$;
+
+      DO $policy$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies
+          WHERE schemaname = 'public'
+            AND tablename = 'notification_delivery_logs'
+            AND policyname = 'notification_delivery_logs_admin_read'
+        ) THEN
+          CREATE POLICY "notification_delivery_logs_admin_read"
+            ON public.notification_delivery_logs
+            FOR SELECT
+            TO authenticated
+            USING (check_is_admin());
         END IF;
       END
       $policy$;

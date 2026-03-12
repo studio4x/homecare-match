@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
 import { enqueueAdminWhatsappNotification } from "../_shared/whatsapp.ts";
+import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,12 +72,25 @@ serve(async (req) => {
       });
     }
 
-    await supabaseAdmin.from("admin_notifications").insert({
+    const { error: widgetError } = await supabaseAdmin.from("admin_notifications").insert({
       title: "🎯 Novo pedido de Concierge",
       content: `${conciergeRequest.requester_name || "Usuário"} enviou uma solicitação de busca personalizada.`,
       link: "/admin/concierge",
       type: "info",
     });
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "concierge_request_admin",
+      channel: "widget",
+      status: widgetError ? "failed" : "sent",
+      recipientKind: "admin",
+      recipientContact: "admin_notifications",
+      title: "Novo pedido de concierge",
+      content: `${conciergeRequest.requester_name || "Usuario"} enviou uma solicitacao de busca personalizada.`,
+      errorMessage: widgetError?.message || null,
+      metadata: { requestId },
+    });
+    if (widgetError) throw widgetError;
 
     try {
       await enqueueAdminWhatsappNotification({
@@ -120,37 +134,73 @@ serve(async (req) => {
           ? "Sem urgência"
           : "Ainda esta semana";
 
-      await transporter.sendMail({
-        from: `"HomeCare Match" <${smtpUser}>`,
-        to: adminEmail,
-        subject: `🎯 Novo Pedido Concierge (${roleLabel})`,
-        html: `
-          <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
-            <h2 style="margin: 0 0 12px; color: #2563eb;">Nova Solicitação de Concierge</h2>
-            <p style="margin: 0 0 16px;">Uma nova solicitação de busca personalizada foi enviada.</p>
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
-              <tr><td style="padding: 6px 0;"><strong>Solicitante:</strong></td><td>${conciergeRequest.requester_name || "-"}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>E-mail:</strong></td><td>${conciergeRequest.requester_email || "-"}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Tipo:</strong></td><td>${roleLabel}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Especialidade:</strong></td><td>${conciergeRequest.specialty || "-"}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Cidade/UF:</strong></td><td>${[conciergeRequest.city, conciergeRequest.state].filter(Boolean).join(" - ") || "-"}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Bairro:</strong></td><td>${conciergeRequest.neighborhood || "-"}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Disponibilidade:</strong></td><td>${conciergeRequest.availability || "-"}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Público-alvo:</strong></td><td>${conciergeRequest.patient_profile || "-"}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Valor/Hora Máx.:</strong></td><td>${conciergeRequest.max_hourly_rate ? `R$ ${Number(conciergeRequest.max_hourly_rate).toFixed(2).replace(".", ",")}` : "-"}</td></tr>
-              <tr><td style="padding: 6px 0;"><strong>Urgência:</strong></td><td>${urgencyLabel}</td></tr>
-            </table>
-            <div style="background: #f3f4f6; border-radius: 8px; padding: 12px; margin-bottom: 18px; white-space: pre-wrap;">
-              ${conciergeRequest.details}
+      try {
+        await transporter.sendMail({
+          from: `"HomeCare Match" <${smtpUser}>`,
+          to: adminEmail,
+          subject: `🎯 Novo Pedido Concierge (${roleLabel})`,
+          html: `
+            <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
+              <h2 style="margin: 0 0 12px; color: #2563eb;">Nova Solicitação de Concierge</h2>
+              <p style="margin: 0 0 16px;">Uma nova solicitação de busca personalizada foi enviada.</p>
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+                <tr><td style="padding: 6px 0;"><strong>Solicitante:</strong></td><td>${conciergeRequest.requester_name || "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>E-mail:</strong></td><td>${conciergeRequest.requester_email || "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Tipo:</strong></td><td>${roleLabel}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Especialidade:</strong></td><td>${conciergeRequest.specialty || "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Cidade/UF:</strong></td><td>${[conciergeRequest.city, conciergeRequest.state].filter(Boolean).join(" - ") || "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Bairro:</strong></td><td>${conciergeRequest.neighborhood || "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Disponibilidade:</strong></td><td>${conciergeRequest.availability || "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Público-alvo:</strong></td><td>${conciergeRequest.patient_profile || "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Valor/Hora Máx.:</strong></td><td>${conciergeRequest.max_hourly_rate ? `R$ ${Number(conciergeRequest.max_hourly_rate).toFixed(2).replace(".", ",")}` : "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Urgência:</strong></td><td>${urgencyLabel}</td></tr>
+              </table>
+              <div style="background: #f3f4f6; border-radius: 8px; padding: 12px; margin-bottom: 18px; white-space: pre-wrap;">
+                ${conciergeRequest.details}
+              </div>
+              <a href="${siteUrl}/admin/concierge" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
+                Abrir Painel Concierge
+              </a>
             </div>
-            <a href="${siteUrl}/admin/concierge" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
-              Abrir Painel Concierge
-            </a>
-          </div>
-        `,
-      });
+          `,
+        });
+        await logNotificationDelivery({
+          supabaseAdmin,
+          eventType: "concierge_request_admin",
+          channel: "email",
+          status: "sent",
+          recipientKind: "admin",
+          recipientContact: adminEmail,
+          title: `Novo Pedido Concierge (${roleLabel})`,
+          metadata: { requestId },
+        });
+      } catch (emailError) {
+        await logNotificationDelivery({
+          supabaseAdmin,
+          eventType: "concierge_request_admin",
+          channel: "email",
+          status: "failed",
+          recipientKind: "admin",
+          recipientContact: adminEmail,
+          title: `Novo Pedido Concierge (${roleLabel})`,
+          errorMessage: emailError?.message || String(emailError),
+          metadata: { requestId },
+        });
+        throw emailError;
+      }
     } else {
       console.warn("[notify-concierge] SMTP não configurado. E-mail não enviado.");
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType: "concierge_request_admin",
+        channel: "email",
+        status: "skipped",
+        recipientKind: "admin",
+        recipientContact: adminEmail,
+        title: "Novo Pedido Concierge",
+        errorMessage: "smtp_not_configured",
+        metadata: { requestId },
+      });
     }
 
     return new Response(JSON.stringify({ success: true }), {

@@ -1049,11 +1049,6 @@ const ProfilePage = () => {
                 <div className="grid gap-2"><Label>WhatsApp *</Label><Input value={profile.phone || ""} onChange={handlePhoneChange} placeholder="(11) 99999-9999" /></div>
               </div>
 
-              <div className="grid gap-2">
-                <Label className="flex items-center gap-2"><Mail className="h-3 w-3 text-muted-foreground" /> E-mail de Acesso</Label>
-                <Input value={profile.email || ""} disabled readOnly className="bg-muted" />
-              </div>
-
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div className="space-y-1 pr-3">
                   <Label className="text-sm">Receber notificações por WhatsApp</Label>
@@ -1071,6 +1066,11 @@ const ProfilePage = () => {
                     }))
                   }
                 />
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="flex items-center gap-2"><Mail className="h-3 w-3 text-muted-foreground" /> E-mail de Acesso</Label>
+                <Input value={profile.email || ""} disabled readOnly className="bg-muted" />
               </div>
 
               {isProfessional ? (

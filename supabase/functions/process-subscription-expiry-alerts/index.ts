@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
 import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
+import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -165,13 +166,27 @@ serve(async (req) => {
 
         const content = buildReminderContent(tier, daysRemaining, profile.subscription_end_at);
 
-        await supabaseAdmin.from("notifications").insert({
+        const { error: widgetError } = await supabaseAdmin.from("notifications").insert({
           user_id: profile.id,
           title: content.title,
           content: content.body,
           link: reminderLink,
           type: "billing_renewal_reminder",
         });
+        await logNotificationDelivery({
+          supabaseAdmin,
+          eventType: "subscription_renewal_reminder_user",
+          channel: "widget",
+          status: widgetError ? "failed" : "sent",
+          recipientKind: "user",
+          recipientUserId: profile.id,
+          recipientContact: profile.email || null,
+          title: content.title,
+          content: content.body,
+          errorMessage: widgetError?.message || null,
+          metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
+        });
+        if (widgetError) throw widgetError;
 
         notified += 1;
 
@@ -196,26 +211,77 @@ serve(async (req) => {
         }
 
         if (transporter && profile.email) {
-          await transporter.sendMail({
-            from: `"HomeCare Match" <${smtpUser}>`,
-            to: profile.email,
-            subject: content.subject,
-            html: `
-              <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:20px;">
-                <h2 style="margin-bottom:12px;color:#0f172a;">${content.title}</h2>
-                <p style="line-height:1.6;color:#334155;">Ola, ${profile.full_name || "usuario"}.</p>
-                <p style="line-height:1.6;color:#334155;">${content.body}</p>
-                <p style="line-height:1.6;color:#334155;">
-                  Para acompanhar e renovar quando necessario, acesse sua pagina de pagamentos no painel.
-                </p>
-                <a href="https://www.homecarematch.com.br/dashboard/pagamentos"
-                   style="display:inline-block;margin-top:10px;background:#1677ff;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;">
-                  Abrir pagina de pagamentos
-                </a>
-              </div>
-            `,
+          try {
+            await transporter.sendMail({
+              from: `"HomeCare Match" <${smtpUser}>`,
+              to: profile.email,
+              subject: content.subject,
+              html: `
+                <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:20px;">
+                  <h2 style="margin-bottom:12px;color:#0f172a;">${content.title}</h2>
+                  <p style="line-height:1.6;color:#334155;">Ola, ${profile.full_name || "usuario"}.</p>
+                  <p style="line-height:1.6;color:#334155;">${content.body}</p>
+                  <p style="line-height:1.6;color:#334155;">
+                    Para acompanhar e renovar quando necessario, acesse sua pagina de pagamentos no painel.
+                  </p>
+                  <a href="https://www.homecarematch.com.br/dashboard/pagamentos"
+                     style="display:inline-block;margin-top:10px;background:#1677ff;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;">
+                    Abrir pagina de pagamentos
+                  </a>
+                </div>
+              `,
+            });
+            await logNotificationDelivery({
+              supabaseAdmin,
+              eventType: "subscription_renewal_reminder_user",
+              channel: "email",
+              status: "sent",
+              recipientKind: "user",
+              recipientUserId: profile.id,
+              recipientContact: profile.email || null,
+              title: content.subject,
+              metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
+            });
+            emailed += 1;
+          } catch (emailError) {
+            await logNotificationDelivery({
+              supabaseAdmin,
+              eventType: "subscription_renewal_reminder_user",
+              channel: "email",
+              status: "failed",
+              recipientKind: "user",
+              recipientUserId: profile.id,
+              recipientContact: profile.email || null,
+              title: content.subject,
+              errorMessage: emailError?.message || String(emailError),
+              metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
+            });
+          }
+        } else if (!profile.email) {
+          await logNotificationDelivery({
+            supabaseAdmin,
+            eventType: "subscription_renewal_reminder_user",
+            channel: "email",
+            status: "skipped",
+            recipientKind: "user",
+            recipientUserId: profile.id,
+            title: content.subject,
+            errorMessage: "missing_user_email",
+            metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
           });
-          emailed += 1;
+        } else {
+          await logNotificationDelivery({
+            supabaseAdmin,
+            eventType: "subscription_renewal_reminder_user",
+            channel: "email",
+            status: "skipped",
+            recipientKind: "user",
+            recipientUserId: profile.id,
+            recipientContact: profile.email || null,
+            title: content.subject,
+            errorMessage: "smtp_not_configured",
+            metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
+          });
         }
       } catch (userError) {
         errors.push({

@@ -155,6 +155,7 @@ const AdminLayout = () => {
     { href: "/admin/pwa", label: "PWA Android", icon: Smartphone },
     { href: "/admin/concierge", label: "Solicitações Concierge", icon: Headset },
     { href: "/admin/push", label: "Avisos (Push)", icon: Bell },
+    { href: "/admin/notificacoes", label: "Entregas Notificacao", icon: Bell },
     { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },
     { href: "/admin/suporte", label: "Tickets", icon: LifeBuoy },
     { href: "/admin/faq", label: "FAQ / Ajuda", icon: HelpCircle },

@@ -6,6 +6,7 @@ import {
   enqueueAdminWhatsappNotification,
   enqueueUserWhatsappNotification,
 } from "../_shared/whatsapp.ts";
+import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -101,6 +102,7 @@ serve(async (req) => {
     const smtpPass = Deno.env.get("SMTP_PASS");
     const smtpPort = Deno.env.get("SMTP_PORT");
     const adminEmail = Deno.env.get("ADMIN_EMAIL") || "contato@homecarematch.com.br";
+    const hasSmtpConfig = !!(smtpHost && smtpUser && smtpPass && smtpPort);
 
     const sendEmail = async (to: string, subject: string, html: string) => {
       if (!smtpHost || !smtpUser || !smtpPass || !smtpPort) {
@@ -139,13 +141,27 @@ serve(async (req) => {
         content = `Seu chamado "${ticket.subject}" agora esta sendo analisado por nossa equipe.`;
       }
 
-      await supabaseAdmin.from("notifications").insert({
+      const { error: widgetError } = await supabaseAdmin.from("notifications").insert({
         user_id: ticket.user_id,
         title,
         content,
         link: `/dashboard/suporte/${ticketId}`,
         type: "info",
       });
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType: type === "ticket_closed" ? "support_ticket_closed_user" : "support_new_message_user",
+        channel: "widget",
+        status: widgetError ? "failed" : "sent",
+        recipientKind: "user",
+        recipientUserId: ticket.user_id,
+        recipientContact: ticketOwner?.email || null,
+        title,
+        content,
+        errorMessage: widgetError?.message || null,
+        metadata: { ticketId, type },
+      });
+      if (widgetError) throw widgetError;
 
       if (type === "new_message" || type === "ticket_closed") {
         try {
@@ -186,24 +202,75 @@ serve(async (req) => {
             ? `Seu chamado "${ticketSubject}" foi encerrado por nossa equipe.`
             : `Nossa equipe respondeu ao seu chamado "${ticketSubject}".`;
 
-        try {
-          await sendEmail(
-            ownerEmail,
-            emailSubject,
-            `
-              <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
-                <h2 style="margin: 0 0 12px; color: #2563eb;">${emailTitle}</h2>
-                <p style="margin: 0 0 16px;">Ola, ${ownerName}.</p>
-                <p style="margin: 0 0 16px;">${emailDescription}</p>
-                <a href="${userTicketUrl}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
-                  Abrir meu chamado
-                </a>
-              </div>
-            `,
-          );
-        } catch (emailError) {
-          console.error("[notify-support] falha ao enviar e-mail para usuario:", emailError?.message || emailError);
+        if (!hasSmtpConfig) {
+          await logNotificationDelivery({
+            supabaseAdmin,
+            eventType: type === "ticket_closed" ? "support_ticket_closed_user" : "support_new_message_user",
+            channel: "email",
+            status: "skipped",
+            recipientKind: "user",
+            recipientUserId: ticket.user_id,
+            recipientContact: ownerEmail,
+            title: emailSubject,
+            errorMessage: "smtp_not_configured",
+            metadata: { ticketId, type },
+          });
+        } else {
+          try {
+            await sendEmail(
+              ownerEmail,
+              emailSubject,
+              `
+                <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
+                  <h2 style="margin: 0 0 12px; color: #2563eb;">${emailTitle}</h2>
+                  <p style="margin: 0 0 16px;">Ola, ${ownerName}.</p>
+                  <p style="margin: 0 0 16px;">${emailDescription}</p>
+                  <a href="${userTicketUrl}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
+                    Abrir meu chamado
+                  </a>
+                </div>
+              `,
+            );
+            await logNotificationDelivery({
+              supabaseAdmin,
+              eventType: type === "ticket_closed" ? "support_ticket_closed_user" : "support_new_message_user",
+              channel: "email",
+              status: "sent",
+              recipientKind: "user",
+              recipientUserId: ticket.user_id,
+              recipientContact: ownerEmail,
+              title: emailSubject,
+              metadata: { ticketId, type },
+            });
+          } catch (emailError) {
+            console.error("[notify-support] falha ao enviar e-mail para usuario:", emailError?.message || emailError);
+            await logNotificationDelivery({
+              supabaseAdmin,
+              eventType: type === "ticket_closed" ? "support_ticket_closed_user" : "support_new_message_user",
+              channel: "email",
+              status: "failed",
+              recipientKind: "user",
+              recipientUserId: ticket.user_id,
+              recipientContact: ownerEmail,
+              title: emailSubject,
+              errorMessage: emailError?.message || String(emailError),
+              metadata: { ticketId, type },
+            });
+          }
         }
+      } else if (type === "new_message" || type === "ticket_closed") {
+        await logNotificationDelivery({
+          supabaseAdmin,
+          eventType: type === "ticket_closed" ? "support_ticket_closed_user" : "support_new_message_user",
+          channel: "email",
+          status: "skipped",
+          recipientKind: "user",
+          recipientUserId: ticket.user_id,
+          recipientContact: ownerEmail || null,
+          title: ticketSubject,
+          errorMessage: "invalid_owner_email",
+          metadata: { ticketId, type },
+        });
       }
     }
 
@@ -215,12 +282,25 @@ serve(async (req) => {
       const ticketPriority = ticket?.priority || "nao definida";
       const ticketUrl = `${siteUrl}/admin/suporte/${ticketId}`;
 
-      await supabaseAdmin.from("admin_notifications").insert({
+      const { error: adminWidgetError } = await supabaseAdmin.from("admin_notifications").insert({
         title: "Novo ticket aberto",
         content: `O usuario ${ownerName} abriu um chamado: "${ticketSubject}"`,
         link: `/admin/suporte/${ticketId}`,
         type: "warning",
       });
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType: "support_new_ticket_admin",
+        channel: "widget",
+        status: adminWidgetError ? "failed" : "sent",
+        recipientKind: "admin",
+        recipientContact: "admin_notifications",
+        title: "Novo ticket aberto",
+        content: `O usuario ${ownerName} abriu um chamado: "${ticketSubject}"`,
+        errorMessage: adminWidgetError?.message || null,
+        metadata: { ticketId, ownerEmail, priority: ticketPriority, category: ticketCategory },
+      });
+      if (adminWidgetError) throw adminWidgetError;
 
       try {
         await enqueueAdminWhatsappNotification({
@@ -242,36 +322,85 @@ serve(async (req) => {
         console.warn("[notify-support] falha ao enfileirar WhatsApp admin (new_ticket):", waError?.message || waError);
       }
 
-      try {
-        await sendAdminEmail(
-          `Novo ticket de suporte: ${ticketSubject}`,
-          `
-            <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
-              <h2 style="margin: 0 0 12px; color: #2563eb;">Novo Ticket de Suporte</h2>
-              <p style="margin: 0 0 16px;">Um novo chamado foi aberto na plataforma.</p>
-              <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
-                <tr><td style="padding: 6px 0;"><strong>Usuario:</strong></td><td>${ownerName}</td></tr>
-                <tr><td style="padding: 6px 0;"><strong>E-mail:</strong></td><td>${ownerEmail}</td></tr>
-                <tr><td style="padding: 6px 0;"><strong>Assunto:</strong></td><td>${ticketSubject}</td></tr>
-                <tr><td style="padding: 6px 0;"><strong>Categoria:</strong></td><td>${ticketCategory}</td></tr>
-                <tr><td style="padding: 6px 0;"><strong>Prioridade:</strong></td><td>${ticketPriority}</td></tr>
-              </table>
-              <a href="${ticketUrl}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
-                Abrir ticket no admin
-              </a>
-            </div>
-          `,
-        );
-      } catch (emailError) {
-        console.error("[notify-support] falha ao enviar e-mail admin:", emailError?.message || emailError);
+      const adminEmailSubject = `Novo ticket de suporte: ${ticketSubject}`;
+      if (!hasSmtpConfig) {
+        await logNotificationDelivery({
+          supabaseAdmin,
+          eventType: "support_new_ticket_admin",
+          channel: "email",
+          status: "skipped",
+          recipientKind: "admin",
+          recipientContact: adminEmail,
+          title: adminEmailSubject,
+          errorMessage: "smtp_not_configured",
+          metadata: { ticketId, ownerEmail, priority: ticketPriority, category: ticketCategory },
+        });
+      } else {
+        try {
+          await sendAdminEmail(
+            adminEmailSubject,
+            `
+              <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
+                <h2 style="margin: 0 0 12px; color: #2563eb;">Novo Ticket de Suporte</h2>
+                <p style="margin: 0 0 16px;">Um novo chamado foi aberto na plataforma.</p>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+                  <tr><td style="padding: 6px 0;"><strong>Usuario:</strong></td><td>${ownerName}</td></tr>
+                  <tr><td style="padding: 6px 0;"><strong>E-mail:</strong></td><td>${ownerEmail}</td></tr>
+                  <tr><td style="padding: 6px 0;"><strong>Assunto:</strong></td><td>${ticketSubject}</td></tr>
+                  <tr><td style="padding: 6px 0;"><strong>Categoria:</strong></td><td>${ticketCategory}</td></tr>
+                  <tr><td style="padding: 6px 0;"><strong>Prioridade:</strong></td><td>${ticketPriority}</td></tr>
+                </table>
+                <a href="${ticketUrl}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
+                  Abrir ticket no admin
+                </a>
+              </div>
+            `,
+          );
+          await logNotificationDelivery({
+            supabaseAdmin,
+            eventType: "support_new_ticket_admin",
+            channel: "email",
+            status: "sent",
+            recipientKind: "admin",
+            recipientContact: adminEmail,
+            title: adminEmailSubject,
+            metadata: { ticketId, ownerEmail, priority: ticketPriority, category: ticketCategory },
+          });
+        } catch (emailError) {
+          console.error("[notify-support] falha ao enviar e-mail admin:", emailError?.message || emailError);
+          await logNotificationDelivery({
+            supabaseAdmin,
+            eventType: "support_new_ticket_admin",
+            channel: "email",
+            status: "failed",
+            recipientKind: "admin",
+            recipientContact: adminEmail,
+            title: adminEmailSubject,
+            errorMessage: emailError?.message || String(emailError),
+            metadata: { ticketId, ownerEmail, priority: ticketPriority, category: ticketCategory },
+          });
+        }
       }
     } else if (type === "new_message" && !actorIsAdmin) {
-      await supabaseAdmin.from("admin_notifications").insert({
+      const { error: adminWidgetError } = await supabaseAdmin.from("admin_notifications").insert({
         title: "Nova mensagem em ticket",
         content: `${ticketOwner?.full_name || "Usuario"} respondeu no ticket #${String(ticketId).slice(0, 8)}`,
         link: `/admin/suporte/${ticketId}`,
         type: "info",
       });
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType: "support_new_message_admin",
+        channel: "widget",
+        status: adminWidgetError ? "failed" : "sent",
+        recipientKind: "admin",
+        recipientContact: "admin_notifications",
+        title: "Nova mensagem em ticket",
+        content: `${ticketOwner?.full_name || "Usuario"} respondeu no ticket #${String(ticketId).slice(0, 8)}`,
+        errorMessage: adminWidgetError?.message || null,
+        metadata: { ticketId, senderId: actorId },
+      });
+      if (adminWidgetError) throw adminWidgetError;
 
       try {
         await enqueueAdminWhatsappNotification({

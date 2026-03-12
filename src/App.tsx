@@ -77,6 +77,7 @@ import PaymentsAdminPage from "./pages/admin/PaymentsAdminPage";
 import PwaSettingsPage from "./pages/admin/PwaSettingsPage";
 import BlogAdminPage from "./pages/admin/BlogPage";
 import ChatbotConversationsPage from "./pages/admin/ChatbotConversationsPage";
+import NotificationDeliveriesPage from "./pages/admin/NotificationDeliveriesPage";
 
 const queryClient = new QueryClient();
 
@@ -146,6 +147,7 @@ const App = () => (
                 <Route path="cursos" element={<CoursesAdminPage />} />
                 <Route path="videos" element={<VideosPage />} />
                 <Route path="push" element={<PushNotificationsPage />} />
+                <Route path="notificacoes" element={<NotificationDeliveriesPage />} />
                 <Route path="denuncias" element={<ReportsPage />} />
                 <Route path="sugestoes" element={<SuggestionsPage />} />
                 <Route path="cupons" element={<CouponsPage />} />

@@ -236,38 +236,63 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const handleImpersonate = async (targetId: string) => {
     setIsImpersonating(targetId);
     try {
+      if (!user?.id || !user?.email) {
+        toast.error("Sessão de admin inválida para impersonação.");
+        return;
+      }
+
+      try {
+        localStorage.removeItem("adminReturnLink");
+        localStorage.removeItem("adminReturnEmail");
+        localStorage.removeItem("adminReturnUserId");
+      } catch {}
+
+      const { data: adminLink, error: adminLinkError } = await supabase.functions.invoke("impersonate-login", {
+        body: {
+          targetUserId: user.id,
+          expectedEmail: user.email,
+        }
+      });
+
+      if (adminLinkError || !adminLink?.action_link) {
+        const serverError = (adminLink as any)?.error;
+        const message = serverError || adminLinkError?.message || "Não foi possível gerar o link de retorno do admin.";
+        toast.error(message);
+        return;
+      }
+
+      const adminLinkEmail = String((adminLink as any)?.target_email || "").trim().toLowerCase();
+      if (adminLinkEmail && adminLinkEmail !== String(user.email).trim().toLowerCase()) {
+        toast.error("O link de retorno gerado não corresponde ao admin atual.");
+        return;
+      }
+
+      localStorage.setItem("adminReturnLink", adminLink.action_link);
+      localStorage.setItem("adminReturnEmail", user.email);
+      localStorage.setItem("adminReturnUserId", user.id);
+
       const { data, error } = await supabase.functions.invoke("impersonate-login", {
         body: { targetUserId: targetId }
       });
+
       if (error || !data?.action_link) {
         const serverError = (data as any)?.error;
         const message = serverError || error?.message || "Não foi possível gerar o acesso.";
         toast.error(message);
-        setIsImpersonating(null);
         return;
       }
-      try {
-        const { data: adminLink } = await supabase.functions.invoke("impersonate-login", {
-          body: { targetUserId: user?.id }
-        });
-        if (adminLink?.action_link) {
-          localStorage.setItem("adminReturnLink", adminLink.action_link);
-        }
-      } catch (e) {
-        console.warn("[Admin] Falha ao gerar link de retorno do admin:", e);
-      }
+
       toast.info("Entrando como o usuário...");
       try {
         localStorage.setItem("impersonatingAdmin", "true");
-        if (user?.email) localStorage.setItem("impersonatorEmail", user.email);
+        localStorage.setItem("impersonatorEmail", user.email);
       } catch {}
       window.location.href = data.action_link;
     } catch (e) {
       console.error("[Admin] Impersonate error:", e);
       toast.error("Falha ao entrar como usuário.");
-    } finally {
-      setIsImpersonating(null);
     }
+    setIsImpersonating(null);
   };
 
   const getDaysRemaining = (u: any) => {

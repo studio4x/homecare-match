@@ -56,7 +56,7 @@ serve(async (req) => {
       });
     }
 
-    const { targetUserId } = await req.json();
+    const { targetUserId, expectedEmail } = await req.json();
     if (!targetUserId || typeof targetUserId !== "string") {
       return new Response(JSON.stringify({ error: "targetUserId inválido." }), {
         status: 400,
@@ -96,6 +96,17 @@ serve(async (req) => {
       });
     }
 
+    if (typeof expectedEmail === "string" && expectedEmail.trim()) {
+      const normalizedExpected = expectedEmail.trim().toLowerCase();
+      const normalizedTarget = targetEmail.trim().toLowerCase();
+      if (normalizedExpected !== normalizedTarget) {
+        return new Response(JSON.stringify({ error: "E-mail do usuário de destino não confere com o esperado." }), {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Registro de auditoria não deve bloquear a impersonação.
     try {
       await supabaseAdmin.from("admin_logs").insert({
@@ -131,7 +142,11 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ action_link }), {
+    return new Response(JSON.stringify({
+      action_link,
+      target_user_id: targetUserId,
+      target_email: targetEmail,
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

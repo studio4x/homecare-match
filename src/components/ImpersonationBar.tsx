@@ -15,9 +15,10 @@ const ImpersonationBar: React.FC = () => {
     try {
       const flag = localStorage.getItem("impersonatingAdmin");
       const email = localStorage.getItem("impersonatorEmail");
+      const returnEmail = localStorage.getItem("adminReturnEmail");
       const returnLink = localStorage.getItem("adminReturnLink");
       setShow(flag === "true");
-      setAdminEmail(email);
+      setAdminEmail(email || returnEmail);
       setAdminReturnLink(returnLink);
     } catch {
       setShow(false);
@@ -48,6 +49,8 @@ const ImpersonationBar: React.FC = () => {
                 localStorage.removeItem("impersonatingAdmin");
                 localStorage.removeItem("impersonatorEmail");
                 localStorage.removeItem("adminReturnLink");
+                localStorage.removeItem("adminReturnEmail");
+                localStorage.removeItem("adminReturnUserId");
               } catch {}
               await signOut();
               window.location.href = link || "/admin";

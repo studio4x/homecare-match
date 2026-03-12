@@ -361,43 +361,43 @@
   Observacoes:
 
 ### 2.7 Programa de Indicacoes (novo)
-- [ ] P1-39 Cadastro via link de indicacao aparece na lista do indicador
+- [OK] P1-39 Cadastro via link de indicacao aparece na lista do indicador
   Desktop: ok
-  Mobile: 
+  Mobile: ok
   Observacoes:
 
-- [ ] P1-40 Card do indicado exibe nome e e-mail de cadastro corretamente
-  Desktop:
-  Mobile:
+- [OK] P1-40 Card do indicado exibe nome e e-mail de cadastro corretamente
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-41 Etapa "Validou e-mail" atualiza apos confirmacao pelo admin
-  Desktop:
-  Mobile:
+- [OK] P1-41 Etapa "Validou e-mail" atualiza apos confirmacao pelo admin
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-42 Etapa "Preencheu perfil" atualiza apos completar campos obrigatorios
-  Desktop:
-  Mobile:
+- [OK] P1-42 Etapa "Preencheu perfil" atualiza apos completar campos obrigatorios
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-43 Etapa "Validou documentos" atualiza apos verificacao e marca indicacao valida
-  Desktop:
-  Mobile:
+- [OK] P1-43 Etapa "Validou documentos" atualiza apos verificacao e marca indicacao valida
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-44 Contadores e bloco de nivel (indicacoes validas / faltam para proximo selo) atualizam corretamente
-  Desktop:
-  Mobile:
+- [OK] P1-44 Contadores e bloco de nivel (indicacoes validas / faltam para proximo selo) atualizam corretamente
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-45 Lista de indicados atualiza sem recarregar manualmente (polling/foco da aba)
-  Desktop:
-  Mobile:
+- [OK] P1-45 Lista de indicados atualiza sem recarregar manualmente (polling/foco da aba)
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] P1-46 Textos da pagina de indicacoes exibidos com acentuacao correta
-  Desktop:
+- [OK] P1-46 Textos da pagina de indicacoes exibidos com acentuacao correta
+  Desktop: OK
   Mobile:
   Observacoes:
 

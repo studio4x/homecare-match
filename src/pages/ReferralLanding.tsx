@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate, Link } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
 import AuthForm from "@/components/auth/AuthForm";
@@ -10,7 +10,6 @@ import { Loader2, Award, CheckCircle2 } from "lucide-react";
 
 const ReferralLanding = () => {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const referrerId = searchParams.get("ref");
   
   const [referrer, setReferrer] = useState<any>(null);
@@ -52,6 +51,13 @@ const ReferralLanding = () => {
   }
 
   const initials = referrer?.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
+  const referrerDisplayName = typeof referrer?.full_name === "string" ? referrer.full_name.trim() : "";
+  const invitationTitle = referrerDisplayName
+    ? `${referrerDisplayName} indicou você para conhecer a HomeCare Match`
+    : "Você foi convidado(a) para conhecer a HomeCare Match";
+  const invitationDescription = referrerDisplayName
+    ? "Ficamos felizes por ter você com a gente. Seja bem-vindo(a)! Complete seu cadastro e comece a aproveitar os recursos da plataforma para profissionais."
+    : "Ficamos felizes por ter você com a gente. Crie sua conta e comece agora.";
 
   return (
     <Layout>
@@ -60,6 +66,11 @@ const ReferralLanding = () => {
           <div className="grid md:grid-cols-2">
             {/* Coluna da Esquerda: Mensagem Personalizada */}
             <div className="bg-primary/5 p-8 md:p-12 flex flex-col justify-center border-r">
+              <div className="mb-6 rounded-2xl border border-primary/20 bg-background/80 p-4">
+                <p className="text-sm font-semibold leading-snug text-foreground">{invitationTitle}</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{invitationDescription}</p>
+              </div>
+
               <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Award className="h-6 w-6" />
               </div>

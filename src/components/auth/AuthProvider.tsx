@@ -70,10 +70,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    const maybeRedirectByAuthType = (authType: string, hasSession: boolean) => {
-      if (!hasSession || typeof window === "undefined") return;
+    const shouldShowEmailConfirmedGuide = (currentUser: User | null) => {
+      if (!currentUser || typeof window === "undefined") return false;
+      const currentPath = window.location.pathname || "/";
+      if (currentPath !== "/") return false;
+
+      const seenKey = `emailConfirmedGuideShown:${currentUser.id}`;
+      if (localStorage.getItem(seenKey) === "true") return false;
+
+      const createdAt = Date.parse(String(currentUser.created_at || ""));
+      const lastSignInAt = Date.parse(String(currentUser.last_sign_in_at || ""));
+      const emailConfirmedAt = Date.parse(String((currentUser as any).email_confirmed_at || ""));
+      if (!Number.isFinite(createdAt) || !Number.isFinite(lastSignInAt) || !Number.isFinite(emailConfirmedAt)) {
+        return false;
+      }
+
+      const createdToSignInMs = Math.abs(lastSignInAt - createdAt);
+      const signInToConfirmMs = Math.abs(emailConfirmedAt - lastSignInAt);
+
+      // "Primeiro login após confirmação": timestamps muito próximos.
+      return createdToSignInMs <= 10 * 60 * 1000 && signInToConfirmMs <= 10 * 60 * 1000;
+    };
+
+    const markEmailConfirmedGuideSeen = (userId: string | undefined) => {
+      if (!userId || typeof window === "undefined") return;
+      localStorage.setItem(`emailConfirmedGuideShown:${userId}`, "true");
+    };
+
+    const maybeRedirectByAuthType = (authType: string, currentSession: Session | null) => {
+      if (!currentSession || typeof window === "undefined") return;
       const currentPath = window.location.pathname;
-      const shouldUseSignupFallback = authType !== "recovery" && authType !== "signup" && isSignupFallbackRedirect();
+      const shouldUseSignupFallback =
+        authType !== "recovery" &&
+        authType !== "signup" &&
+        (isSignupFallbackRedirect() || shouldShowEmailConfirmedGuide(currentSession.user));
 
       if (authType === "recovery" && currentPath !== "/redefinir-senha") {
         navigate("/redefinir-senha", { replace: true });
@@ -81,6 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if ((authType === "signup" || shouldUseSignupFallback) && currentPath !== "/email-confirmado") {
+        markEmailConfirmedGuideSeen(currentSession.user?.id);
         navigate("/email-confirmado", { replace: true });
       }
     };
@@ -94,7 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(freshSession);
       setUser(freshSession?.user ?? null);
       setLoading(false);
-      maybeRedirectByAuthType(authType, Boolean(freshSession));
+      maybeRedirectByAuthType(authType, freshSession);
     };
 
     bootstrapAuth();
@@ -114,7 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-        maybeRedirectByAuthType(authType, Boolean(freshSession));
+        maybeRedirectByAuthType(authType, freshSession);
       }
     });
 

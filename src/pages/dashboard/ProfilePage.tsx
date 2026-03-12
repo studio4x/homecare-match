@@ -69,6 +69,10 @@ import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import OnboardingModal from "@/components/OnboardingModal";
 import { getCoordinates } from "@/lib/geo-utils";
 import { useSiteConfig } from "@/hooks/use-site-config";
+import {
+  getCompanyFamilyContactBlockMessage,
+  getCompanyFamilyContactEligibility,
+} from "@/lib/contact-eligibility";
 import { Link } from "react-router-dom";
 import { BRAZIL_STATES, fetchCitiesByState } from "@/lib/brazil-locations";
 
@@ -878,6 +882,9 @@ const ProfilePage = () => {
 
   const CONFIRMATION_PHRASE = "EXCLUIR MINHA CONTA";
   const isCompanyOrFamily = isCompany || isFamily;
+  const companyFamilyContactEligibility = getCompanyFamilyContactEligibility(profile);
+  const showCompanyFamilyContactWarning =
+    isCompanyOrFamily && !companyFamilyContactEligibility.canAddProfessionalContact;
 
   const VerificationCard = (
     <Card>
@@ -1014,6 +1021,33 @@ const ProfilePage = () => {
         <h1 className="text-2xl font-bold tracking-tight">Meus Dados</h1>
         <p className="text-muted-foreground">Mantenha seu perfil atualizado para melhores resultados.</p>
       </div>
+      {showCompanyFamilyContactWarning && (
+        <Card className="border-amber-300/60 bg-amber-50/80">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-700 mt-0.5 shrink-0" />
+              <div className="space-y-1">
+                <p className="font-semibold text-amber-900">
+                  Contato com profissionais bloqueado até concluir os requisitos
+                </p>
+                <p className="text-sm text-amber-800">
+                  {getCompanyFamilyContactBlockMessage(companyFamilyContactEligibility)}
+                </p>
+                {!companyFamilyContactEligibility.isProfileComplete && companyFamilyContactEligibility.missingProfileFields.length > 0 && (
+                  <p className="text-xs text-amber-800/90">
+                    Pendências do perfil: {companyFamilyContactEligibility.missingProfileFields.join(", ")}.
+                  </p>
+                )}
+                {!companyFamilyContactEligibility.isDocumentsVerified && (
+                  <p className="text-xs text-amber-800/90">
+                    Assim que seus documentos forem aprovados, o contato será liberado automaticamente.
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className={`${isCompanyOrFamily ? "order-2 lg:order-none " : ""}lg:col-span-2 flex flex-col gap-6`}>

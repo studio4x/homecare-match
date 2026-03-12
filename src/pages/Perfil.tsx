@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/layout/Layout";
@@ -37,6 +37,10 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
+  getCompanyFamilyContactBlockMessage,
+  getCompanyFamilyContactEligibility,
+} from "@/lib/contact-eligibility";
+import {
   Dialog,
   DialogContent,
   DialogTitle,
@@ -58,12 +62,19 @@ const Perfil = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [viewerRole, setViewerRole] = useState<string | null>(null);
+  const [viewerProfile, setViewerProfile] = useState<any>(null);
   const [referralStats, setReferralStats] = useState<{ count: number; currentTier?: any; nextTier?: any } | null>(null);
   const [completedCourses, setCompletedCourses] = useState<Array<{ slug: string; title: string; hero_asset_url: string | null; workload_minutes: number; certificateId: string | null }>>([]);
   const [loadingCourses, setLoadingCourses] = useState<boolean>(false);
 
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [certificateToView, setCertificateToView] = useState<string | null>(null);
+  const viewerContactEligibility = useMemo(
+    () => getCompanyFamilyContactEligibility(viewerProfile),
+    [viewerProfile],
+  );
+  const shouldBlockCompanyFamilyContact =
+    viewerContactEligibility.isCompanyOrFamily && !viewerContactEligibility.canAddProfessionalContact;
 
   const fetchProfile = useCallback(async () => {
     if (!id) return;
@@ -132,10 +143,14 @@ const Perfil = () => {
       if (user) {
         const { data } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, avatar_url, full_name, phone, neighborhood, city, state, company_name, cnpj, bio, patient_name, patient_age, patient_medical_conditions, availability, is_verified")
           .eq("id", user.id)
           .single();
         setViewerRole(data?.role || null);
+        setViewerProfile(data || null);
+      } else {
+        setViewerRole(null);
+        setViewerProfile(null);
       }
     };
     if (!authLoading) fetchViewerRole();
@@ -196,6 +211,37 @@ const Perfil = () => {
       return;
     }
 
+    const isCompanyOrFamilyViewer = viewerRole === "company" || viewerRole === "family";
+    if (isCompanyOrFamilyViewer) {
+      let viewerProfileData = viewerProfile;
+
+      if (!viewerProfileData) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("role, avatar_url, full_name, phone, neighborhood, city, state, company_name, cnpj, bio, patient_name, patient_age, patient_medical_conditions, availability, is_verified")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (error || !data) {
+          toast.error("Não foi possível validar seu perfil no momento. Tente novamente.");
+          return;
+        }
+
+        viewerProfileData = data;
+        setViewerRole(data.role || null);
+        setViewerProfile(data);
+      }
+
+      const eligibility = getCompanyFamilyContactEligibility(viewerProfileData);
+      if (!eligibility.canAddProfessionalContact) {
+        const description = !eligibility.isProfileComplete && eligibility.missingProfileFields.length > 0
+          ? `Pendências no perfil: ${eligibility.missingProfileFields.join(", ")}.`
+          : undefined;
+        toast.error(getCompanyFamilyContactBlockMessage(eligibility), { description });
+        return;
+      }
+    }
+
     setIsContacting(true);
 
     try {
@@ -208,8 +254,9 @@ const Perfil = () => {
 
       setShowSuccessModal(true);
       
-    } catch (error) {
-      toast.error("Erro ao adicionar profissional aos contatos.");
+    } catch (error: any) {
+      const dbMessage = typeof error?.message === "string" ? error.message : "";
+      toast.error(dbMessage || "Erro ao adicionar profissional aos contatos.");
       console.error("Erro ao registrar interação:", error);
     } finally {
       setIsContacting(false);
@@ -482,6 +529,22 @@ const Perfil = () => {
                   <p className="text-xs text-muted-foreground text-center mb-4">
                     Ao clicar, o profissional será salvo em sua lista de contatos no seu painel, onde você poderá ver o WhatsApp e iniciar a conversa.
                   </p>
+                  {shouldBlockCompanyFamilyContact && (
+                    <div className="mb-4 rounded-lg border border-amber-300/60 bg-amber-50 p-3 text-left">
+                      <p className="text-sm font-semibold text-amber-900">Contato bloqueado temporariamente</p>
+                      <p className="mt-1 text-xs text-amber-800">
+                        {getCompanyFamilyContactBlockMessage(viewerContactEligibility)}
+                      </p>
+                      {!viewerContactEligibility.isProfileComplete && viewerContactEligibility.missingProfileFields.length > 0 && (
+                        <p className="mt-1 text-xs text-amber-800/90">
+                          Pendências: {viewerContactEligibility.missingProfileFields.join(", ")}.
+                        </p>
+                      )}
+                      <Button asChild variant="link" size="sm" className="h-auto p-0 mt-2 text-amber-900">
+                        <Link to="/dashboard/perfil">Completar perfil</Link>
+                      </Button>
+                    </div>
+                  )}
                   <div className="space-y-3">
                     <Button 
                       onClick={handleContact} 

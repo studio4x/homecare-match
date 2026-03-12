@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
@@ -16,13 +16,17 @@ serve(async (req) => {
   try {
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
+    const payload = await req.json();
     const authHeader = req.headers.get("Authorization");
-    const token = authHeader?.replace("Bearer ", "");
+    const bearerToken = authHeader?.replace("Bearer ", "").trim() || "";
+    const bodyToken = typeof payload?.access_token === "string" ? payload.access_token.trim() : "";
+    const token = bearerToken || bodyToken;
+
     if (!token) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
+      return new Response(JSON.stringify({ error: "Nao autorizado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -30,15 +34,15 @@ serve(async (req) => {
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
     if (authError || !authData?.user) {
-      return new Response(JSON.stringify({ error: "Token inválido" }), {
+      return new Response(JSON.stringify({ error: "Token invalido" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { requestId } = await req.json();
+    const requestId = typeof payload?.requestId === "string" ? payload.requestId : "";
     if (!requestId) {
-      return new Response(JSON.stringify({ error: "requestId é obrigatório" }), {
+      return new Response(JSON.stringify({ error: "requestId e obrigatorio" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -51,7 +55,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (requestError || !conciergeRequest) {
-      return new Response(JSON.stringify({ error: "Solicitação não encontrada" }), {
+      return new Response(JSON.stringify({ error: "Solicitacao nao encontrada" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -64,7 +68,7 @@ serve(async (req) => {
       .eq("id", requesterId)
       .maybeSingle();
 
-    const isAdmin = requesterProfile?.is_admin || requesterProfile?.role === "admin";
+    const isAdmin = Boolean(requesterProfile?.is_admin || requesterProfile?.role === "admin");
     if (!isAdmin && conciergeRequest.user_id !== requesterId) {
       return new Response(JSON.stringify({ error: "Acesso negado" }), {
         status: 403,
@@ -72,12 +76,16 @@ serve(async (req) => {
       });
     }
 
+    const widgetTitle = "Novo pedido de concierge";
+    const widgetContent = `${conciergeRequest.requester_name || "Usuario"} enviou uma solicitacao de busca personalizada.`;
+
     const { error: widgetError } = await supabaseAdmin.from("admin_notifications").insert({
-      title: "🎯 Novo pedido de Concierge",
-      content: `${conciergeRequest.requester_name || "Usuário"} enviou uma solicitação de busca personalizada.`,
+      title: widgetTitle,
+      content: widgetContent,
       link: "/admin/concierge",
       type: "info",
     });
+
     await logNotificationDelivery({
       supabaseAdmin,
       eventType: "concierge_request_admin",
@@ -85,11 +93,12 @@ serve(async (req) => {
       status: widgetError ? "failed" : "sent",
       recipientKind: "admin",
       recipientContact: "admin_notifications",
-      title: "Novo pedido de concierge",
-      content: `${conciergeRequest.requester_name || "Usuario"} enviou uma solicitacao de busca personalizada.`,
+      title: widgetTitle,
+      content: widgetContent,
       errorMessage: widgetError?.message || null,
       metadata: { requestId },
     });
+
     if (widgetError) throw widgetError;
 
     try {
@@ -126,37 +135,39 @@ serve(async (req) => {
         auth: { user: smtpUser, pass: smtpPass },
       });
 
-      const roleLabel = conciergeRequest.requester_role === "company" ? "Empresa" : "Família";
+      const roleLabel = conciergeRequest.requester_role === "company" ? "Empresa" : "Familia";
       const urgencyLabel =
         conciergeRequest.urgency === "urgente-24h"
-          ? "Urgente (até 24h)"
+          ? "Urgente (ate 24h)"
           : conciergeRequest.urgency === "sem-urgencia"
-          ? "Sem urgência"
-          : "Ainda esta semana";
+            ? "Sem urgencia"
+            : "Ainda esta semana";
+
+      const emailSubject = `Novo Pedido Concierge (${roleLabel})`;
 
       try {
         await transporter.sendMail({
           from: `"HomeCare Match" <${smtpUser}>`,
           to: adminEmail,
-          subject: `🎯 Novo Pedido Concierge (${roleLabel})`,
+          subject: emailSubject,
           html: `
             <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
-              <h2 style="margin: 0 0 12px; color: #2563eb;">Nova Solicitação de Concierge</h2>
-              <p style="margin: 0 0 16px;">Uma nova solicitação de busca personalizada foi enviada.</p>
+              <h2 style="margin: 0 0 12px; color: #2563eb;">Nova Solicitacao de Concierge</h2>
+              <p style="margin: 0 0 16px;">Uma nova solicitacao de busca personalizada foi enviada.</p>
               <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
                 <tr><td style="padding: 6px 0;"><strong>Solicitante:</strong></td><td>${conciergeRequest.requester_name || "-"}</td></tr>
                 <tr><td style="padding: 6px 0;"><strong>E-mail:</strong></td><td>${conciergeRequest.requester_email || "-"}</td></tr>
                 <tr><td style="padding: 6px 0;"><strong>Tipo:</strong></td><td>${roleLabel}</td></tr>
                 <tr><td style="padding: 6px 0;"><strong>Especialidade:</strong></td><td>${conciergeRequest.specialty || "-"}</td></tr>
-                <tr><td style="padding: 6px 0;"><strong>Cidade/UF:</strong></td><td>${[conciergeRequest.city, conciergeRequest.state].filter(Boolean).join(" - ") || "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Estado/Cidade:</strong></td><td>${[conciergeRequest.state, conciergeRequest.city].filter(Boolean).join(" - ") || "-"}</td></tr>
                 <tr><td style="padding: 6px 0;"><strong>Bairro:</strong></td><td>${conciergeRequest.neighborhood || "-"}</td></tr>
                 <tr><td style="padding: 6px 0;"><strong>Disponibilidade:</strong></td><td>${conciergeRequest.availability || "-"}</td></tr>
-                <tr><td style="padding: 6px 0;"><strong>Público-alvo:</strong></td><td>${conciergeRequest.patient_profile || "-"}</td></tr>
-                <tr><td style="padding: 6px 0;"><strong>Valor/Hora Máx.:</strong></td><td>${conciergeRequest.max_hourly_rate ? `R$ ${Number(conciergeRequest.max_hourly_rate).toFixed(2).replace(".", ",")}` : "-"}</td></tr>
-                <tr><td style="padding: 6px 0;"><strong>Urgência:</strong></td><td>${urgencyLabel}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Publico-alvo:</strong></td><td>${conciergeRequest.patient_profile || "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Valor/Hora Max.:</strong></td><td>${conciergeRequest.max_hourly_rate ? `R$ ${Number(conciergeRequest.max_hourly_rate).toFixed(2).replace(".", ",")}` : "-"}</td></tr>
+                <tr><td style="padding: 6px 0;"><strong>Urgencia:</strong></td><td>${urgencyLabel}</td></tr>
               </table>
               <div style="background: #f3f4f6; border-radius: 8px; padding: 12px; margin-bottom: 18px; white-space: pre-wrap;">
-                ${conciergeRequest.details}
+                ${conciergeRequest.details || "-"}
               </div>
               <a href="${siteUrl}/admin/concierge" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
                 Abrir Painel Concierge
@@ -164,6 +175,7 @@ serve(async (req) => {
             </div>
           `,
         });
+
         await logNotificationDelivery({
           supabaseAdmin,
           eventType: "concierge_request_admin",
@@ -171,7 +183,7 @@ serve(async (req) => {
           status: "sent",
           recipientKind: "admin",
           recipientContact: adminEmail,
-          title: `Novo Pedido Concierge (${roleLabel})`,
+          title: emailSubject,
           metadata: { requestId },
         });
       } catch (emailError) {
@@ -182,14 +194,13 @@ serve(async (req) => {
           status: "failed",
           recipientKind: "admin",
           recipientContact: adminEmail,
-          title: `Novo Pedido Concierge (${roleLabel})`,
+          title: emailSubject,
           errorMessage: emailError?.message || String(emailError),
           metadata: { requestId },
         });
         throw emailError;
       }
     } else {
-      console.warn("[notify-concierge] SMTP não configurado. E-mail não enviado.");
       await logNotificationDelivery({
         supabaseAdmin,
         eventType: "concierge_request_admin",
@@ -207,8 +218,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("[notify-concierge] Erro:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[notify-concierge] erro:", message);
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

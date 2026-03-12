@@ -593,8 +593,10 @@ const Buscar = () => {
       if (error) throw error;
 
       if (conciergeRequest?.id) {
+        const { data: authSession } = await supabase.auth.getSession();
+        const accessToken = authSession?.session?.access_token || "";
         const { error: notifyError } = await supabase.functions.invoke("notify-concierge", {
-          body: { requestId: conciergeRequest.id },
+          body: { requestId: conciergeRequest.id, access_token: accessToken },
         });
 
         if (notifyError) {
@@ -924,6 +926,16 @@ const Buscar = () => {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-2">
+                <Label>Estado</Label>
+                <Select value={conciergeForm.state || "all"} onValueChange={(v) => setConciergeForm(prev => ({ ...prev, state: v === "all" ? "" : v, city: "" }))}>
+                  <SelectTrigger><SelectValue placeholder="Estado" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Nao especificar</SelectItem>
+                    {states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid gap-2 md:col-span-2">
                 <Label>Cidade</Label>
                 <Select
@@ -950,16 +962,6 @@ const Buscar = () => {
                     {conciergeCities.map((city) => (
                       <SelectItem key={city} value={city}>{city}</SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>UF</Label>
-                <Select value={conciergeForm.state || "all"} onValueChange={(v) => setConciergeForm(prev => ({ ...prev, state: v === "all" ? "" : v, city: "" }))}>
-                  <SelectTrigger><SelectValue placeholder="UF" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Não especificar</SelectItem>
-                    {states.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

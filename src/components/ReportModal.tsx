@@ -74,8 +74,10 @@ const ReportModal = ({ open, onOpenChange, reportedId, reportedName }: ReportMod
       if (error) throw error;
 
       // Notificar Admin
+      const { data: authSession } = await supabase.auth.getSession();
+      const accessToken = authSession?.session?.access_token || "";
       const { error: notifyError } = await supabase.functions.invoke('notify-report', {
-        body: { reportId: data.id }
+        body: { reportId: data.id, access_token: accessToken }
       });
       if (notifyError) {
         console.warn("Falha ao notificar admin sobre denúncia:", notifyError);

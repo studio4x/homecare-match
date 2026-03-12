@@ -23,25 +23,47 @@ serve(async (req) => {
       });
     }
 
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "new_contact_interest_user",
+      channel: "widget",
+      status: "pending",
+      recipientKind: "user",
+      recipientUserId: professional_id,
+      metadata: { sender_id, stage: "request_received" },
+    });
+
+    let senderName = "Usuário";
+    let senderRole = "family";
     const { data: sender, error: senderError } = await supabaseAdmin
       .from('profiles')
       .select('full_name, role')
       .eq('id', sender_id)
-      .single();
-    if (senderError || !sender) throw senderError || new Error("Remetente não encontrado.");
+      .maybeSingle();
+    if (senderError) {
+      console.warn("[notify-contact] erro ao buscar remetente:", senderError.message);
+    }
+    if (sender?.full_name) senderName = sender.full_name;
+    if (sender?.role) senderRole = sender.role;
 
+    let professionalEmail: string | null = null;
+    let professionalName = "Profissional";
     const { data: professional, error: professionalError } = await supabaseAdmin
       .from('profiles')
-      .select('id, full_name, email')
+      .select('full_name, email')
       .eq('id', professional_id)
-      .single();
-    if (professionalError || !professional) throw professionalError || new Error("Profissional não encontrado.");
+      .maybeSingle();
+    if (professionalError) {
+      console.warn("[notify-contact] erro ao buscar profissional:", professionalError.message);
+    }
+    if (professional?.email) professionalEmail = professional.email;
+    if (professional?.full_name) professionalName = professional.full_name;
 
-    const senderType = sender.role === 'company' ? 'Uma empresa' : 'Uma família';
+    const senderType = senderRole === 'company' ? 'Uma empresa' : 'Uma família';
     const { error: widgetError } = await supabaseAdmin.from('notifications').insert({
-      user_id: professional.id,
+      user_id: professional_id,
       title: "👤 Novo Interesse no seu Perfil!",
-      content: `${senderType} (${sender.full_name}) salvou seu contato e pode te chamar no WhatsApp em breve.`,
+      content: `${senderType} (${senderName}) salvou seu contato e pode te chamar no WhatsApp em breve.`,
       link: "/dashboard/contatos",
       type: 'info'
     });
@@ -52,9 +74,9 @@ serve(async (req) => {
       channel: "widget",
       status: widgetError ? "failed" : "sent",
       recipientKind: "user",
-      recipientUserId: professional.id,
+      recipientUserId: professional_id,
       title: "Novo Interesse no seu Perfil",
-      content: `${senderType} (${sender.full_name}) salvou seu contato.`,
+      content: `${senderType} (${senderName}) salvou seu contato.`,
       errorMessage: widgetError?.message || null,
       metadata: { sender_id },
     });
@@ -64,10 +86,10 @@ serve(async (req) => {
     try {
       await enqueueUserWhatsappNotification({
         supabaseAdmin,
-        userId: professional.id,
+        userId: professional_id,
         eventType: "new_contact_interest_user",
         templateParams: [
-          String(sender.full_name || "Um recrutador"),
+          String(senderName || "Um recrutador"),
           "demonstrou interesse no seu perfil",
           "/dashboard/contatos",
         ],
@@ -87,14 +109,14 @@ serve(async (req) => {
     const siteUrl = Deno.env.get("SITE_URL") || "https://www.homecarematch.com.br";
     const canSendEmail = !!(smtpHost && smtpUser && smtpPass && smtpPort);
 
-    if (!professional.email) {
+    if (!professionalEmail) {
       await logNotificationDelivery({
         supabaseAdmin,
         eventType: "new_contact_interest_user",
         channel: "email",
         status: "skipped",
         recipientKind: "user",
-        recipientUserId: professional.id,
+        recipientUserId: professional_id,
         title: "Novo interesse no seu perfil",
         errorMessage: "missing_user_email",
         metadata: { sender_id },
@@ -106,8 +128,8 @@ serve(async (req) => {
         channel: "email",
         status: "skipped",
         recipientKind: "user",
-        recipientUserId: professional.id,
-        recipientContact: professional.email,
+        recipientUserId: professional_id,
+        recipientContact: professionalEmail,
         title: "Novo interesse no seu perfil",
         errorMessage: "smtp_not_configured",
         metadata: { sender_id },
@@ -123,14 +145,14 @@ serve(async (req) => {
       try {
         await transporter.sendMail({
           from: `"HomeCare Match" <${smtpUser}>`,
-          to: professional.email,
+          to: professionalEmail,
           subject: "Novo interesse no seu perfil - HomeCare Match",
           html: `
             <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
               <h2 style="margin: 0 0 12px; color: #2563eb;">Novo interesse no seu perfil</h2>
-              <p style="margin: 0 0 12px;">Olá, ${professional.full_name || "profissional"}.</p>
+              <p style="margin: 0 0 12px;">Olá, ${professionalName || "profissional"}.</p>
               <p style="margin: 0 0 12px;">
-                ${senderType} <strong>${sender.full_name || "Usuário"}</strong> salvou seu contato.
+                ${senderType} <strong>${senderName || "Usuário"}</strong> salvou seu contato.
               </p>
               <p style="margin: 0 0 16px;">Acesse seu painel para acompanhar:</p>
               <a href="${siteUrl}/dashboard/contatos" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
@@ -146,8 +168,8 @@ serve(async (req) => {
           channel: "email",
           status: "sent",
           recipientKind: "user",
-          recipientUserId: professional.id,
-          recipientContact: professional.email,
+          recipientUserId: professional_id,
+          recipientContact: professionalEmail,
           title: "Novo interesse no seu perfil",
           metadata: { sender_id },
         });
@@ -158,8 +180,8 @@ serve(async (req) => {
           channel: "email",
           status: "failed",
           recipientKind: "user",
-          recipientUserId: professional.id,
-          recipientContact: professional.email,
+          recipientUserId: professional_id,
+          recipientContact: professionalEmail,
           title: "Novo interesse no seu perfil",
           errorMessage: emailError?.message || String(emailError),
           metadata: { sender_id },

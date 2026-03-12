@@ -15,7 +15,7 @@ serve(async (req) => {
 
   try {
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const { professional_id, sender_id } = await req.json();
+    const { professional_id, sender_id, interaction_id } = await req.json();
     if (!professional_id || !sender_id) {
       return new Response(JSON.stringify({ error: "professional_id e sender_id são obrigatórios." }), {
         status: 400,
@@ -59,6 +59,35 @@ serve(async (req) => {
     if (professional?.email) professionalEmail = professional.email;
     if (professional?.full_name) professionalName = professional.full_name;
 
+    const duplicateWindowIso = new Date(Date.now() - 45 * 1000).toISOString();
+    const { data: recentContactNotification } = await supabaseAdmin
+      .from("notifications")
+      .select("id")
+      .eq("user_id", professional_id)
+      .eq("title", "👤 Novo Interesse no seu Perfil!")
+      .eq("link", "/dashboard/contatos")
+      .eq("type", "info")
+      .gte("created_at", duplicateWindowIso)
+      .maybeSingle();
+
+    if (recentContactNotification?.id) {
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType: "new_contact_interest_user",
+        channel: "widget",
+        status: "skipped",
+        recipientKind: "user",
+        recipientUserId: professional_id,
+        title: "Novo Interesse no seu Perfil",
+        errorMessage: "duplicate_recent_notification",
+        metadata: { sender_id, interaction_id: interaction_id || null, stage: "deduped" },
+      });
+
+      return new Response(JSON.stringify({ success: true, deduped: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const senderType = senderRole === 'company' ? 'Uma empresa' : 'Uma família';
     const { error: widgetError } = await supabaseAdmin.from('notifications').insert({
       user_id: professional_id,
@@ -78,7 +107,7 @@ serve(async (req) => {
       title: "Novo Interesse no seu Perfil",
       content: `${senderType} (${senderName}) salvou seu contato.`,
       errorMessage: widgetError?.message || null,
-      metadata: { sender_id },
+      metadata: { sender_id, interaction_id: interaction_id || null },
     });
 
     if (widgetError) throw widgetError;
@@ -94,8 +123,9 @@ serve(async (req) => {
           "/dashboard/contatos",
         ],
         payload: {
-          professional_id: professional.id,
+          professional_id,
           sender_id,
+          interaction_id: interaction_id || null,
         },
       });
     } catch (waError) {
@@ -119,7 +149,7 @@ serve(async (req) => {
         recipientUserId: professional_id,
         title: "Novo interesse no seu perfil",
         errorMessage: "missing_user_email",
-        metadata: { sender_id },
+        metadata: { sender_id, interaction_id: interaction_id || null },
       });
     } else if (!canSendEmail) {
       await logNotificationDelivery({
@@ -132,7 +162,7 @@ serve(async (req) => {
         recipientContact: professionalEmail,
         title: "Novo interesse no seu perfil",
         errorMessage: "smtp_not_configured",
-        metadata: { sender_id },
+        metadata: { sender_id, interaction_id: interaction_id || null },
       });
     } else {
       const transporter = nodemailer.createTransport({
@@ -171,7 +201,7 @@ serve(async (req) => {
           recipientUserId: professional_id,
           recipientContact: professionalEmail,
           title: "Novo interesse no seu perfil",
-          metadata: { sender_id },
+          metadata: { sender_id, interaction_id: interaction_id || null },
         });
       } catch (emailError) {
         await logNotificationDelivery({
@@ -184,7 +214,7 @@ serve(async (req) => {
           recipientContact: professionalEmail,
           title: "Novo interesse no seu perfil",
           errorMessage: emailError?.message || String(emailError),
-          metadata: { sender_id },
+          metadata: { sender_id, interaction_id: interaction_id || null },
         });
       }
     }

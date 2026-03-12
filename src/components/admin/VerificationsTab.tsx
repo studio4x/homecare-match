@@ -99,7 +99,10 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
             access_token: accessToken,
           }
         });
-        if (verificationNotifyError) throw verificationNotifyError;
+        if (verificationNotifyError) {
+          console.warn("[VerificationsTab] Falha ao notificar aprovação:", verificationNotifyError);
+          toast.warning("Perfil aprovado, mas houve falha no envio das notificações.");
+        }
       }
 
       toast.success("Perfil aprovado com sucesso!");
@@ -136,7 +139,10 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
           access_token: accessToken,
         }
       });
-      if (verificationNotifyError) throw verificationNotifyError;
+      if (verificationNotifyError) {
+        console.warn("[VerificationsTab] Falha ao notificar reprovação:", verificationNotifyError);
+        toast.warning("Perfil reprovado, mas houve falha no envio das notificações.");
+      }
 
       toast.success("Perfil reprovado.");
       setRejectionModalOpen(false);

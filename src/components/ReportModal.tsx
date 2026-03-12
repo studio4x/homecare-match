@@ -74,9 +74,13 @@ const ReportModal = ({ open, onOpenChange, reportedId, reportedName }: ReportMod
       if (error) throw error;
 
       // Notificar Admin
-      supabase.functions.invoke('notify-report', {
+      const { error: notifyError } = await supabase.functions.invoke('notify-report', {
         body: { reportId: data.id }
-      }).catch(err => console.warn("Falha ao notificar admin sobre denúncia:", err));
+      });
+      if (notifyError) {
+        console.warn("Falha ao notificar admin sobre denúncia:", notifyError);
+        toast.warning("Denúncia registrada, mas houve falha no envio da notificação para o admin.");
+      }
 
       toast.success("Denúncia enviada com sucesso.", {
         description: "Nossa equipe analisará o perfil em até 24 horas."

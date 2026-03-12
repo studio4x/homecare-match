@@ -49,6 +49,19 @@ serve(async (req) => {
     }
 
     const { status, reason, userName, userEmail, userId } = payload
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "userId ausente." }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (status !== "approved" && status !== "rejected") {
+      return new Response(JSON.stringify({ error: "status inválido." }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     // Notificação no painel do usuário
     const { error: widgetError } = await supabaseAdmin.from('notifications').insert({

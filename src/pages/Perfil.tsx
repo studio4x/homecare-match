@@ -69,6 +69,48 @@ const Perfil = () => {
 
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [certificateToView, setCertificateToView] = useState<string | null>(null);
+  const viewerProfileSelectFields =
+    "role, avatar_url, full_name, phone, neighborhood, city, state, company_name, cnpj, bio, patient_name, patient_age, patient_medical_conditions, patient_specialties, specialty, availability, is_verified";
+  const viewerProfileLegacySelectFields =
+    "role, avatar_url, full_name, phone, neighborhood, city, state, company_name, cnpj, bio, patient_name, patient_age, patient_medical_conditions, specialty, availability, is_verified";
+  const normalizeViewerProfileForEligibility = (data: any) => ({
+    ...data,
+    patient_specialties:
+      (Array.isArray(data?.patient_specialties) && data.patient_specialties.length > 0)
+        ? data.patient_specialties
+        : (data?.specialty ? [data.specialty] : []),
+  });
+  const isMissingPatientSpecialtiesColumnError = (error: any) => {
+    const text = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+    return text.includes("patient_specialties") && (text.includes("column") || text.includes("schema cache"));
+  };
+  const loadViewerProfileForEligibility = async (profileId: string) => {
+    const primary = await supabase
+      .from("profiles")
+      .select(viewerProfileSelectFields)
+      .eq("id", profileId)
+      .maybeSingle();
+
+    if (primary.error && isMissingPatientSpecialtiesColumnError(primary.error)) {
+      const legacy = await supabase
+        .from("profiles")
+        .select(viewerProfileLegacySelectFields)
+        .eq("id", profileId)
+        .maybeSingle();
+
+      if (legacy.error || !legacy.data) {
+        return { data: null, error: legacy.error || primary.error };
+      }
+
+      return { data: normalizeViewerProfileForEligibility(legacy.data), error: null };
+    }
+
+    if (primary.error || !primary.data) {
+      return { data: null, error: primary.error || new Error("viewer_profile_not_found") };
+    }
+
+    return { data: normalizeViewerProfileForEligibility(primary.data), error: null };
+  };
   const viewerContactEligibility = useMemo(
     () => getCompanyFamilyContactEligibility(viewerProfile),
     [viewerProfile],
@@ -141,13 +183,10 @@ const Perfil = () => {
   useEffect(() => {
     const fetchViewerRole = async () => {
       if (user) {
-        const { data } = await supabase
-          .from("profiles")
-          .select("role, avatar_url, full_name, phone, neighborhood, city, state, company_name, cnpj, bio, patient_name, patient_age, patient_medical_conditions, availability, is_verified")
-          .eq("id", user.id)
-          .single();
-        setViewerRole(data?.role || null);
-        setViewerProfile(data || null);
+        const { data } = await loadViewerProfileForEligibility(user.id);
+        const normalized = data || null;
+        setViewerRole(normalized?.role || null);
+        setViewerProfile(normalized);
       } else {
         setViewerRole(null);
         setViewerProfile(null);
@@ -216,11 +255,7 @@ const Perfil = () => {
       let viewerProfileData = viewerProfile;
 
       if (!viewerProfileData) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("role, avatar_url, full_name, phone, neighborhood, city, state, company_name, cnpj, bio, patient_name, patient_age, patient_medical_conditions, availability, is_verified")
-          .eq("id", user.id)
-          .maybeSingle();
+        const { data, error } = await loadViewerProfileForEligibility(user.id);
 
         if (error || !data) {
           toast.error("Não foi possível validar seu perfil no momento. Tente novamente.");
@@ -228,8 +263,8 @@ const Perfil = () => {
         }
 
         viewerProfileData = data;
-        setViewerRole(data.role || null);
-        setViewerProfile(data);
+        setViewerRole(viewerProfileData.role || null);
+        setViewerProfile(viewerProfileData);
       }
 
       const eligibility = getCompanyFamilyContactEligibility(viewerProfileData);

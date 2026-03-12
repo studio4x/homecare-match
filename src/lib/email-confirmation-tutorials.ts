@@ -49,8 +49,7 @@ export const getEmailConfirmationSteps = (role: EmailTutorialRole): EmailTutoria
   if (role === "family") {
     return [
       ...common,
-      { step: 3, text: "Insira as informacoes sobre o paciente." },
-      { step: 4, text: "Busque profissionais para iniciar os contatos." },
+      { step: 3, text: "Busque profissionais para iniciar os contatos." },
     ].map((item) => ({
       role,
       roleLabel,
@@ -82,4 +81,3 @@ export const getAllEmailConfirmationSteps = (): EmailTutorialStep[] => [
   ...getEmailConfirmationSteps("company"),
   ...getEmailConfirmationSteps("family"),
 ];
-

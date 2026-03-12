@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import nodemailer from "npm:nodemailer"
+import { enqueueAdminWhatsappNotification, enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,6 +23,42 @@ serve(async (req) => {
       link: "/admin/verificacoes",
       type: 'info'
     });
+
+    try {
+      await enqueueAdminWhatsappNotification({
+        supabaseAdmin,
+        eventType: "verification_request_admin",
+        templateParams: [
+          String(userName || "Profissional"),
+          "enviou documentos para verificacao",
+          "/admin/verificacoes",
+        ],
+        payload: {
+          userId: userId || null,
+          userEmail: userEmail || null,
+        },
+      });
+    } catch (waError) {
+      console.warn("[notify-verification] falha ao enfileirar WhatsApp para admin:", waError?.message || waError);
+    }
+
+    try {
+      await enqueueUserWhatsappNotification({
+        supabaseAdmin,
+        userId,
+        eventType: "verification_request_user_confirmation",
+        templateParams: [
+          String(userName || "Usuario"),
+          "recebemos seus documentos para verificacao",
+          "/dashboard/perfil",
+        ],
+        payload: {
+          userEmail: userEmail || null,
+        },
+      });
+    } catch (waError) {
+      console.warn("[notify-verification] falha ao enfileirar WhatsApp para usuario:", waError?.message || waError);
+    }
 
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpUser = Deno.env.get('SMTP_USER');

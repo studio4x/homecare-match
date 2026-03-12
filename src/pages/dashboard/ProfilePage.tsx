@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { 
   Select, 
@@ -346,6 +347,8 @@ const ProfilePage = () => {
           availability: data.availability || [],
           patient_profiles: data.patient_profiles || [],
           notifications_enabled: data.notifications_enabled ?? true,
+          whatsapp_opt_in: data.whatsapp_opt_in ?? false,
+          whatsapp_opt_in_at: data.whatsapp_opt_in_at || null,
           // New patient-specific fields
           patient_name: data.patient_name || "",
           patient_age: data.patient_age ?? "",
@@ -682,6 +685,11 @@ const ProfilePage = () => {
         return Number.isFinite(parsed) ? parsed : null;
       })();
 
+      const whatsappOptIn = Boolean(profile.whatsapp_opt_in);
+      const whatsappOptInAt = whatsappOptIn
+        ? (profile.whatsapp_opt_in_at || new Date().toISOString())
+        : null;
+
       const updatePayload = {
         full_name: profile.full_name,
         phone: profile.phone,
@@ -715,6 +723,8 @@ const ProfilePage = () => {
         patient_cognitive_state: profile.patient_cognitive_state,
         patient_special_equipment: profile.patient_special_equipment,
         patient_communication_skills: profile.patient_communication_skills,
+        whatsapp_opt_in: whatsappOptIn,
+        whatsapp_opt_in_at: whatsappOptInAt,
       };
 
       let { error } = await supabase.from("profiles").update(updatePayload).eq("id", user.id);
@@ -1042,6 +1052,25 @@ const ProfilePage = () => {
               <div className="grid gap-2">
                 <Label className="flex items-center gap-2"><Mail className="h-3 w-3 text-muted-foreground" /> E-mail de Acesso</Label>
                 <Input value={profile.email || ""} disabled readOnly className="bg-muted" />
+              </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-1 pr-3">
+                  <Label className="text-sm">Receber notificações por WhatsApp</Label>
+                  <p className="text-[10px] text-muted-foreground">
+                    Ao ativar, você autoriza alertas transacionais da plataforma no seu número cadastrado.
+                  </p>
+                </div>
+                <Switch
+                  checked={!!profile.whatsapp_opt_in}
+                  onCheckedChange={(checked) =>
+                    setProfile((prev: any) => ({
+                      ...prev,
+                      whatsapp_opt_in: checked,
+                      whatsapp_opt_in_at: checked ? prev?.whatsapp_opt_in_at || new Date().toISOString() : null,
+                    }))
+                  }
+                />
               </div>
 
               {isProfessional ? (

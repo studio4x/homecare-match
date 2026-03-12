@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,6 +25,25 @@ serve(async (req) => {
       link: "/dashboard/contatos",
       type: 'info'
     });
+
+    try {
+      await enqueueUserWhatsappNotification({
+        supabaseAdmin,
+        userId: professional_id,
+        eventType: "new_contact_interest_user",
+        templateParams: [
+          String(sender.full_name || "Um recrutador"),
+          "demonstrou interesse no seu perfil",
+          "/dashboard/contatos",
+        ],
+        payload: {
+          professional_id,
+          sender_id,
+        },
+      });
+    } catch (waError) {
+      console.warn("[notify-contact] falha ao enfileirar WhatsApp:", waError?.message || waError);
+    }
 
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {

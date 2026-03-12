@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import nodemailer from "npm:nodemailer"
+import { enqueueAdminWhatsappNotification } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,6 +29,24 @@ serve(async (req) => {
       link: "/admin/denuncias",
       type: 'error'
     });
+
+    try {
+      await enqueueAdminWhatsappNotification({
+        supabaseAdmin,
+        eventType: "report_created_admin",
+        templateParams: [
+          String(report?.reported?.full_name || "Perfil"),
+          String(report?.reason || "Motivo nao informado"),
+          "/admin/denuncias",
+        ],
+        payload: {
+          reportId,
+          reported_email: report?.reported?.email || null,
+        },
+      });
+    } catch (waError) {
+      console.warn("[notify-report] falha ao enfileirar WhatsApp admin:", waError?.message || waError);
+    }
 
     const smtpHost = Deno.env.get('SMTP_HOST');
     const smtpUser = Deno.env.get('SMTP_USER');

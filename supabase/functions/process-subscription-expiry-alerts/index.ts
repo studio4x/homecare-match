@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
+import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -173,6 +174,26 @@ serve(async (req) => {
         });
 
         notified += 1;
+
+        try {
+          await enqueueUserWhatsappNotification({
+            supabaseAdmin,
+            userId: profile.id,
+            eventType: "subscription_renewal_reminder_user",
+            templateParams: [
+              String(profile.full_name || "Usuario"),
+              String(content.title || "Lembrete de assinatura"),
+              reminderLink,
+            ],
+            payload: {
+              tier,
+              daysRemaining,
+              subscription_end_at: profile.subscription_end_at,
+            },
+          });
+        } catch (waError) {
+          console.warn("[process-subscription-expiry-alerts] falha ao enfileirar WhatsApp:", waError?.message || waError);
+        }
 
         if (transporter && profile.email) {
           await transporter.sendMail({

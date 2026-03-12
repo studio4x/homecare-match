@@ -21,7 +21,9 @@ serve(async (req) => {
     const sql = `
       -- Adiciona a coluna de controle de notificações
       ALTER TABLE public.profiles 
-      ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT TRUE;
+      ADD COLUMN IF NOT EXISTS notifications_enabled BOOLEAN DEFAULT TRUE,
+      ADD COLUMN IF NOT EXISTS whatsapp_opt_in BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS whatsapp_opt_in_at TIMESTAMPTZ;
 
       -- Notifica o recarregamento do esquema
       NOTIFY pgrst, 'reload schema';

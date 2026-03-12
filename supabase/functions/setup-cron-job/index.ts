@@ -77,6 +77,9 @@ serve(async (req) => {
       SELECT cron.unschedule('processar-alertas-assinatura')
       WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'processar-alertas-assinatura');
 
+      SELECT cron.unschedule('processar-notificacoes-whatsapp')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'processar-notificacoes-whatsapp');
+
       SELECT cron.schedule(
         'processar-notificacoes-push',
         '* * * * *',
@@ -112,6 +115,18 @@ serve(async (req) => {
         );
         $$
       );
+
+      SELECT cron.schedule(
+        'processar-notificacoes-whatsapp',
+        '* * * * *',
+        $$
+        SELECT net.http_post(
+          url := '${escapedSupabaseUrl}/functions/v1/process-whatsapp-notifications',
+          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedServiceRole}"}'::jsonb,
+          body := '{}'::jsonb
+        );
+        $$
+      );
     `;
 
     await client.queryObject(sql);
@@ -121,7 +136,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         ok: true,
-        message: "Automacao ativada com sucesso (push + estornos pendentes + alertas de assinatura).",
+        message: "Automacao ativada com sucesso (push + estornos pendentes + alertas de assinatura + whatsapp).",
       }),
       {
         status: 200,

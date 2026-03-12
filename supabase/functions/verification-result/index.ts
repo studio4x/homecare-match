@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import nodemailer from "npm:nodemailer"
+import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,6 +41,33 @@ serve(async (req) => {
         ? `Aprovou os documentos de: ${userName} (${userEmail})` 
         : `Reprovou os documentos de: ${userName} (${userEmail}). Motivo: ${reason}`
     })
+
+    try {
+      await enqueueUserWhatsappNotification({
+        supabaseAdmin,
+        userId,
+        eventType: status === "approved" ? "verification_approved_user" : "verification_rejected_user",
+        templateParams:
+          status === "approved"
+            ? [
+                String(userName || "Usuario"),
+                "sua verificacao foi aprovada",
+                "/dashboard/perfil",
+              ]
+            : [
+                String(userName || "Usuario"),
+                "sua verificacao foi reprovada",
+                String(reason || "Consulte o painel para detalhes"),
+              ],
+        payload: {
+          status,
+          reason: reason || null,
+          userEmail: userEmail || null,
+        },
+      });
+    } catch (waError) {
+      console.warn("[verification-result] falha ao enfileirar WhatsApp:", waError?.message || waError);
+    }
 
     // Envio de e-mail para o profissional
     const smtpHost = Deno.env.get('SMTP_HOST');

@@ -2,6 +2,10 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
+import {
+  enqueueAdminWhatsappNotification,
+  enqueueUserWhatsappNotification,
+} from "../_shared/whatsapp.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -143,6 +147,27 @@ serve(async (req) => {
         type: "info",
       });
 
+      if (type === "new_message" || type === "ticket_closed") {
+        try {
+          await enqueueUserWhatsappNotification({
+            supabaseAdmin,
+            userId: ticket.user_id,
+            eventType: type === "ticket_closed" ? "support_ticket_closed_user" : "support_new_message_user",
+            templateParams: [
+              String(ticket?.subject || "Chamado"),
+              type === "ticket_closed" ? "foi encerrado pela equipe" : "recebeu nova resposta da equipe",
+              `/dashboard/suporte/${ticketId}`,
+            ],
+            payload: {
+              ticketId,
+              type,
+            },
+          });
+        } catch (waError) {
+          console.warn("[notify-support] falha ao enfileirar WhatsApp para usuario:", waError?.message || waError);
+        }
+      }
+
       const ownerEmail = ticketOwner?.email || "";
       const ownerName = ticketOwner?.full_name || "Usuario";
       const ticketSubject = ticket?.subject || "Sem assunto";
@@ -198,6 +223,26 @@ serve(async (req) => {
       });
 
       try {
+        await enqueueAdminWhatsappNotification({
+          supabaseAdmin,
+          eventType: "support_new_ticket_admin",
+          templateParams: [
+            ownerName,
+            ticketSubject,
+            `/admin/suporte/${ticketId}`,
+          ],
+          payload: {
+            ticketId,
+            ownerEmail,
+            priority: ticketPriority,
+            category: ticketCategory,
+          },
+        });
+      } catch (waError) {
+        console.warn("[notify-support] falha ao enfileirar WhatsApp admin (new_ticket):", waError?.message || waError);
+      }
+
+      try {
         await sendAdminEmail(
           `Novo ticket de suporte: ${ticketSubject}`,
           `
@@ -227,6 +272,24 @@ serve(async (req) => {
         link: `/admin/suporte/${ticketId}`,
         type: "info",
       });
+
+      try {
+        await enqueueAdminWhatsappNotification({
+          supabaseAdmin,
+          eventType: "support_new_message_admin",
+          templateParams: [
+            String(ticketOwner?.full_name || "Usuario"),
+            String(ticket?.subject || "Chamado"),
+            `/admin/suporte/${ticketId}`,
+          ],
+          payload: {
+            ticketId,
+            senderId: actorId,
+          },
+        });
+      } catch (waError) {
+        console.warn("[notify-support] falha ao enfileirar WhatsApp admin (new_message):", waError?.message || waError);
+      }
     }
 
     return new Response(JSON.stringify({ success: true }), {

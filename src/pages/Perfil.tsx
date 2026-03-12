@@ -206,14 +206,6 @@ const Perfil = () => {
 
       if (error) throw error;
 
-      const { error: notifyError } = await supabase.functions.invoke('notify-contact', {
-        body: { professional_id: profile.id, sender_id: user.id }
-      });
-      if (notifyError) {
-        console.warn("Falha ao enviar notificações de contato:", notifyError);
-        toast.warning("Contato salvo, mas houve falha ao enviar notificações.");
-      }
-
       setShowSuccessModal(true);
       
     } catch (error) {

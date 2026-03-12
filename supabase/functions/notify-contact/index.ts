@@ -23,15 +23,13 @@ serve(async (req) => {
       });
     }
 
-    await logNotificationDelivery({
-      supabaseAdmin,
-      eventType: "new_contact_interest_user",
-      channel: "widget",
-      status: "pending",
-      recipientKind: "user",
-      recipientUserId: professional_id,
-      metadata: { sender_id, stage: "request_received" },
-    });
+    // O fluxo oficial de disparo vem do trigger em interactions (com interaction_id).
+    // Chamadas legadas do frontend são ignoradas para evitar duplicidade.
+    if (!interaction_id) {
+      return new Response(JSON.stringify({ success: true, ignored_legacy_call: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     let senderName = "Usuário";
     let senderRole = "family";
@@ -59,36 +57,7 @@ serve(async (req) => {
     if (professional?.email) professionalEmail = professional.email;
     if (professional?.full_name) professionalName = professional.full_name;
 
-    const duplicateWindowIso = new Date(Date.now() - 45 * 1000).toISOString();
-    const { data: recentContactNotification } = await supabaseAdmin
-      .from("notifications")
-      .select("id")
-      .eq("user_id", professional_id)
-      .eq("title", "👤 Novo Interesse no seu Perfil!")
-      .eq("link", "/dashboard/contatos")
-      .eq("type", "info")
-      .gte("created_at", duplicateWindowIso)
-      .maybeSingle();
-
-    if (recentContactNotification?.id) {
-      await logNotificationDelivery({
-        supabaseAdmin,
-        eventType: "new_contact_interest_user",
-        channel: "widget",
-        status: "skipped",
-        recipientKind: "user",
-        recipientUserId: professional_id,
-        title: "Novo Interesse no seu Perfil",
-        errorMessage: "duplicate_recent_notification",
-        metadata: { sender_id, interaction_id: interaction_id || null, stage: "deduped" },
-      });
-
-      return new Response(JSON.stringify({ success: true, deduped: true }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const senderType = senderRole === 'company' ? 'Uma empresa' : 'Uma família';
+    const senderType = senderRole === 'company' ? 'A empresa' : 'Uma família';
     const { error: widgetError } = await supabaseAdmin.from('notifications').insert({
       user_id: professional_id,
       title: "👤 Novo Interesse no seu Perfil!",

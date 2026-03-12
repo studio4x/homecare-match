@@ -464,6 +464,9 @@ verify_jwt = false
 [functions.record-referral]
 verify_jwt = false
 
+[functions.impersonate-login]
+verify_jwt = false
+
 [functions.public-referrer-profile]
 verify_jwt = false
 

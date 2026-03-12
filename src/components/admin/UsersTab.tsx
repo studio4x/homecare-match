@@ -240,7 +240,9 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
         body: { targetUserId: targetId }
       });
       if (error || !data?.action_link) {
-        toast.error("Não foi possível gerar o acesso.");
+        const serverError = (data as any)?.error;
+        const message = serverError || error?.message || "Não foi possível gerar o acesso.";
+        toast.error(message);
         setIsImpersonating(null);
         return;
       }

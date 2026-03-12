@@ -410,6 +410,12 @@ verify_jwt = false
 [functions.notify-contact]
 verify_jwt = false
 
+[functions.notify-verification]
+verify_jwt = false
+
+[functions.verification-result]
+verify_jwt = false
+
 [functions.process-pending-refunds]
 verify_jwt = false
 

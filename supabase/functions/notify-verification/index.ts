@@ -14,8 +14,48 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
   try {
-    const { userName, userEmail, userId } = await req.json()
+    const payload = await req.json()
+    const authHeader = req.headers.get("Authorization");
+    const bearerToken = authHeader?.replace("Bearer ", "").trim() || "";
+    const bodyToken = typeof payload?.access_token === "string" ? payload.access_token.trim() : "";
+    const token = bearerToken || bodyToken;
+
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    let authenticatedUserId: string | null = null;
+    if (token) {
+      const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+      if (authError || !authData?.user) {
+        return new Response(JSON.stringify({ error: "Nao autorizado: token invalido." }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      authenticatedUserId = authData.user.id;
+    }
+
+    const userId = payload?.userId || authenticatedUserId;
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "userId ausente." }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (authenticatedUserId && userId !== authenticatedUserId) {
+      return new Response(JSON.stringify({ error: "Acesso negado: userId invalido." }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    let userName = payload?.userName || "";
+    let userEmail = payload?.userEmail || "";
+    const { data: requesterProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!userName) userName = requesterProfile?.full_name || "Profissional";
+    if (!userEmail) userEmail = requesterProfile?.email || "";
 
     // --- NOTIFICAÇÃO NO PAINEL DO ADMIN ---
     const { error: adminWidgetError } = await supabaseAdmin.from('admin_notifications').insert({

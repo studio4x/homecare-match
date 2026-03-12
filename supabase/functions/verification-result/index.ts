@@ -16,11 +16,39 @@ serve(async (req) => {
   try {
     const supabaseAdmin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
     
+    const payload = await req.json()
     const authHeader = req.headers.get('Authorization')
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user: adminUser } } = await supabaseAdmin.auth.getUser(token)
+    const bearerToken = authHeader?.replace('Bearer ', '').trim() || ""
+    const bodyToken = typeof payload?.access_token === "string" ? payload.access_token.trim() : ""
+    const token = bearerToken || bodyToken
 
-    const { status, reason, userName, userEmail, userId } = await req.json()
+    let adminUser: any = null
+    if (token) {
+      const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token)
+      adminUser = authData?.user
+      if (authError || !adminUser) {
+        return new Response(JSON.stringify({ error: "Nao autorizado: token invalido." }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      const { data: actorProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("is_admin, role")
+        .eq("id", adminUser.id)
+        .maybeSingle();
+
+      const isAdmin = Boolean(actorProfile?.is_admin || actorProfile?.role === "admin");
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Acesso negado: apenas admin." }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
+    const { status, reason, userName, userEmail, userId } = payload
 
     // Notificação no painel do usuário
     const { error: widgetError } = await supabaseAdmin.from('notifications').insert({
@@ -50,14 +78,18 @@ serve(async (req) => {
     if (widgetError) throw widgetError;
 
     // Log de auditoria
-    await supabaseAdmin.from('admin_logs').insert({
-      admin_id: adminUser.id,
-      action_type: status === 'approved' ? 'VERIFICATION_APPROVED' : 'VERIFICATION_REJECTED',
-      target_id: userId,
-      details: status === 'approved' 
-        ? `Aprovou os documentos de: ${userName} (${userEmail})` 
-        : `Reprovou os documentos de: ${userName} (${userEmail}). Motivo: ${reason}`
-    })
+    if (adminUser?.id) {
+      await supabaseAdmin.from('admin_logs').insert({
+        admin_id: adminUser.id,
+        action_type: status === 'approved' ? 'VERIFICATION_APPROVED' : 'VERIFICATION_REJECTED',
+        target_id: userId,
+        details: status === 'approved' 
+          ? `Aprovou os documentos de: ${userName} (${userEmail})` 
+          : `Reprovou os documentos de: ${userName} (${userEmail}). Motivo: ${reason}`
+      })
+    } else {
+      console.warn("[verification-result] executado sem token admin; auditoria ignorada.");
+    }
 
     try {
       await enqueueUserWhatsappNotification({

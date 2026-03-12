@@ -88,14 +88,18 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
       if (error) throw error;
 
       if (userToNotify) {
-        await supabase.functions.invoke('verification-result', {
+        const { data: authSession } = await supabase.auth.getSession();
+        const accessToken = authSession?.session?.access_token || "";
+        const { error: verificationNotifyError } = await supabase.functions.invoke('verification-result', {
           body: {
             status: 'approved',
             userName: userToNotify.full_name,
             userEmail: userToNotify.email,
-            userId: userToNotify.id // Pass userId for notification
+            userId: userToNotify.id, // Pass userId for notification
+            access_token: accessToken,
           }
         });
+        if (verificationNotifyError) throw verificationNotifyError;
       }
 
       toast.success("Perfil aprovado com sucesso!");
@@ -120,15 +124,19 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
       
       if (error) throw error;
 
-      await supabase.functions.invoke('verification-result', {
+      const { data: authSession } = await supabase.auth.getSession();
+      const accessToken = authSession?.session?.access_token || "";
+      const { error: verificationNotifyError } = await supabase.functions.invoke('verification-result', {
         body: {
           status: 'rejected',
           reason: rejectionReason,
           userName: selectedProfile.full_name,
           userEmail: selectedProfile.email,
-          userId: selectedProfile.id // Pass userId for notification
+          userId: selectedProfile.id, // Pass userId for notification
+          access_token: accessToken,
         }
       });
+      if (verificationNotifyError) throw verificationNotifyError;
 
       toast.success("Perfil reprovado.");
       setRejectionModalOpen(false);

@@ -810,13 +810,20 @@ const ProfilePage = () => {
       await fetchProfile(); // <--- ADDED THIS LINE
 
       // NOTIFICAÇÃO ADMIN: Envia e-mail e notificação no dashboard
-      await supabase.functions.invoke('notify-verification', {
+      const { data: authSession } = await supabase.auth.getSession();
+      const accessToken = authSession?.session?.access_token || "";
+      const { error: notifyError } = await supabase.functions.invoke('notify-verification', {
         body: {
           userName: profile.full_name,
           userEmail: user?.email,
-          userId: user?.id
+          userId: user?.id,
+          access_token: accessToken,
         }
-      }).catch(err => console.warn("Falha ao notificar admin sobre verificação:", err));
+      });
+      if (notifyError) {
+        console.warn("Falha ao notificar admin sobre verificação:", notifyError);
+        toast.warning("Solicitação enviada, mas houve falha no envio das notificações.");
+      }
 
     } catch (err) {
       console.error("[handleRequestVerification] Erro ao enviar solicitação:", err);

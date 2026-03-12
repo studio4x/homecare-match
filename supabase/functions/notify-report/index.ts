@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
@@ -13,34 +13,14 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
-
     const payload = await req.json();
-    const authHeader = req.headers.get("Authorization");
-    const bearerToken = authHeader?.replace("Bearer ", "").trim() || "";
-    const bodyToken = typeof payload?.access_token === "string" ? payload.access_token.trim() : "";
-    const token = bearerToken || bodyToken;
-
-    if (!token) {
-      return new Response(JSON.stringify({ error: "Nao autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !authData?.user) {
-      return new Response(JSON.stringify({ error: "Token invalido" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const reportId = typeof payload?.reportId === "string" ? payload.reportId : "";
+    const reportId = typeof payload?.reportId === "string" ? payload.reportId.trim() : "";
     if (!reportId) {
       return new Response(JSON.stringify({ error: "reportId e obrigatorio" }), {
         status: 400,
@@ -50,7 +30,7 @@ serve(async (req) => {
 
     const { data: report, error: reportError } = await supabaseAdmin
       .from("reports")
-      .select("id, reporter_id, reported_id, reason, description, reported:profiles!reports_reported_id_fkey(full_name, email)")
+      .select("id, reporter_id, reported_id, reason, description")
       .eq("id", reportId)
       .maybeSingle();
 
@@ -61,24 +41,16 @@ serve(async (req) => {
       });
     }
 
-    const requesterId = authData.user.id;
-    const { data: requesterProfile } = await supabaseAdmin
+    const { data: reportedProfile } = await supabaseAdmin
       .from("profiles")
-      .select("is_admin, role")
-      .eq("id", requesterId)
+      .select("full_name, email")
+      .eq("id", report.reported_id)
       .maybeSingle();
 
-    const isAdmin = Boolean(requesterProfile?.is_admin || requesterProfile?.role === "admin");
-    if (!isAdmin && report.reporter_id !== requesterId) {
-      return new Response(JSON.stringify({ error: "Acesso negado" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const reportedName = report?.reported?.full_name || "Perfil";
-    const reportedEmail = report?.reported?.email || null;
-    const reasonLabel = report?.reason || "Motivo nao informado";
+    const reportedName = reportedProfile?.full_name || "Perfil";
+    const reportedEmail = reportedProfile?.email || null;
+    const reasonLabel = report.reason || "Motivo nao informado";
+    const description = report.description || "-";
 
     const widgetTitle = "Nova denuncia de perfil";
     const widgetContent = `O perfil de ${reportedName} foi denunciado por: ${reasonLabel}`;
@@ -103,13 +75,11 @@ serve(async (req) => {
       metadata: { reportId },
     });
 
-    if (widgetError) throw widgetError;
-
     try {
       await enqueueAdminWhatsappNotification({
         supabaseAdmin,
         eventType: "report_created_admin",
-        templateParams: [String(reportedName), String(reasonLabel), "/admin/denuncias"],
+        templateParams: [reportedName, reasonLabel, "/admin/denuncias"],
         payload: {
           reportId,
           reported_email: reportedEmail,
@@ -140,7 +110,7 @@ serve(async (req) => {
           from: `"Seguranca HomeCare Match" <${smtpUser}>`,
           to: adminEmail,
           subject: emailSubject,
-          html: `<div style="font-family: sans-serif; padding: 20px;"><h2 style="color: #ef4444;">Nova denuncia</h2><p><strong>Perfil:</strong> ${reportedName}</p><p><strong>Motivo:</strong> ${reasonLabel}</p><p><strong>Descricao:</strong> ${report.description || "-"}</p></div>`,
+          html: `<div style="font-family: sans-serif; padding: 20px;"><h2 style="color: #ef4444;">Nova denuncia</h2><p><strong>Perfil:</strong> ${reportedName}</p><p><strong>Motivo:</strong> ${reasonLabel}</p><p><strong>Descricao:</strong> ${description}</p></div>`,
         });
 
         await logNotificationDelivery({
@@ -165,7 +135,6 @@ serve(async (req) => {
           errorMessage: emailError?.message || String(emailError),
           metadata: { reportId },
         });
-        throw emailError;
       }
     } else {
       await logNotificationDelivery({

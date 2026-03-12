@@ -40,9 +40,12 @@ const formatDatePt = (iso: string) => {
   return parsed.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 };
 
+const formatDaysLabel = (days: number) => (days === 1 ? "1 dia" : `${days} dias`);
+
 const buildReminderContent = (tier: string, daysRemaining: number, endAt: string) => {
   const planLabel = getPlanName(tier);
   const dueDateLabel = formatDatePt(endAt);
+  const daysLabel = formatDaysLabel(daysRemaining);
 
   if (tier === "monthly") {
     if (daysRemaining <= 0) {
@@ -55,7 +58,7 @@ const buildReminderContent = (tier: string, daysRemaining: number, endAt: string
 
     return {
       title: "Renovacao automatica proxima",
-      subject: `${planLabel}: renovacao em ${daysRemaining} dia(s)`,
+      subject: `${planLabel}: renovacao em ${daysLabel}`,
       body: `Seu ${planLabel} renova automaticamente em ${daysRemaining} dia(s), na data ${dueDateLabel}. Verifique se seu cartao esta regular para manter o acesso.`,
     };
   }
@@ -70,7 +73,7 @@ const buildReminderContent = (tier: string, daysRemaining: number, endAt: string
 
   return {
     title: "Plano anual perto do vencimento",
-    subject: `${planLabel}: renovacao manual em ${daysRemaining} dia(s)`,
+    subject: `${planLabel}: renovacao manual em ${daysLabel}`,
     body: `Seu ${planLabel} vence em ${daysRemaining} dia(s), na data ${dueDateLabel}. A renovacao e manual e pode ser feita com parcelamento em ate 12x na pagina de pagamentos.`,
   };
 };

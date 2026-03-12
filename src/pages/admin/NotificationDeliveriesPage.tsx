@@ -394,6 +394,14 @@ const NotificationDeliveriesPage = () => {
     setUserSuggestions([]);
   };
 
+  const handleClearSubscriptionSelection = () => {
+    setSelectedUserSuggestion(null);
+    setSubscriptionSearchInput("");
+    setSubscriptionTestTarget("");
+    setUserSuggestions([]);
+    setIsSearchingUsers(false);
+  };
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const matchesChannel = channelFilter === "all" || item.channel === channelFilter;
@@ -511,19 +519,28 @@ const NotificationDeliveriesPage = () => {
                 </div>
               ) : null}
             </div>
-            <Button
-              onClick={handleTriggerSubscriptionTest}
-              disabled={isTriggeringSubscriptionTest || !subscriptionTestTarget.trim()}
-            >
-              {isTriggeringSubscriptionTest ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Disparando...
-                </span>
-              ) : (
-                "Testar alerta"
-              )}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleClearSubscriptionSelection}
+                disabled={isTriggeringSubscriptionTest || (!subscriptionSearchInput && !subscriptionTestTarget)}
+              >
+                Limpar selecao
+              </Button>
+              <Button
+                onClick={handleTriggerSubscriptionTest}
+                disabled={isTriggeringSubscriptionTest || !subscriptionTestTarget.trim()}
+              >
+                {isTriggeringSubscriptionTest ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Disparando...
+                  </span>
+                ) : (
+                  "Testar alerta"
+                )}
+              </Button>
+            </div>
           </div>
           {selectedUserSuggestion ? (
             <p className="text-[11px] text-muted-foreground">

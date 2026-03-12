@@ -75,13 +75,63 @@ const buildReminderContent = (tier: string, daysRemaining: number, endAt: string
   };
 };
 
+const parseRequestBody = async (req: Request) => {
+  try {
+    return await req.json();
+  } catch {
+    return {};
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
 
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const authToken = req.headers.get("authorization")?.replace("Bearer ", "").trim() || "";
+  if (!serviceRoleKey) {
+    return new Response(JSON.stringify({ error: "SUPABASE_SERVICE_ROLE_KEY ausente." }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
-  if (!serviceRoleKey || authToken !== serviceRoleKey) {
+  const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceRoleKey);
+  const payload = await parseRequestBody(req);
+
+  const authHeaderToken = req.headers.get("authorization")?.replace("Bearer ", "").trim() || "";
+  const bodyToken = typeof payload?.access_token === "string" ? payload.access_token.trim() : "";
+  const authToken = authHeaderToken || bodyToken;
+
+  let authMode: "service_role" | "admin" | null = null;
+
+  if (authToken === serviceRoleKey) {
+    authMode = "service_role";
+  } else if (authToken) {
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(authToken);
+    if (authError || !authData?.user) {
+      return new Response(JSON.stringify({ error: "Nao autorizado." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: actorProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("is_admin, role")
+      .eq("id", authData.user.id)
+      .maybeSingle();
+
+    const isAdmin = Boolean(actorProfile?.is_admin || actorProfile?.role === "admin");
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Acesso negado: apenas admin." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    authMode = "admin";
+  }
+
+  if (!authMode) {
     return new Response(JSON.stringify({ error: "Nao autorizado." }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -89,33 +139,74 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      serviceRoleKey,
-    );
+    const targetUserIdRaw = typeof payload?.target_user_id === "string" ? payload.target_user_id.trim() : "";
+    const targetUserEmailRaw = typeof payload?.target_user_email === "string" ? payload.target_user_email.trim().toLowerCase() : "";
+    const force = payload?.force === true || String(payload?.force || "").toLowerCase() === "true";
+
+    const forceDaysInput = Number(payload?.force_days_remaining);
+    const forceDaysRemaining = Number.isFinite(forceDaysInput) ? Math.trunc(forceDaysInput) : null;
+
+    let targetUserId = targetUserIdRaw;
+
+    if (!targetUserId && targetUserEmailRaw) {
+      const { data: targetByEmail, error: targetError } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .ilike("email", targetUserEmailRaw)
+        .maybeSingle();
+
+      if (targetError) throw targetError;
+      targetUserId = targetByEmail?.id || "";
+    }
+
+    if (authMode === "admin" && !targetUserId) {
+      return new Response(
+        JSON.stringify({ error: "Para execucao manual admin, informe target_user_id ou target_user_email." }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     const now = new Date();
     const maxDate = new Date(now.getTime() + 8 * DAY_MS);
 
-    const { data: candidates, error: candidatesError } = await supabaseAdmin
-      .from("profiles")
-      .select("id,email,full_name,subscription_tier,subscription_end_at,cancel_at_period_end")
-      .in("subscription_tier", ["monthly", "yearly"])
-      .not("subscription_end_at", "is", null)
-      .gte("subscription_end_at", new Date(now.getTime() - DAY_MS).toISOString())
-      .lte("subscription_end_at", maxDate.toISOString())
-      .limit(2000);
+    let candidates: any[] = [];
 
-    if (candidatesError) throw candidatesError;
+    if (targetUserId) {
+      const { data, error } = await supabaseAdmin
+        .from("profiles")
+        .select("id,email,full_name,subscription_tier,subscription_end_at,cancel_at_period_end")
+        .eq("id", targetUserId)
+        .limit(1);
 
-    if (!candidates || candidates.length === 0) {
+      if (error) throw error;
+      candidates = data || [];
+    } else {
+      const { data, error } = await supabaseAdmin
+        .from("profiles")
+        .select("id,email,full_name,subscription_tier,subscription_end_at,cancel_at_period_end")
+        .in("subscription_tier", ["monthly", "yearly"])
+        .not("subscription_end_at", "is", null)
+        .gte("subscription_end_at", new Date(now.getTime() - DAY_MS).toISOString())
+        .lte("subscription_end_at", maxDate.toISOString())
+        .limit(2000);
+
+      if (error) throw error;
+      candidates = data || [];
+    }
+
+    if (candidates.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
           checked: 0,
           notified: 0,
           emailed: 0,
-          message: "Nenhuma assinatura em janela de alerta.",
+          mode: authMode,
+          target_user_id: targetUserId || null,
+          message: targetUserId ? "Usuario alvo nao encontrado." : "Nenhuma assinatura em janela de alerta.",
         }),
         {
           status: 200,
@@ -127,8 +218,8 @@ serve(async (req) => {
     const smtpHost = Deno.env.get("SMTP_HOST");
     const smtpUser = Deno.env.get("SMTP_USER");
     const smtpPass = Deno.env.get("SMTP_PASS");
-    const smtpPort = Deno.env.get("SMTP_PORT");
-    const canSendEmail = !!(smtpHost && smtpUser && smtpPass && smtpPort);
+    const smtpPort = Deno.env.get("SMTP_PORT") || "587";
+    const canSendEmail = !!(smtpHost && smtpUser && smtpPass);
 
     const transporter = canSendEmail
       ? nodemailer.createTransport({
@@ -146,25 +237,49 @@ serve(async (req) => {
     for (const profile of candidates) {
       try {
         const tier = String(profile.subscription_tier || "").toLowerCase();
-        if (!["monthly", "yearly"].includes(tier)) continue;
+        if (!["monthly", "yearly"].includes(tier)) {
+          if (targetUserId) {
+            throw new Error("Usuario alvo sem subscription_tier elegivel (monthly/yearly).");
+          }
+          continue;
+        }
 
-        const daysRemaining = getDaysRemaining(profile.subscription_end_at);
-        if (daysRemaining === null || !REMINDER_STEPS.includes(daysRemaining)) continue;
+        const effectiveEndAt = profile.subscription_end_at || new Date(now.getTime() + DAY_MS).toISOString();
+        const computedDaysRemaining = getDaysRemaining(effectiveEndAt);
 
-        const reminderKey = `renewal-${tier}-${profile.subscription_end_at}-${daysRemaining}`;
+        let daysRemaining = computedDaysRemaining;
+
+        if (force) {
+          if (forceDaysRemaining !== null) {
+            daysRemaining = forceDaysRemaining;
+          } else if (daysRemaining === null) {
+            daysRemaining = 1;
+          }
+        } else {
+          if (daysRemaining === null || !REMINDER_STEPS.includes(daysRemaining)) continue;
+        }
+
+        if (daysRemaining === null) continue;
+
+        const reminderKey = force
+          ? `renewal-test-${tier}-${profile.id}-${Date.now()}-${daysRemaining}`
+          : `renewal-${tier}-${effectiveEndAt}-${daysRemaining}`;
+
         const reminderLink = `/dashboard/pagamentos?renewalReminder=${encodeURIComponent(reminderKey)}`;
 
-        const { data: existing } = await supabaseAdmin
-          .from("notifications")
-          .select("id")
-          .eq("user_id", profile.id)
-          .eq("type", "billing_renewal_reminder")
-          .eq("link", reminderLink)
-          .maybeSingle();
+        if (!force) {
+          const { data: existing } = await supabaseAdmin
+            .from("notifications")
+            .select("id")
+            .eq("user_id", profile.id)
+            .eq("type", "billing_renewal_reminder")
+            .eq("link", reminderLink)
+            .maybeSingle();
 
-        if (existing?.id) continue;
+          if (existing?.id) continue;
+        }
 
-        const content = buildReminderContent(tier, daysRemaining, profile.subscription_end_at);
+        const content = buildReminderContent(tier, daysRemaining, effectiveEndAt);
 
         const { error: widgetError } = await supabaseAdmin.from("notifications").insert({
           user_id: profile.id,
@@ -173,6 +288,7 @@ serve(async (req) => {
           link: reminderLink,
           type: "billing_renewal_reminder",
         });
+
         await logNotificationDelivery({
           supabaseAdmin,
           eventType: "subscription_renewal_reminder_user",
@@ -184,8 +300,14 @@ serve(async (req) => {
           title: content.title,
           content: content.body,
           errorMessage: widgetError?.message || null,
-          metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
+          metadata: {
+            tier,
+            daysRemaining,
+            subscription_end_at: effectiveEndAt,
+            forced: force,
+          },
         });
+
         if (widgetError) throw widgetError;
 
         notified += 1;
@@ -203,7 +325,8 @@ serve(async (req) => {
             payload: {
               tier,
               daysRemaining,
-              subscription_end_at: profile.subscription_end_at,
+              subscription_end_at: effectiveEndAt,
+              forced: force,
             },
           });
         } catch (waError) {
@@ -231,6 +354,7 @@ serve(async (req) => {
                 </div>
               `,
             });
+
             await logNotificationDelivery({
               supabaseAdmin,
               eventType: "subscription_renewal_reminder_user",
@@ -240,8 +364,14 @@ serve(async (req) => {
               recipientUserId: profile.id,
               recipientContact: profile.email || null,
               title: content.subject,
-              metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
+              metadata: {
+                tier,
+                daysRemaining,
+                subscription_end_at: effectiveEndAt,
+                forced: force,
+              },
             });
+
             emailed += 1;
           } catch (emailError) {
             await logNotificationDelivery({
@@ -254,7 +384,12 @@ serve(async (req) => {
               recipientContact: profile.email || null,
               title: content.subject,
               errorMessage: emailError?.message || String(emailError),
-              metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
+              metadata: {
+                tier,
+                daysRemaining,
+                subscription_end_at: effectiveEndAt,
+                forced: force,
+              },
             });
           }
         } else if (!profile.email) {
@@ -267,7 +402,12 @@ serve(async (req) => {
             recipientUserId: profile.id,
             title: content.subject,
             errorMessage: "missing_user_email",
-            metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
+            metadata: {
+              tier,
+              daysRemaining,
+              subscription_end_at: effectiveEndAt,
+              forced: force,
+            },
           });
         } else {
           await logNotificationDelivery({
@@ -280,7 +420,12 @@ serve(async (req) => {
             recipientContact: profile.email || null,
             title: content.subject,
             errorMessage: "smtp_not_configured",
-            metadata: { tier, daysRemaining, subscription_end_at: profile.subscription_end_at },
+            metadata: {
+              tier,
+              daysRemaining,
+              subscription_end_at: effectiveEndAt,
+              forced: force,
+            },
           });
         }
       } catch (userError) {
@@ -297,6 +442,10 @@ serve(async (req) => {
         checked: candidates.length,
         notified,
         emailed,
+        mode: authMode,
+        target_user_id: targetUserId || null,
+        forced: force,
+        force_days_remaining: forceDaysRemaining,
         errors: errors.slice(0, 20),
       }),
       {
@@ -305,7 +454,8 @@ serve(async (req) => {
       },
     );
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

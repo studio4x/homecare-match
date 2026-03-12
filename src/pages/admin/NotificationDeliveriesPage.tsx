@@ -151,6 +151,8 @@ const NotificationDeliveriesPage = () => {
   const [items, setItems] = useState<DeliveryItem[]>([]);
   const [isClearing, setIsClearing] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [subscriptionTestTarget, setSubscriptionTestTarget] = useState("");
+  const [isTriggeringSubscriptionTest, setIsTriggeringSubscriptionTest] = useState(false);
 
   const defaultTo = formatDateInput(new Date());
   const defaultFromDate = new Date();
@@ -273,6 +275,59 @@ const NotificationDeliveriesPage = () => {
     }
   };
 
+  const handleTriggerSubscriptionTest = async () => {
+    const target = subscriptionTestTarget.trim();
+    if (!target) {
+      toast.error("Informe o ID ou e-mail do usuario.");
+      return;
+    }
+
+    setIsTriggeringSubscriptionTest(true);
+    setError(null);
+
+    try {
+      const { data: authSession } = await supabase.auth.getSession();
+      const accessToken = authSession?.session?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente.");
+      }
+
+      const isEmailTarget = target.includes("@");
+      const body = {
+        access_token: accessToken,
+        force: true,
+        force_days_remaining: 1,
+        ...(isEmailTarget ? { target_user_email: target.toLowerCase() } : { target_user_id: target }),
+      };
+
+      const { data, error: invokeError } = await supabase.functions.invoke("process-subscription-expiry-alerts", {
+        body,
+      });
+
+      if (invokeError) throw invokeError;
+
+      const response = (data && typeof data === "object")
+        ? (data as { notified?: unknown; emailed?: unknown; checked?: unknown; errors?: unknown })
+        : {};
+
+      const notified = typeof response.notified === "number" ? response.notified : 0;
+      const emailed = typeof response.emailed === "number" ? response.emailed : 0;
+      const checked = typeof response.checked === "number" ? response.checked : 0;
+
+      toast.success(
+        `Teste executado. Processados: ${checked}. Widget: ${notified}. E-mail: ${emailed}.`,
+      );
+
+      await fetchData();
+    } catch (testError: unknown) {
+      console.error("[NotificationDeliveriesPage] erro no teste de assinatura:", testError);
+      toast.error(getErrorMessage(testError, "Falha ao executar teste de alerta de assinatura."));
+    } finally {
+      setIsTriggeringSubscriptionTest(false);
+    }
+  };
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const matchesChannel = channelFilter === "all" || item.channel === channelFilter;
@@ -349,6 +404,38 @@ const NotificationDeliveriesPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div>
+            <p className="text-sm font-medium">Teste de alerta de assinatura</p>
+            <p className="text-xs text-muted-foreground">
+              Dispara agora um lembrete de renovacao para 1 usuario (widget, e-mail e fila WhatsApp quando elegivel).
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 md:flex-row">
+            <Input
+              placeholder="ID ou e-mail do usuario"
+              value={subscriptionTestTarget}
+              onChange={(event) => setSubscriptionTestTarget(event.target.value)}
+              disabled={isTriggeringSubscriptionTest}
+            />
+            <Button
+              onClick={handleTriggerSubscriptionTest}
+              disabled={isTriggeringSubscriptionTest || !subscriptionTestTarget.trim()}
+            >
+              {isTriggeringSubscriptionTest ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Disparando...
+                </span>
+              ) : (
+                "Testar alerta"
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-4 space-y-4">

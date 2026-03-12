@@ -42,20 +42,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return data.session ?? currentSession;
     };
 
+    const getAuthTypeFromUrl = () => {
+      if (typeof window === "undefined") return "";
+      const search = window.location.search || "";
+      const hash = window.location.hash || "";
+      const combined = `${search}&${hash}`;
+      const match = combined.match(/(?:^|[?&#])type=([^&#]+)/i);
+      return decodeURIComponent(match?.[1] || "").toLowerCase();
+    };
+
+    const maybeRedirectByAuthType = (authType: string, hasSession: boolean) => {
+      if (!hasSession || typeof window === "undefined") return;
+      const currentPath = window.location.pathname;
+
+      if (authType === "recovery" && currentPath !== "/redefinir-senha") {
+        navigate("/redefinir-senha", { replace: true });
+        return;
+      }
+
+      if (authType === "signup" && currentPath !== "/email-confirmado") {
+        navigate("/email-confirmado", { replace: true });
+      }
+    };
+
     const bootstrapAuth = async () => {
       const { data } = await supabase.auth.getSession();
       const freshSession = await ensureFreshSession(data.session);
+      const authType = getAuthTypeFromUrl();
 
       if (!isMounted) return;
       setSession(freshSession);
       setUser(freshSession?.user ?? null);
       setLoading(false);
+      maybeRedirectByAuthType(authType, Boolean(freshSession));
     };
 
     bootstrapAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       const freshSession = await ensureFreshSession(nextSession);
+      const authType = getAuthTypeFromUrl();
       if (!isMounted) return;
 
       setSession(freshSession);
@@ -64,6 +90,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (event === "PASSWORD_RECOVERY") {
         navigate("/redefinir-senha", { replace: true });
+        return;
+      }
+
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+        maybeRedirectByAuthType(authType, Boolean(freshSession));
       }
     });
 

@@ -50,31 +50,31 @@ const buildReminderContent = (tier: string, daysRemaining: number, endAt: string
   if (tier === "monthly") {
     if (daysRemaining <= 0) {
       return {
-        title: "Renovacao automatica hoje",
-        subject: `${planLabel}: renovacao automatica hoje`,
-        body: `Seu ${planLabel} renova automaticamente hoje (${dueDateLabel}). Garanta que seu cartao esteja ativo para evitar interrupcao.`,
+        title: "Renovação automática hoje",
+        subject: `${planLabel}: renovação automática hoje`,
+        body: `Seu ${planLabel} renova automaticamente hoje (${dueDateLabel}). Garanta que seu cartão esteja ativo para evitar interrupção.`,
       };
     }
 
     return {
-      title: "Renovacao automatica proxima",
-      subject: `${planLabel}: renovacao em ${daysLabel}`,
-      body: `Seu ${planLabel} renova automaticamente em ${daysRemaining} dia(s), na data ${dueDateLabel}. Verifique se seu cartao esta regular para manter o acesso.`,
+      title: "Renovação automática próxima",
+      subject: `${planLabel}: renovação em ${daysLabel}`,
+      body: `Seu ${planLabel} renova automaticamente em ${daysRemaining} dia(s), na data ${dueDateLabel}. Verifique se seu cartão está regular para manter o acesso.`,
     };
   }
 
   if (daysRemaining <= 0) {
     return {
       title: "Plano anual vence hoje",
-      subject: `${planLabel}: renovacao manual hoje`,
-      body: `Seu ${planLabel} vence hoje (${dueDateLabel}). A renovacao e manual e pode ser feita com parcelamento em ate 12x na pagina de pagamentos.`,
+      subject: `${planLabel}: renovação manual hoje`,
+      body: `Seu ${planLabel} vence hoje (${dueDateLabel}). A renovação é manual e pode ser feita com parcelamento em até 12x na página de pagamentos.`,
     };
   }
 
   return {
     title: "Plano anual perto do vencimento",
-    subject: `${planLabel}: renovacao manual em ${daysLabel}`,
-    body: `Seu ${planLabel} vence em ${daysRemaining} dia(s), na data ${dueDateLabel}. A renovacao e manual e pode ser feita com parcelamento em ate 12x na pagina de pagamentos.`,
+    subject: `${planLabel}: renovação manual em ${daysLabel}`,
+    body: `Seu ${planLabel} vence em ${daysRemaining} dia(s), na data ${dueDateLabel}. A renovação é manual e pode ser feita com parcelamento em até 12x na página de pagamentos.`,
   };
 };
 
@@ -348,11 +348,11 @@ serve(async (req) => {
                   <p style="line-height:1.6;color:#334155;">Ola, ${profile.full_name || "usuario"}.</p>
                   <p style="line-height:1.6;color:#334155;">${content.body}</p>
                   <p style="line-height:1.6;color:#334155;">
-                    Para acompanhar e renovar quando necessario, acesse sua pagina de pagamentos no painel.
+                    Para acompanhar e renovar quando necessário, acesse sua página de pagamentos no painel.
                   </p>
                   <a href="https://www.homecarematch.com.br/dashboard/pagamentos"
                      style="display:inline-block;margin-top:10px;background:#1677ff;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;">
-                    Abrir pagina de pagamentos
+                    Abrir página de pagamentos
                   </a>
                 </div>
               `,

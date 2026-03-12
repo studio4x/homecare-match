@@ -23,13 +23,24 @@ const ReferralLanding = () => {
       }
 
       try {
-        const { data, error } = await supabase
-          .from("profiles")
+        const { data: publicReferrerData, error: publicReferrerError } = await supabase.functions.invoke("public-referrer-profile", {
+          body: { referrerId },
+        });
+
+        const publicReferrer = (publicReferrerData as any)?.referrer;
+        if (!publicReferrerError && publicReferrer?.full_name) {
+          setReferrer(publicReferrer);
+          return;
+        }
+
+        // Fallback para ambientes onde a função ainda não foi publicada.
+        const { data } = await supabase
+          .from("professional_discovery")
           .select("full_name, avatar_url, specialty")
           .eq("id", referrerId)
-          .single();
+          .maybeSingle();
 
-        if (data) setReferrer(data);
+        if (data?.full_name) setReferrer(data);
       } catch (err) {
         console.error("Erro ao buscar indicador:", err);
       } finally {
@@ -52,12 +63,12 @@ const ReferralLanding = () => {
 
   const initials = referrer?.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
   const referrerDisplayName = typeof referrer?.full_name === "string" ? referrer.full_name.trim() : "";
-  const invitationTitle = referrerDisplayName
-    ? `${referrerDisplayName} indicou você para conhecer a HomeCare Match`
-    : "Você foi convidado(a) para conhecer a HomeCare Match";
   const invitationDescription = referrerDisplayName
     ? "Ficamos felizes por ter você com a gente. Seja bem-vindo(a)! Complete seu cadastro e comece a aproveitar os recursos da plataforma para profissionais."
     : "Ficamos felizes por ter você com a gente. Crie sua conta e comece agora.";
+  const invitationInlineText = referrerDisplayName
+    ? `${referrerDisplayName} indicou você para conhecer a HomeCare Match.`
+    : "Você foi convidado(a) para conhecer a HomeCare Match.";
 
   return (
     <Layout>
@@ -66,11 +77,6 @@ const ReferralLanding = () => {
           <div className="grid md:grid-cols-2">
             {/* Coluna da Esquerda: Mensagem Personalizada */}
             <div className="bg-primary/5 p-8 md:p-12 flex flex-col justify-center border-r">
-              <div className="mb-6 rounded-2xl border border-primary/20 bg-background/80 p-4">
-                <p className="text-sm font-semibold leading-snug text-foreground">{invitationTitle}</p>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{invitationDescription}</p>
-              </div>
-
               <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Award className="h-6 w-6" />
               </div>
@@ -89,11 +95,12 @@ const ReferralLanding = () => {
                   </div>
                   
                   <h1 className="text-3xl font-bold leading-tight text-foreground">
-                    Junte-se à maior rede de <span className="text-primary">Home Care</span> do Brasil
+                    Sua carreira no <span className="text-primary">Home Care</span> começa aqui
                   </h1>
                   
                   <p className="text-lg text-muted-foreground leading-relaxed">
-                    Você foi convidado por um colega para fazer parte da nossa plataforma exclusiva para profissionais de saúde.
+                    <span className="font-semibold text-foreground">{invitationInlineText}</span>{" "}
+                    {invitationDescription}
                   </p>
                   
                   <div className="space-y-3">
@@ -117,7 +124,8 @@ const ReferralLanding = () => {
                     Sua carreira no <span className="text-primary">Home Care</span> começa aqui
                   </h1>
                   <p className="text-lg text-muted-foreground">
-                    Crie seu perfil profissional e receba propostas diretamente das maiores empresas de saúde do país.
+                    <span className="font-semibold text-foreground">{invitationInlineText}</span>{" "}
+                    {invitationDescription}
                   </p>
                 </div>
               )}

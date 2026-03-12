@@ -362,8 +362,8 @@
 
 ### 2.7 Programa de Indicacoes (novo)
 - [ ] P1-39 Cadastro via link de indicacao aparece na lista do indicador
-  Desktop:
-  Mobile:
+  Desktop: ok
+  Mobile: 
   Observacoes:
 
 - [ ] P1-40 Card do indicado exibe nome e e-mail de cadastro corretamente

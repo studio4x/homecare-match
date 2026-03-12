@@ -197,7 +197,7 @@ const UserLayout = () => {
   if (isProfessional) {
     navItems.push(
       { href: "/dashboard/cursos", label: "Cursos", icon: BookOpen },
-      { href: "/dashboard/indicacoes", label: "Indicacoes", icon: Award },
+      { href: "/dashboard/indicacoes", label: "Indicações", icon: Award },
       { href: "/dashboard/pagamentos", label: "Pagamentos", icon: CreditCard }
     );
   } else if (isCompany) {

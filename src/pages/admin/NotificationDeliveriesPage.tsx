@@ -15,6 +15,16 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -28,6 +38,7 @@ import {
   Mail,
   MessageCircle,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -47,6 +58,47 @@ type DeliveryItem = {
   attemptCount?: number | null;
   maxAttempts?: number | null;
   createdAt: string;
+};
+
+type NotificationDeliveryLogRow = {
+  id: string;
+  channel: DeliveryItem["channel"];
+  status: DeliveryItem["status"];
+  event_type: string;
+  recipient_kind: DeliveryItem["recipientKind"];
+  recipient_user_id: string | null;
+  recipient_contact: string | null;
+  title: string | null;
+  content: string | null;
+  error_message: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type WhatsAppQueueRow = {
+  id: string;
+  status: DeliveryItem["status"];
+  event_type: string;
+  target_kind: "user" | "admin";
+  recipient_user_id: string | null;
+  recipient_phone_e164: string | null;
+  template_name: string | null;
+  template_params: unknown;
+  payload: Record<string, unknown> | null;
+  last_error: string | null;
+  attempt_count: number | null;
+  max_attempts: number | null;
+  created_at: string;
+};
+
+const getErrorMessage = (error: unknown, fallback: string) => {
+  if (error && typeof error === "object" && "message" in error) {
+    const candidate = (error as { message?: unknown }).message;
+    if (typeof candidate === "string" && candidate.length > 0) {
+      return candidate;
+    }
+  }
+  return fallback;
 };
 
 const formatDateInput = (date: Date) => {
@@ -97,6 +149,8 @@ const NotificationDeliveriesPage = () => {
   const [statusFilter, setStatusFilter] = useState<"all" | DeliveryItem["status"]>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [items, setItems] = useState<DeliveryItem[]>([]);
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   const defaultTo = formatDateInput(new Date());
   const defaultFromDate = new Date();
@@ -136,7 +190,7 @@ const NotificationDeliveriesPage = () => {
       if (logsError) throw logsError;
       if (waError) throw waError;
 
-      const mappedLogs: DeliveryItem[] = (logsData || []).map((row: any) => ({
+      const mappedLogs: DeliveryItem[] = ((logsData || []) as NotificationDeliveryLogRow[]).map((row) => ({
         id: `log-${row.id}`,
         source: "log",
         channel: row.channel,
@@ -152,7 +206,7 @@ const NotificationDeliveriesPage = () => {
         createdAt: row.created_at,
       }));
 
-      const mappedWhatsapp: DeliveryItem[] = (waData || []).map((row: any) => ({
+      const mappedWhatsapp: DeliveryItem[] = ((waData || []) as WhatsAppQueueRow[]).map((row) => ({
         id: `wa-${row.id}`,
         source: "whatsapp_queue",
         channel: "whatsapp",
@@ -174,9 +228,9 @@ const NotificationDeliveriesPage = () => {
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
       setItems(merged);
-    } catch (fetchError: any) {
+    } catch (fetchError: unknown) {
       console.error("[NotificationDeliveriesPage] erro ao carregar:", fetchError);
-      setError(fetchError?.message || "Falha ao carregar entregas.");
+      setError(getErrorMessage(fetchError, "Falha ao carregar entregas."));
       toast.error("Erro ao carregar entregas de notificacao.");
     } finally {
       setLoading(false);
@@ -187,6 +241,37 @@ const NotificationDeliveriesPage = () => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleClearAll = async () => {
+    setIsClearing(true);
+    setError(null);
+
+    try {
+      const [{ error: logsDeleteError }, { error: queueDeleteError }] = await Promise.all([
+        supabase
+          .from("notification_delivery_logs")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000"),
+        supabase
+          .from("whatsapp_notification_queue")
+          .delete()
+          .neq("id", "00000000-0000-0000-0000-000000000000"),
+      ]);
+
+      if (logsDeleteError) throw logsDeleteError;
+      if (queueDeleteError) throw queueDeleteError;
+
+      toast.success("Todas as notificacoes foram limpas.");
+      setItems([]);
+      setClearDialogOpen(false);
+    } catch (clearError: unknown) {
+      console.error("[NotificationDeliveriesPage] erro ao limpar:", clearError);
+      toast.error(getErrorMessage(clearError, "Falha ao limpar notificacoes."));
+    } finally {
+      setIsClearing(false);
+      await fetchData();
+    }
+  };
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -222,10 +307,26 @@ const NotificationDeliveriesPage = () => {
             Monitoramento de notificacoes por e-mail, widget e WhatsApp.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive hover:bg-destructive/10"
+            onClick={() => setClearDialogOpen(true)}
+            disabled={loading || isClearing || items.length === 0}
+          >
+            {isClearing ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 h-4 w-4" />
+            )}
+            Limpar todas
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading || isClearing}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
@@ -370,9 +471,36 @@ const NotificationDeliveriesPage = () => {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Limpar todas as notificacoes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acao apagara todo o historico de envios dos canais e-mail, widget e WhatsApp.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isClearing}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearAll}
+              disabled={isClearing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isClearing ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Limpando...
+                </span>
+              ) : (
+                "Sim, limpar tudo"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
 
 export default NotificationDeliveriesPage;
-

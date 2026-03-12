@@ -51,16 +51,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return decodeURIComponent(match?.[1] || "").toLowerCase();
     };
 
+    const isSignupFallbackRedirect = () => {
+      if (typeof window === "undefined") return false;
+      const currentPath = window.location.pathname || "/";
+      if (currentPath !== "/") return false;
+
+      const referrer = document.referrer || "";
+      if (!referrer) return false;
+
+      try {
+        const refUrl = new URL(referrer);
+        const isSupabaseVerifyEndpoint =
+          refUrl.hostname.endsWith(".supabase.co") && refUrl.pathname.includes("/auth/v1/verify");
+        const isSignupType = (refUrl.searchParams.get("type") || "").toLowerCase() === "signup";
+        return isSupabaseVerifyEndpoint && isSignupType;
+      } catch {
+        return false;
+      }
+    };
+
     const maybeRedirectByAuthType = (authType: string, hasSession: boolean) => {
       if (!hasSession || typeof window === "undefined") return;
       const currentPath = window.location.pathname;
+      const shouldUseSignupFallback = authType !== "recovery" && authType !== "signup" && isSignupFallbackRedirect();
 
       if (authType === "recovery" && currentPath !== "/redefinir-senha") {
         navigate("/redefinir-senha", { replace: true });
         return;
       }
 
-      if (authType === "signup" && currentPath !== "/email-confirmado") {
+      if ((authType === "signup" || shouldUseSignupFallback) && currentPath !== "/email-confirmado") {
         navigate("/email-confirmado", { replace: true });
       }
     };

@@ -1137,6 +1137,15 @@ const ProfilePage = () => {
                       <div className="grid gap-2"><Label>Registro ANS</Label><Input value={profile.ans_registration || ""} onChange={e => setProfile({...profile, ans_registration: e.target.value})} /></div>
                     </>
                   )}
+                  {isFamily && (
+                    <div className="grid gap-2">
+                      <Label>Especialidade que deseja contratar</Label>
+                      <Select value={profile.specialty || ""} onValueChange={v => setProfile({ ...profile, specialty: v })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione a especialidade" /></SelectTrigger>
+                        <SelectContent>{specialties.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   {!isCompany && (
                     <div className="grid gap-2">
                       <Label>{isFamily ? "CPF do Responsável *" : "CPF *"}</Label>

@@ -275,6 +275,7 @@ const InteractionProfileModal = ({ open, onOpenChange, profile, viewerFullName, 
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   {renderPatientDetail("Idade", profile.patient_age, Calendar)}
+                  {renderPatientDetail("Especialidade Desejada", profile.specialty, Users)}
                   {renderPatientDetail("Condições Médicas", profile.patient_medical_conditions, HeartPulse)}
                   {renderPatientDetail("Mobilidade", profile.patient_mobility_level, Footprints)}
                   {renderPatientDetail("Estado Cognitivo", profile.patient_cognitive_state, Brain)}

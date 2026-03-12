@@ -47,7 +47,7 @@ const RecruiterProfile = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, avatar_url, city, state, bio, role, ans_registration")
+        .select("id, full_name, avatar_url, city, state, bio, role, ans_registration, specialty")
         .eq("id", id)
         .single();
 
@@ -121,6 +121,9 @@ const RecruiterProfile = () => {
     .toUpperCase() || "??";
 
   const isCompany = profile.role === 'company';
+  const desiredSpecialtyLabel = typeof profile.specialty === "string"
+    ? profile.specialty.replace(/-/g, " ")
+    : "";
 
   const renderPatientDetail = (label: string, value: string | number | string[] | undefined, Icon: any) => {
     if (!value || (Array.isArray(value) && value.length === 0)) return null;
@@ -192,6 +195,11 @@ const RecruiterProfile = () => {
                   {isCompany && profile.ans_registration && (
                     <p className="text-sm text-muted-foreground mt-2">
                       Registro ANS: <span className="font-medium">{profile.ans_registration}</span>
+                    </p>
+                  )}
+                  {!isCompany && desiredSpecialtyLabel && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Especialidade desejada: <span className="font-medium">{desiredSpecialtyLabel}</span>
                     </p>
                   )}
                 </div>

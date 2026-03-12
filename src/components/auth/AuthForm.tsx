@@ -124,7 +124,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         type: "signup",
         email: normalizedEmail,
         options: {
-          emailRedirectTo: window.location.origin + "/dashboard",
+          emailRedirectTo: window.location.origin + "/email-confirmado",
         },
       });
 
@@ -207,7 +207,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           email: data.email,
           password: data.password!,
           options: {
-            emailRedirectTo: window.location.origin + "/dashboard",
+            emailRedirectTo: window.location.origin + "/email-confirmado",
             data: {
               full_name: data.fullName,
               coupon_code: data.couponCode?.trim().toUpperCase() || null

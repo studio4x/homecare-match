@@ -81,7 +81,7 @@ const CadastroEmpresaFamilia = () => {
         email: data.email,
         password: data.password,
         options: {
-          emailRedirectTo: window.location.origin + "/dashboard",
+          emailRedirectTo: window.location.origin + "/email-confirmado",
           data: {
             full_name: data.fullName,
             role: data.role,

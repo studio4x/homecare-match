@@ -36,6 +36,7 @@ import BlogCategoriesPage from "./pages/BlogCategories";
 import BlogTagsPage from "./pages/BlogTags";
 import BlogSearchPage from "./pages/BlogSearch";
 import ShortLinkRedirect from "./pages/ShortLinkRedirect";
+import EmailConfirmed from "./pages/EmailConfirmed";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -113,6 +114,7 @@ const App = () => (
               <Route path="/blog/tags" element={<BlogTagsPage />} />
               <Route path="/blog/busca" element={<BlogSearchPage />} />
               <Route path="/redefinir-senha" element={<ResetPassword />} />
+              <Route path="/email-confirmado" element={<EmailConfirmed />} />
               <Route path="/conversion/course" element={<ConversionCourse />} /> {/* New route */}
               <Route path="/conversion/subscription" element={<ConversionSubscription />} /> {/* New route */}
               <Route path="/:shortSlug" element={<ShortLinkRedirect />} />

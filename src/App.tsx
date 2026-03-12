@@ -71,6 +71,7 @@ import VideosPage from "./pages/admin/VideosPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
 import PushNotificationsPage from "./pages/admin/PushNotificationsPage";
 import FeatureVideosPage from "./pages/admin/FeatureVideosPage";
+import EmailConfirmationVideosPage from "./pages/admin/EmailConfirmationVideosPage";
 import ConciergeRequestsPage from "./pages/admin/ConciergeRequestsPage";
 import PaymentsAdminPage from "./pages/admin/PaymentsAdminPage";
 import PwaSettingsPage from "./pages/admin/PwaSettingsPage";
@@ -156,6 +157,7 @@ const App = () => (
                 <Route path="metricas" element={<AnalyticsPage />} />
                 <Route path="auditoria" element={<AuditLogsPage />} />
                 <Route path="videos-funcionalidades" element={<FeatureVideosPage />} />
+                <Route path="videos-email-confirmado" element={<EmailConfirmationVideosPage />} />
                 <Route path="concierge" element={<ConciergeRequestsPage />} />
                 <Route path="pwa" element={<PwaSettingsPage />} />
                 <Route path="blog" element={<BlogAdminPage />} />

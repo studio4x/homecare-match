@@ -1,11 +1,12 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Select,
@@ -23,6 +24,13 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -33,20 +41,20 @@ import {
 import { 
   Loader2,
   Trash2,
-  Calendar,
   LogIn,
   ShieldAlert,
   ExternalLink,
   Eye,
   EyeOff,
-  User,
   Ticket,
-  Clock
+  Clock,
+  Search
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, addDays, isAfter, subDays, parseISO, isValid } from "date-fns";
 import { translateAuthError } from "@/lib/error-utils";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 interface UsersTabProps {
   allUsers: any[];
@@ -55,6 +63,7 @@ interface UsersTabProps {
 }
 
 const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
+  const USERS_PER_PAGE = 12;
   const { user } = useAuth();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
@@ -64,6 +73,12 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [isUpdatingVerified, setIsUpdatingVerified] = useState<string | null>(null);
   const [isUpdatingEmailConfirmed, setIsUpdatingEmailConfirmed] = useState<string | null>(null);
   const [isImpersonating, setIsImpersonating] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [planStatusFilter, setPlanStatusFilter] = useState("all");
+  const [docsVerifiedFilter, setDocsVerifiedFilter] = useState("all");
+  const [emailVerifiedFilter, setEmailVerifiedFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
 
@@ -351,184 +366,386 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     return isPaid || isTrialActive;
   };
 
+  const normalizeTier = (tier?: string | null) => {
+    const value = String(tier || "").toLowerCase();
+    if (!value) return "no_plan";
+    if (value === "annual") return "yearly";
+    return value;
+  };
+
+  const hasActivePlan = (u: any) => {
+    const tier = normalizeTier(u.subscription_tier);
+    if (!["monthly", "yearly", "free_trial"].includes(tier)) return false;
+    const daysLeft = getDaysRemaining(u);
+    if (daysLeft === null) return tier === "monthly" || tier === "yearly";
+    return daysLeft > 0;
+  };
+
+  const hasExpiredPlan = (u: any) => {
+    const daysLeft = getDaysRemaining(u);
+    return daysLeft !== null && daysLeft <= 0;
+  };
+
+  const filteredUsers = allUsers.filter((u) => {
+    const term = searchTerm.trim().toLowerCase();
+
+    if (roleFilter !== "all" && String(u.role || "") !== roleFilter) return false;
+
+    if (docsVerifiedFilter === "verified" && !u.is_verified) return false;
+    if (docsVerifiedFilter === "not_verified" && !!u.is_verified) return false;
+
+    if (emailVerifiedFilter === "verified" && !u.email_confirmed) return false;
+    if (emailVerifiedFilter === "not_verified" && !!u.email_confirmed) return false;
+
+    if (planStatusFilter !== "all") {
+      const tier = normalizeTier(u.subscription_tier);
+      if (planStatusFilter === "monthly" && tier !== "monthly") return false;
+      if (planStatusFilter === "yearly" && tier !== "yearly") return false;
+      if (planStatusFilter === "free_trial" && tier !== "free_trial") return false;
+      if (planStatusFilter === "no_plan" && tier !== "no_plan") return false;
+      if (planStatusFilter === "active" && !hasActivePlan(u)) return false;
+      if (planStatusFilter === "expired" && !hasExpiredPlan(u)) return false;
+    }
+
+    if (term) {
+      const haystack = `${u.full_name || ""} ${u.email || ""}`.toLowerCase();
+      if (!haystack.includes(term)) return false;
+    }
+
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [roleFilter, planStatusFilter, docsVerifiedFilter, emailVerifiedFilter, searchTerm]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * USERS_PER_PAGE, currentPage * USERS_PER_PAGE);
+
+  const startItem = filteredUsers.length === 0 ? 0 : (currentPage - 1) * USERS_PER_PAGE + 1;
+  const endItem = Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length);
+
+  const clearFilters = () => {
+    setRoleFilter("all");
+    setPlanStatusFilter("all");
+    setDocsVerifiedFilter("all");
+    setEmailVerifiedFilter("all");
+    setSearchTerm("");
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters =
+    roleFilter !== "all" ||
+    planStatusFilter !== "all" ||
+    docsVerifiedFilter !== "all" ||
+    emailVerifiedFilter !== "all" ||
+    searchTerm.trim().length > 0;
+
   const getInitials = (name: string) =>
     name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
 
   return (
     <>
-      <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[80px]">Foto</TableHead>
-              <TableHead className="w-[180px]">Nome</TableHead>
-              <TableHead className="w-[210px]">E-mail (Conta)</TableHead>
-              <TableHead>Função</TableHead>
-              <TableHead>Plano / Status</TableHead>
-              <TableHead>Docs Verificados</TableHead>
-              <TableHead>E-mail Verificado</TableHead>
-              <TableHead>Busca</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {allUsers.map(u => {
-              const daysLeft = getDaysRemaining(u);
-              const profileLink = getProfileLink(u);
-              const isVisible = checkVisibility(u);
-              
-              return (
-                <TableRow key={u.id}>
-                  <TableCell>
-                    <Avatar className="h-10 w-10 border">
-                      <AvatarImage src={u.avatar_url} />
-                      <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">
-                        {getInitials(u.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      {profileLink ? (
-                        <Link 
-                          to={profileLink} 
-                          target="_blank" 
-                          className="text-primary hover:text-primary/80 transition-colors"
-                          title="Ver Perfil Público"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Link>
-                      ) : (
-                        <div className="w-4 h-4" />
-                      )}
-                      <span className="truncate max-w-[120px]">{u.full_name || "Sem nome"}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    <span className="block max-w-[210px] truncate" title={u.email || ""}>
-                      {u.email}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {isUpdatingRole === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                      <Select 
-                        defaultValue={u.role} 
-                        onValueChange={(value) => handleUpdateRole(u.id, value)}
-                        disabled={u.email === MASTER_ADMIN_EMAIL}
-                      >
-                        <SelectTrigger className="w-[130px] h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="professional">Profissional</SelectItem>
-                          <SelectItem value="company">Empresa</SelectItem>
-                          <SelectItem value="family">Família</SelectItem>
-                          <SelectItem value="admin" disabled={u.email !== MASTER_ADMIN_EMAIL}>Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {isUpdatingPlan === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (
-                        <Select 
-                          value={u.subscription_tier || "no_plan"}
-                          onValueChange={(value) => handleUpdatePlan(u.id, value)}
-                          disabled={u.role !== 'professional'}
-                        >
-                          <SelectTrigger className="w-[130px] h-8 text-[10px]">
-                            <SelectValue>
-                              {u.coupon_days && u.subscription_tier === 'monthly' 
-                                ? "Plano Mensal (Via Cupom)" 
-                                : getTierLabel(u.subscription_tier)}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="no_plan" disabled>Nenhum plano definido</SelectItem>
-                            {plans.map(plan => (
-                              <SelectItem key={plan.id} value={plan.id}>
-                                {u.coupon_days && plan.id === 'monthly' ? "Plano Mensal (Via Cupom)" : getTierLabel(plan.id)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      {daysLeft !== null && (
-                        <div className={`text-[9px] font-medium flex items-center gap-1 ${daysLeft <= 0 ? 'text-destructive' : 'text-primary'}`}>
-                          <Clock className="h-3 w-3" />
-                          {daysLeft <= 0 ? 'Expirado' : `${daysLeft}d restantes`}
-                        </div>
-                      )}
-                      {u.coupon_days && (
-                        <div className="text-[9px] font-bold text-success flex items-center gap-1">
-                          <Ticket className="h-3 w-3" />
-                          Cupom Ativo
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center">
-                      {isUpdatingVerified === u.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      ) : (
-                        <Switch 
-                          checked={!!u.is_verified} 
-                          onCheckedChange={() => handleToggleVerified(u.id, !!u.is_verified)}
-                          className="data-[state=checked]:bg-success"
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-center">
-                      {isUpdatingEmailConfirmed === u.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                      ) : (
-                        <Switch
-                          checked={!!u.email_confirmed}
-                          onCheckedChange={() => handleToggleEmailConfirmed(u.id, !!u.email_confirmed)}
-                          className="data-[state=checked]:bg-success"
-                        />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {u.role === 'professional' ? (
-                      isVisible ? (
-                        <Badge className="bg-success/10 text-success border-success/20 gap-1 text-[9px] h-5">
-                          <Eye className="h-3 w-3" /> Visível
-                        </Badge>
-                      ) : !u.email_confirmed ? (
-                        <Badge className="gap-1.5 min-h-6 px-2.5 py-0.5 text-[11px] font-semibold leading-none whitespace-nowrap bg-red-100 text-red-700 border border-red-300">
-                          <EyeOff className="h-3.5 w-3.5" /> E-mail não confirmado
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="gap-1 text-[9px] h-5 opacity-60">
-                          <EyeOff className="h-3 w-3" /> Oculto
-                        </Badge>
-                      )
-                    ) : (
-                      <span className="text-[9px] text-muted-foreground italic">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => { setUserToDelete(u); setDeleteModalOpen(true); }}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {u.id !== user?.id && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => handleImpersonate(u.id)} disabled={isImpersonating === u.id}>
-                          {isImpersonating === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-                        </Button>
-                      )}
-                    </div>
+      <div className="space-y-4">
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="relative md:col-span-2 xl:col-span-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nome ou e-mail..."
+                className="pl-8"
+              />
+            </div>
+
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filtrar por Função" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Função: Todas</SelectItem>
+                <SelectItem value="professional">Função: Profissional</SelectItem>
+                <SelectItem value="company">Função: Empresa</SelectItem>
+                <SelectItem value="family">Função: Família</SelectItem>
+                <SelectItem value="admin">Função: Admin</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={planStatusFilter} onValueChange={setPlanStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filtrar por Plano/Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Plano/Status: Todos</SelectItem>
+                <SelectItem value="monthly">Plano: Mensal</SelectItem>
+                <SelectItem value="yearly">Plano: Anual</SelectItem>
+                <SelectItem value="free_trial">Plano: Teste Grátis</SelectItem>
+                <SelectItem value="no_plan">Plano: Sem plano</SelectItem>
+                <SelectItem value="active">Status: Ativo</SelectItem>
+                <SelectItem value="expired">Status: Expirado</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={docsVerifiedFilter} onValueChange={setDocsVerifiedFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filtrar por Docs Verificados" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Docs: Todos</SelectItem>
+                <SelectItem value="verified">Docs: Verificados</SelectItem>
+                <SelectItem value="not_verified">Docs: Não verificados</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={emailVerifiedFilter} onValueChange={setEmailVerifiedFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filtrar por E-mail Verificado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">E-mail: Todos</SelectItem>
+                <SelectItem value="verified">E-mail: Verificado</SelectItem>
+                <SelectItem value="not_verified">E-mail: Não verificado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Exibindo {startItem}-{endItem} de {filteredUsers.length} usuário(s)
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              disabled={!hasActiveFilters}
+            >
+              Limpar filtros
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[80px]">Foto</TableHead>
+                <TableHead className="w-[180px]">Nome</TableHead>
+                <TableHead className="w-[210px]">E-mail (Conta)</TableHead>
+                <TableHead>Função</TableHead>
+                <TableHead>Plano / Status</TableHead>
+                <TableHead>Docs Verificados</TableHead>
+                <TableHead>E-mail Verificado</TableHead>
+                <TableHead>Busca</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center text-sm text-muted-foreground">
+                    Nenhum usuário encontrado para os filtros aplicados.
                   </TableCell>
                 </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+              ) : (
+                paginatedUsers.map(u => {
+                  const daysLeft = getDaysRemaining(u);
+                  const profileLink = getProfileLink(u);
+                  const isVisible = checkVisibility(u);
+                  
+                  return (
+                    <TableRow key={u.id}>
+                      <TableCell>
+                        <Avatar className="h-10 w-10 border">
+                          <AvatarImage src={u.avatar_url} />
+                          <AvatarFallback className="bg-primary/10 text-[10px] font-bold text-primary">
+                            {getInitials(u.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {profileLink ? (
+                            <Link 
+                              to={profileLink} 
+                              target="_blank" 
+                              className="text-primary hover:text-primary/80 transition-colors"
+                              title="Ver Perfil Público"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Link>
+                          ) : (
+                            <div className="w-4 h-4" />
+                          )}
+                          <span className="truncate max-w-[120px]">{u.full_name || "Sem nome"}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <span className="block max-w-[210px] truncate" title={u.email || ""}>
+                          {u.email}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {isUpdatingRole === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                          <Select 
+                            defaultValue={u.role} 
+                            onValueChange={(value) => handleUpdateRole(u.id, value)}
+                            disabled={u.email === MASTER_ADMIN_EMAIL}
+                          >
+                            <SelectTrigger className="w-[130px] h-8 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="professional">Profissional</SelectItem>
+                              <SelectItem value="company">Empresa</SelectItem>
+                              <SelectItem value="family">Família</SelectItem>
+                              <SelectItem value="admin" disabled={u.email !== MASTER_ADMIN_EMAIL}>Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {isUpdatingPlan === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+                            <Select 
+                              value={u.subscription_tier || "no_plan"}
+                              onValueChange={(value) => handleUpdatePlan(u.id, value)}
+                              disabled={u.role !== 'professional'}
+                            >
+                              <SelectTrigger className="w-[130px] h-8 text-[10px]">
+                                <SelectValue>
+                                  {u.coupon_days && u.subscription_tier === 'monthly' 
+                                    ? "Plano Mensal (Via Cupom)" 
+                                    : getTierLabel(u.subscription_tier)}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="no_plan" disabled>Nenhum plano definido</SelectItem>
+                                {plans.map(plan => (
+                                  <SelectItem key={plan.id} value={plan.id}>
+                                    {u.coupon_days && plan.id === 'monthly' ? "Plano Mensal (Via Cupom)" : getTierLabel(plan.id)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          {daysLeft !== null && (
+                            <div className={`text-[9px] font-medium flex items-center gap-1 ${daysLeft <= 0 ? 'text-destructive' : 'text-primary'}`}>
+                              <Clock className="h-3 w-3" />
+                              {daysLeft <= 0 ? 'Expirado' : `${daysLeft}d restantes`}
+                            </div>
+                          )}
+                          {u.coupon_days && (
+                            <div className="text-[9px] font-bold text-success flex items-center gap-1">
+                              <Ticket className="h-3 w-3" />
+                              Cupom Ativo
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center">
+                          {isUpdatingVerified === u.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          ) : (
+                            <Switch 
+                              checked={!!u.is_verified} 
+                              onCheckedChange={() => handleToggleVerified(u.id, !!u.is_verified)}
+                              className="data-[state=checked]:bg-success"
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center">
+                          {isUpdatingEmailConfirmed === u.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          ) : (
+                            <Switch
+                              checked={!!u.email_confirmed}
+                              onCheckedChange={() => handleToggleEmailConfirmed(u.id, !!u.email_confirmed)}
+                              className="data-[state=checked]:bg-success"
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {u.role === 'professional' ? (
+                          isVisible ? (
+                            <Badge className="bg-success/10 text-success border-success/20 gap-1 text-[9px] h-5">
+                              <Eye className="h-3 w-3" /> Visível
+                            </Badge>
+                          ) : !u.email_confirmed ? (
+                            <Badge className="gap-1.5 min-h-6 px-2.5 py-0.5 text-[11px] font-semibold leading-none whitespace-nowrap bg-red-100 text-red-700 border border-red-300">
+                              <EyeOff className="h-3.5 w-3.5" /> E-mail não confirmado
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="gap-1 text-[9px] h-5 opacity-60">
+                              <EyeOff className="h-3 w-3" /> Oculto
+                            </Badge>
+                          )
+                        ) : (
+                          <span className="text-[9px] text-muted-foreground italic">N/A</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => { setUserToDelete(u); setDeleteModalOpen(true); }}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {u.id !== user?.id && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => handleImpersonate(u.id)} disabled={isImpersonating === u.id}>
+                              {isImpersonating === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {filteredUsers.length > USERS_PER_PAGE && (
+          <div className="rounded-xl border bg-card px-4 py-3 shadow-sm">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) setCurrentPage(currentPage - 1);
+                    }}
+                    className={cn("cursor-pointer", currentPage === 1 && "pointer-events-none opacity-50")}
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                    }}
+                    className={cn("cursor-pointer", currentPage === totalPages && "pointer-events-none opacity-50")}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </div>
 
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>

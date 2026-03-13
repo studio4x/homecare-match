@@ -1,60 +1,48 @@
 # Template de Checklist de QA por Release
 
-## Instruções rápidas
+## Instrucoes rapidas
 1. Copie este arquivo para um novo nome:
    - `qa-checklists/CHECKLIST_QA_YYYY-MM-DD_RELEASE-NOME.md`
-2. Preencha os metadados.
-3. Execute os testes e marque cada item com `OK`, `NOK` ou `NA`.
-4. Vincule evidências em `qa-evidencias/`.
+2. Use como base detalhada:
+   - `CHECKLIST_QA_GO_LIVE_REVISADO.md`
+3. Preencha todos os metadados e todos os campos obrigatorios.
+4. Nao marque item como `OK` sem evidencia.
 
-## Metadados da execução
-- Release/Versão:
+## Metadados da execucao
+- Release/Versao:
 - Data:
-- Responsável pelo teste:
-- Ambiente: Produção / Homologação
+- Responsavel pelo teste:
+- Responsavel tecnico:
+- Ambiente: Producao / Homologacao
 - Build/Commit:
 
 ## Legenda de status
 - `OK` = validado e aprovado
 - `NOK` = validado e reprovado
-- `NA` = não se aplica
+- `NA` = nao se aplica (exige justificativa em P0)
 
-## Itens obrigatórios mínimos (Smoke)
-- [ ] SMOKE-01 - Fluxo profissional crítico validado
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SMOKE-02 - Fluxo empresa crítico validado
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SMOKE-03 - Fluxo admin crítico validado
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SMOKE-04 - Regras de plano e visibilidade validadas
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
-- [ ] SMOKE-05 - Fluxos críticos em desktop e mobile
-  - Status:
-  - Evidência:
-  - Ambiente:
-  - Notas de falha:
+## Regras de gate (obrigatorias)
+- Item em branco conta como `NOK`.
+- P0 com `NOK` = `NO-GO`.
+- P0 com `NA` sem justificativa/aprovacao = `NO-GO`.
+- Item `OK` sem evidencia = `NO-GO`.
 
-## Checklist completo de referência
-- Arquivo base: `CHECKLIST_QA_DESKTOP_MOBILE.md`
+## Itens minimos obrigatorios (resumo)
+- [ ] P0 completo sem pendencias (conforme checklist revisado)
+- [ ] WhatsApp E2E validado (template, fila, envio real, erros controlados)
+- [ ] Webhook de pagamento com idempotencia validado
+- [ ] RLS e acesso por perfil validados
+- [ ] Smoke final desktop + mobile concluido
 
 ## Log de defeitos
-| ID | Item do checklist | Prioridade | Ambiente | Descrição | Evidência | Ticket/Link | Status |
-|---|---|---|---|---|---|---|---|
-| | | | | | | | |
+| ID | Item | Prioridade | Ambiente | Descricao | Evidencia | Ticket/Link | Status | Owner | ETA |
+|---|---|---|---|---|---|---|---|---|---|
+| | | | | | | | | | |
 
-## Decisão de release
+## Decisao de release
 - Go/No-Go:
-- Responsável pela decisão:
-- Observações:
+- Motivo da decisao:
+- Riscos aceitos:
+- Aprovado por (Produto):
+- Aprovado por (Tecnico):
+- Data/Hora:

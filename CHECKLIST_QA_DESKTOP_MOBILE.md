@@ -432,27 +432,27 @@
 
 - [OK] SMK-05 Fluxos criticos validados no Android Chrome
   Desktop: NA
-  Mobile:
+  Mobile: OK
   Observacoes:
 
 - [OK] SMK-06 Fluxos criticos validados no iOS Safari
   Desktop: NA
-  Mobile:
+  Mobile: OK
   Observacoes:
 
 - [OK] SMK-07 Fluxo ponta a ponta do chatbot validado (publico + logado + admin + inatividade 5/10 min)
-  Desktop:
-  Mobile:
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 - [OK] SMK-08 Fluxo ponta a ponta de UTM + encurtador + metricas validado
-  Desktop:
+  Desktop: OK
   Mobile: NA
   Observacoes:
 
 - [OK] SMK-09 Fluxo ponta a ponta de indicacoes validado (cadastro por link -> etapas -> selo)
-  Desktop:
-  Mobile:
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
 ---

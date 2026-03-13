@@ -1,11 +1,11 @@
 # Checklist QA - Go Live Revisado (Desktop + Mobile)
 
 ## 0) Metadados
-- Build/Versao:
+- Build/Versao: 5.8.182
 - Commit:
-- Data:
-- Responsavel QA:
-- Responsavel Tecnico:
+- Data: 13/03/2026
+- Responsavel QA: Rodolfo
+- Responsavel Tecnico: Rodolfo
 - Ambiente: Homologacao / Producao
 - Janela de lancamento:
 

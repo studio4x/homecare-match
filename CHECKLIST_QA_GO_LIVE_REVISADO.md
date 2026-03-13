@@ -11,13 +11,33 @@
 
 ## 0.1) Regras de preenchimento (obrigatorias)
 - Em cada item, preencher `Desktop` e `Mobile` com `OK`, `NOK` ou `NA`.
+- Quando o item envolver mais de um perfil, preencher separado por:
+  - `Profissional`
+  - `Familia`
+  - `Empresa`
 - Se marcar item como `OK`, preencher tambem:
   - Evidencia (print/video/log/link),
   - Data/Hora da validacao,
   - Responsavel.
+- Item multi-perfil sem separacao `Profissional/Familia/Empresa` = checklist incompleto.
 - Item com status em branco = **NOK** para decisao de release.
 - `P0` e bloqueador. Qualquer `NOK` em P0 = **NO-GO**.
 - `NA` em P0 so pode ser aceito com justificativa formal em "Riscos aceitos".
+
+## 0.2) Bloco padrao para itens multi-perfil
+- Profissional:
+  - Desktop:
+  - Mobile:
+- Familia:
+  - Desktop:
+  - Mobile:
+- Empresa:
+  - Desktop:
+  - Mobile:
+- Evidencia:
+- Data/Hora:
+- Responsavel:
+- Observacoes:
 
 ---
 
@@ -25,24 +45,45 @@
 
 ### 1.1 Autenticacao e Acesso
 - [ ] P0-01 Cadastro (profissional, familia, empresa)
-  - Desktop:
-  - Mobile:
+  - Profissional:
+    - Desktop:
+    - Mobile:
+  - Familia:
+    - Desktop:
+    - Mobile:
+  - Empresa:
+    - Desktop:
+    - Mobile:
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
 - [ ] P0-02 Login, logout e expiracao de sessao
-  - Desktop:
-  - Mobile:
+  - Profissional:
+    - Desktop:
+    - Mobile:
+  - Familia:
+    - Desktop:
+    - Mobile:
+  - Empresa:
+    - Desktop:
+    - Mobile:
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
 - [ ] P0-03 Recuperacao de senha (envio, link, redefinicao)
-  - Desktop:
-  - Mobile:
+  - Profissional:
+    - Desktop:
+    - Mobile:
+  - Familia:
+    - Desktop:
+    - Mobile:
+  - Empresa:
+    - Desktop:
+    - Mobile:
   - Evidencia:
   - Data/Hora:
   - Responsavel:
@@ -58,32 +99,60 @@
 
 ### 1.2 Pagamentos, Assinaturas e Webhooks
 - [ ] P0-05 Contratacao plano mensal e reflexo no dashboard
-  - Desktop:
-  - Mobile:
+  - Profissional:
+    - Desktop:
+    - Mobile:
+  - Familia:
+    - Desktop:
+    - Mobile:
+  - Empresa:
+    - Desktop:
+    - Mobile:
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
 - [ ] P0-06 Contratacao plano anual e reflexo no dashboard
-  - Desktop:
-  - Mobile:
+  - Profissional:
+    - Desktop:
+    - Mobile:
+  - Familia:
+    - Desktop:
+    - Mobile:
+  - Empresa:
+    - Desktop:
+    - Mobile:
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
 - [ ] P0-07 Cancelamento atualiza status corretamente
-  - Desktop:
-  - Mobile:
+  - Profissional:
+    - Desktop:
+    - Mobile:
+  - Familia:
+    - Desktop:
+    - Mobile:
+  - Empresa:
+    - Desktop:
+    - Mobile:
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
 - [ ] P0-08 Expiracao atualiza status corretamente (obrigatorio)
-  - Desktop:
-  - Mobile:
+  - Profissional:
+    - Desktop:
+    - Mobile:
+  - Familia:
+    - Desktop:
+    - Mobile:
+  - Empresa:
+    - Desktop:
+    - Mobile:
   - Evidencia:
   - Data/Hora:
   - Responsavel:
@@ -247,6 +316,8 @@
 ---
 
 ## 2) Validacoes P1 (recomendado para liberar com seguranca)
+
+- Em itens P1 que envolvam mais de um perfil, preencher separado por `Profissional`, `Familia` e `Empresa`.
 
 ### 2.1 UX e Responsividade
 - [ ] P1-01 Dashboard profissional sem quebra

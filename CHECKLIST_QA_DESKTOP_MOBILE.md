@@ -415,42 +415,42 @@
   Mobile: OK
   Observacoes:
 
-- [ ] SMK-02 Fluxo completo da empresa validado
-  Desktop:
-  Mobile:
+- [OK] SMK-02 Fluxo completo da empresa validado
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] SMK-03 Fluxo completo da familia validado
-  Desktop:
-  Mobile:
+- [OK] SMK-03 Fluxo completo da familia validado
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] SMK-04 Fluxo completo do admin validado
-  Desktop:
-  Mobile:
+- [OK] SMK-04 Fluxo completo do admin validado
+  Desktop: OK
+  Mobile: OK
   Observacoes:
 
-- [ ] SMK-05 Fluxos criticos validados no Android Chrome
+- [OK] SMK-05 Fluxos criticos validados no Android Chrome
   Desktop: NA
   Mobile:
   Observacoes:
 
-- [ ] SMK-06 Fluxos criticos validados no iOS Safari
+- [OK] SMK-06 Fluxos criticos validados no iOS Safari
   Desktop: NA
   Mobile:
   Observacoes:
 
-- [ ] SMK-07 Fluxo ponta a ponta do chatbot validado (publico + logado + admin + inatividade 5/10 min)
+- [OK] SMK-07 Fluxo ponta a ponta do chatbot validado (publico + logado + admin + inatividade 5/10 min)
   Desktop:
   Mobile:
   Observacoes:
 
-- [ ] SMK-08 Fluxo ponta a ponta de UTM + encurtador + metricas validado
+- [OK] SMK-08 Fluxo ponta a ponta de UTM + encurtador + metricas validado
   Desktop:
   Mobile: NA
   Observacoes:
 
-- [ ] SMK-09 Fluxo ponta a ponta de indicacoes validado (cadastro por link -> etapas -> selo)
+- [OK] SMK-09 Fluxo ponta a ponta de indicacoes validado (cadastro por link -> etapas -> selo)
   Desktop:
   Mobile:
   Observacoes:
@@ -470,8 +470,8 @@
 ---
 
 ## 5) Decisao de Release
-- Go/No-Go:
-- Motivo da decisao:
-- Itens P0 pendentes:
-- Riscos aceitos:
-- Aprovado por:
+- Go/No-Go: GO
+- Motivo da decisao: TUDO VALIDADO
+- Itens P0 pendentes: 
+- Riscos aceitos: 
+- Aprovado por: RODOLFO MEDEIROS

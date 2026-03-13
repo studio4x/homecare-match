@@ -89,6 +89,13 @@ const cleanupUserDependencies = async (supabaseAdmin: any, targetUserId: string)
   return { operations, warnings };
 };
 
+const extractBearerToken = (headerValue: string | null) => {
+  if (!headerValue) return "";
+  const trimmed = headerValue.trim();
+  const match = /^Bearer\s+(.+)$/i.exec(trimmed);
+  return (match?.[1] || "").trim();
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -98,12 +105,15 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return jsonResponse({ error: "Sessao invalida (sem Authorization header)" }, 401);
+    const payload = await req.json().catch(() => ({} as Record<string, unknown>));
+    const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+    const tokenFromHeader = extractBearerToken(authHeader);
+    const tokenFromBody = typeof payload?.access_token === "string" ? payload.access_token.trim() : "";
+    const token = tokenFromHeader || tokenFromBody;
+    if (!token) {
+      return jsonResponse({ error: "Sessao invalida (token ausente)" }, 401);
     }
 
-    const token = authHeader.replace("Bearer ", "");
     const {
       data: { user: caller },
       error: authError,
@@ -123,7 +133,7 @@ serve(async (req) => {
       return jsonResponse({ error: "Acesso negado" }, 403);
     }
 
-    const { targetUserId } = await req.json();
+    const targetUserId = typeof payload?.targetUserId === "string" ? payload.targetUserId.trim() : "";
     if (!targetUserId) return jsonResponse({ error: "targetUserId obrigatorio" }, 400);
     if (targetUserId === caller.id) {
       return jsonResponse({ error: "Nao e permitido excluir o proprio usuario admin por este endpoint" }, 400);

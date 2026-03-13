@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -233,40 +233,49 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     setIsDeletingUser(true);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
+      let accessToken = sessionData?.session?.access_token || "";
+      if (sessionData?.session) {
+        const { data: refreshedData } = await supabase.auth.refreshSession();
+        accessToken = refreshedData?.session?.access_token || accessToken;
+      }
       if (!accessToken) {
         throw new Error("Sessão inválida. Faça login novamente para excluir usuários.");
       }
 
-      const { error } = await supabase.functions.invoke('admin-delete-user', {
-        body: { targetUserId: userToDelete.id },
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-delete-user`, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify({
+          targetUserId: userToDelete.id,
+          access_token: accessToken,
+        }),
       });
-      if (error) {
-        let serverMessage = error.message || "Erro ao excluir usuário.";
-        const response = (error as any)?.context;
-        if (response?.json) {
-          try {
-            const payload = await response.clone().json();
-            if (payload?.error) {
-              const lowLevelMessage =
-                payload?.retryDeleteError?.message ||
-                payload?.firstDeleteError?.message ||
-                payload?.profileDeleteError?.message ||
-                "";
-              serverMessage = lowLevelMessage
-                ? `${String(payload.error)}: ${String(lowLevelMessage)}`
-                : String(payload.error);
-            }
-            console.error("[UsersTab] admin-delete-user payload:", payload);
-          } catch {
-            // Mantém mensagem padrão se não conseguir parsear corpo da resposta.
-          }
+
+      let payload: any = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        let serverMessage = payload?.error || payload?.message || `Falha ao excluir usuário (HTTP ${response.status}).`;
+        const lowLevelMessage =
+          payload?.retryDeleteError?.message ||
+          payload?.firstDeleteError?.message ||
+          payload?.profileDeleteError?.message ||
+          "";
+        if (lowLevelMessage) {
+          serverMessage = `${String(serverMessage)}: ${String(lowLevelMessage)}`;
         }
+        console.error("[UsersTab] admin-delete-user payload:", payload);
         throw new Error(serverMessage);
       }
+
       toast.success("Usuário excluído definitivamente!");
       setDeleteModalOpen(false);
       setUserToDelete(null);

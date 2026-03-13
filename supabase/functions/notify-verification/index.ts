@@ -2,7 +2,12 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import nodemailer from "npm:nodemailer"
-import { enqueueAdminWhatsappNotification, enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
+import {
+  enqueueAdminWhatsappNotification,
+  enqueueUserWhatsappNotification,
+  getWhatsappTemplateConfig,
+  getWhatsappTemplateVariation,
+} from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
@@ -79,13 +84,25 @@ serve(async (req) => {
     if (adminWidgetError) throw adminWidgetError;
 
     try {
+      const adminWaConfig = await getWhatsappTemplateConfig(supabaseAdmin, "verification_request_admin", "admin");
+      const adminStatusText = getWhatsappTemplateVariation(
+        adminWaConfig,
+        "status_text",
+        String(adminWaConfig?.var2Default || "enviou documentos para verificacao"),
+      );
+      const adminDetailsPath = getWhatsappTemplateVariation(
+        adminWaConfig,
+        "details_path",
+        String(adminWaConfig?.var3Default || "/admin/verificacoes"),
+      );
+
       await enqueueAdminWhatsappNotification({
         supabaseAdmin,
         eventType: "verification_request_admin",
         templateParams: [
-          String(userName || "Profissional"),
-          "enviou documentos para verificacao",
-          "/admin/verificacoes",
+          String(userName || adminWaConfig?.var1Default || "Profissional"),
+          adminStatusText,
+          adminDetailsPath,
         ],
         payload: {
           userId: userId || null,
@@ -97,14 +114,30 @@ serve(async (req) => {
     }
 
     try {
+      const userWaConfig = await getWhatsappTemplateConfig(
+        supabaseAdmin,
+        "verification_request_user_confirmation",
+        "user",
+      );
+      const userStatusText = getWhatsappTemplateVariation(
+        userWaConfig,
+        "status_text",
+        String(userWaConfig?.var2Default || "recebemos seus documentos para verificacao"),
+      );
+      const userDetailsPath = getWhatsappTemplateVariation(
+        userWaConfig,
+        "details_path",
+        String(userWaConfig?.var3Default || "/dashboard/perfil"),
+      );
+
       await enqueueUserWhatsappNotification({
         supabaseAdmin,
         userId,
         eventType: "verification_request_user_confirmation",
         templateParams: [
-          String(userName || "Usuario"),
-          "recebemos seus documentos para verificacao",
-          "/dashboard/perfil",
+          String(userName || userWaConfig?.var1Default || "Usuario"),
+          userStatusText,
+          userDetailsPath,
         ],
         payload: {
           userEmail: userEmail || null,

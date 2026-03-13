@@ -2,7 +2,11 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
-import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
+import {
+  enqueueUserWhatsappNotification,
+  getWhatsappTemplateConfig,
+  getWhatsappTemplateVariation,
+} from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
@@ -176,14 +180,40 @@ serve(async (req) => {
     });
 
     try {
+      const waEventType = status === "approved" ? "verification_approved_user" : "verification_rejected_user";
+      const waConfig = await getWhatsappTemplateConfig(supabaseAdmin, waEventType, "user");
+      const statusTextDefault = status === "approved"
+        ? "sua verificacao foi aprovada"
+        : "sua verificacao foi reprovada";
+      const statusText = getWhatsappTemplateVariation(
+        waConfig,
+        "status_text",
+        String(waConfig?.var2Default || statusTextDefault),
+      );
+      const detailsValue = status === "approved"
+        ? getWhatsappTemplateVariation(
+            waConfig,
+            "details_path",
+            String(waConfig?.var3Default || "/dashboard/perfil"),
+          )
+        : String(
+            rejectionReason ||
+              getWhatsappTemplateVariation(
+                waConfig,
+                "rejection_reason_fallback",
+                String(waConfig?.var3Default || "nao informado"),
+              ),
+          );
+
       await enqueueUserWhatsappNotification({
         supabaseAdmin,
         userId,
-        eventType: status === "approved" ? "verification_approved_user" : "verification_rejected_user",
-        templateParams:
-          status === "approved"
-            ? [String(userName || "Usuario"), "sua verificacao foi aprovada", "/dashboard/perfil"]
-            : [String(userName || "Usuario"), "sua verificacao foi reprovada", String(rejectionReason)],
+        eventType: waEventType,
+        templateParams: [
+          String(userName || waConfig?.var1Default || "Usuario"),
+          statusText,
+          detailsValue,
+        ],
         payload: {
           status,
           reason: rejectionReason || null,

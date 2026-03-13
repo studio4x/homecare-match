@@ -2,7 +2,11 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
-import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
+import {
+  enqueueUserWhatsappNotification,
+  getWhatsappTemplateConfig,
+  getWhatsappTemplateVariation,
+} from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
@@ -84,6 +88,19 @@ const parseRequestBody = async (req: Request) => {
   } catch {
     return {};
   }
+};
+
+const applyReminderPathPattern = (pattern: string, reminderKey: string) => {
+  const fallback = `/dashboard/pagamentos?renewalReminder=${encodeURIComponent(reminderKey)}`;
+  const raw = String(pattern || "").trim();
+  if (!raw) return fallback;
+
+  if (raw.includes("{reminder_key}")) {
+    return raw.replaceAll("{reminder_key}", encodeURIComponent(reminderKey));
+  }
+
+  const joiner = raw.includes("?") ? "&" : "?";
+  return `${raw}${joiner}renewalReminder=${encodeURIComponent(reminderKey)}`;
 };
 
 serve(async (req) => {
@@ -236,6 +253,11 @@ serve(async (req) => {
     let notified = 0;
     let emailed = 0;
     const errors: Array<{ user_id: string; message: string }> = [];
+    const subscriptionWaConfig = await getWhatsappTemplateConfig(
+      supabaseAdmin,
+      "subscription_renewal_reminder_user",
+      "user",
+    );
 
     for (const profile of candidates) {
       try {
@@ -267,8 +289,12 @@ serve(async (req) => {
         const reminderKey = force
           ? `renewal-test-${tier}-${profile.id}-${Date.now()}-${daysRemaining}`
           : `renewal-${tier}-${effectiveEndAt}-${daysRemaining}`;
-
-        const reminderLink = `/dashboard/pagamentos?renewalReminder=${encodeURIComponent(reminderKey)}`;
+        const reminderPathPattern = getWhatsappTemplateVariation(
+          subscriptionWaConfig,
+          "details_path_pattern",
+          String(subscriptionWaConfig?.var3Default || "/dashboard/pagamentos?renewalReminder={reminder_key}"),
+        );
+        const reminderLink = applyReminderPathPattern(reminderPathPattern, reminderKey);
 
         if (!force) {
           const { data: existing } = await supabaseAdmin
@@ -283,6 +309,21 @@ serve(async (req) => {
         }
 
         const content = buildReminderContent(tier, daysRemaining, effectiveEndAt);
+        const monthlyDueTitle = getWhatsappTemplateVariation(subscriptionWaConfig, "monthly_due_title", "");
+        const monthlyUpcomingTitle = getWhatsappTemplateVariation(subscriptionWaConfig, "monthly_upcoming_title", "");
+        const yearlyDueTitle = getWhatsappTemplateVariation(subscriptionWaConfig, "yearly_due_title", "");
+        const yearlyUpcomingTitle = getWhatsappTemplateVariation(subscriptionWaConfig, "yearly_upcoming_title", "");
+
+        let whatsappTitle = String(content.title || "Lembrete de assinatura");
+        if (tier === "monthly" && daysRemaining <= 0 && monthlyDueTitle) {
+          whatsappTitle = monthlyDueTitle;
+        } else if (tier === "monthly" && daysRemaining > 0 && monthlyUpcomingTitle) {
+          whatsappTitle = monthlyUpcomingTitle;
+        } else if (tier === "yearly" && daysRemaining <= 0 && yearlyDueTitle) {
+          whatsappTitle = yearlyDueTitle;
+        } else if (tier === "yearly" && daysRemaining > 0 && yearlyUpcomingTitle) {
+          whatsappTitle = yearlyUpcomingTitle;
+        }
 
         const { error: widgetError } = await supabaseAdmin.from("notifications").insert({
           user_id: profile.id,
@@ -321,8 +362,8 @@ serve(async (req) => {
             userId: profile.id,
             eventType: "subscription_renewal_reminder_user",
             templateParams: [
-              String(profile.full_name || "Usuario"),
-              String(content.title || "Lembrete de assinatura"),
+              String(profile.full_name || subscriptionWaConfig?.var1Default || "Usuario"),
+              String(whatsappTitle || subscriptionWaConfig?.var2Default || "Lembrete de assinatura"),
               reminderLink,
             ],
             payload: {

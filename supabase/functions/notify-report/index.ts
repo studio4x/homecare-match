@@ -2,7 +2,11 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
-import { enqueueAdminWhatsappNotification } from "../_shared/whatsapp.ts";
+import {
+  enqueueAdminWhatsappNotification,
+  getWhatsappTemplateConfig,
+  getWhatsappTemplateVariation,
+} from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
@@ -76,10 +80,21 @@ serve(async (req) => {
     });
 
     try {
+      const waConfig = await getWhatsappTemplateConfig(supabaseAdmin, "report_created_admin", "admin");
+      const detailsPath = getWhatsappTemplateVariation(
+        waConfig,
+        "details_path",
+        String(waConfig?.var3Default || "/admin/denuncias"),
+      );
+
       await enqueueAdminWhatsappNotification({
         supabaseAdmin,
         eventType: "report_created_admin",
-        templateParams: [reportedName, reasonLabel, "/admin/denuncias"],
+        templateParams: [
+          String(reportedName || waConfig?.var1Default || "Perfil"),
+          String(reasonLabel || waConfig?.var2Default || "Motivo nao informado"),
+          detailsPath,
+        ],
         payload: {
           reportId,
           reported_email: reportedEmail,

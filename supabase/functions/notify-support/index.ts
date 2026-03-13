@@ -5,12 +5,22 @@ import nodemailer from "npm:nodemailer";
 import {
   enqueueAdminWhatsappNotification,
   enqueueUserWhatsappNotification,
+  getWhatsappTemplateConfig,
+  getWhatsappTemplateVariation,
 } from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const applyPathPattern = (pattern: string, fallback: string, replacements: Record<string, string>) => {
+  const base = String(pattern || "").trim() || fallback;
+  return base.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, rawKey) => {
+    const key = String(rawKey || "").trim().toLowerCase();
+    return replacements[key] ?? "";
+  });
 };
 
 serve(async (req) => {
@@ -165,14 +175,33 @@ serve(async (req) => {
 
       if (type === "new_message" || type === "ticket_closed") {
         try {
+          const userEventType = type === "ticket_closed" ? "support_ticket_closed_user" : "support_new_message_user";
+          const userWaConfig = await getWhatsappTemplateConfig(supabaseAdmin, userEventType, "user");
+          const actionDefault = type === "ticket_closed"
+            ? "foi encerrado pela equipe"
+            : "recebeu nova resposta da equipe";
+          const actionText = getWhatsappTemplateVariation(
+            userWaConfig,
+            "action_text",
+            String(userWaConfig?.var2Default || actionDefault),
+          );
+          const pathPattern = getWhatsappTemplateVariation(
+            userWaConfig,
+            "cta_path_pattern",
+            String(userWaConfig?.var3Default || "/dashboard/suporte/{ticket_id}"),
+          );
+          const ctaPath = applyPathPattern(pathPattern, `/dashboard/suporte/${ticketId}`, {
+            ticket_id: String(ticketId || ""),
+          });
+
           await enqueueUserWhatsappNotification({
             supabaseAdmin,
             userId: ticket.user_id,
-            eventType: type === "ticket_closed" ? "support_ticket_closed_user" : "support_new_message_user",
+            eventType: userEventType,
             templateParams: [
-              String(ticket?.subject || "Chamado"),
-              type === "ticket_closed" ? "foi encerrado pela equipe" : "recebeu nova resposta da equipe",
-              `/dashboard/suporte/${ticketId}`,
+              String(ticket?.subject || userWaConfig?.var1Default || "Chamado"),
+              actionText,
+              ctaPath,
             ],
             payload: {
               ticketId,
@@ -303,13 +332,23 @@ serve(async (req) => {
       if (adminWidgetError) throw adminWidgetError;
 
       try {
+        const adminNewTicketConfig = await getWhatsappTemplateConfig(supabaseAdmin, "support_new_ticket_admin", "admin");
+        const adminTicketPathPattern = getWhatsappTemplateVariation(
+          adminNewTicketConfig,
+          "cta_path_pattern",
+          String(adminNewTicketConfig?.var3Default || "/admin/suporte/{ticket_id}"),
+        );
+        const adminTicketPath = applyPathPattern(adminTicketPathPattern, `/admin/suporte/${ticketId}`, {
+          ticket_id: String(ticketId || ""),
+        });
+
         await enqueueAdminWhatsappNotification({
           supabaseAdmin,
           eventType: "support_new_ticket_admin",
           templateParams: [
-            ownerName,
-            ticketSubject,
-            `/admin/suporte/${ticketId}`,
+            String(ownerName || adminNewTicketConfig?.var1Default || "Usuario"),
+            String(ticketSubject || adminNewTicketConfig?.var2Default || "Chamado"),
+            adminTicketPath,
           ],
           payload: {
             ticketId,
@@ -403,13 +442,23 @@ serve(async (req) => {
       if (adminWidgetError) throw adminWidgetError;
 
       try {
+        const adminNewMessageConfig = await getWhatsappTemplateConfig(supabaseAdmin, "support_new_message_admin", "admin");
+        const adminMessagePathPattern = getWhatsappTemplateVariation(
+          adminNewMessageConfig,
+          "cta_path_pattern",
+          String(adminNewMessageConfig?.var3Default || "/admin/suporte/{ticket_id}"),
+        );
+        const adminMessagePath = applyPathPattern(adminMessagePathPattern, `/admin/suporte/${ticketId}`, {
+          ticket_id: String(ticketId || ""),
+        });
+
         await enqueueAdminWhatsappNotification({
           supabaseAdmin,
           eventType: "support_new_message_admin",
           templateParams: [
-            String(ticketOwner?.full_name || "Usuario"),
-            String(ticket?.subject || "Chamado"),
-            `/admin/suporte/${ticketId}`,
+            String(ticketOwner?.full_name || adminNewMessageConfig?.var1Default || "Usuario"),
+            String(ticket?.subject || adminNewMessageConfig?.var2Default || "Chamado"),
+            adminMessagePath,
           ],
           payload: {
             ticketId,

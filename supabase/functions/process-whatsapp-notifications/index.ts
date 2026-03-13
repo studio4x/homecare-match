@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
+  getConfiguredTemplateNameForEvent,
   getDestinationDigits,
   getTemplateNameForTarget,
   isWhatsappEnabled,
@@ -102,11 +103,32 @@ serve(async (req) => {
     let sent = 0;
     let failed = 0;
     let retried = 0;
+    const templateOverrideCache = new Map<string, string | null>();
 
     for (const item of items) {
       const attemptCount = Number(item.attempt_count || 0) + 1;
       const maxAttempts = Math.max(1, Number(item.max_attempts || 5));
-      const templateName = String(item.template_name || getTemplateNameForTarget(item.target_kind === "admin" ? "admin" : "user"));
+      const targetKind = item.target_kind === "admin" ? "admin" : "user";
+      const eventType = String(item.event_type || "").trim();
+      const rawTemplateName = String(item.template_name || "").trim();
+      const normalizedTemplateName = rawTemplateName.toLowerCase();
+      const shouldResolveTemplateFromEvent =
+        !rawTemplateName ||
+        (targetKind === "user" &&
+          (normalizedTemplateName === "hcm_user_notification" || normalizedTemplateName === "hcm_user_notification_v2"));
+      let templateOverride: string | null = null;
+      if (shouldResolveTemplateFromEvent && eventType) {
+        const cacheKey = `${targetKind}:${eventType.toLowerCase()}`;
+        if (templateOverrideCache.has(cacheKey)) {
+          templateOverride = templateOverrideCache.get(cacheKey) ?? null;
+        } else {
+          templateOverride = await getConfiguredTemplateNameForEvent(supabaseAdmin, targetKind, eventType);
+          templateOverrideCache.set(cacheKey, templateOverride ?? null);
+        }
+      }
+      const templateName = shouldResolveTemplateFromEvent
+        ? templateOverride || getTemplateNameForTarget(targetKind, eventType)
+        : rawTemplateName;
       const destination = getDestinationDigits(String(item.recipient_phone_e164 || ""));
 
       if (!destination) {

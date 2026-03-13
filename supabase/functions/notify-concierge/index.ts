@@ -2,7 +2,11 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
-import { enqueueAdminWhatsappNotification } from "../_shared/whatsapp.ts";
+import {
+  enqueueAdminWhatsappNotification,
+  getWhatsappTemplateConfig,
+  getWhatsappTemplateVariation,
+} from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
@@ -94,13 +98,20 @@ serve(async (req) => {
     });
 
     try {
+      const waConfig = await getWhatsappTemplateConfig(supabaseAdmin, "concierge_request_admin", "admin");
+      const detailsPath = getWhatsappTemplateVariation(
+        waConfig,
+        "details_path",
+        String(waConfig?.var3Default || "/admin/concierge"),
+      );
+
       await enqueueAdminWhatsappNotification({
         supabaseAdmin,
         eventType: "concierge_request_admin",
         templateParams: [
-          String(conciergeRequest.requester_name || "Usuario"),
-          String(conciergeRequest.specialty || "Especialidade nao informada"),
-          "/admin/concierge",
+          String(conciergeRequest.requester_name || waConfig?.var1Default || "Usuario"),
+          String(conciergeRequest.specialty || waConfig?.var2Default || "Especialidade nao informada"),
+          detailsPath,
         ],
         payload: {
           requestId,

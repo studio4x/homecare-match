@@ -2,7 +2,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import nodemailer from "npm:nodemailer";
-import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
+import {
+  enqueueUserWhatsappNotification,
+  getWhatsappTemplateConfig,
+  getWhatsappTemplateVariation,
+} from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
@@ -82,14 +86,27 @@ serve(async (req) => {
     if (widgetError) throw widgetError;
 
     try {
+      const waConfig = await getWhatsappTemplateConfig(supabaseAdmin, "new_contact_interest_user", "user");
+      const actionText = getWhatsappTemplateVariation(
+        waConfig,
+        "action_text",
+        String(waConfig?.var2Default || "demonstrou interesse no seu perfil"),
+      );
+      const contactPath = getWhatsappTemplateVariation(
+        waConfig,
+        "cta_path",
+        String(waConfig?.var3Default || "/dashboard/contatos"),
+      );
+      const senderNameParam = String(senderName || waConfig?.var1Default || "Um recrutador");
+
       await enqueueUserWhatsappNotification({
         supabaseAdmin,
         userId: professional_id,
         eventType: "new_contact_interest_user",
         templateParams: [
-          String(senderName || "Um recrutador"),
-          "demonstrou interesse no seu perfil",
-          "/dashboard/contatos",
+          senderNameParam,
+          actionText,
+          contactPath,
         ],
         payload: {
           professional_id,

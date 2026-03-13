@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertCircle,
   Bell,
@@ -41,6 +42,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import WhatsappTemplateSettingsTab from "@/components/admin/WhatsappTemplateSettingsTab";
 
 type DeliveryItem = {
   id: string;
@@ -428,15 +430,22 @@ const NotificationDeliveriesPage = () => {
   }, [filteredItems]);
 
   return (
-    <div className="space-y-6">
+    <Tabs defaultValue="deliveries" className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Entregas de Notificacoes</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Notificacoes</h1>
           <p className="text-muted-foreground">
-            Monitoramento de notificacoes por e-mail, widget e WhatsApp.
+            Monitoramento de entregas e configuracao de templates WhatsApp.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <TabsList>
+          <TabsTrigger value="deliveries">Entregas</TabsTrigger>
+          <TabsTrigger value="whatsapp_templates">Templates WhatsApp</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <TabsContent value="deliveries" className="space-y-6">
+        <div className="flex justify-end gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -456,28 +465,27 @@ const NotificationDeliveriesPage = () => {
             Atualizar
           </Button>
         </div>
-      </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Total</p>
-            <p className="text-2xl font-bold">{summary.total}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Enviadas</p>
-            <p className="text-2xl font-bold text-emerald-600">{summary.sent}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Pendentes/Retry/Fila</p>
-            <p className="text-2xl font-bold text-amber-600">{summary.pending}</p>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="text-2xl font-bold">{summary.total}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Enviadas</p>
+              <p className="text-2xl font-bold text-emerald-600">{summary.sent}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Pendentes/Retry/Fila</p>
+              <p className="text-2xl font-bold text-amber-600">{summary.pending}</p>
+            </CardContent>
+          </Card>
+        </div>
 
       <Card>
         <CardContent className="p-4 space-y-3">
@@ -676,6 +684,12 @@ const NotificationDeliveriesPage = () => {
         </CardContent>
       </Card>
 
+      </TabsContent>
+
+      <TabsContent value="whatsapp_templates">
+        <WhatsappTemplateSettingsTab />
+      </TabsContent>
+
       <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -703,7 +717,7 @@ const NotificationDeliveriesPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </Tabs>
   );
 };
 

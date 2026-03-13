@@ -52,7 +52,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, addDays, isAfter, subDays, parseISO, isValid } from "date-fns";
-import { translateAuthError } from "@/lib/error-utils";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -242,7 +241,17 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
         if (response?.json) {
           try {
             const payload = await response.clone().json();
-            if (payload?.error) serverMessage = String(payload.error);
+            if (payload?.error) {
+              const lowLevelMessage =
+                payload?.retryDeleteError?.message ||
+                payload?.firstDeleteError?.message ||
+                payload?.profileDeleteError?.message ||
+                "";
+              serverMessage = lowLevelMessage
+                ? `${String(payload.error)}: ${String(lowLevelMessage)}`
+                : String(payload.error);
+            }
+            console.error("[UsersTab] admin-delete-user payload:", payload);
           } catch {
             // Mantém mensagem padrão se não conseguir parsear corpo da resposta.
           }
@@ -254,7 +263,8 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       setUserToDelete(null);
       refetchData();
     } catch (error: any) {
-      toast.error(translateAuthError(error.message));
+      toast.error(error?.message || "Erro ao excluir usuário.");
+      console.error("[UsersTab] Falha ao excluir usuário:", error);
     } finally {
       setIsDeletingUser(false);
     }

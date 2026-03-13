@@ -232,8 +232,17 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     if (!userToDelete) return;
     setIsDeletingUser(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) {
+        throw new Error("Sessão inválida. Faça login novamente para excluir usuários.");
+      }
+
       const { error } = await supabase.functions.invoke('admin-delete-user', {
-        body: { targetUserId: userToDelete.id }
+        body: { targetUserId: userToDelete.id },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
       if (error) {
         let serverMessage = error.message || "Erro ao excluir usuário.";

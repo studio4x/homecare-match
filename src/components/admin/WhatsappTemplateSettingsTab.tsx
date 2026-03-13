@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, MessageCircle, RefreshCw, RotateCcw, Save } from "lucide-react";
+import { Loader2, MessageCircle, RefreshCw, RotateCcw, Save, Send } from "lucide-react";
 import { toast } from "sonner";
 
 type TargetKind = "user" | "admin";
@@ -32,6 +32,22 @@ type VariationField = {
   key: string;
   label: string;
   placeholder: string;
+};
+
+type WhatsappTestHistoryRow = {
+  id: string;
+  event_type: string;
+  target_kind: TargetKind;
+  template_name: string | null;
+  recipient_phone_e164: string | null;
+  status: string;
+  last_error: string | null;
+  attempt_count: number | null;
+  max_attempts: number | null;
+  created_at: string;
+  updated_at: string | null;
+  sent_at: string | null;
+  payload: Record<string, unknown> | null;
 };
 
 const DEFAULT_TEMPLATE_CONFIGS: TemplateConfigRow[] = [
@@ -329,6 +345,21 @@ const renderPreview = (row: TemplateConfigRow) => {
     .replaceAll("{{3}}", row.var3_default || "[var3]");
 };
 
+const getHistoryStatusBadgeClass = (status: string) => {
+  if (status === "sent") return "bg-emerald-600 text-white";
+  if (status === "failed") return "bg-destructive text-destructive-foreground";
+  if (status === "retry") return "bg-amber-500 text-white";
+  if (status === "pending") return "";
+  return "";
+};
+
+const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("pt-BR");
+};
+
 const mapDbRow = (row: any): TemplateConfigRow => ({
   event_type: normalizeText(row?.event_type),
   target_kind: row?.target_kind === "admin" ? "admin" : "user",
@@ -362,7 +393,39 @@ const WhatsappTemplateSettingsTab = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncingDefaults, setSyncingDefaults] = useState(false);
+  const [sendingTestByEvent, setSendingTestByEvent] = useState<Record<string, boolean>>({});
+  const [testDestinationByEvent, setTestDestinationByEvent] = useState<Record<string, string>>({});
+  const [testHistory, setTestHistory] = useState<WhatsappTestHistoryRow[]>([]);
+  const [loadingTestHistory, setLoadingTestHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchTestHistory = useCallback(async () => {
+    setLoadingTestHistory(true);
+    try {
+      const { data, error: queueError } = await supabase
+        .from("whatsapp_notification_queue")
+        .select(
+          "id,event_type,target_kind,template_name,recipient_phone_e164,status,last_error,attempt_count,max_attempts,created_at,updated_at,sent_at,payload",
+        )
+        .order("created_at", { ascending: false })
+        .limit(250);
+
+      if (queueError) throw queueError;
+
+      const filtered = ((data || []) as WhatsappTestHistoryRow[]).filter((row) => {
+        const source = String(row?.payload?.source || "").trim();
+        const testFlag = row?.payload?.test === true;
+        return source === "admin_whatsapp_template_tab" || testFlag;
+      });
+
+      setTestHistory(filtered.slice(0, 80));
+    } catch {
+      // Keep tab usable even if history query fails.
+      setTestHistory([]);
+    } finally {
+      setLoadingTestHistory(false);
+    }
+  }, []);
 
   const fetchConfigs = useCallback(async () => {
     setLoading(true);
@@ -389,6 +452,10 @@ const WhatsappTemplateSettingsTab = () => {
   useEffect(() => {
     fetchConfigs();
   }, [fetchConfigs]);
+
+  useEffect(() => {
+    fetchTestHistory();
+  }, [fetchTestHistory]);
 
   const groupedRows = useMemo(() => {
     const users = rows.filter((row) => row.target_kind === "user");
@@ -456,6 +523,61 @@ const WhatsappTemplateSettingsTab = () => {
       toast.error("Erro ao restaurar padroes de templates WhatsApp.");
     } finally {
       setSyncingDefaults(false);
+    }
+  };
+
+  const setEventTestLoading = (eventType: string, loadingState: boolean) => {
+    setSendingTestByEvent((prev) => ({
+      ...prev,
+      [eventType]: loadingState,
+    }));
+  };
+
+  const handleSendTest = async (row: TemplateConfigRow) => {
+    if (!row.template_name.trim()) {
+      toast.error("Informe o nome do template antes de enviar teste.");
+      return;
+    }
+
+    const destination = normalizeText(testDestinationByEvent[row.event_type]);
+    setEventTestLoading(row.event_type, true);
+    try {
+      const { data: authSession } = await supabase.auth.getSession();
+      const accessToken = authSession?.session?.access_token || "";
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente.");
+      }
+
+      const templateParams = [
+        normalizeText(row.var1_default, "Teste var 1"),
+        normalizeText(row.var2_default, "Teste var 2"),
+        normalizeText(row.var3_default, "Teste var 3"),
+      ];
+
+      const body: Record<string, unknown> = {
+        access_token: accessToken,
+        event_type: row.event_type,
+        target_kind: row.target_kind,
+        template_name: row.template_name.trim(),
+        template_params: templateParams,
+      };
+
+      if (destination) {
+        body.destination_phone_e164 = destination;
+      }
+
+      const { error: invokeError } = await supabase.functions.invoke("send-whatsapp-template-test", {
+        body,
+      });
+      if (invokeError) throw invokeError;
+
+      toast.success("Teste de WhatsApp enviado para processamento.");
+      await fetchTestHistory();
+    } catch (testError: any) {
+      const message = testError?.message || "Falha ao enviar teste de WhatsApp.";
+      toast.error(message);
+    } finally {
+      setEventTestLoading(row.event_type, false);
     }
   };
 
@@ -565,6 +687,41 @@ const WhatsappTemplateSettingsTab = () => {
                 />
               </div>
 
+              <div className="rounded-md border p-3 bg-background space-y-2">
+                <p className="text-xs font-medium">Teste de envio</p>
+                <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                  <Input
+                    value={testDestinationByEvent[row.event_type] || ""}
+                    onChange={(event) =>
+                      setTestDestinationByEvent((prev) => ({
+                        ...prev,
+                        [row.event_type]: event.target.value,
+                      }))
+                    }
+                    placeholder={
+                      row.target_kind === "admin"
+                        ? "Numero teste opcional (ex.: +5511999999999). Vazio usa destino admin."
+                        : "Numero teste (obrigatorio para evento de usuario). Ex.: +5511999999999"
+                    }
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSendTest(row)}
+                    disabled={Boolean(sendingTestByEvent[row.event_type])}
+                  >
+                    {sendingTestByEvent[row.event_type] ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Enviar teste WhatsApp
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  O teste usa os valores padrao de {`{{1}}`}, {`{{2}}`} e {`{{3}}`} desta configuracao.
+                </p>
+              </div>
+
               <div className="rounded-md border bg-muted/30 p-3">
                 <p className="text-[11px] font-medium text-muted-foreground mb-2 flex items-center gap-1">
                   <MessageCircle className="h-3.5 w-3.5" />
@@ -607,6 +764,63 @@ const WhatsappTemplateSettingsTab = () => {
               Salvar configuracoes
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Ultimos testes WhatsApp</CardTitle>
+              <CardDescription>Status, erro e horario dos testes disparados nesta aba.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchTestHistory} disabled={loadingTestHistory}>
+              {loadingTestHistory ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Atualizar historico
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {testHistory.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhum teste encontrado.</p>
+          ) : (
+            testHistory.map((item) => (
+              <div key={item.id} className="rounded-md border p-3">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium">
+                      {item.event_type} · {item.template_name || "-"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Destino: {item.recipient_phone_e164 || "-"} · Criado em: {formatDateTime(item.created_at)}
+                    </p>
+                  </div>
+                  <Badge className={getHistoryStatusBadgeClass(item.status)}>
+                    {item.status === "sent"
+                      ? "Enviado"
+                      : item.status === "failed"
+                        ? "Falha"
+                        : item.status === "retry"
+                          ? "Retry"
+                          : item.status === "pending"
+                            ? "Pendente"
+                            : item.status}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Atualizado em: {formatDateTime(item.updated_at)} · Enviado em: {formatDateTime(item.sent_at)} ·
+                  Tentativas: {item.attempt_count ?? 0}/{item.max_attempts ?? "-"}
+                </p>
+                {item.last_error ? (
+                  <p className="mt-1 text-[11px] text-destructive">Erro: {item.last_error}</p>
+                ) : null}
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 

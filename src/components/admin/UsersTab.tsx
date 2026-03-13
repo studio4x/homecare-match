@@ -221,7 +221,19 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       const { error } = await supabase.functions.invoke('admin-delete-user', {
         body: { targetUserId: userToDelete.id }
       });
-      if (error) throw error;
+      if (error) {
+        let serverMessage = error.message || "Erro ao excluir usuário.";
+        const response = (error as any)?.context;
+        if (response?.json) {
+          try {
+            const payload = await response.clone().json();
+            if (payload?.error) serverMessage = String(payload.error);
+          } catch {
+            // Mantém mensagem padrão se não conseguir parsear corpo da resposta.
+          }
+        }
+        throw new Error(serverMessage);
+      }
       toast.success("Usuário excluído definitivamente!");
       setDeleteModalOpen(false);
       setUserToDelete(null);

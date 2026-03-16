@@ -15,6 +15,7 @@ import {
   Zap,
   HelpCircle,
   Loader2,
+  PlayCircle,
 } from "lucide-react";
 import {
   Accordion,
@@ -23,14 +24,20 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
-import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
+import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 
 const Empresas = () => {
   const { data: config } = useSiteConfig();
+  const [selectedTutorialVideo, setSelectedTutorialVideo] = useState<{
+    url: string;
+    title: string;
+    type: "url" | "storage";
+  } | null>(null);
   
   const { data: locationData, isLoading: isLoadingLocations } = useQuery({
     queryKey: ["professional-locations-summary"],
@@ -132,6 +139,20 @@ const Empresas = () => {
     config?.video_url_companies,
   );
   const landingVideoUrl = landingVideo.videoUrl;
+  const howItWorksTutorialVideo = resolveLandingVideoAssets(
+    config?.video_storage_path_how_it_works_companies,
+    config?.video_url_how_it_works_companies,
+  );
+  const howItWorksTutorialVideoUrl = howItWorksTutorialVideo.videoUrl;
+
+  const handleOpenHowItWorksTutorial = () => {
+    if (!howItWorksTutorialVideoUrl) return;
+    setSelectedTutorialVideo({
+      url: howItWorksTutorialVideoUrl,
+      title: "Tutorial: Como funciona para empresas",
+      type: "url",
+    });
+  };
 
   return (
     <Layout>
@@ -308,6 +329,18 @@ const Empresas = () => {
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
               Processo simples e rápido para encontrar o profissional ideal.
             </p>
+            <div className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                onClick={handleOpenHowItWorksTutorial}
+                disabled={!howItWorksTutorialVideoUrl}
+              >
+                <PlayCircle className="h-4 w-4" />
+                {howItWorksTutorialVideoUrl ? "Ver video tutorial" : "Tutorial em breve"}
+              </Button>
+            </div>
           </div>
 
           <div className="mobile-stagger mx-auto grid max-w-4xl gap-4 md:gap-8 md:grid-cols-3">
@@ -409,6 +442,14 @@ const Empresas = () => {
           </div>
         </div>
       </section>
+
+      <FeatureVideoModal
+        open={Boolean(selectedTutorialVideo)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedTutorialVideo(null);
+        }}
+        video={selectedTutorialVideo}
+      />
     </Layout>
   );
 };

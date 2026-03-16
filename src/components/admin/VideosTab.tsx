@@ -41,6 +41,9 @@ const VideosTab = () => {
   const [activeField, setActiveField] = useState<string | null>(null);
 
   const videoFields = [
+    { id: "video_url_how_it_works_professionals", storageId: "video_storage_path_how_it_works_professionals", mimeId: "video_mime_how_it_works_professionals", label: "Tutorial Como Funciona: Profissionais", description: "Video tutorial exibido no botao da secao Como funciona da pagina de profissionais." },
+    { id: "video_url_how_it_works_companies", storageId: "video_storage_path_how_it_works_companies", mimeId: "video_mime_how_it_works_companies", label: "Tutorial Como Funciona: Empresas", description: "Video tutorial exibido no botao da secao Como funciona da pagina de empresas." },
+    { id: "video_url_how_it_works_families", storageId: "video_storage_path_how_it_works_families", mimeId: "video_mime_how_it_works_families", label: "Tutorial Como Funciona: Familias", description: "Video tutorial exibido no botao da secao Como funciona da pagina de familias." },
     { id: "video_url_professionals", storageId: "video_storage_path_professionals", mimeId: "video_mime_professionals", label: "Landing Page: Profissionais", description: "Vídeo exibido na página inicial para profissionais." },
     { id: "video_url_companies", storageId: "video_storage_path_companies", mimeId: "video_mime_companies", label: "Landing Page: Empresas", description: "Vídeo exibido na página de soluções para empresas." },
     { id: "video_url_families", storageId: "video_storage_path_families", mimeId: "video_mime_families", label: "Landing Page: Famílias", description: "Vídeo exibido na página de soluções para famílias." },

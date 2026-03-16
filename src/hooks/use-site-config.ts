@@ -55,6 +55,9 @@ export interface SiteConfig {
   video_url_professionals?: string | null;
   video_url_companies?: string | null;
   video_url_families?: string | null;
+  video_url_how_it_works_professionals?: string | null;
+  video_url_how_it_works_companies?: string | null;
+  video_url_how_it_works_families?: string | null;
   video_url_onboarding?: string | null;
   video_url_onboarding_company?: string | null;
   video_url_onboarding_family?: string | null;
@@ -65,6 +68,12 @@ export interface SiteConfig {
   video_mime_companies?: string | null;
   video_storage_path_families?: string | null;
   video_mime_families?: string | null;
+  video_storage_path_how_it_works_professionals?: string | null;
+  video_mime_how_it_works_professionals?: string | null;
+  video_storage_path_how_it_works_companies?: string | null;
+  video_mime_how_it_works_companies?: string | null;
+  video_storage_path_how_it_works_families?: string | null;
+  video_mime_how_it_works_families?: string | null;
   video_storage_path_onboarding?: string | null;
   video_mime_onboarding?: string | null;
   video_storage_path_onboarding_company?: string | null;

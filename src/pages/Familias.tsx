@@ -12,7 +12,9 @@ import {
   ArrowRight,
   MessageCircle,
   HelpCircle,
+  PlayCircle,
 } from "lucide-react";
+import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfessionalStats } from "@/hooks/use-professional-stats";
 import {
@@ -23,11 +25,16 @@ import {
 } from "@/components/ui/accordion";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
-import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
+import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 
 const Familias = () => {
   const { data: config } = useSiteConfig();
+  const [selectedTutorialVideo, setSelectedTutorialVideo] = useState<{
+    url: string;
+    title: string;
+    type: "url" | "storage";
+  } | null>(null);
   
   const features = [
     {
@@ -99,6 +106,20 @@ const Familias = () => {
     config?.video_url_families,
   );
   const landingVideoUrl = landingVideo.videoUrl;
+  const howItWorksTutorialVideo = resolveLandingVideoAssets(
+    config?.video_storage_path_how_it_works_families,
+    config?.video_url_how_it_works_families,
+  );
+  const howItWorksTutorialVideoUrl = howItWorksTutorialVideo.videoUrl;
+
+  const handleOpenHowItWorksTutorial = () => {
+    if (!howItWorksTutorialVideoUrl) return;
+    setSelectedTutorialVideo({
+      url: howItWorksTutorialVideoUrl,
+      title: "Tutorial: Como funciona para familias",
+      type: "url",
+    });
+  };
 
   return (
     <Layout>
@@ -211,6 +232,19 @@ const Familias = () => {
                 permitindo que você foque no que importa: entrevistar e escolher
                 a melhor pessoa.
               </p>
+
+              <div className="mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={handleOpenHowItWorksTutorial}
+                  disabled={!howItWorksTutorialVideoUrl}
+                >
+                  <PlayCircle className="h-4 w-4" />
+                  {howItWorksTutorialVideoUrl ? "Ver video tutorial" : "Tutorial em breve"}
+                </Button>
+              </div>
 
               <div className="mobile-stagger mt-8 space-y-4 md:space-y-6">
                 {[
@@ -377,6 +411,14 @@ const Familias = () => {
           </div>
         </div>
       </section>
+
+      <FeatureVideoModal
+        open={Boolean(selectedTutorialVideo)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedTutorialVideo(null);
+        }}
+        video={selectedTutorialVideo}
+      />
     </Layout>
   );
 };

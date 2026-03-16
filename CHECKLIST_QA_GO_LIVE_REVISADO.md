@@ -50,10 +50,10 @@
     - Mobile: OK
   - Familia:
     - Desktop: OK
-    - Mobile:
+    - Mobile: OK
   - Empresa:
     - Desktop: OK
-    - Mobile:
+    - Mobile: 
   - Evidencia:
   - Data/Hora:
   - Responsavel:

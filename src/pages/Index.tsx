@@ -412,15 +412,20 @@ const Index = () => {
     config?.video_url_professionals,
   );
   const landingVideoUrl = landingVideo.videoUrl;
+  const howItWorksTutorialVideo = resolveLandingVideoAssets(
+    config?.video_storage_path_how_it_works_professionals,
+    config?.video_url_how_it_works_professionals,
+  );
+  const howItWorksTutorialVideoUrl = howItWorksTutorialVideo.videoUrl;
 
   const handleOpenHowItWorksTutorial = () => {
-    if (!landingVideoUrl) {
+    if (!howItWorksTutorialVideoUrl) {
       toast.info("Tutorial em breve para esta secao.");
       return;
     }
 
     setSelectedTutorialVideo({
-      url: landingVideoUrl,
+      url: howItWorksTutorialVideoUrl,
       title: "Tutorial: Como funciona a Home Care Match",
       type: "url",
     });
@@ -539,10 +544,10 @@ const Index = () => {
                 variant="outline"
                 className="gap-2"
                 onClick={handleOpenHowItWorksTutorial}
-                disabled={!landingVideoUrl}
+                disabled={!howItWorksTutorialVideoUrl}
               >
                 <PlayCircle className="h-4 w-4" />
-                {landingVideoUrl ? "Ver video tutorial" : "Tutorial em breve"}
+                {howItWorksTutorialVideoUrl ? "Ver video tutorial" : "Tutorial em breve"}
               </Button>
             </div>
           </div>

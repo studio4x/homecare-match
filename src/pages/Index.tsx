@@ -18,7 +18,6 @@ import {
   Zap,
   ShieldCheck,
   LayoutDashboard,
-  PlayCircle,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
@@ -34,7 +33,6 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
-import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { createCheckoutSession } from "@/lib/checkout";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
@@ -48,12 +46,6 @@ const Index = () => {
   const location = useLocation();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<"monthly" | "yearly" | null>(null);
-  const [selectedTutorialVideo, setSelectedTutorialVideo] = useState<{
-    url: string;
-    title: string;
-    type: "url" | "storage";
-    orientationMode?: "auto" | "horizontal" | "vertical" | null;
-  } | null>(null);
   const [plansCarouselApi, setPlansCarouselApi] = useState<CarouselApi | null>(null);
   const isMobile = useIsMobile();
 
@@ -421,30 +413,6 @@ const Index = () => {
   const landingVideoIsVerticalOnMobile =
     isMobile && resolveVideoOrientation(landingVideoUrl, config?.video_orientation_professionals) === "vertical";
 
-  const howItWorksProfessionalsMobileVideoUrl = String(config?.video_url_how_it_works_professionals_mobile || "").trim();
-  const useHowItWorksProfessionalsMobileUrl = isMobile && howItWorksProfessionalsMobileVideoUrl.length > 0;
-  const howItWorksTutorialVideo = resolveLandingVideoAssets(
-    useHowItWorksProfessionalsMobileUrl ? null : config?.video_storage_path_how_it_works_professionals,
-    useHowItWorksProfessionalsMobileUrl
-      ? howItWorksProfessionalsMobileVideoUrl
-      : config?.video_url_how_it_works_professionals,
-  );
-  const howItWorksTutorialVideoUrl = howItWorksTutorialVideo.videoUrl;
-
-  const handleOpenHowItWorksTutorial = () => {
-    if (!howItWorksTutorialVideoUrl) {
-      toast.info("Tutorial em breve para esta secao.");
-      return;
-    }
-
-    setSelectedTutorialVideo({
-      url: howItWorksTutorialVideoUrl,
-      title: "Tutorial: Como funciona a Home Care Match",
-      type: "url",
-      orientationMode: config?.video_orientation_how_it_works_professionals || "auto",
-    });
-  };
-
   if (authLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -556,19 +524,6 @@ const Index = () => {
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
               Criar seu perfil é simples. Em poucos passos você já pode começar a receber oportunidades de atendimento.
             </p>
-            <div className="mt-6">
-              <Button
-                type="button"
-                className="group h-12 rounded-full px-6 text-sm font-semibold gap-2 bg-primary text-primary-foreground shadow-lg ring-1 ring-primary/30 hover:bg-primary/90 hover:shadow-xl md:text-base"
-                onClick={handleOpenHowItWorksTutorial}
-                disabled={!howItWorksTutorialVideoUrl}
-              >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-foreground/20">
-                  <PlayCircle className="h-4 w-4" />
-                </span>
-                {howItWorksTutorialVideoUrl ? "Ver video tutorial" : "Tutorial em breve"}
-              </Button>
-            </div>
           </div>
 
           <div className="mobile-stagger mx-auto grid max-w-5xl gap-4 md:gap-8 md:grid-cols-2 lg:grid-cols-4">
@@ -840,14 +795,6 @@ const Index = () => {
         }}
         planId={selectedPlanForCheckout}
         onProceedToCheckout={handlePlanCheckout}
-      />
-
-      <FeatureVideoModal
-        open={Boolean(selectedTutorialVideo)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedTutorialVideo(null);
-        }}
-        video={selectedTutorialVideo}
       />
     </Layout>
   );

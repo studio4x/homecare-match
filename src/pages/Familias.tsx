@@ -12,9 +12,7 @@ import {
   ArrowRight,
   MessageCircle,
   HelpCircle,
-  PlayCircle,
 } from "lucide-react";
-import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfessionalStats } from "@/hooks/use-professional-stats";
 import {
@@ -25,7 +23,6 @@ import {
 } from "@/components/ui/accordion";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
-import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveVideoOrientation } from "@/lib/video-utils";
@@ -33,12 +30,6 @@ import { resolveVideoOrientation } from "@/lib/video-utils";
 const Familias = () => {
   const { data: config } = useSiteConfig();
   const isMobile = useIsMobile();
-  const [selectedTutorialVideo, setSelectedTutorialVideo] = useState<{
-    url: string;
-    title: string;
-    type: "url" | "storage";
-    orientationMode?: "auto" | "horizontal" | "vertical" | null;
-  } | null>(null);
   
   const features = [
     {
@@ -114,24 +105,6 @@ const Familias = () => {
   const landingVideoUrl = landingVideo.videoUrl;
   const landingVideoIsVerticalOnMobile =
     isMobile && resolveVideoOrientation(landingVideoUrl, config?.video_orientation_families) === "vertical";
-
-  const howItWorksFamiliesMobileVideoUrl = String(config?.video_url_how_it_works_families_mobile || "").trim();
-  const useHowItWorksFamiliesMobileUrl = isMobile && howItWorksFamiliesMobileVideoUrl.length > 0;
-  const howItWorksTutorialVideo = resolveLandingVideoAssets(
-    useHowItWorksFamiliesMobileUrl ? null : config?.video_storage_path_how_it_works_families,
-    useHowItWorksFamiliesMobileUrl ? howItWorksFamiliesMobileVideoUrl : config?.video_url_how_it_works_families,
-  );
-  const howItWorksTutorialVideoUrl = howItWorksTutorialVideo.videoUrl;
-
-  const handleOpenHowItWorksTutorial = () => {
-    if (!howItWorksTutorialVideoUrl) return;
-    setSelectedTutorialVideo({
-      url: howItWorksTutorialVideoUrl,
-      title: "Tutorial: Como funciona para familias",
-      type: "url",
-      orientationMode: config?.video_orientation_how_it_works_families || "auto",
-    });
-  };
 
   return (
     <Layout>
@@ -248,20 +221,6 @@ const Familias = () => {
                 permitindo que você foque no que importa: entrevistar e escolher
                 a melhor pessoa.
               </p>
-
-              <div className="mt-6">
-                <Button
-                  type="button"
-                  className="group h-12 rounded-full px-6 text-sm font-semibold gap-2 bg-rose-500 text-white shadow-lg ring-1 ring-rose-400/50 hover:bg-rose-600 hover:shadow-xl md:text-base"
-                  onClick={handleOpenHowItWorksTutorial}
-                  disabled={!howItWorksTutorialVideoUrl}
-                >
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20">
-                    <PlayCircle className="h-4 w-4" />
-                  </span>
-                  {howItWorksTutorialVideoUrl ? "Ver video tutorial" : "Tutorial em breve"}
-                </Button>
-              </div>
 
               <div className="mobile-stagger mt-8 space-y-4 md:space-y-6">
                 {[
@@ -428,14 +387,6 @@ const Familias = () => {
           </div>
         </div>
       </section>
-
-      <FeatureVideoModal
-        open={Boolean(selectedTutorialVideo)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedTutorialVideo(null);
-        }}
-        video={selectedTutorialVideo}
-      />
     </Layout>
   );
 };

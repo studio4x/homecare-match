@@ -15,7 +15,6 @@ import {
   Zap,
   HelpCircle,
   Loader2,
-  PlayCircle,
 } from "lucide-react";
 import {
   Accordion,
@@ -24,11 +23,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
-import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveVideoOrientation } from "@/lib/video-utils";
@@ -36,12 +33,6 @@ import { resolveVideoOrientation } from "@/lib/video-utils";
 const Empresas = () => {
   const { data: config } = useSiteConfig();
   const isMobile = useIsMobile();
-  const [selectedTutorialVideo, setSelectedTutorialVideo] = useState<{
-    url: string;
-    title: string;
-    type: "url" | "storage";
-    orientationMode?: "auto" | "horizontal" | "vertical" | null;
-  } | null>(null);
   
   const { data: locationData, isLoading: isLoadingLocations } = useQuery({
     queryKey: ["professional-locations-summary"],
@@ -147,24 +138,6 @@ const Empresas = () => {
   const landingVideoUrl = landingVideo.videoUrl;
   const landingVideoIsVerticalOnMobile =
     isMobile && resolveVideoOrientation(landingVideoUrl, config?.video_orientation_companies) === "vertical";
-
-  const howItWorksCompaniesMobileVideoUrl = String(config?.video_url_how_it_works_companies_mobile || "").trim();
-  const useHowItWorksCompaniesMobileUrl = isMobile && howItWorksCompaniesMobileVideoUrl.length > 0;
-  const howItWorksTutorialVideo = resolveLandingVideoAssets(
-    useHowItWorksCompaniesMobileUrl ? null : config?.video_storage_path_how_it_works_companies,
-    useHowItWorksCompaniesMobileUrl ? howItWorksCompaniesMobileVideoUrl : config?.video_url_how_it_works_companies,
-  );
-  const howItWorksTutorialVideoUrl = howItWorksTutorialVideo.videoUrl;
-
-  const handleOpenHowItWorksTutorial = () => {
-    if (!howItWorksTutorialVideoUrl) return;
-    setSelectedTutorialVideo({
-      url: howItWorksTutorialVideoUrl,
-      title: "Tutorial: Como funciona para empresas",
-      type: "url",
-      orientationMode: config?.video_orientation_how_it_works_companies || "auto",
-    });
-  };
 
   return (
     <Layout>
@@ -345,19 +318,6 @@ const Empresas = () => {
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
               Processo simples e rápido para encontrar o profissional ideal.
             </p>
-            <div className="mt-6">
-              <Button
-                type="button"
-                className="group h-12 rounded-full px-6 text-sm font-semibold gap-2 bg-success text-success-foreground shadow-lg ring-1 ring-success/40 hover:bg-success/90 hover:shadow-xl md:text-base"
-                onClick={handleOpenHowItWorksTutorial}
-                disabled={!howItWorksTutorialVideoUrl}
-              >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-success-foreground/20">
-                  <PlayCircle className="h-4 w-4" />
-                </span>
-                {howItWorksTutorialVideoUrl ? "Ver video tutorial" : "Tutorial em breve"}
-              </Button>
-            </div>
           </div>
 
           <div className="mobile-stagger mx-auto grid max-w-4xl gap-4 md:gap-8 md:grid-cols-3">
@@ -460,13 +420,6 @@ const Empresas = () => {
         </div>
       </section>
 
-      <FeatureVideoModal
-        open={Boolean(selectedTutorialVideo)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedTutorialVideo(null);
-        }}
-        video={selectedTutorialVideo}
-      />
     </Layout>
   );
 };

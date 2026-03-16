@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Video, Upload, Trash2, Play, CheckCircle2, RefreshCw, Database, X } from "lucide-react";
@@ -22,6 +23,14 @@ import { generatePosterFromVideoFile } from "@/lib/video-poster";
 const VIDEO_STORAGE_BUCKET = "uploads";
 const VIDEO_STORAGE_FOLDER = "site-videos";
 
+type VideoFieldConfig = {
+  id: string;
+  storageId: string;
+  mimeId: string;
+  label: string;
+  description: string;
+};
+
 const isMissingColumnError = (error: unknown, columnName: string) => {
   const message = String((error as { message?: string })?.message || "");
   return (
@@ -37,10 +46,12 @@ const VideosTab = () => {
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [savingUrlField, setSavingUrlField] = useState<string | null>(null);
+  const [urlByField, setUrlByField] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeField, setActiveField] = useState<string | null>(null);
 
-  const videoFields = [
+  const videoFields: VideoFieldConfig[] = [
     { id: "video_url_how_it_works_professionals", storageId: "video_storage_path_how_it_works_professionals", mimeId: "video_mime_how_it_works_professionals", label: "Tutorial Como Funciona: Profissionais", description: "Video tutorial exibido no botao da secao Como funciona da pagina de profissionais." },
     { id: "video_url_how_it_works_companies", storageId: "video_storage_path_how_it_works_companies", mimeId: "video_mime_how_it_works_companies", label: "Tutorial Como Funciona: Empresas", description: "Video tutorial exibido no botao da secao Como funciona da pagina de empresas." },
     { id: "video_url_how_it_works_families", storageId: "video_storage_path_how_it_works_families", mimeId: "video_mime_how_it_works_families", label: "Tutorial Como Funciona: Familias", description: "Video tutorial exibido no botao da secao Como funciona da pagina de familias." },
@@ -216,6 +227,64 @@ const VideosTab = () => {
     }
   };
 
+  const handleSaveYoutubeUrl = async (field: VideoFieldConfig, currentStoragePath: string) => {
+    const rawUrl = String(urlByField[field.id] || "").trim();
+    if (!rawUrl) {
+      toast.error("Informe a URL do YouTube.");
+      return;
+    }
+
+    const embedUrl = getYouTubeEmbedUrl(rawUrl);
+    if (!embedUrl.includes("youtube.com/embed/")) {
+      toast.error("Informe uma URL valida do YouTube.");
+      return;
+    }
+
+    setSavingUrlField(field.id);
+    try {
+      const updatePayload: Record<string, string | null> = {
+        [field.id]: embedUrl,
+        [field.storageId]: null,
+        [field.mimeId]: null,
+      };
+
+      let { error: saveError } = await supabase
+        .from("site_config")
+        .update(updatePayload)
+        .eq("id", 1);
+
+      if (saveError && isMissingColumnError(saveError, field.mimeId)) {
+        const fallbackPayload: Record<string, string | null> = {
+          [field.id]: embedUrl,
+          [field.storageId]: null,
+        };
+        const retry = await supabase.from("site_config").update(fallbackPayload).eq("id", 1);
+        saveError = retry.error;
+      }
+
+      if (saveError) throw saveError;
+
+      if (currentStoragePath) {
+        const posterPath = buildLandingVideoPosterPath(currentStoragePath);
+        if (posterPath) {
+          await supabase.storage.from(VIDEO_STORAGE_BUCKET).remove([posterPath]);
+        }
+      }
+
+      setUrlByField((prev) => ({
+        ...prev,
+        [field.id]: embedUrl,
+      }));
+      await queryClient.invalidateQueries({ queryKey: ["site-config"] });
+      toast.success("URL do YouTube salva.");
+    } catch (error: unknown) {
+      const message = String((error as { message?: string })?.message || "").trim();
+      toast.error(message || "Erro ao salvar URL do YouTube.");
+    } finally {
+      setSavingUrlField(null);
+    }
+  };
+
   const getSignedUrlForStoragePath = async (path: string) => {
     if (!path) return null;
     const { data } = await supabase.storage.from(VIDEO_STORAGE_BUCKET).createSignedUrl(path, 3600);
@@ -244,6 +313,9 @@ const VideosTab = () => {
           const currentUrl = (config as any)?.[field.id];
           const currentStoragePath = (config as any)?.[field.storageId];
           const currentMimeType = (config as any)?.[field.mimeId];
+          const youtubeDraftUrl =
+            urlByField[field.id] ??
+            (currentStoragePath ? "" : String(currentUrl || ""));
           const videoAssets = resolveLandingVideoAssets(currentStoragePath, currentUrl);
           const videoSourceUrl = videoAssets.videoUrl;
           const videoPosterUrl = videoAssets.posterUrl;
@@ -341,6 +413,37 @@ const VideosTab = () => {
                     </Button>
                   </div>
                 )}
+
+                <div className="rounded-lg border p-4 space-y-2">
+                  <Label className="text-sm">URL do YouTube</Label>
+                  <div className="flex flex-col gap-2 md:flex-row">
+                    <Input
+                      value={youtubeDraftUrl}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      onChange={(event) =>
+                        setUrlByField((prev) => ({
+                          ...prev,
+                          [field.id]: event.target.value,
+                        }))
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleSaveYoutubeUrl(field, String(currentStoragePath || ""))}
+                      disabled={savingUrlField === field.id}
+                    >
+                      {savingUrlField === field.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Salvar URL"
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Ao salvar URL, o sistema prioriza o YouTube nesse campo.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           );

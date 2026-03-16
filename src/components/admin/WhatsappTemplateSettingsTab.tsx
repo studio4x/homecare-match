@@ -300,6 +300,8 @@ const normalizeText = (value: unknown, fallback = "") => {
   return text.length > 0 ? text : fallback;
 };
 
+const DEFAULT_USER_TEST_DESTINATION = "+5511942919276";
+
 const normalizeVariations = (input: unknown) => {
   if (!input || typeof input !== "object" || Array.isArray(input)) return {} as Record<string, string>;
   const result: Record<string, string> = {};
@@ -439,9 +441,29 @@ const WhatsappTemplateSettingsTab = () => {
 
       if (fetchError) throw fetchError;
       const mapped = (data || []).map(mapDbRow);
-      setRows(mergeWithDefaults(mapped));
+      const mergedRows = mergeWithDefaults(mapped);
+      setRows(mergedRows);
+      setTestDestinationByEvent((prev) => {
+        const next = { ...prev };
+        for (const row of mergedRows) {
+          if (row.target_kind !== "user") continue;
+          if (normalizeText(next[row.event_type])) continue;
+          next[row.event_type] = DEFAULT_USER_TEST_DESTINATION;
+        }
+        return next;
+      });
     } catch (loadError: any) {
-      setRows(mergeWithDefaults([]));
+      const mergedRows = mergeWithDefaults([]);
+      setRows(mergedRows);
+      setTestDestinationByEvent((prev) => {
+        const next = { ...prev };
+        for (const row of mergedRows) {
+          if (row.target_kind !== "user") continue;
+          if (normalizeText(next[row.event_type])) continue;
+          next[row.event_type] = DEFAULT_USER_TEST_DESTINATION;
+        }
+        return next;
+      });
       setError(loadError?.message || "Falha ao carregar configuracoes.");
       toast.error("Nao foi possivel carregar as configuracoes de templates WhatsApp.");
     } finally {
@@ -539,7 +561,9 @@ const WhatsappTemplateSettingsTab = () => {
       return;
     }
 
-    const destination = normalizeText(testDestinationByEvent[row.event_type]);
+    const destination =
+      normalizeText(testDestinationByEvent[row.event_type]) ||
+      (row.target_kind === "user" ? DEFAULT_USER_TEST_DESTINATION : "");
     setEventTestLoading(row.event_type, true);
     try {
       const { data: authSession } = await supabase.auth.getSession();
@@ -691,7 +715,10 @@ const WhatsappTemplateSettingsTab = () => {
                 <p className="text-xs font-medium">Teste de envio</p>
                 <div className="grid gap-2 md:grid-cols-[1fr_auto]">
                   <Input
-                    value={testDestinationByEvent[row.event_type] || ""}
+                    value={
+                      testDestinationByEvent[row.event_type] ||
+                      (row.target_kind === "user" ? DEFAULT_USER_TEST_DESTINATION : "")
+                    }
                     onChange={(event) =>
                       setTestDestinationByEvent((prev) => ({
                         ...prev,

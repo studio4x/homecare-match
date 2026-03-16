@@ -252,12 +252,13 @@ const Familias = () => {
               <div className="mt-6">
                 <Button
                   type="button"
-                  variant="outline"
-                  className="gap-2"
+                  className="group h-12 rounded-full px-6 text-sm font-semibold gap-2 bg-rose-500 text-white shadow-lg ring-1 ring-rose-400/50 hover:bg-rose-600 hover:shadow-xl md:text-base"
                   onClick={handleOpenHowItWorksTutorial}
                   disabled={!howItWorksTutorialVideoUrl}
                 >
-                  <PlayCircle className="h-4 w-4" />
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20">
+                    <PlayCircle className="h-4 w-4" />
+                  </span>
                   {howItWorksTutorialVideoUrl ? "Ver video tutorial" : "Tutorial em breve"}
                 </Button>
               </div>

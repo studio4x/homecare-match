@@ -31,6 +31,7 @@ import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { isVerticalVideoUrl } from "@/lib/video-utils";
 
 const Empresas = () => {
   const { data: config } = useSiteConfig();
@@ -143,6 +144,7 @@ const Empresas = () => {
     useCompaniesMobileUrl ? companiesMobileVideoUrl : config?.video_url_companies,
   );
   const landingVideoUrl = landingVideo.videoUrl;
+  const landingVideoIsVerticalOnMobile = isMobile && isVerticalVideoUrl(landingVideoUrl);
 
   const howItWorksCompaniesMobileVideoUrl = String(config?.video_url_how_it_works_companies_mobile || "").trim();
   const useHowItWorksCompaniesMobileUrl = isMobile && howItWorksCompaniesMobileVideoUrl.length > 0;
@@ -315,7 +317,11 @@ const Empresas = () => {
       {landingVideoUrl && (
         <section className="bg-secondary/10 py-12">
           <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-4xl aspect-video overflow-hidden rounded-2xl border border-border/60 shadow-sm">
+            <div
+              className={`mx-auto overflow-hidden rounded-2xl border border-border/60 shadow-sm ${
+                landingVideoIsVerticalOnMobile ? "max-w-[360px] aspect-[9/16]" : "max-w-4xl aspect-video"
+              }`}
+            >
               <LandingVideoPlayer
                 url={landingVideoUrl}
                 title="Apresentação para Empresas"

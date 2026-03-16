@@ -5,6 +5,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { X } from "lucide-react";
 import LandingVideoPlayer from "./LandingVideoPlayer";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { isVerticalVideoUrl } from "@/lib/video-utils";
 
 interface FeatureVideoModalProps {
   open: boolean;
@@ -14,6 +16,7 @@ interface FeatureVideoModalProps {
 
 const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps) => {
   const [isLandscapeFullscreen, setIsLandscapeFullscreen] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!open) {
@@ -47,6 +50,7 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
   );
 
   if (!video) return null;
+  const isPortraitVideoOnMobile = isMobile && isVerticalVideoUrl(video.url);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -71,15 +75,17 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
             />
           </div>
         ) : (
-          <AspectRatio ratio={16 / 9}>
-            <LandingVideoPlayer
-              url={video.url}
-              title={video.title}
-              className="border-none"
-              autoplay={false}
-              showTitleOverlay={false}
-            />
-          </AspectRatio>
+          <div className={isPortraitVideoOnMobile ? "mx-auto w-full max-w-[360px]" : "w-full"}>
+            <AspectRatio ratio={isPortraitVideoOnMobile ? 9 / 16 : 16 / 9}>
+              <LandingVideoPlayer
+                url={video.url}
+                title={video.title}
+                className="border-none"
+                autoplay={false}
+                showTitleOverlay={false}
+              />
+            </AspectRatio>
+          </div>
         )}
       </DialogContent>
     </Dialog>

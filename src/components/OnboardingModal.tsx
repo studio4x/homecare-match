@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
+import { isVerticalVideoUrl } from "@/lib/video-utils";
 
 interface OnboardingModalProps {
   open: boolean;
@@ -207,6 +208,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
     useMobileUrl ? mobileUrl : videoConfig.desktopUrl,
   );
   const videoUrl = onboardingVideo.videoUrl;
+  const isPortraitVideoOnMobile = isMobile && isVerticalVideoUrl(videoUrl);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -273,7 +275,12 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
 
             <div className="min-h-[300px] flex items-center justify-center">
               {step.type === "video" ? (
-                <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg border border-border/50">
+                <div
+                  className={cn(
+                    "w-full rounded-2xl overflow-hidden bg-black shadow-lg border border-border/50",
+                    isPortraitVideoOnMobile ? "mx-auto max-w-[320px] aspect-[9/16]" : "aspect-video",
+                  )}
+                >
                   {videoUrl ? (
                     <LandingVideoPlayer
                       url={videoUrl}

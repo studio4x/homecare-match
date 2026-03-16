@@ -9,11 +9,13 @@ export function getYouTubeEmbedUrl(url: string, autoplay: boolean = false): stri
   if (!url) return url;
 
   const videoId = getYouTubeVideoId(url);
+  const isShortsUrl = /youtube\.com\/shorts\//i.test(url);
 
   if (videoId) {
     // Removendo os parâmetros que ocultam os controles e outras informações
     // Agora, o player do YouTube exibirá os controles padrão.
-    return `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=${autoplay ? 1 : 0}`;
+    const orientationParam = isShortsUrl ? "&hcm_format=vertical" : "";
+    return `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=${autoplay ? 1 : 0}${orientationParam}`;
   }
   return url;
 }
@@ -30,4 +32,15 @@ export function getYouTubeThumbnailUrl(url: string, quality: "default" | "mqdefa
   const videoId = getYouTubeVideoId(url);
   if (!videoId) return "";
   return `https://img.youtube.com/vi/${videoId}/${quality}.jpg`;
+}
+
+export function isVerticalVideoUrl(url: string): boolean {
+  const normalizedUrl = String(url || "").toLowerCase();
+  if (!normalizedUrl) return false;
+
+  return (
+    normalizedUrl.includes("/shorts/") ||
+    normalizedUrl.includes("hcm_format=vertical") ||
+    normalizedUrl.includes("hcm_format%3dvertical")
+  );
 }

@@ -39,6 +39,7 @@ import { createCheckoutSession } from "@/lib/checkout";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { isVerticalVideoUrl } from "@/lib/video-utils";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -416,6 +417,7 @@ const Index = () => {
     useProfessionalsMobileUrl ? professionalsMobileVideoUrl : config?.video_url_professionals,
   );
   const landingVideoUrl = landingVideo.videoUrl;
+  const landingVideoIsVerticalOnMobile = isMobile && isVerticalVideoUrl(landingVideoUrl);
 
   const howItWorksProfessionalsMobileVideoUrl = String(config?.video_url_how_it_works_professionals_mobile || "").trim();
   const useHowItWorksProfessionalsMobileUrl = isMobile && howItWorksProfessionalsMobileVideoUrl.length > 0;
@@ -527,7 +529,11 @@ const Index = () => {
       {landingVideoUrl && (
         <section className="py-12 bg-secondary/10">
           <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-4xl aspect-video overflow-hidden rounded-2xl border border-border/60 shadow-sm">
+            <div
+              className={`mx-auto overflow-hidden rounded-2xl border border-border/60 shadow-sm ${
+                landingVideoIsVerticalOnMobile ? "max-w-[360px] aspect-[9/16]" : "max-w-4xl aspect-video"
+              }`}
+            >
               <LandingVideoPlayer
                 url={landingVideoUrl}
                 title="Apresentação para profissionais"

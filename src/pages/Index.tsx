@@ -38,6 +38,7 @@ import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { createCheckoutSession } from "@/lib/checkout";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -52,6 +53,7 @@ const Index = () => {
     type: "url" | "storage";
   } | null>(null);
   const [plansCarouselApi, setPlansCarouselApi] = useState<CarouselApi | null>(null);
+  const isMobile = useIsMobile();
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["user-profile-tier", user?.id],
@@ -407,14 +409,21 @@ const Index = () => {
   const cardContent = getAcademyCardContent();
   const CardIcon = cardContent.icon;
 
+  const professionalsMobileVideoUrl = String(config?.video_url_professionals_mobile || "").trim();
+  const useProfessionalsMobileUrl = isMobile && professionalsMobileVideoUrl.length > 0;
   const landingVideo = resolveLandingVideoAssets(
-    config?.video_storage_path_professionals,
-    config?.video_url_professionals,
+    useProfessionalsMobileUrl ? null : config?.video_storage_path_professionals,
+    useProfessionalsMobileUrl ? professionalsMobileVideoUrl : config?.video_url_professionals,
   );
   const landingVideoUrl = landingVideo.videoUrl;
+
+  const howItWorksProfessionalsMobileVideoUrl = String(config?.video_url_how_it_works_professionals_mobile || "").trim();
+  const useHowItWorksProfessionalsMobileUrl = isMobile && howItWorksProfessionalsMobileVideoUrl.length > 0;
   const howItWorksTutorialVideo = resolveLandingVideoAssets(
-    config?.video_storage_path_how_it_works_professionals,
-    config?.video_url_how_it_works_professionals,
+    useHowItWorksProfessionalsMobileUrl ? null : config?.video_storage_path_how_it_works_professionals,
+    useHowItWorksProfessionalsMobileUrl
+      ? howItWorksProfessionalsMobileVideoUrl
+      : config?.video_url_how_it_works_professionals,
   );
   const howItWorksTutorialVideoUrl = howItWorksTutorialVideo.videoUrl;
 

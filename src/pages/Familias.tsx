@@ -27,9 +27,11 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Familias = () => {
   const { data: config } = useSiteConfig();
+  const isMobile = useIsMobile();
   const [selectedTutorialVideo, setSelectedTutorialVideo] = useState<{
     url: string;
     title: string;
@@ -101,14 +103,19 @@ const Familias = () => {
   const canUseSpecialtySearch = (stats?.total ?? 0) >= 10;
 
   // Determine video URL for LandingVideoPlayer
+  const familiesMobileVideoUrl = String(config?.video_url_families_mobile || "").trim();
+  const useFamiliesMobileUrl = isMobile && familiesMobileVideoUrl.length > 0;
   const landingVideo = resolveLandingVideoAssets(
-    config?.video_storage_path_families,
-    config?.video_url_families,
+    useFamiliesMobileUrl ? null : config?.video_storage_path_families,
+    useFamiliesMobileUrl ? familiesMobileVideoUrl : config?.video_url_families,
   );
   const landingVideoUrl = landingVideo.videoUrl;
+
+  const howItWorksFamiliesMobileVideoUrl = String(config?.video_url_how_it_works_families_mobile || "").trim();
+  const useHowItWorksFamiliesMobileUrl = isMobile && howItWorksFamiliesMobileVideoUrl.length > 0;
   const howItWorksTutorialVideo = resolveLandingVideoAssets(
-    config?.video_storage_path_how_it_works_families,
-    config?.video_url_how_it_works_families,
+    useHowItWorksFamiliesMobileUrl ? null : config?.video_storage_path_how_it_works_families,
+    useHowItWorksFamiliesMobileUrl ? howItWorksFamiliesMobileVideoUrl : config?.video_url_how_it_works_families,
   );
   const howItWorksTutorialVideoUrl = howItWorksTutorialVideo.videoUrl;
 

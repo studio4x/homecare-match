@@ -30,9 +30,11 @@ import { useSiteConfig } from "@/hooks/use-site-config";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Empresas = () => {
   const { data: config } = useSiteConfig();
+  const isMobile = useIsMobile();
   const [selectedTutorialVideo, setSelectedTutorialVideo] = useState<{
     url: string;
     title: string;
@@ -134,14 +136,19 @@ const Empresas = () => {
   const showLocationCard = !isLoadingLocations && (locationData?.total || 0) >= 10;
 
   // Determine video URL for LandingVideoPlayer
+  const companiesMobileVideoUrl = String(config?.video_url_companies_mobile || "").trim();
+  const useCompaniesMobileUrl = isMobile && companiesMobileVideoUrl.length > 0;
   const landingVideo = resolveLandingVideoAssets(
-    config?.video_storage_path_companies,
-    config?.video_url_companies,
+    useCompaniesMobileUrl ? null : config?.video_storage_path_companies,
+    useCompaniesMobileUrl ? companiesMobileVideoUrl : config?.video_url_companies,
   );
   const landingVideoUrl = landingVideo.videoUrl;
+
+  const howItWorksCompaniesMobileVideoUrl = String(config?.video_url_how_it_works_companies_mobile || "").trim();
+  const useHowItWorksCompaniesMobileUrl = isMobile && howItWorksCompaniesMobileVideoUrl.length > 0;
   const howItWorksTutorialVideo = resolveLandingVideoAssets(
-    config?.video_storage_path_how_it_works_companies,
-    config?.video_url_how_it_works_companies,
+    useHowItWorksCompaniesMobileUrl ? null : config?.video_storage_path_how_it_works_companies,
+    useHowItWorksCompaniesMobileUrl ? howItWorksCompaniesMobileVideoUrl : config?.video_url_how_it_works_companies,
   );
   const howItWorksTutorialVideoUrl = howItWorksTutorialVideo.videoUrl;
 

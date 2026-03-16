@@ -1,13 +1,11 @@
 ﻿"use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,6 +31,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { resolveLandingVideoAssets } from "@/lib/landing-video";
+import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 
 interface OnboardingModalProps {
   open: boolean;
@@ -44,6 +45,7 @@ interface OnboardingModalProps {
 const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'professional' }: OnboardingModalProps) => {
   const { user } = useAuth();
   const { data: config } = useSiteConfig();
+  const isMobile = useIsMobile();
   const [currentStep, setCurrentStep] = useState(0);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -174,14 +176,37 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
     return familySteps;
   };
 
-  const getVideoUrl = () => {
-    if (role === 'professional') return config?.video_url_onboarding;
-    if (role === 'company') return config?.video_url_onboarding_company;
-    return config?.video_url_onboarding_family;
+  const getVideoConfig = () => {
+    if (role === 'professional') {
+      return {
+        desktopUrl: config?.video_url_onboarding,
+        mobileUrl: config?.video_url_onboarding_mobile,
+        storagePath: config?.video_storage_path_onboarding,
+      };
+    }
+    if (role === 'company') {
+      return {
+        desktopUrl: config?.video_url_onboarding_company,
+        mobileUrl: config?.video_url_onboarding_company_mobile,
+        storagePath: config?.video_storage_path_onboarding_company,
+      };
+    }
+    return {
+      desktopUrl: config?.video_url_onboarding_family,
+      mobileUrl: config?.video_url_onboarding_family_mobile,
+      storagePath: config?.video_storage_path_onboarding_family,
+    };
   };
 
   const steps = getSteps();
-  const videoUrl = getVideoUrl();
+  const videoConfig = getVideoConfig();
+  const mobileUrl = String(videoConfig.mobileUrl || "").trim();
+  const useMobileUrl = isMobile && mobileUrl.length > 0;
+  const onboardingVideo = resolveLandingVideoAssets(
+    useMobileUrl ? null : videoConfig.storagePath,
+    useMobileUrl ? mobileUrl : videoConfig.desktopUrl,
+  );
+  const videoUrl = onboardingVideo.videoUrl;
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -250,13 +275,12 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
               {step.type === "video" ? (
                 <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-lg border border-border/50">
                   {videoUrl ? (
-                    <video 
-                      src={videoUrl} 
-                      className="w-full h-full object-contain"
-                      controls
-                      preload="metadata"
-                      playsInline
-                      autoPlay={false} // Desativar autoplay
+                    <LandingVideoPlayer
+                      url={videoUrl}
+                      title="Tutorial de onboarding"
+                      autoplay={false}
+                      deferLoad={true}
+                      posterUrl={onboardingVideo.posterUrl}
                     />
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-3">

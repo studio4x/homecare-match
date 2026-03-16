@@ -53,14 +53,23 @@ export interface SiteConfig {
   fb_pixel_enabled?: boolean;
   // Video fields
   video_url_professionals?: string | null;
+  video_url_professionals_mobile?: string | null;
   video_url_companies?: string | null;
+  video_url_companies_mobile?: string | null;
   video_url_families?: string | null;
+  video_url_families_mobile?: string | null;
   video_url_how_it_works_professionals?: string | null;
+  video_url_how_it_works_professionals_mobile?: string | null;
   video_url_how_it_works_companies?: string | null;
+  video_url_how_it_works_companies_mobile?: string | null;
   video_url_how_it_works_families?: string | null;
+  video_url_how_it_works_families_mobile?: string | null;
   video_url_onboarding?: string | null;
+  video_url_onboarding_mobile?: string | null;
   video_url_onboarding_company?: string | null;
+  video_url_onboarding_company_mobile?: string | null;
   video_url_onboarding_family?: string | null;
+  video_url_onboarding_family_mobile?: string | null;
   // New storage paths for landing page videos
   video_storage_path_professionals?: string | null;
   video_mime_professionals?: string | null;

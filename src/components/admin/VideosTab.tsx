@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Video, Upload, Trash2, Play, CheckCircle2, RefreshCw, Database, X } from "lucide-react";
+import { Loader2, Video, Upload, Trash2, CheckCircle2, RefreshCw, Database } from "lucide-react";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ const VIDEO_STORAGE_FOLDER = "site-videos";
 
 type VideoFieldConfig = {
   id: string;
+  mobileId: string;
   storageId: string;
   mimeId: string;
   label: string;
@@ -47,20 +48,21 @@ const VideosTab = () => {
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [savingUrlField, setSavingUrlField] = useState<string | null>(null);
-  const [urlByField, setUrlByField] = useState<Record<string, string>>({});
+  const [desktopUrlByField, setDesktopUrlByField] = useState<Record<string, string>>({});
+  const [mobileUrlByField, setMobileUrlByField] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeField, setActiveField] = useState<string | null>(null);
 
   const videoFields: VideoFieldConfig[] = [
-    { id: "video_url_how_it_works_professionals", storageId: "video_storage_path_how_it_works_professionals", mimeId: "video_mime_how_it_works_professionals", label: "Tutorial Como Funciona: Profissionais", description: "Video tutorial exibido no botao da secao Como funciona da pagina de profissionais." },
-    { id: "video_url_how_it_works_companies", storageId: "video_storage_path_how_it_works_companies", mimeId: "video_mime_how_it_works_companies", label: "Tutorial Como Funciona: Empresas", description: "Video tutorial exibido no botao da secao Como funciona da pagina de empresas." },
-    { id: "video_url_how_it_works_families", storageId: "video_storage_path_how_it_works_families", mimeId: "video_mime_how_it_works_families", label: "Tutorial Como Funciona: Familias", description: "Video tutorial exibido no botao da secao Como funciona da pagina de familias." },
-    { id: "video_url_professionals", storageId: "video_storage_path_professionals", mimeId: "video_mime_professionals", label: "Landing Page: Profissionais", description: "Vídeo exibido na página inicial para profissionais." },
-    { id: "video_url_companies", storageId: "video_storage_path_companies", mimeId: "video_mime_companies", label: "Landing Page: Empresas", description: "Vídeo exibido na página de soluções para empresas." },
-    { id: "video_url_families", storageId: "video_storage_path_families", mimeId: "video_mime_families", label: "Landing Page: Famílias", description: "Vídeo exibido na página de soluções para famílias." },
-    { id: "video_url_onboarding", storageId: "video_storage_path_onboarding", mimeId: "video_mime_onboarding", label: "Dashboard: Onboarding Profissional", description: "Vídeo de boas-vindas exibido no primeiro acesso do profissional." },
-    { id: "video_url_onboarding_company", storageId: "video_storage_path_onboarding_company", mimeId: "video_mime_onboarding_company", label: "Dashboard: Onboarding Empresa", description: "Vídeo de boas-vindas exibido no primeiro acesso da empresa." },
-    { id: "video_url_onboarding_family", storageId: "video_storage_path_onboarding_family", mimeId: "video_mime_onboarding_family", label: "Dashboard: Onboarding Família", description: "Vídeo de boas-vindas exibido no primeiro acesso da família." },
+    { id: "video_url_how_it_works_professionals", mobileId: "video_url_how_it_works_professionals_mobile", storageId: "video_storage_path_how_it_works_professionals", mimeId: "video_mime_how_it_works_professionals", label: "Tutorial Como Funciona: Profissionais", description: "Video tutorial exibido no botao da secao Como funciona da pagina de profissionais." },
+    { id: "video_url_how_it_works_companies", mobileId: "video_url_how_it_works_companies_mobile", storageId: "video_storage_path_how_it_works_companies", mimeId: "video_mime_how_it_works_companies", label: "Tutorial Como Funciona: Empresas", description: "Video tutorial exibido no botao da secao Como funciona da pagina de empresas." },
+    { id: "video_url_how_it_works_families", mobileId: "video_url_how_it_works_families_mobile", storageId: "video_storage_path_how_it_works_families", mimeId: "video_mime_how_it_works_families", label: "Tutorial Como Funciona: Familias", description: "Video tutorial exibido no botao da secao Como funciona da pagina de familias." },
+    { id: "video_url_professionals", mobileId: "video_url_professionals_mobile", storageId: "video_storage_path_professionals", mimeId: "video_mime_professionals", label: "Landing Page: Profissionais", description: "Video exibido na pagina inicial para profissionais." },
+    { id: "video_url_companies", mobileId: "video_url_companies_mobile", storageId: "video_storage_path_companies", mimeId: "video_mime_companies", label: "Landing Page: Empresas", description: "Video exibido na pagina de solucoes para empresas." },
+    { id: "video_url_families", mobileId: "video_url_families_mobile", storageId: "video_storage_path_families", mimeId: "video_mime_families", label: "Landing Page: Familias", description: "Video exibido na pagina de solucoes para familias." },
+    { id: "video_url_onboarding", mobileId: "video_url_onboarding_mobile", storageId: "video_storage_path_onboarding", mimeId: "video_mime_onboarding", label: "Dashboard: Onboarding Profissional", description: "Video de boas-vindas exibido no primeiro acesso do profissional." },
+    { id: "video_url_onboarding_company", mobileId: "video_url_onboarding_company_mobile", storageId: "video_storage_path_onboarding_company", mimeId: "video_mime_onboarding_company", label: "Dashboard: Onboarding Empresa", description: "Video de boas-vindas exibido no primeiro acesso da empresa." },
+    { id: "video_url_onboarding_family", mobileId: "video_url_onboarding_family_mobile", storageId: "video_storage_path_onboarding_family", mimeId: "video_mime_onboarding_family", label: "Dashboard: Onboarding Familia", description: "Video de boas-vindas exibido no primeiro acesso da familia." },
   ];
 
   const handleSyncDatabase = async () => {
@@ -69,7 +71,7 @@ const VideosTab = () => {
       // This function needs to be updated to add the new storage path columns
       // For now, we'll just call the existing extend-site-config
       await supabase.functions.invoke('extend-site-config'); 
-      toast.success("Banco de dados sincronizado! Agora você pode subir os vídeos.");
+      toast.success("Banco de dados sincronizado! Agora voce pode subir os videos.");
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
     } catch (e) {
       console.warn("[VideosTab] extend-site-config warning:", e);
@@ -84,7 +86,7 @@ const VideosTab = () => {
     if (!file || !activeField) return;
 
     if (file.size > 50 * 1024 * 1024) {
-      toast.error("O vídeo é muito grande. Limite máximo: 50MB.");
+      toast.error("O video e muito grande. Limite maximo: 50MB.");
       return;
     }
 
@@ -130,12 +132,12 @@ const VideosTab = () => {
           }
           coverGenerated = true;
         } catch (posterError: any) {
-          coverGenerationError = String(posterError?.message || "Falha ao gerar capa automática.");
+          coverGenerationError = String(posterError?.message || "Falha ao gerar capa automatica.");
         }
       }
 
       const fieldConfig = videoFields.find(f => f.id === activeField);
-      if (!fieldConfig) throw new Error("Configuração de campo não encontrada.");
+      if (!fieldConfig) throw new Error("Configuracao de campo nao encontrada.");
 
       const updatePayload: any = { 
         [activeField]: publicUrl, // Keep public URL for direct access if needed
@@ -161,26 +163,26 @@ const VideosTab = () => {
 
       if (dbError) {
         if (dbError.message.includes("column") && dbError.message.includes("does not exist")) {
-          throw new Error("Coluna não encontrada. Clique no botão 'Sincronizar Banco' no topo da página.");
+          throw new Error("Coluna nao encontrada. Clique no botao 'Sincronizar Banco' no topo da pagina.");
         }
         throw dbError;
       }
 
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
       if (coverGenerated) {
-        toast.success("Vídeo atualizado com sucesso! Capa gerada automaticamente.");
+        toast.success("Video atualizado com sucesso! Capa gerada automaticamente.");
       } else {
-        toast.success("Vídeo atualizado com sucesso!");
+        toast.success("Video atualizado com sucesso!");
         if (coverGenerationError) {
-          toast.warning(`Vídeo salvo, mas a capa não foi gerada: ${coverGenerationError}`);
+          toast.warning(`Video salvo, mas a capa nao foi gerada: ${coverGenerationError}`);
         }
       }
       if (mimeColumnSkipped) {
-        toast.warning("Upload concluído sem salvar o MIME do vídeo. Clique em 'Sincronizar Banco' para atualizar a estrutura.");
+        toast.warning("Upload concluido sem salvar o MIME do video. Clique em 'Sincronizar Banco' para atualizar a estrutura.");
       }
     } catch (error: any) {
       console.error(error);
-      toast.error(error.message || "Erro ao enviar vídeo.");
+      toast.error(error.message || "Erro ao enviar video.");
     } finally {
       setIsUploading(null);
       setActiveField(null);
@@ -189,7 +191,7 @@ const VideosTab = () => {
   };
 
   const handleDelete = async (fieldId: string, storageId: string, mimeId: string) => {
-    if (!confirm("Deseja remover este vídeo?")) return;
+    if (!confirm("Deseja remover este video?")) return;
     
     try {
       const updatePayload: any = { 
@@ -221,74 +223,97 @@ const VideosTab = () => {
       if (error) throw error;
       
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
-      toast.success("Vídeo removido.");
+      toast.success("Video removido.");
     } catch (error) {
-      toast.error("Erro ao remover vídeo.");
+      toast.error("Erro ao remover video.");
     }
   };
 
-  const handleSaveYoutubeUrl = async (field: VideoFieldConfig, currentStoragePath: string) => {
-    const rawUrl = String(urlByField[field.id] || "").trim();
-    if (!rawUrl) {
-      toast.error("Informe a URL do YouTube.");
+  const handleSaveYoutubeUrls = async (
+    field: VideoFieldConfig,
+    currentDesktopStoragePath: string,
+    currentDesktopUrl: string,
+    currentMobileUrl: string,
+  ) => {
+    const desktopRaw = String(
+      desktopUrlByField[field.id] ??
+      (currentDesktopStoragePath ? "" : currentDesktopUrl),
+    ).trim();
+    const mobileRaw = String(mobileUrlByField[field.id] ?? currentMobileUrl).trim();
+
+    const desktopEmbed = desktopRaw ? getYouTubeEmbedUrl(desktopRaw) : null;
+    const mobileEmbed = mobileRaw ? getYouTubeEmbedUrl(mobileRaw) : null;
+
+    if (desktopRaw && !String(desktopEmbed || "").includes("youtube.com/embed/")) {
+      toast.error("URL desktop invalida. Informe uma URL valida do YouTube.");
       return;
     }
 
-    const embedUrl = getYouTubeEmbedUrl(rawUrl);
-    if (!embedUrl.includes("youtube.com/embed/")) {
-      toast.error("Informe uma URL valida do YouTube.");
+    if (mobileRaw && !String(mobileEmbed || "").includes("youtube.com/embed/")) {
+      toast.error("URL mobile invalida. Informe uma URL valida do YouTube.");
       return;
     }
 
     setSavingUrlField(field.id);
     try {
       const updatePayload: Record<string, string | null> = {
-        [field.id]: embedUrl,
-        [field.storageId]: null,
-        [field.mimeId]: null,
+        [field.id]: desktopEmbed,
+        [field.mobileId]: mobileEmbed,
       };
+
+      if (desktopEmbed) {
+        updatePayload[field.storageId] = null;
+        updatePayload[field.mimeId] = null;
+      }
 
       let { error: saveError } = await supabase
         .from("site_config")
         .update(updatePayload)
         .eq("id", 1);
 
+      if (saveError && isMissingColumnError(saveError, field.mobileId)) {
+        toast.error("Coluna mobile nao encontrada. Clique em Sincronizar Banco.");
+        return;
+      }
+
       if (saveError && isMissingColumnError(saveError, field.mimeId)) {
         const fallbackPayload: Record<string, string | null> = {
-          [field.id]: embedUrl,
-          [field.storageId]: null,
+          [field.id]: desktopEmbed,
+          [field.mobileId]: mobileEmbed,
         };
+        if (desktopEmbed) {
+          fallbackPayload[field.storageId] = null;
+        }
         const retry = await supabase.from("site_config").update(fallbackPayload).eq("id", 1);
         saveError = retry.error;
       }
 
       if (saveError) throw saveError;
 
-      if (currentStoragePath) {
-        const posterPath = buildLandingVideoPosterPath(currentStoragePath);
+      if (desktopEmbed && currentDesktopStoragePath) {
+        const posterPath = buildLandingVideoPosterPath(currentDesktopStoragePath);
         if (posterPath) {
           await supabase.storage.from(VIDEO_STORAGE_BUCKET).remove([posterPath]);
         }
       }
 
-      setUrlByField((prev) => ({
+      setDesktopUrlByField((prev) => ({
         ...prev,
-        [field.id]: embedUrl,
+        [field.id]: desktopEmbed || "",
       }));
+      setMobileUrlByField((prev) => ({
+        ...prev,
+        [field.id]: mobileEmbed || "",
+      }));
+
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
-      toast.success("URL do YouTube salva.");
+      toast.success("URLs salvas.");
     } catch (error: unknown) {
       const message = String((error as { message?: string })?.message || "").trim();
-      toast.error(message || "Erro ao salvar URL do YouTube.");
+      toast.error(message || "Erro ao salvar URLs.");
     } finally {
       setSavingUrlField(null);
     }
-  };
-
-  const getSignedUrlForStoragePath = async (path: string) => {
-    if (!path) return null;
-    const { data } = await supabase.storage.from(VIDEO_STORAGE_BUCKET).createSignedUrl(path, 3600);
-    return data?.signedUrl || null;
   };
 
   if (isLoading) return <div className="p-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
@@ -304,18 +329,21 @@ const VideosTab = () => {
           disabled={isSyncing}
         >
           {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-          Sincronizar Banco (Correção de Erros)
+          Sincronizar Banco (Correcao de Erros)
         </Button>
       </div>
 
       <div className="grid gap-6">
         {videoFields.map((field) => {
           const currentUrl = (config as any)?.[field.id];
+          const currentMobileUrl = (config as any)?.[field.mobileId];
           const currentStoragePath = (config as any)?.[field.storageId];
-          const currentMimeType = (config as any)?.[field.mimeId];
-          const youtubeDraftUrl =
-            urlByField[field.id] ??
+          const desktopDraftUrl =
+            desktopUrlByField[field.id] ??
             (currentStoragePath ? "" : String(currentUrl || ""));
+          const mobileDraftUrl =
+            mobileUrlByField[field.id] ??
+            String(currentMobileUrl || "");
           const videoAssets = resolveLandingVideoAssets(currentStoragePath, currentUrl);
           const videoSourceUrl = videoAssets.videoUrl;
           const videoPosterUrl = videoAssets.posterUrl;
@@ -379,7 +407,7 @@ const VideosTab = () => {
                           disabled={!!isUploading}
                         >
                           {isUploading === field.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                          Substituir Vídeo
+                          Substituir Video
                         </Button>
                         <Button 
                           variant="ghost" 
@@ -404,8 +432,8 @@ const VideosTab = () => {
                       <Upload className="h-6 w-6 text-primary" />
                     </div>
                     <div className="space-y-1">
-                      <p className="font-medium">Nenhum vídeo configurado</p>
-                      <p className="text-xs text-muted-foreground">Clique para fazer upload do vídeo MP4 (máx. 50MB)</p>
+                      <p className="font-medium">Nenhum video configurado</p>
+                      <p className="text-xs text-muted-foreground">Clique para fazer upload do video MP4 (max. 50MB)</p>
                     </div>
                     <Button variant="outline" size="sm" disabled={!!isUploading}>
                       {isUploading === field.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -414,34 +442,54 @@ const VideosTab = () => {
                   </div>
                 )}
 
-                <div className="rounded-lg border p-4 space-y-2">
-                  <Label className="text-sm">URL do YouTube</Label>
-                  <div className="flex flex-col gap-2 md:flex-row">
-                    <Input
-                      value={youtubeDraftUrl}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      onChange={(event) =>
-                        setUrlByField((prev) => ({
-                          ...prev,
-                          [field.id]: event.target.value,
-                        }))
-                      }
-                    />
+                <div className="rounded-lg border p-4 space-y-3">
+                  <Label className="text-sm">URL do YouTube (Desktop)</Label>
+                  <Input
+                    value={desktopDraftUrl}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    onChange={(event) =>
+                      setDesktopUrlByField((prev) => ({
+                        ...prev,
+                        [field.id]: event.target.value,
+                      }))
+                    }
+                  />
+
+                  <Label className="text-sm">URL do YouTube (Mobile)</Label>
+                  <Input
+                    value={mobileDraftUrl}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    onChange={(event) =>
+                      setMobileUrlByField((prev) => ({
+                        ...prev,
+                        [field.id]: event.target.value,
+                      }))
+                    }
+                  />
+
+                  <div className="flex justify-end">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => handleSaveYoutubeUrl(field, String(currentStoragePath || ""))}
+                      onClick={() =>
+                        handleSaveYoutubeUrls(
+                          field,
+                          String(currentStoragePath || ""),
+                          String(currentUrl || ""),
+                          String(currentMobileUrl || ""),
+                        )
+                      }
                       disabled={savingUrlField === field.id}
                     >
                       {savingUrlField === field.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        "Salvar URL"
+                        "Salvar URLs"
                       )}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Ao salvar URL, o sistema prioriza o YouTube nesse campo.
+                    O sistema usa URL mobile em telas pequenas e URL desktop no restante.
                   </p>
                 </div>
               </CardContent>

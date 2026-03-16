@@ -8,13 +8,12 @@
 export function getYouTubeEmbedUrl(url: string, autoplay: boolean = false): string {
   if (!url) return url;
 
-  const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)([\w-]{11})(?:\S+)?/;
-  const match = url.match(youtubeRegex);
+  const videoId = getYouTubeVideoId(url);
 
-  if (match && match[1]) {
+  if (videoId) {
     // Removendo os parâmetros que ocultam os controles e outras informações
     // Agora, o player do YouTube exibirá os controles padrão.
-    return `https://www.youtube.com/embed/${match[1]}?rel=0&autoplay=${autoplay ? 1 : 0}`;
+    return `https://www.youtube.com/embed/${videoId}?rel=0&autoplay=${autoplay ? 1 : 0}`;
   }
   return url;
 }

@@ -1,17 +1,17 @@
 ﻿"use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { X } from "lucide-react";
 import LandingVideoPlayer from "./LandingVideoPlayer";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { isVerticalVideoUrl } from "@/lib/video-utils";
+import { resolveVideoOrientation, type VideoOrientationMode } from "@/lib/video-utils";
 
 interface FeatureVideoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  video: { url: string; title: string; type: "url" | "storage" } | null;
+  video: { url: string; title: string; type: "url" | "storage"; orientationMode?: VideoOrientationMode | null } | null;
 }
 
 const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps) => {
@@ -50,7 +50,7 @@ const FeatureVideoModal = ({ open, onOpenChange, video }: FeatureVideoModalProps
   );
 
   if (!video) return null;
-  const isPortraitVideoOnMobile = isMobile && isVerticalVideoUrl(video.url);
+  const isPortraitVideoOnMobile = isMobile && resolveVideoOrientation(video.url, video.orientationMode) === "vertical";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

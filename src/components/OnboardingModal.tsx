@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import LandingVideoPlayer from "@/components/LandingVideoPlayer";
-import { isVerticalVideoUrl } from "@/lib/video-utils";
+import { resolveVideoOrientation } from "@/lib/video-utils";
 
 interface OnboardingModalProps {
   open: boolean;
@@ -183,6 +183,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
         desktopUrl: config?.video_url_onboarding,
         mobileUrl: config?.video_url_onboarding_mobile,
         storagePath: config?.video_storage_path_onboarding,
+        orientationMode: config?.video_orientation_onboarding,
       };
     }
     if (role === 'company') {
@@ -190,12 +191,14 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
         desktopUrl: config?.video_url_onboarding_company,
         mobileUrl: config?.video_url_onboarding_company_mobile,
         storagePath: config?.video_storage_path_onboarding_company,
+        orientationMode: config?.video_orientation_onboarding_company,
       };
     }
     return {
       desktopUrl: config?.video_url_onboarding_family,
       mobileUrl: config?.video_url_onboarding_family_mobile,
       storagePath: config?.video_storage_path_onboarding_family,
+      orientationMode: config?.video_orientation_onboarding_family,
     };
   };
 
@@ -208,7 +211,8 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
     useMobileUrl ? mobileUrl : videoConfig.desktopUrl,
   );
   const videoUrl = onboardingVideo.videoUrl;
-  const isPortraitVideoOnMobile = isMobile && isVerticalVideoUrl(videoUrl);
+  const isPortraitVideoOnMobile =
+    isMobile && resolveVideoOrientation(videoUrl, videoConfig.orientationMode) === "vertical";
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {

@@ -39,7 +39,7 @@ import { createCheckoutSession } from "@/lib/checkout";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { isVerticalVideoUrl } from "@/lib/video-utils";
+import { resolveVideoOrientation } from "@/lib/video-utils";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -52,6 +52,7 @@ const Index = () => {
     url: string;
     title: string;
     type: "url" | "storage";
+    orientationMode?: "auto" | "horizontal" | "vertical" | null;
   } | null>(null);
   const [plansCarouselApi, setPlansCarouselApi] = useState<CarouselApi | null>(null);
   const isMobile = useIsMobile();
@@ -417,7 +418,8 @@ const Index = () => {
     useProfessionalsMobileUrl ? professionalsMobileVideoUrl : config?.video_url_professionals,
   );
   const landingVideoUrl = landingVideo.videoUrl;
-  const landingVideoIsVerticalOnMobile = isMobile && isVerticalVideoUrl(landingVideoUrl);
+  const landingVideoIsVerticalOnMobile =
+    isMobile && resolveVideoOrientation(landingVideoUrl, config?.video_orientation_professionals) === "vertical";
 
   const howItWorksProfessionalsMobileVideoUrl = String(config?.video_url_how_it_works_professionals_mobile || "").trim();
   const useHowItWorksProfessionalsMobileUrl = isMobile && howItWorksProfessionalsMobileVideoUrl.length > 0;
@@ -439,6 +441,7 @@ const Index = () => {
       url: howItWorksTutorialVideoUrl,
       title: "Tutorial: Como funciona a Home Care Match",
       type: "url",
+      orientationMode: config?.video_orientation_how_it_works_professionals || "auto",
     });
   };
 

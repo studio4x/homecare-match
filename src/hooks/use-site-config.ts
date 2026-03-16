@@ -70,6 +70,15 @@ export interface SiteConfig {
   video_url_onboarding_company_mobile?: string | null;
   video_url_onboarding_family?: string | null;
   video_url_onboarding_family_mobile?: string | null;
+  video_orientation_professionals?: "auto" | "horizontal" | "vertical" | null;
+  video_orientation_companies?: "auto" | "horizontal" | "vertical" | null;
+  video_orientation_families?: "auto" | "horizontal" | "vertical" | null;
+  video_orientation_how_it_works_professionals?: "auto" | "horizontal" | "vertical" | null;
+  video_orientation_how_it_works_companies?: "auto" | "horizontal" | "vertical" | null;
+  video_orientation_how_it_works_families?: "auto" | "horizontal" | "vertical" | null;
+  video_orientation_onboarding?: "auto" | "horizontal" | "vertical" | null;
+  video_orientation_onboarding_company?: "auto" | "horizontal" | "vertical" | null;
+  video_orientation_onboarding_family?: "auto" | "horizontal" | "vertical" | null;
   // New storage paths for landing page videos
   video_storage_path_professionals?: string | null;
   video_mime_professionals?: string | null;

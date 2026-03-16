@@ -28,7 +28,7 @@ import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { isVerticalVideoUrl } from "@/lib/video-utils";
+import { resolveVideoOrientation } from "@/lib/video-utils";
 
 const Familias = () => {
   const { data: config } = useSiteConfig();
@@ -37,6 +37,7 @@ const Familias = () => {
     url: string;
     title: string;
     type: "url" | "storage";
+    orientationMode?: "auto" | "horizontal" | "vertical" | null;
   } | null>(null);
   
   const features = [
@@ -111,7 +112,8 @@ const Familias = () => {
     useFamiliesMobileUrl ? familiesMobileVideoUrl : config?.video_url_families,
   );
   const landingVideoUrl = landingVideo.videoUrl;
-  const landingVideoIsVerticalOnMobile = isMobile && isVerticalVideoUrl(landingVideoUrl);
+  const landingVideoIsVerticalOnMobile =
+    isMobile && resolveVideoOrientation(landingVideoUrl, config?.video_orientation_families) === "vertical";
 
   const howItWorksFamiliesMobileVideoUrl = String(config?.video_url_how_it_works_families_mobile || "").trim();
   const useHowItWorksFamiliesMobileUrl = isMobile && howItWorksFamiliesMobileVideoUrl.length > 0;
@@ -127,6 +129,7 @@ const Familias = () => {
       url: howItWorksTutorialVideoUrl,
       title: "Tutorial: Como funciona para familias",
       type: "url",
+      orientationMode: config?.video_orientation_how_it_works_families || "auto",
     });
   };
 

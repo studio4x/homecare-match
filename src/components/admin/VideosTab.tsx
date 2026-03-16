@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Video, Upload, Trash2, CheckCircle2, RefreshCw, Database } from "lucide-react";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
 import LandingVideoPlayer from "../LandingVideoPlayer"; // Import LandingVideoPlayer
-import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import utility
+import { getYouTubeEmbedUrl, resolveVideoOrientation, type VideoOrientationMode } from "@/lib/video-utils"; // Import utility
 import {
   buildLandingVideoPosterPath,
   getLandingVideoPublicUrl,
@@ -26,6 +27,7 @@ const VIDEO_STORAGE_FOLDER = "site-videos";
 type VideoFieldConfig = {
   id: string;
   mobileId: string;
+  orientationId: string;
   storageId: string;
   mimeId: string;
   label: string;
@@ -50,19 +52,20 @@ const VideosTab = () => {
   const [savingUrlField, setSavingUrlField] = useState<string | null>(null);
   const [desktopUrlByField, setDesktopUrlByField] = useState<Record<string, string>>({});
   const [mobileUrlByField, setMobileUrlByField] = useState<Record<string, string>>({});
+  const [orientationByField, setOrientationByField] = useState<Record<string, VideoOrientationMode>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeField, setActiveField] = useState<string | null>(null);
 
   const videoFields: VideoFieldConfig[] = [
-    { id: "video_url_how_it_works_professionals", mobileId: "video_url_how_it_works_professionals_mobile", storageId: "video_storage_path_how_it_works_professionals", mimeId: "video_mime_how_it_works_professionals", label: "Tutorial Como Funciona: Profissionais", description: "Video tutorial exibido no botao da secao Como funciona da pagina de profissionais." },
-    { id: "video_url_how_it_works_companies", mobileId: "video_url_how_it_works_companies_mobile", storageId: "video_storage_path_how_it_works_companies", mimeId: "video_mime_how_it_works_companies", label: "Tutorial Como Funciona: Empresas", description: "Video tutorial exibido no botao da secao Como funciona da pagina de empresas." },
-    { id: "video_url_how_it_works_families", mobileId: "video_url_how_it_works_families_mobile", storageId: "video_storage_path_how_it_works_families", mimeId: "video_mime_how_it_works_families", label: "Tutorial Como Funciona: Familias", description: "Video tutorial exibido no botao da secao Como funciona da pagina de familias." },
-    { id: "video_url_professionals", mobileId: "video_url_professionals_mobile", storageId: "video_storage_path_professionals", mimeId: "video_mime_professionals", label: "Landing Page: Profissionais", description: "Video exibido na pagina inicial para profissionais." },
-    { id: "video_url_companies", mobileId: "video_url_companies_mobile", storageId: "video_storage_path_companies", mimeId: "video_mime_companies", label: "Landing Page: Empresas", description: "Video exibido na pagina de solucoes para empresas." },
-    { id: "video_url_families", mobileId: "video_url_families_mobile", storageId: "video_storage_path_families", mimeId: "video_mime_families", label: "Landing Page: Familias", description: "Video exibido na pagina de solucoes para familias." },
-    { id: "video_url_onboarding", mobileId: "video_url_onboarding_mobile", storageId: "video_storage_path_onboarding", mimeId: "video_mime_onboarding", label: "Dashboard: Onboarding Profissional", description: "Video de boas-vindas exibido no primeiro acesso do profissional." },
-    { id: "video_url_onboarding_company", mobileId: "video_url_onboarding_company_mobile", storageId: "video_storage_path_onboarding_company", mimeId: "video_mime_onboarding_company", label: "Dashboard: Onboarding Empresa", description: "Video de boas-vindas exibido no primeiro acesso da empresa." },
-    { id: "video_url_onboarding_family", mobileId: "video_url_onboarding_family_mobile", storageId: "video_storage_path_onboarding_family", mimeId: "video_mime_onboarding_family", label: "Dashboard: Onboarding Familia", description: "Video de boas-vindas exibido no primeiro acesso da familia." },
+    { id: "video_url_how_it_works_professionals", mobileId: "video_url_how_it_works_professionals_mobile", orientationId: "video_orientation_how_it_works_professionals", storageId: "video_storage_path_how_it_works_professionals", mimeId: "video_mime_how_it_works_professionals", label: "Tutorial Como Funciona: Profissionais", description: "Video tutorial exibido no botao da secao Como funciona da pagina de profissionais." },
+    { id: "video_url_how_it_works_companies", mobileId: "video_url_how_it_works_companies_mobile", orientationId: "video_orientation_how_it_works_companies", storageId: "video_storage_path_how_it_works_companies", mimeId: "video_mime_how_it_works_companies", label: "Tutorial Como Funciona: Empresas", description: "Video tutorial exibido no botao da secao Como funciona da pagina de empresas." },
+    { id: "video_url_how_it_works_families", mobileId: "video_url_how_it_works_families_mobile", orientationId: "video_orientation_how_it_works_families", storageId: "video_storage_path_how_it_works_families", mimeId: "video_mime_how_it_works_families", label: "Tutorial Como Funciona: Familias", description: "Video tutorial exibido no botao da secao Como funciona da pagina de familias." },
+    { id: "video_url_professionals", mobileId: "video_url_professionals_mobile", orientationId: "video_orientation_professionals", storageId: "video_storage_path_professionals", mimeId: "video_mime_professionals", label: "Landing Page: Profissionais", description: "Video exibido na pagina inicial para profissionais." },
+    { id: "video_url_companies", mobileId: "video_url_companies_mobile", orientationId: "video_orientation_companies", storageId: "video_storage_path_companies", mimeId: "video_mime_companies", label: "Landing Page: Empresas", description: "Video exibido na pagina de solucoes para empresas." },
+    { id: "video_url_families", mobileId: "video_url_families_mobile", orientationId: "video_orientation_families", storageId: "video_storage_path_families", mimeId: "video_mime_families", label: "Landing Page: Familias", description: "Video exibido na pagina de solucoes para familias." },
+    { id: "video_url_onboarding", mobileId: "video_url_onboarding_mobile", orientationId: "video_orientation_onboarding", storageId: "video_storage_path_onboarding", mimeId: "video_mime_onboarding", label: "Dashboard: Onboarding Profissional", description: "Video de boas-vindas exibido no primeiro acesso do profissional." },
+    { id: "video_url_onboarding_company", mobileId: "video_url_onboarding_company_mobile", orientationId: "video_orientation_onboarding_company", storageId: "video_storage_path_onboarding_company", mimeId: "video_mime_onboarding_company", label: "Dashboard: Onboarding Empresa", description: "Video de boas-vindas exibido no primeiro acesso da empresa." },
+    { id: "video_url_onboarding_family", mobileId: "video_url_onboarding_family_mobile", orientationId: "video_orientation_onboarding_family", storageId: "video_storage_path_onboarding_family", mimeId: "video_mime_onboarding_family", label: "Dashboard: Onboarding Familia", description: "Video de boas-vindas exibido no primeiro acesso da familia." },
   ];
 
   const handleSyncDatabase = async () => {
@@ -234,6 +237,7 @@ const VideosTab = () => {
     currentDesktopStoragePath: string,
     currentDesktopUrl: string,
     currentMobileUrl: string,
+    currentOrientation: VideoOrientationMode,
   ) => {
     const desktopRaw = String(
       desktopUrlByField[field.id] ??
@@ -243,6 +247,7 @@ const VideosTab = () => {
 
     const desktopEmbed = desktopRaw ? getYouTubeEmbedUrl(desktopRaw) : null;
     const mobileEmbed = mobileRaw ? getYouTubeEmbedUrl(mobileRaw) : null;
+    const orientationMode = orientationByField[field.id] || currentOrientation || "auto";
 
     if (desktopRaw && !String(desktopEmbed || "").includes("youtube.com/embed/")) {
       toast.error("URL desktop invalida. Informe uma URL valida do YouTube.");
@@ -259,6 +264,7 @@ const VideosTab = () => {
       const updatePayload: Record<string, string | null> = {
         [field.id]: desktopEmbed,
         [field.mobileId]: mobileEmbed,
+        [field.orientationId]: orientationMode,
       };
 
       if (desktopEmbed) {
@@ -275,11 +281,16 @@ const VideosTab = () => {
         toast.error("Coluna mobile nao encontrada. Clique em Sincronizar Banco.");
         return;
       }
+      if (saveError && isMissingColumnError(saveError, field.orientationId)) {
+        toast.error("Coluna de orientacao nao encontrada. Clique em Sincronizar Banco.");
+        return;
+      }
 
       if (saveError && isMissingColumnError(saveError, field.mimeId)) {
         const fallbackPayload: Record<string, string | null> = {
           [field.id]: desktopEmbed,
           [field.mobileId]: mobileEmbed,
+          [field.orientationId]: orientationMode,
         };
         if (desktopEmbed) {
           fallbackPayload[field.storageId] = null;
@@ -304,6 +315,10 @@ const VideosTab = () => {
       setMobileUrlByField((prev) => ({
         ...prev,
         [field.id]: mobileEmbed || "",
+      }));
+      setOrientationByField((prev) => ({
+        ...prev,
+        [field.id]: orientationMode,
       }));
 
       await queryClient.invalidateQueries({ queryKey: ["site-config"] });
@@ -337,6 +352,11 @@ const VideosTab = () => {
         {videoFields.map((field) => {
           const currentUrl = (config as any)?.[field.id];
           const currentMobileUrl = (config as any)?.[field.mobileId];
+          const currentOrientationRaw = String((config as any)?.[field.orientationId] || "auto");
+          const currentOrientation: VideoOrientationMode =
+            currentOrientationRaw === "horizontal" || currentOrientationRaw === "vertical"
+              ? currentOrientationRaw
+              : "auto";
           const currentStoragePath = (config as any)?.[field.storageId];
           const desktopDraftUrl =
             desktopUrlByField[field.id] ??
@@ -344,10 +364,12 @@ const VideosTab = () => {
           const mobileDraftUrl =
             mobileUrlByField[field.id] ??
             String(currentMobileUrl || "");
+          const orientationDraft = orientationByField[field.id] || currentOrientation || "auto";
           const videoAssets = resolveLandingVideoAssets(currentStoragePath, currentUrl);
           const videoSourceUrl = videoAssets.videoUrl;
           const videoPosterUrl = videoAssets.posterUrl;
           const posterPath = buildLandingVideoPosterPath(currentStoragePath);
+          const previewOrientation = resolveVideoOrientation(videoSourceUrl, orientationDraft);
 
           return (
             <Card key={field.id} className="overflow-hidden">
@@ -370,7 +392,11 @@ const VideosTab = () => {
               <CardContent className="space-y-4">
                 {(currentUrl || currentStoragePath) ? (
                   <div className="grid md:grid-cols-2 gap-6 items-start">
-                    <div className="aspect-video rounded-xl overflow-hidden bg-black border shadow-inner relative group">
+                    <div
+                      className={`rounded-xl overflow-hidden bg-black border shadow-inner relative group ${
+                        previewOrientation === "vertical" ? "mx-auto max-w-[240px] aspect-[9/16]" : "aspect-video"
+                      }`}
+                    >
                       {/* Use LandingVideoPlayer for preview */}
                       <LandingVideoPlayer 
                         url={videoSourceUrl}
@@ -467,6 +493,26 @@ const VideosTab = () => {
                     }
                   />
 
+                  <Label className="text-sm">Orientacao do Player</Label>
+                  <Select
+                    value={orientationDraft}
+                    onValueChange={(value: VideoOrientationMode) =>
+                      setOrientationByField((prev) => ({
+                        ...prev,
+                        [field.id]: value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a orientacao" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Auto (pela URL)</SelectItem>
+                      <SelectItem value="horizontal">Forcar horizontal</SelectItem>
+                      <SelectItem value="vertical">Forcar vertical</SelectItem>
+                    </SelectContent>
+                  </Select>
+
                   <div className="flex justify-end">
                     <Button
                       type="button"
@@ -477,6 +523,7 @@ const VideosTab = () => {
                           String(currentStoragePath || ""),
                           String(currentUrl || ""),
                           String(currentMobileUrl || ""),
+                          currentOrientation,
                         )
                       }
                       disabled={savingUrlField === field.id}
@@ -484,12 +531,12 @@ const VideosTab = () => {
                       {savingUrlField === field.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        "Salvar URLs"
+                        "Salvar Configuracoes"
                       )}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    O sistema usa URL mobile em telas pequenas e URL desktop no restante.
+                    O sistema usa URL mobile em telas pequenas. A orientacao pode ser automatica ou forcada.
                   </p>
                 </div>
               </CardContent>

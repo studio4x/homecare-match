@@ -31,7 +31,7 @@ import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import FeatureVideoModal from "@/components/FeatureVideoModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { isVerticalVideoUrl } from "@/lib/video-utils";
+import { resolveVideoOrientation } from "@/lib/video-utils";
 
 const Empresas = () => {
   const { data: config } = useSiteConfig();
@@ -40,6 +40,7 @@ const Empresas = () => {
     url: string;
     title: string;
     type: "url" | "storage";
+    orientationMode?: "auto" | "horizontal" | "vertical" | null;
   } | null>(null);
   
   const { data: locationData, isLoading: isLoadingLocations } = useQuery({
@@ -144,7 +145,8 @@ const Empresas = () => {
     useCompaniesMobileUrl ? companiesMobileVideoUrl : config?.video_url_companies,
   );
   const landingVideoUrl = landingVideo.videoUrl;
-  const landingVideoIsVerticalOnMobile = isMobile && isVerticalVideoUrl(landingVideoUrl);
+  const landingVideoIsVerticalOnMobile =
+    isMobile && resolveVideoOrientation(landingVideoUrl, config?.video_orientation_companies) === "vertical";
 
   const howItWorksCompaniesMobileVideoUrl = String(config?.video_url_how_it_works_companies_mobile || "").trim();
   const useHowItWorksCompaniesMobileUrl = isMobile && howItWorksCompaniesMobileVideoUrl.length > 0;
@@ -160,6 +162,7 @@ const Empresas = () => {
       url: howItWorksTutorialVideoUrl,
       title: "Tutorial: Como funciona para empresas",
       type: "url",
+      orientationMode: config?.video_orientation_how_it_works_companies || "auto",
     });
   };
 

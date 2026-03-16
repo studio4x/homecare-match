@@ -1,5 +1,7 @@
 // src/lib/video-utils.ts
 
+export type VideoOrientationMode = "auto" | "horizontal" | "vertical";
+
 /**
  * Converte uma URL de vídeo do YouTube (watch ou short) para a URL de incorporação (embed).
  * Adiciona parâmetros para ocultar controles, branding e vídeos relacionados.
@@ -43,4 +45,13 @@ export function isVerticalVideoUrl(url: string): boolean {
     normalizedUrl.includes("hcm_format=vertical") ||
     normalizedUrl.includes("hcm_format%3dvertical")
   );
+}
+
+export function resolveVideoOrientation(
+  url: string,
+  orientationMode: string | null | undefined,
+): "horizontal" | "vertical" {
+  if (orientationMode === "vertical") return "vertical";
+  if (orientationMode === "horizontal") return "horizontal";
+  return isVerticalVideoUrl(url) ? "vertical" : "horizontal";
 }

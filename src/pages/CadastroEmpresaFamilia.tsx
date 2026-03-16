@@ -55,6 +55,7 @@ const CadastroEmpresaFamilia = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const dashboardRedirectUrl = `${window.location.origin}/dashboard`;
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -81,7 +82,7 @@ const CadastroEmpresaFamilia = () => {
         email: data.email,
         password: data.password,
         options: {
-          emailRedirectTo: window.location.origin + "/email-confirmado",
+          emailRedirectTo: dashboardRedirectUrl,
           data: {
             full_name: data.fullName,
             role: data.role,

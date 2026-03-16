@@ -100,6 +100,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const maybeRedirectByAuthType = (authType: string, currentSession: Session | null) => {
       if (!currentSession || typeof window === "undefined") return;
       const currentPath = window.location.pathname;
+      const isDashboardPath = currentPath === "/dashboard" || currentPath.startsWith("/dashboard/");
       const shouldUseSignupFallback =
         authType !== "recovery" &&
         authType !== "signup" &&
@@ -110,7 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      if ((authType === "signup" || shouldUseSignupFallback) && currentPath !== "/email-confirmado") {
+      if ((authType === "signup" || shouldUseSignupFallback) && currentPath !== "/email-confirmado" && !isDashboardPath) {
         markEmailConfirmedGuideSeen(currentSession.user?.id);
         navigate("/email-confirmado", { replace: true });
       }

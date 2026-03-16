@@ -45,10 +45,10 @@
 
 ### 1.1 Autenticacao e Acesso
 - [ ] P0-01 Cadastro (profissional, familia, empresa)
-  - Profissional:
+  - Profissional: OK
     - Desktop: OK
     - Mobile: OK
-  - Familia:
+  - Familia: OK
     - Desktop: OK
     - Mobile: OK
   - Empresa:
@@ -59,35 +59,35 @@
   - Responsavel:
   - Observacoes:
 
-- [ ] P0-02 Login, logout e expiracao de sessao
-  - Profissional:
-    - Desktop:
-    - Mobile:
-  - Familia:
-    - Desktop:
-    - Mobile:
-  - Empresa:
-    - Desktop:
-    - Mobile:
+- [OK] P0-02 Login, logout e expiracao de sessao
+  - Profissional: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Familia: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Empresa: OK
+    - Desktop: OK
+    - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
 - [ ] P0-03 Recuperacao de senha (envio, link, redefinicao)
-  - Profissional:
-    - Desktop:
-    - Mobile:
-  - Familia:
-    - Desktop:
-    - Mobile:
-  - Empresa:
-    - Desktop:
-    - Mobile:
+  - Profissional: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Familia: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Empresa: OK
+    - Desktop: OK
+    - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:
-  - Observacoes:
+  - Observacoes: FALTA TESTAR OS LINKS MÁGICOS
 
 - [ ] P0-04 Rotas protegidas e rota admin bloqueada para nao-admin
   - Desktop:

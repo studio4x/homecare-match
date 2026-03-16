@@ -68,6 +68,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
   const [showResetSentModal, setShowResetSentModal] = useState(false);
 
   const navigate = useNavigate();
+  const dashboardRedirectUrl = `${window.location.origin}/dashboard`;
 
   const {
     register,
@@ -124,7 +125,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         type: "signup",
         email: normalizedEmail,
         options: {
-          emailRedirectTo: window.location.origin + "/email-confirmado",
+          emailRedirectTo: dashboardRedirectUrl,
         },
       });
 
@@ -207,7 +208,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           email: data.email,
           password: data.password!,
           options: {
-            emailRedirectTo: window.location.origin + "/email-confirmado",
+            emailRedirectTo: dashboardRedirectUrl,
             data: {
               full_name: data.fullName,
               coupon_code: data.couponCode?.trim().toUpperCase() || null
@@ -308,7 +309,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
             email: data.email,
             options: {
               shouldCreateUser: false,
-              emailRedirectTo: window.location.origin + "/dashboard",
+              emailRedirectTo: dashboardRedirectUrl,
             },
           });
 

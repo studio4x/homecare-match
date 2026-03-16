@@ -46,13 +46,13 @@
 ### 1.1 Autenticacao e Acesso
 - [ ] P0-01 Cadastro (profissional, familia, empresa)
   - Profissional:
-    - Desktop:
-    - Mobile:
+    - Desktop: OK
+    - Mobile: OK
   - Familia:
-    - Desktop:
+    - Desktop: OK
     - Mobile:
   - Empresa:
-    - Desktop:
+    - Desktop: OK
     - Mobile:
   - Evidencia:
   - Data/Hora:

@@ -255,8 +255,8 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-none shadow-2xl">
-        <div className="flex flex-col h-full">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] p-0 overflow-hidden border-none shadow-2xl">
+        <div className="flex max-h-[90vh] min-h-0 flex-col">
           <div className="flex h-1.5 w-full bg-secondary">
             {steps.map((_, i) => (
               <div 
@@ -269,7 +269,7 @@ const OnboardingModal = ({ open, onOpenChange, forceShow = false, role = 'profes
             ))}
           </div>
 
-          <div className="p-8 space-y-6">
+          <div className="flex-1 min-h-0 overflow-y-auto p-8 space-y-6">
             <div className="text-center space-y-2">
               <DialogTitle className="text-2xl font-bold">{step.title}</DialogTitle>
               <DialogDescription className="text-base">

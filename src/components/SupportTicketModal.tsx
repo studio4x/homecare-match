@@ -191,9 +191,9 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden border-none shadow-2xl">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] p-0 overflow-hidden border-none shadow-2xl">
         {step === "choice" ? (
-          <div className="p-8 space-y-6">
+          <div className="max-h-[90vh] overflow-y-auto p-8 space-y-6">
             <div className="text-center space-y-2">
               <div className="mx-auto h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                 <HelpCircle className="h-6 w-6 text-primary" />
@@ -250,8 +250,8 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <DialogHeader className="p-6 bg-secondary/10 border-b">
+          <form onSubmit={handleSubmit} className="flex max-h-[90vh] flex-col">
+            <DialogHeader className="shrink-0 p-6 bg-secondary/10 border-b">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                   <MessageSquarePlus className="h-5 w-5 text-white" />
@@ -263,7 +263,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
               </div>
             </DialogHeader>
 
-            <div className="p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="space-y-1.5">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Assunto</Label>
                 <Input 
@@ -341,7 +341,7 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
               </div>
             </div>
 
-            <DialogFooter className="p-6 bg-secondary/5 border-t gap-2 sm:gap-0">
+            <DialogFooter className="shrink-0 p-6 bg-secondary/5 border-t gap-2 sm:gap-0">
               <Button type="button" variant="ghost" onClick={() => initialStep === "choice" ? setStep("choice") : onOpenChange(false)} className="hover:text-foreground">
                 Voltar
               </Button>

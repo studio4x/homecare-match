@@ -3,6 +3,11 @@
 import { useState, useEffect, useMemo } from "react";
 import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteConfig } from "@/hooks/use-site-config";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { resolveLandingVideoAssets } from "@/lib/landing-video";
+import { resolveVideoOrientation } from "@/lib/video-utils";
+import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { 
   Accordion, 
   AccordionContent, 
@@ -29,12 +34,112 @@ import { cn } from "@/lib/utils";
 import SupportTicketModal from "@/components/SupportTicketModal";
 
 const Support = () => {
+  const { data: siteConfig } = useSiteConfig();
+  const isMobile = useIsMobile();
   const { session } = useAuth();
   const [faqs, setFaqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const registrationTutorials = useMemo(() => {
+    const entries = [
+      {
+        key: "professional",
+        title: "Tutorial de Cadastro: Profissionais",
+        desktopUrl: String(siteConfig?.video_url_how_it_works_professionals || "").trim(),
+        mobileUrl: String(siteConfig?.video_url_how_it_works_professionals_mobile || "").trim(),
+        storagePath: siteConfig?.video_storage_path_how_it_works_professionals,
+        orientation: siteConfig?.video_orientation_how_it_works_professionals,
+      },
+      {
+        key: "company",
+        title: "Tutorial de Cadastro: Empresas",
+        desktopUrl: String(siteConfig?.video_url_how_it_works_companies || "").trim(),
+        mobileUrl: String(siteConfig?.video_url_how_it_works_companies_mobile || "").trim(),
+        storagePath: siteConfig?.video_storage_path_how_it_works_companies,
+        orientation: siteConfig?.video_orientation_how_it_works_companies,
+      },
+      {
+        key: "family",
+        title: "Tutorial de Cadastro: Familias",
+        desktopUrl: String(siteConfig?.video_url_how_it_works_families || "").trim(),
+        mobileUrl: String(siteConfig?.video_url_how_it_works_families_mobile || "").trim(),
+        storagePath: siteConfig?.video_storage_path_how_it_works_families,
+        orientation: siteConfig?.video_orientation_how_it_works_families,
+      },
+    ];
+
+    return entries.map((entry) => {
+      const useMobileUrl = isMobile && entry.mobileUrl.length > 0;
+      const assets = resolveLandingVideoAssets(
+        useMobileUrl ? null : entry.storagePath,
+        useMobileUrl ? entry.mobileUrl : entry.desktopUrl,
+      );
+      const isVerticalOnMobile =
+        isMobile && resolveVideoOrientation(assets.videoUrl, entry.orientation) === "vertical";
+
+      return {
+        ...entry,
+        videoUrl: assets.videoUrl,
+        posterUrl: assets.posterUrl,
+        isVerticalOnMobile,
+      };
+    });
+  }, [isMobile, siteConfig]);
+
+  const registrationFaqQuestion = "Como realizar o cadastro na plataforma e validar meu e-mail?";
+
+  const registrationFaq = useMemo(
+    () => ({
+      id: "faq-cadastro-validacao-email",
+      question: registrationFaqQuestion,
+      answer:
+        "Confira o tutorial correspondente ao seu perfil para concluir cadastro e validacao de e-mail.",
+      category: "Cadastro e Acesso",
+      customContent: (
+        <div className="space-y-6">
+          <p>
+            Escolha o tutorial do seu perfil e siga o passo a passo de cadastro e validacao de e-mail:
+          </p>
+          <div className="space-y-6">
+            {registrationTutorials.map((video) => (
+              <div key={video.key} className="rounded-xl border border-primary/10 bg-secondary/20 p-4">
+                <h4 className="font-semibold text-foreground">{video.title}</h4>
+                {video.videoUrl ? (
+                  <div
+                    className={`mt-3 overflow-hidden rounded-xl border border-border/50 bg-black ${
+                      video.isVerticalOnMobile ? "max-w-[360px] aspect-[9/16]" : "aspect-video"
+                    }`}
+                  >
+                    <LandingVideoPlayer
+                      url={video.videoUrl}
+                      title={video.title}
+                      deferLoad={true}
+                      posterUrl={video.posterUrl}
+                    />
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Video ainda nao configurado para este perfil.
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    }),
+    [registrationTutorials],
+  );
+
+  const faqItems = useMemo(() => {
+    const hasRegistrationFaq = faqs.some(
+      (faq) => String(faq?.question || "").trim().toLowerCase() === registrationFaqQuestion.toLowerCase(),
+    );
+    return hasRegistrationFaq ? faqs : [registrationFaq, ...faqs];
+  }, [faqs, registrationFaq]);
 
   useEffect(() => {
     fetchFaqs();
@@ -62,19 +167,22 @@ const Support = () => {
   };
 
   const categories = useMemo(() => {
-    const set = new Set(faqs.map(f => f.category || "Geral"));
+    const set = new Set(faqItems.map((f) => f.category || "Geral"));
     return Array.from(set).sort();
-  }, [faqs]);
+  }, [faqItems]);
 
   const filteredFaqs = useMemo(() => {
+    const source = faqItems;
+    const normalizedSearch = search.toLowerCase();
+
     if (search.trim()) {
-      return faqs.filter(f => 
-        f.question.toLowerCase().includes(search.toLowerCase()) || 
-        f.answer.toLowerCase().includes(search.toLowerCase())
+      return source.filter((f) => 
+        String(f.question || "").toLowerCase().includes(normalizedSearch) || 
+        String(f.answer || "").toLowerCase().includes(normalizedSearch)
       );
     }
-    return faqs.filter(f => (f.category || "Geral") === activeCategory);
-  }, [faqs, search, activeCategory]);
+    return source.filter((f) => (f.category || "Geral") === activeCategory);
+  }, [faqItems, search, activeCategory]);
 
   return (
     <Layout>
@@ -167,9 +275,13 @@ const Support = () => {
                         {faq.question}
                       </AccordionTrigger>
                       <AccordionContent className="text-muted-foreground pb-6 leading-relaxed text-base">
-                        <div className="prose prose-slate max-w-none">
-                          {faq.answer}
-                        </div>
+                        {faq.customContent ? (
+                          faq.customContent
+                        ) : (
+                          <div className="prose prose-slate max-w-none">
+                            {faq.answer}
+                          </div>
+                        )}
                       </AccordionContent>
                     </AccordionItem>
                   ))}

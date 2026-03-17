@@ -74,7 +74,7 @@
   - Responsavel:
   - Observacoes:
 
-- [ ] P0-03 Recuperacao de senha (envio, link, redefinicao)
+- [OK] P0-03 Recuperacao de senha (envio, link, redefinicao)
   - Profissional: OK
     - Desktop: OK
     - Mobile: OK
@@ -87,96 +87,96 @@
   - Evidencia:
   - Data/Hora:
   - Responsavel:
-  - Observacoes: FALTA TESTAR OS LINKS MÁGICOS
+  - Observacoes: 
 
-- [ ] P0-04 Rotas protegidas e rota admin bloqueada para nao-admin
-  - Desktop:
-  - Mobile:
+- [OK] P0-04 Rotas protegidas e rota admin bloqueada para nao-admin
+  - Desktop: OK
+  - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
 ### 1.2 Pagamentos, Assinaturas e Webhooks
-- [ ] P0-05 Contratacao plano mensal e reflexo no dashboard
-  - Profissional:
-    - Desktop:
-    - Mobile:
-  - Familia:
-    - Desktop:
-    - Mobile:
-  - Empresa:
-    - Desktop:
-    - Mobile:
+- [OK] P0-05 Contratacao plano mensal e reflexo no dashboard
+  - Profissional: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Familia: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Empresa: OK
+    - Desktop: OK
+    - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
-- [ ] P0-06 Contratacao plano anual e reflexo no dashboard
-  - Profissional:
-    - Desktop:
-    - Mobile:
-  - Familia:
-    - Desktop:
-    - Mobile:
-  - Empresa:
-    - Desktop:
-    - Mobile:
+- [OK] P0-06 Contratacao plano anual e reflexo no dashboard
+  - Profissional: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Familia: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Empresa: OK
+    - Desktop: OK
+    - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
-- [ ] P0-07 Cancelamento atualiza status corretamente
-  - Profissional:
-    - Desktop:
-    - Mobile:
-  - Familia:
-    - Desktop:
-    - Mobile:
-  - Empresa:
-    - Desktop:
-    - Mobile:
+- [OK] P0-07 Cancelamento atualiza status corretamente
+  - Profissional: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Familia: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Empresa: OK
+    - Desktop: OK
+    - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
-- [ ] P0-08 Expiracao atualiza status corretamente (obrigatorio)
-  - Profissional:
-    - Desktop:
-    - Mobile:
-  - Familia:
-    - Desktop:
-    - Mobile:
-  - Empresa:
-    - Desktop:
-    - Mobile:
+- [OK] P0-08 Expiracao atualiza status corretamente (obrigatorio)
+  - Profissional: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Familia: OK
+    - Desktop: OK
+    - Mobile: OK
+  - Empresa: OK
+    - Desktop: OK
+    - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
-- [ ] P0-09 Conciliacao Asaas: valor, status e datas
-  - Desktop:
-  - Mobile:
+- [OK] P0-09 Conciliacao Asaas: valor, status e datas
+  - Desktop: OK
+  - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
-- [ ] P0-10 Webhook Asaas com idempotencia (evento duplicado nao duplica efeito)
-  - Desktop:
-  - Mobile:
+- [OK] P0-10 Webhook Asaas com idempotencia (evento duplicado nao duplica efeito)
+  - Desktop: OK
+  - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:
   - Observacoes:
 
-- [ ] P0-11 Webhook Asaas fora de ordem (estado final correto)
-  - Desktop:
-  - Mobile:
+- [OK] P0-11 Webhook Asaas fora de ordem (estado final correto)
+  - Desktop: OK
+  - Mobile: OK
   - Evidencia:
   - Data/Hora:
   - Responsavel:

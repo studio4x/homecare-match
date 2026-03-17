@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,8 +37,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Edit2, Trash2, Tag, FolderOpen, Pencil, BookOpenText, Wand2 } from "lucide-react";
+import { Loader2, Plus, Edit2, Trash2, Tag, FolderOpen, Pencil, BookOpenText, Wand2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const csvToArray = (value: string) =>
   String(value || "")
@@ -284,6 +288,69 @@ const normalizeGuideText = (value: unknown) =>
     .replace(/\s+/g, " ")
     .trim();
 
+type SortableFaqRowProps = {
+  faq: any;
+  onEditFaq: (faq: any) => void;
+  onDeleteFaq: (id: string) => void;
+  disableActions?: boolean;
+};
+
+const SortableFaqRow = ({ faq, onEditFaq, onDeleteFaq, disableActions = false }: SortableFaqRowProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: faq.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <TableRow
+      ref={setNodeRef}
+      style={style}
+      className={cn(isDragging && "bg-primary/5", disableActions && "opacity-70")}
+    >
+      <TableCell>
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border text-muted-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+          title="Arrastar para reordenar"
+          disabled={disableActions}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      </TableCell>
+      <TableCell className="font-mono text-xs text-muted-foreground">{faq.position}</TableCell>
+      <TableCell className="max-w-md truncate font-medium">{faq.question}</TableCell>
+      <TableCell>
+        <Badge
+          variant={faq.is_published ? "default" : "outline"}
+          className={faq.is_published ? "bg-success hover:bg-success" : ""}
+        >
+          {faq.is_published ? "Publicado" : "Rascunho"}
+        </Badge>
+      </TableCell>
+      <TableCell className="flex justify-end gap-1 text-right">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditFaq(faq)} disabled={disableActions}>
+          <Edit2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+          onClick={() => onDeleteFaq(faq.id)}
+          disabled={disableActions}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+};
+
 const FaqAdminPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("faqs");
@@ -311,6 +378,15 @@ const FaqAdminPage = () => {
   const [isSavingGuide, setIsSavingGuide] = useState(false);
   const [isGeneratingMissingGuides, setIsGeneratingMissingGuides] = useState(false);
   const [guideModuleFilter, setGuideModuleFilter] = useState("all");
+  const [orderingCategory, setOrderingCategory] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+  );
 
   const defaultFaqCategory = useMemo(() => {
     const categorySet = new Set<string>();
@@ -388,6 +464,9 @@ const FaqAdminPage = () => {
       const category = faq.category || "Geral";
       if (!groups[category]) groups[category] = [];
       groups[category].push(faq);
+    }
+    for (const key of Object.keys(groups)) {
+      groups[key].sort((a, b) => Number(a?.position || 0) - Number(b?.position || 0));
     }
     return groups;
   }, [faqs]);
@@ -593,6 +672,66 @@ const FaqAdminPage = () => {
     }
   };
 
+  const handleFaqDragEnd = async (category: string, event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const categoryFaqs = groupedFaqs[category] || [];
+    const oldIndex = categoryFaqs.findIndex((faq) => faq.id === active.id);
+    const newIndex = categoryFaqs.findIndex((faq) => faq.id === over.id);
+
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reordered = arrayMove(categoryFaqs, oldIndex, newIndex);
+    const sortedPositions = [...categoryFaqs]
+      .map((faq) => Number(faq?.position || 0))
+      .sort((a, b) => a - b);
+
+    const positionMap = new Map<string, number>();
+    reordered.forEach((faq, index) => {
+      const fallback = sortedPositions.length > 0 ? sortedPositions[0] + index : index;
+      positionMap.set(faq.id, sortedPositions[index] ?? fallback);
+    });
+
+    const updates = reordered
+      .map((faq) => ({
+        id: faq.id,
+        position: positionMap.get(faq.id) ?? Number(faq?.position || 0),
+      }))
+      .filter((row) => {
+        const current = categoryFaqs.find((faq) => faq.id === row.id);
+        return Number(current?.position || 0) !== row.position;
+      });
+
+    if (updates.length === 0) return;
+
+    setOrderingCategory(category);
+    setFaqs((prev) =>
+      prev.map((faq) =>
+        positionMap.has(faq.id) ? { ...faq, position: positionMap.get(faq.id) } : faq,
+      ),
+    );
+
+    try {
+      const results = await Promise.all(
+        updates.map((row) =>
+          supabase.from("support_faqs").update({ position: row.position }).eq("id", row.id),
+        ),
+      );
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw failed.error;
+
+      toast.success("Ordem da categoria atualizada.");
+      await fetchKnowledgeBase(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao salvar ordenacao da categoria.");
+      await fetchKnowledgeBase(true);
+    } finally {
+      setOrderingCategory(null);
+    }
+  };
+
   const handleRenameCategory = async () => {
     if (!newCategoryName.trim() || newCategoryName === categoryToRename) {
       setRenameDialogOpen(false);
@@ -765,41 +904,35 @@ const FaqAdminPage = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-[56px]">Ordem</TableHead>
                           <TableHead className="w-[40px]">Pos.</TableHead>
                           <TableHead>Pergunta</TableHead>
                           <TableHead className="w-[120px]">Status</TableHead>
                           <TableHead className="w-[100px] text-right">Acoes</TableHead>
                         </TableRow>
                       </TableHeader>
-                      <TableBody>
-                        {groupedFaqs[category].map((faq) => (
-                          <TableRow key={faq.id}>
-                            <TableCell className="font-mono text-xs text-muted-foreground">{faq.position}</TableCell>
-                            <TableCell className="max-w-md truncate font-medium">{faq.question}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={faq.is_published ? "default" : "outline"}
-                                className={faq.is_published ? "bg-success hover:bg-success" : ""}
-                              >
-                                {faq.is_published ? "Publicado" : "Rascunho"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="flex justify-end gap-1 text-right">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditFaq(faq)}>
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                onClick={() => handleDeleteFaq(faq.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={(event) => handleFaqDragEnd(category, event)}
+                      >
+                        <SortableContext
+                          items={groupedFaqs[category].map((faq) => faq.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <TableBody>
+                            {groupedFaqs[category].map((faq) => (
+                              <SortableFaqRow
+                                key={faq.id}
+                                faq={faq}
+                                onEditFaq={handleEditFaq}
+                                onDeleteFaq={handleDeleteFaq}
+                                disableActions={orderingCategory === category}
+                              />
+                            ))}
+                          </TableBody>
+                        </SortableContext>
+                      </DndContext>
                     </Table>
                   </div>
                 </CardContent>

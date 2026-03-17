@@ -184,7 +184,7 @@
 
 ### 1.3 Busca, Visibilidade e Contato
 - [ ] P0-12 Profissional sem plano ativo nao aparece na busca
-  - Desktop:
+  - Desktop: 
   - Mobile:
   - Evidencia:
   - Data/Hora:

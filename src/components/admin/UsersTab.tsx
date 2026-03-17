@@ -114,13 +114,14 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   };
 
   const getTierLabel = (tier?: string | null) => {
-    if (!tier) return "Nenhum plano definido";
+    if (!tier) return "Sem plano";
 
     switch (tier.toLowerCase()) {
       case 'monthly': return 'Plano Mensal';
       case 'yearly': return 'Plano Anual';
       case 'annual': return 'Plano Anual';
       case 'free_trial': return 'Teste Grátis (Sistema)';
+      case 'no_plan': return 'Sem plano';
       default: return tier;
     }
   };
@@ -150,19 +151,23 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   };
 
   const handleUpdatePlan = async (profileId: string, newPlan: string) => {
-    if (newPlan === "no_plan") return;
-
     setIsUpdatingPlan(profileId);
     try {
-      const now = new Date();
-      const updateData: any = { subscription_tier: newPlan };
+      const updateData: any = {
+        coupon_days: null,
+        cancel_at_period_end: false,
+      };
 
-      const durationDays = getPlanDurationDays(newPlan);
-      updateData.subscription_end_at = addDays(now, durationDays).toISOString();
-      updateData.coupon_days = null;
-      updateData.cancel_at_period_end = false;
-      if (newPlan === "free_trial") {
-        updateData.trial_started_at = now.toISOString();
+      if (newPlan === "no_plan") {
+        updateData.subscription_tier = null;
+        updateData.subscription_end_at = null;
+        updateData.trial_started_at = null;
+      } else {
+        const now = new Date();
+        updateData.subscription_tier = newPlan;
+        const durationDays = getPlanDurationDays(newPlan);
+        updateData.subscription_end_at = addDays(now, durationDays).toISOString();
+        updateData.trial_started_at = newPlan === "free_trial" ? now.toISOString() : null;
       }
 
       const { error } = await supabase
@@ -170,7 +175,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
         .update(updateData)
         .eq("id", profileId);
       if (error) throw error;
-      toast.success("Plano atualizado com sucesso!");
+      toast.success(newPlan === "no_plan" ? "Plano removido com sucesso!" : "Plano atualizado com sucesso!");
       refetchData();
     } catch (err: any) {
       toast.error("Erro ao atualizar plano.");
@@ -651,7 +656,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                                 </SelectValue>
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="no_plan" disabled>Nenhum plano definido</SelectItem>
+                                <SelectItem value="no_plan">Sem plano</SelectItem>
                                 {plans.map(plan => (
                                   <SelectItem key={plan.id} value={plan.id}>
                                     {u.coupon_days && plan.id === 'monthly' ? "Plano Mensal (Via Cupom)" : getTierLabel(plan.id)}

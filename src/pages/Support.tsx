@@ -135,11 +135,25 @@ const Support = () => {
   );
 
   const faqItems = useMemo(() => {
-    const hasRegistrationFaq = faqs.some(
-      (faq) => String(faq?.question || "").trim().toLowerCase() === registrationFaqQuestion.toLowerCase(),
+    const normalizedQuestion = registrationFaqQuestion.trim().toLowerCase();
+    const source = faqs.map((faq) => {
+      const isRegistrationFaq =
+        String(faq?.question || "").trim().toLowerCase() === normalizedQuestion;
+      if (!isRegistrationFaq) return faq;
+
+      return {
+        ...faq,
+        category: faq?.category || "Cadastro e Acesso",
+        customContent: registrationFaq.customContent,
+      };
+    });
+
+    const hasRegistrationFaq = source.some(
+      (faq) => String(faq?.question || "").trim().toLowerCase() === normalizedQuestion,
     );
-    return hasRegistrationFaq ? faqs : [registrationFaq, ...faqs];
-  }, [faqs, registrationFaq]);
+
+    return hasRegistrationFaq ? source : [registrationFaq, ...source];
+  }, [faqs, registrationFaq, registrationFaqQuestion]);
 
   useEffect(() => {
     fetchFaqs();

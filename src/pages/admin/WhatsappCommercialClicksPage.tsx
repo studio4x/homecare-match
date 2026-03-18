@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,8 @@ type WhatsAppCommercialClickRow = {
   whatsapp_number: string | null;
 };
 
+const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
+
 const formatDateInput = (date: Date) => {
   const pad = (value: number) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -56,6 +58,38 @@ const getErrorMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const getHostname = (value?: string | null) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    return new URL(raw).hostname;
+  } catch {
+    try {
+      return new URL(`https://${raw}`).hostname;
+    } catch {
+      return "";
+    }
+  }
+};
+
+const getUtmEntries = (value?: string | null) => {
+  const raw = String(value || "").trim();
+  if (!raw) return [] as Array<{ key: string; value: string }>;
+
+  try {
+    const url = new URL(raw);
+    const entries: Array<{ key: string; value: string }> = [];
+    UTM_KEYS.forEach((key) => {
+      const candidate = url.searchParams.get(key);
+      if (candidate) entries.push({ key, value: candidate });
+    });
+    return entries;
+  } catch {
+    return [] as Array<{ key: string; value: string }>;
+  }
+};
+
 const WhatsappCommercialClicksPage = () => {
   const defaultTo = formatDateInput(new Date());
   const defaultFromDate = new Date();
@@ -68,6 +102,7 @@ const WhatsappCommercialClicksPage = () => {
   const [fromDate, setFromDate] = useState(defaultFrom);
   const [toDate, setToDate] = useState(defaultTo);
   const [placementFilter, setPlacementFilter] = useState<string>("all");
+  const [referrerDomainFilter, setReferrerDomainFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
 
   const fetchData = async () => {
@@ -110,23 +145,37 @@ const WhatsappCommercialClicksPage = () => {
     return Array.from(values).sort();
   }, [items]);
 
+  const referrerDomainOptions = useMemo(() => {
+    const values = new Set<string>();
+    items.forEach((item) => {
+      const host = getHostname(item.referrer);
+      if (host) values.add(host);
+    });
+    return Array.from(values).sort();
+  }, [items]);
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const matchesPlacement = placementFilter === "all" || item.placement_id === placementFilter;
+      const referrerHost = getHostname(item.referrer);
+      const matchesReferrer = referrerDomainFilter === "all" || referrerHost === referrerDomainFilter;
+
       const combinedText = [
         item.origin_tag,
         item.placement_id,
         item.button_label || "",
         item.page_path || "",
         item.page_url || "",
+        item.referrer || "",
         item.whatsapp_number || "",
       ]
         .join(" ")
         .toLowerCase();
       const matchesSearch = !searchTerm || combinedText.includes(searchTerm.toLowerCase());
-      return matchesPlacement && matchesSearch;
+
+      return matchesPlacement && matchesReferrer && matchesSearch;
     });
-  }, [items, placementFilter, searchTerm]);
+  }, [items, placementFilter, referrerDomainFilter, searchTerm]);
 
   const summary = useMemo(() => {
     const tags = new Set<string>();
@@ -163,7 +212,7 @@ const WhatsappCommercialClicksPage = () => {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Cliques WhatsApp Comercial</h1>
         <p className="text-muted-foreground">
-          Registro de todos os cliques dos botões com tag de origem.
+          Registro de todos os cliques dos botoes com tag de origem.
         </p>
       </div>
 
@@ -176,19 +225,19 @@ const WhatsappCommercialClicksPage = () => {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Tags únicas</p>
+            <p className="text-xs text-muted-foreground">Tags unicas</p>
             <p className="text-2xl font-bold">{summary.tags}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Posições (placement)</p>
+            <p className="text-xs text-muted-foreground">Posicoes (placement)</p>
             <p className="text-2xl font-bold">{summary.placements}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Páginas de origem</p>
+            <p className="text-xs text-muted-foreground">Paginas de origem</p>
             <p className="text-2xl font-bold">{summary.pages}</p>
           </CardContent>
         </Card>
@@ -196,7 +245,7 @@ const WhatsappCommercialClicksPage = () => {
 
       <Card>
         <CardContent className="space-y-4 p-4">
-          <div className="grid gap-3 lg:grid-cols-5">
+          <div className="grid gap-3 lg:grid-cols-6">
             <div>
               <label className="text-xs text-muted-foreground">Data inicial</label>
               <Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} />
@@ -221,10 +270,26 @@ const WhatsappCommercialClicksPage = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Dominio de referencia</label>
+              <Select value={referrerDomainFilter} onValueChange={setReferrerDomainFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {referrerDomainOptions.map((domain) => (
+                    <SelectItem key={domain} value={domain}>
+                      {domain}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="lg:col-span-2">
               <label className="text-xs text-muted-foreground">Busca</label>
               <Input
-                placeholder="Tag, placement, página ou número"
+                placeholder="Tag, placement, pagina, referencia ou numero"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
@@ -281,45 +346,79 @@ const WhatsappCommercialClicksPage = () => {
                   <TableHead>Data/Hora</TableHead>
                   <TableHead>Tag</TableHead>
                   <TableHead>Placement</TableHead>
-                  <TableHead>Página</TableHead>
-                  <TableHead>Botão</TableHead>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Usuário</TableHead>
+                  <TableHead>Pagina</TableHead>
+                  <TableHead>Referencia</TableHead>
+                  <TableHead>UTM</TableHead>
+                  <TableHead>Botao</TableHead>
+                  <TableHead>Numero</TableHead>
+                  <TableHead>Usuario</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="whitespace-nowrap text-xs">
-                      {new Date(item.created_at).toLocaleString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="max-w-[220px]">
-                      <p className="truncate text-xs font-medium">{item.origin_tag}</p>
-                    </TableCell>
-                    <TableCell className="text-xs">{item.placement_id}</TableCell>
-                    <TableCell className="max-w-[280px]">
-                      {item.page_url ? (
-                        <a
-                          href={item.page_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="truncate text-xs text-primary hover:underline"
-                        >
-                          {item.page_path || item.page_url}
-                        </a>
-                      ) : (
-                        <p className="truncate text-xs">{item.page_path || "-"}</p>
-                      )}
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <p className="truncate text-xs">{item.button_label || "-"}</p>
-                    </TableCell>
-                    <TableCell className="text-xs">{item.whatsapp_number || "-"}</TableCell>
-                    <TableCell className="text-xs">
-                      {item.user_id ? `${item.user_id.slice(0, 8)}...` : "anon"}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredItems.map((item) => {
+                  const utmEntries = getUtmEntries(item.page_url);
+                  const refHost = getHostname(item.referrer);
+
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="whitespace-nowrap text-xs">
+                        {new Date(item.created_at).toLocaleString("pt-BR")}
+                      </TableCell>
+                      <TableCell className="max-w-[220px]">
+                        <p className="truncate text-xs font-medium">{item.origin_tag}</p>
+                      </TableCell>
+                      <TableCell className="text-xs">{item.placement_id}</TableCell>
+                      <TableCell className="max-w-[240px]">
+                        {item.page_url ? (
+                          <a
+                            href={item.page_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="truncate text-xs text-primary hover:underline"
+                          >
+                            {item.page_path || item.page_url}
+                          </a>
+                        ) : (
+                          <p className="truncate text-xs">{item.page_path || "-"}</p>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[220px]">
+                        {item.referrer ? (
+                          <a
+                            href={item.referrer}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="truncate text-xs text-primary hover:underline"
+                          >
+                            {refHost || item.referrer}
+                          </a>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">-</p>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[260px]">
+                        {utmEntries.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {utmEntries.map((entry) => (
+                              <Badge key={`${item.id}-${entry.key}`} variant="outline" className="max-w-[240px] truncate text-[10px]">
+                                {entry.key.replace("utm_", "")}: {entry.value}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">-</p>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[180px]">
+                        <p className="truncate text-xs">{item.button_label || "-"}</p>
+                      </TableCell>
+                      <TableCell className="text-xs">{item.whatsapp_number || "-"}</TableCell>
+                      <TableCell className="text-xs">
+                        {item.user_id ? `${item.user_id.slice(0, 8)}...` : "anon"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

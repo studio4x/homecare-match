@@ -370,18 +370,16 @@ const WhatsappCommercialClicksPage = () => {
               Nenhum clique encontrado para os filtros selecionados.
             </div>
           ) : (
-            <Table className="table-fixed min-w-[1550px]">
+            <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[140px]">Data/Hora</TableHead>
-                  <TableHead className="w-[190px]">Tag</TableHead>
-                  <TableHead className="w-[160px]">Placement</TableHead>
-                  <TableHead className="w-[220px]">Pagina</TableHead>
-                  <TableHead className="w-[220px]">Referencia</TableHead>
-                  <TableHead className="w-[280px]">UTM</TableHead>
-                  <TableHead className="w-[190px]">Botao</TableHead>
-                  <TableHead className="w-[140px]">Numero</TableHead>
-                  <TableHead className="w-[120px]">Usuario</TableHead>
+                  <TableHead className="w-[120px] px-2">Data/Hora</TableHead>
+                  <TableHead className="w-[180px] px-2">Origem</TableHead>
+                  <TableHead className="w-[260px] px-2">Pagina + Referencia</TableHead>
+                  <TableHead className="w-[240px] px-2">UTM</TableHead>
+                  <TableHead className="w-[140px] px-2">Botao</TableHead>
+                  <TableHead className="w-[120px] px-2">Numero</TableHead>
+                  <TableHead className="w-[100px] px-2">Usuario</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -394,20 +392,18 @@ const WhatsappCommercialClicksPage = () => {
 
                   return (
                     <TableRow key={item.id}>
-                      <TableCell className="align-top whitespace-nowrap text-xs">
+                      <TableCell className="align-top whitespace-nowrap px-2 py-2 text-xs">
                         {new Date(item.created_at).toLocaleString("pt-BR")}
                       </TableCell>
-                      <TableCell className="align-top">
+                      <TableCell className="align-top px-2 py-2">
                         <p className="truncate text-xs font-medium" title={item.origin_tag}>
                           {item.origin_tag}
                         </p>
-                      </TableCell>
-                      <TableCell className="align-top text-xs">
-                        <p className="truncate" title={item.placement_id}>
+                        <p className="mt-1 truncate text-[10px] text-muted-foreground" title={item.placement_id}>
                           {item.placement_id}
                         </p>
                       </TableCell>
-                      <TableCell className="align-top">
+                      <TableCell className="align-top px-2 py-2">
                         {item.page_url ? (
                           <a
                             href={item.page_url}
@@ -426,26 +422,24 @@ const WhatsappCommercialClicksPage = () => {
                         <p className="mt-1 truncate text-[10px] text-muted-foreground" title={pageHost || "-"}>
                           {pageHost || "-"}
                         </p>
-                      </TableCell>
-                      <TableCell className="align-top">
                         {item.referrer ? (
                           <a
                             href={item.referrer}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="block truncate text-xs text-primary hover:underline"
+                            className="mt-2 block truncate text-xs text-primary hover:underline"
                             title={item.referrer}
                           >
                             {referrerLabel}
                           </a>
                         ) : (
-                          <p className="text-xs text-muted-foreground">-</p>
+                          <p className="mt-2 text-xs text-muted-foreground">-</p>
                         )}
                         <p className="mt-1 truncate text-[10px] text-muted-foreground" title={refHost || "-"}>
                           {refHost || "-"}
                         </p>
                       </TableCell>
-                      <TableCell className="align-top">
+                      <TableCell className="align-top px-2 py-2">
                         {utmEntries.length > 0 ? (
                           <div className="space-y-1">
                             {utmEntries.map((entry) => (
@@ -463,17 +457,17 @@ const WhatsappCommercialClicksPage = () => {
                           <p className="text-xs text-muted-foreground">-</p>
                         )}
                       </TableCell>
-                      <TableCell className="align-top">
+                      <TableCell className="align-top px-2 py-2">
                         <p className="truncate text-xs" title={item.button_label || "-"}>
                           {item.button_label || "-"}
                         </p>
                       </TableCell>
-                      <TableCell className="align-top text-xs">
+                      <TableCell className="align-top px-2 py-2 text-xs">
                         <span className="block truncate" title={item.whatsapp_number || "-"}>
                           {item.whatsapp_number || "-"}
                         </span>
                       </TableCell>
-                      <TableCell className="align-top text-xs">
+                      <TableCell className="align-top px-2 py-2 text-xs">
                         {item.user_id ? `${item.user_id.slice(0, 8)}...` : "anon"}
                       </TableCell>
                     </TableRow>

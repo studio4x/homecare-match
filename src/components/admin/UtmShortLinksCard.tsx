@@ -26,6 +26,7 @@ import {
   Trash2,
   ExternalLink,
   BarChart3,
+  RotateCcw,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -269,6 +270,7 @@ const UtmShortLinksCard = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [resettingLinkId, setResettingLinkId] = useState<string | null>(null);
   const [links, setLinks] = useState<MarketingShortLink[]>([]);
   const [events, setEvents] = useState<MarketingShortLinkEvent[]>([]);
   const [periodDays, setPeriodDays] = useState<(typeof PERIOD_OPTIONS)[number]>(30);
@@ -604,6 +606,42 @@ const UtmShortLinksCard = () => {
     }
   };
 
+  const handleResetCounts = async (row: MarketingShortLink) => {
+    const confirmed = window.confirm(
+      `Deseja resetar as contagens do link "${row.name}" (${row.slug})?\n\nEssa acao zera cliques/cadastros e limpa o historico desse link.`,
+    );
+    if (!confirmed) return;
+
+    setResettingLinkId(row.id);
+    try {
+      const [updateResult, eventsResult, signupsResult] = await Promise.all([
+        supabase
+          .from("marketing_short_links")
+          .update({
+            click_count: 0,
+            signup_count: 0,
+            last_clicked_at: null,
+            last_signup_at: null,
+          })
+          .eq("id", row.id),
+        supabase.from("marketing_short_link_events").delete().eq("short_link_id", row.id),
+        supabase.from("marketing_short_link_signups").delete().eq("short_link_id", row.id),
+      ]);
+
+      if (updateResult.error) throw updateResult.error;
+      if (eventsResult.error) throw eventsResult.error;
+      if (signupsResult.error) throw signupsResult.error;
+
+      toast.success("Contagens resetadas com sucesso.");
+      await Promise.all([loadLinks(), loadEvents(periodDays)]);
+    } catch (error) {
+      console.error("[UtmShortLinksCard] reset counts error:", error);
+      toast.error("Nao foi possivel resetar as contagens desse link.");
+    } finally {
+      setResettingLinkId(null);
+    }
+  };
+
   const renderPeriodActions = () => (
     <div className="flex flex-wrap gap-2">
       {PERIOD_OPTIONS.map((days) => (
@@ -879,6 +917,21 @@ const UtmShortLinksCard = () => {
                         </Button>
                         <Button type="button" size="sm" variant="outline" onClick={() => void handleToggleActive(row)}>
                           {row.is_active ? "Desativar" : "Ativar"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={() => void handleResetCounts(row)}
+                          disabled={resettingLinkId === row.id}
+                        >
+                          {resettingLinkId === row.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
+                          Resetar contagens
                         </Button>
                         <Button type="button" size="sm" variant="outline" className="text-destructive" onClick={() => void handleDelete(row)}>
                           <Trash2 className="h-3.5 w-3.5" />

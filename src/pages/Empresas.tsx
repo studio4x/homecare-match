@@ -29,6 +29,7 @@ import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveVideoOrientation } from "@/lib/video-utils";
+import WhatsAppContactButton from "@/components/WhatsAppContactButton";
 
 const Empresas = () => {
   const { data: config } = useSiteConfig();
@@ -179,6 +180,12 @@ const Empresas = () => {
               <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
                 <Link to="/">Sou Profissional</Link>
               </Button>
+              <WhatsAppContactButton
+                placementId="empresas_cta"
+                variant="inline-primary"
+                label="Falar com Comercial"
+                className="w-full sm:w-auto"
+              />
             </div>
           </div>
         </div>
@@ -365,17 +372,25 @@ const Empresas = () => {
             Acesse nossa base de profissionais verificados e agilize sua
             contratação sem custos ocultos.
           </p>
-          <Button
-            size="lg"
-            variant="secondary"
-            className="mt-8 w-full gap-2 sm:w-auto"
-            asChild
-          >
-            <Link to="/cadastro-empresa">
-              Comece a Buscar Agora
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Button>
+          <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Button
+              size="lg"
+              variant="secondary"
+              className="w-full gap-2 sm:w-auto"
+              asChild
+            >
+              <Link to="/cadastro-empresa">
+                Comece a Buscar Agora
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <WhatsAppContactButton
+              placementId="empresas_cta"
+              variant="inline-outline"
+              label="Falar com Comercial"
+              className="w-full border-success-foreground/50 bg-transparent text-success-foreground hover:bg-success-foreground/10 sm:w-auto"
+            />
+          </div>
         </div>
       </section>
 

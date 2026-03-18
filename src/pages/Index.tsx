@@ -38,6 +38,7 @@ import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveVideoOrientation } from "@/lib/video-utils";
+import WhatsAppContactButton from "@/components/WhatsAppContactButton";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -489,6 +490,12 @@ const Index = () => {
               <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
                 <a href="#como-funciona">Ver como funciona</a>
               </Button>
+              <WhatsAppContactButton
+                placementId="home_hero_profissional"
+                variant="inline-primary"
+                label="Falar com Comercial"
+                className="w-full sm:w-auto"
+              />
             </div>
             <p className="animate-slide-up mx-auto mt-3 max-w-2xl text-sm text-muted-foreground" style={{ animationDelay: "0.22s" }}>
               Leva menos de 3 minutos para começar.

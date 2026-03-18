@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Mail, LifeBuoy, LayoutGrid, ShieldCheck, Search, Building2, Home, UserRound, Newspaper } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import SuggestionDrawer from "../SuggestionDrawer";
+import WhatsAppContactButton from "../WhatsAppContactButton";
 
 const DEFAULT_LOGO =
   "https://storage.googleapis.com/gpt-engineer-file-uploads/pox9V5vGnmTS4zaNDTA3kg7tKs02/uploads/1770222621940-LOGOTIPO%20HOMECARTE%20MATCH%20-%20AJUSTADO.png";
@@ -41,7 +42,13 @@ const Footer = () => {
           </div>
 
           <div className="space-y-3 rounded-3xl border border-border/70 bg-background p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Suporte e contato</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Contato comercial</p>
+            <WhatsAppContactButton
+              placementId="footer_contato"
+              variant="inline-primary"
+              label="Falar com Comercial"
+              className="w-full justify-center"
+            />
             <Link to="/funcionalidades" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
               <LayoutGrid className="h-4 w-4" />
               Funcionalidades
@@ -105,7 +112,12 @@ const Footer = () => {
           </div>
 
           <div className="space-y-4">
-            <h4 className="font-semibold text-foreground">Suporte e Contato</h4>
+            <h4 className="font-semibold text-foreground">Contato Comercial</h4>
+            <WhatsAppContactButton
+              placementId="footer_contato"
+              variant="inline-primary"
+              label="Falar com Comercial"
+            />
             <ul className="space-y-3">
               <li>
                 <Link to="/blog" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
@@ -158,4 +170,3 @@ const Footer = () => {
 };
 
 export default Footer;
-

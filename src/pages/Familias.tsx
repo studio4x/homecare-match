@@ -26,6 +26,7 @@ import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveVideoOrientation } from "@/lib/video-utils";
+import WhatsAppContactButton from "@/components/WhatsAppContactButton";
 
 const Familias = () => {
   const { data: config } = useSiteConfig();
@@ -156,6 +157,12 @@ const Familias = () => {
               <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
                 <Link to="/buscar">Ver Profissionais</Link>
               </Button>
+              <WhatsAppContactButton
+                placementId="familias_cta"
+                variant="inline-primary"
+                label="Falar com Comercial"
+                className="w-full sm:w-auto"
+              />
             </div>
           </div>
         </div>
@@ -343,6 +350,12 @@ const Familias = () => {
             >
               <Link to="/cadastro-empresa">Criar Conta Grátis</Link>
             </Button>
+            <WhatsAppContactButton
+              placementId="familias_cta"
+              variant="inline-outline"
+              label="Falar com Comercial"
+              className="w-full border-white/50 bg-transparent text-white hover:bg-white/10 sm:w-auto"
+            />
           </div>
         </div>
       </section>

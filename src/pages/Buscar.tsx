@@ -31,6 +31,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { Link, Navigate } from "react-router-dom";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import AccessRestricted from "@/components/AccessRestricted";
+import WhatsAppContactButton from "@/components/WhatsAppContactButton";
 import { subDays } from "date-fns";
 import { calculateDistance } from "@/lib/geo-utils";
 import { cn } from "@/lib/utils";
@@ -654,6 +655,21 @@ const Buscar = () => {
               <ShieldCheck className="h-3 w-3 text-success" />
               <span className="leading-none">Perfil Verificado</span>
             </div>
+          </div>
+        </div>
+
+        <div className="mobile-fade-up mb-6 rounded-2xl border border-success/20 bg-success/5 p-4 md:mb-8 md:p-5">
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+            <div>
+              <p className="text-sm font-semibold text-foreground">Precisa de ajuda para encontrar o perfil ideal?</p>
+              <p className="text-sm text-muted-foreground">Fale com o comercial e receba apoio na busca.</p>
+            </div>
+            <WhatsAppContactButton
+              placementId="buscar_top"
+              variant="inline-primary"
+              label="Falar com Comercial"
+              className="w-full sm:w-auto"
+            />
           </div>
         </div>
 

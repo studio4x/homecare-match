@@ -14,6 +14,7 @@ import ScrollToTopButton from "../ScrollToTopButton";
 import PushManager from "../PushManager";
 import PwaInstallPrompt from "../PwaInstallPrompt";
 import SupportChatWidget from "../SupportChatWidget";
+import WhatsAppContactButton from "../WhatsAppContactButton";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -79,6 +80,11 @@ const Layout = ({ children }: LayoutProps) => {
 
       <Footer />
       <SupportChatWidget context="public" />
+      <WhatsAppContactButton
+        placementId="global_float"
+        variant="floating"
+        label="Falar no WhatsApp"
+      />
       <ScrollToTopButton />
       <AppVersion />
 

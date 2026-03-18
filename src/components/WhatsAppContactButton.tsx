@@ -1,4 +1,4 @@
-import { MessageCircle } from "lucide-react";
+﻿import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { cn } from "@/lib/utils";
@@ -21,17 +21,17 @@ type WhatsAppContactButtonProps = {
 
 const PLACEMENT_MESSAGES: Record<WhatsAppPlacementId, string> = {
   global_float:
-    "Olá! Vim pelo site da HomeCare Match e quero falar com o time comercial para entender como funciona. [origem=global_float]",
+    "Ola! Vim pelo site da HomeCare Match e quero falar com o time comercial para entender como funciona.",
   home_hero_profissional:
-    "Olá! Sou profissional e quero entender os planos e como aumentar minha visibilidade na HomeCare Match. [origem=home_hero_profissional]",
+    "Ola! Sou profissional e quero entender os planos e como aumentar minha visibilidade na HomeCare Match.",
   empresas_cta:
-    "Olá! Sou de uma empresa de Home Care e quero ajuda para encontrar profissionais pela plataforma. [origem=empresas_cta]",
+    "Ola! Sou de uma empresa de Home Care e quero ajuda para encontrar profissionais pela plataforma.",
   familias_cta:
-    "Olá! Sou familiar e quero ajuda para encontrar um profissional de saúde para atendimento domiciliar. [origem=familias_cta]",
+    "Ola! Sou familiar e quero ajuda para encontrar um profissional de saude para atendimento domiciliar.",
   buscar_top:
-    "Olá! Estou na busca de profissionais e quero apoio comercial para encontrar o perfil ideal. [origem=buscar_top]",
+    "Ola! Estou na busca de profissionais e quero apoio comercial para encontrar o perfil ideal.",
   footer_contato:
-    "Olá! Quero falar com o time comercial da HomeCare Match. [origem=footer_contato]",
+    "Ola! Quero falar com o time comercial da HomeCare Match.",
 };
 
 const normalizePhone = (value?: string | null) => String(value || "").replace(/\D/g, "");

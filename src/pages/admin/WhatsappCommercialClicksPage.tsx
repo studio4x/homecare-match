@@ -14,6 +14,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -21,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AlertCircle, Loader2, MessageCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, Loader2, MessageCircle, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type WhatsAppCommercialClickRow = {
@@ -134,6 +144,8 @@ const WhatsappCommercialClicksPage = () => {
   const [placementFilter, setPlacementFilter] = useState<string>("all");
   const [referrerDomainFilter, setReferrerDomainFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -237,6 +249,31 @@ const WhatsappCommercialClicksPage = () => {
       .slice(0, 8);
   }, [filteredItems]);
 
+  const handleClearAll = async () => {
+    setIsClearing(true);
+    setError(null);
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("whatsapp_commercial_clicks")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (deleteError) throw deleteError;
+
+      toast.success("Historico de cliques removido.");
+      setItems([]);
+      setClearDialogOpen(false);
+    } catch (clearError: unknown) {
+      const message = getErrorMessage(clearError, "Falha ao limpar o historico de cliques.");
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsClearing(false);
+      await fetchData();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -326,8 +363,17 @@ const WhatsappCommercialClicksPage = () => {
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <Button onClick={fetchData} disabled={loading}>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              className="text-destructive hover:bg-destructive/10"
+              onClick={() => setClearDialogOpen(true)}
+              disabled={loading || isClearing || items.length === 0}
+            >
+              {isClearing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              Excluir historico
+            </Button>
+            <Button onClick={fetchData} disabled={loading || isClearing}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Atualizar
             </Button>
@@ -478,6 +524,34 @@ const WhatsappCommercialClicksPage = () => {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir historico de cliques?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acao remove todos os registros de cliques do WhatsApp comercial.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isClearing}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearAll}
+              disabled={isClearing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isClearing ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Excluindo...
+                </span>
+              ) : (
+                "Sim, excluir tudo"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

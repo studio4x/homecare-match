@@ -2,6 +2,7 @@ import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 type WhatsAppPlacementId =
   | "global_float"
@@ -56,6 +57,30 @@ const WhatsAppContactButton = ({
   const href = buildWaUrl(phone, message);
   const isFloating = variant === "floating";
   const buttonVariant = variant === "inline-outline" ? "outline" : "success";
+  const originTag = `[origem=${placementId}]`;
+
+  const handleTrackClick = () => {
+    if (typeof window === "undefined") return;
+
+    const pagePath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const pageUrl = window.location.href;
+    const referrer = document.referrer || null;
+    const userAgent = navigator.userAgent || null;
+
+    void supabase
+      .rpc("track_whatsapp_commercial_click", {
+        p_placement_id: placementId,
+        p_origin_tag: originTag,
+        p_button_label: finalLabel,
+        p_page_path: pagePath,
+        p_page_url: pageUrl,
+        p_referrer: referrer,
+        p_user_agent: userAgent,
+        p_whatsapp_number: phone,
+      })
+      .then(() => undefined)
+      .catch(() => undefined);
+  };
 
   const buttonNode = (
     <Button
@@ -70,7 +95,13 @@ const WhatsAppContactButton = ({
         className,
       )}
     >
-      <a href={href} target="_blank" rel="noopener noreferrer" aria-label={finalLabel}>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={finalLabel}
+        onClick={handleTrackClick}
+      >
         <MessageCircle className="h-4 w-4" />
         {finalLabel}
       </a>

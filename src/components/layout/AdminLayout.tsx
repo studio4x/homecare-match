@@ -34,7 +34,8 @@ import {
   Smartphone,
   Newspaper,
   Bot,
-  Link2
+  Link2,
+  MousePointerClick
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -164,6 +165,7 @@ const AdminLayout = () => {
     { href: "/admin/auditoria", label: "Auditoria", icon: Activity },
     { href: "/admin/marketing", label: "Marketing", icon: BarChart },
     { href: "/admin/utm-links", label: "UTM + Links Curtos", icon: Link2 },
+    { href: "/admin/cliques-whatsapp", label: "Cliques WhatsApp", icon: MousePointerClick },
     { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
   ];
 

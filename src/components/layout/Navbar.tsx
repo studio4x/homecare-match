@@ -23,7 +23,6 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteConfig } from "@/hooks/use-site-config";
-import { optimizeSupabasePublicImageUrl } from "@/lib/image-optimization";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,11 +90,6 @@ const Navbar = () => {
   const canSeeSearch = !session || (session && profile && profile.role !== "professional" && !isAdmin);
 
   const logoUrl = config?.logo_url || DEFAULT_LOGO;
-  const optimizedLogoUrl = optimizeSupabasePublicImageUrl(logoUrl, {
-    width: 320,
-    quality: 70,
-    format: "webp",
-  });
   const logoHeight = config?.logo_height_px || 48;
   const dashboardPath = isAdmin ? "/admin" : "/dashboard";
 
@@ -148,11 +142,8 @@ const Navbar = () => {
         <div className="flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
             <img
-              src={optimizedLogoUrl || logoUrl}
+              src={logoUrl}
               alt="HomeCare Match"
-              loading="eager"
-              fetchPriority="high"
-              decoding="async"
               style={{ height: `${logoHeight}px`, width: "auto" }}
               className="max-h-10 object-contain md:max-h-none"
             />

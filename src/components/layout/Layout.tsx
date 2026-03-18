@@ -1,4 +1,4 @@
-import { ReactNode, lazy, Suspense, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Home, Search, LayoutGrid, UserRound, LayoutDashboard } from "lucide-react";
 import Navbar from "./Navbar";
@@ -7,16 +7,15 @@ import Footer from "./Footer";
 import AppVersion from "./AppVersion";
 import FaviconUpdater from "./FaviconUpdater";
 import ScrollToTop from "../ScrollToTop";
+import MarketingScripts from "../MarketingScripts";
+import SuggestionDrawer from "../SuggestionDrawer";
+import CookieConsent from "../CookieConsent";
 import ScrollToTopButton from "../ScrollToTopButton";
+import PushManager from "../PushManager";
+import PwaInstallPrompt from "../PwaInstallPrompt";
+import SupportChatWidget from "../SupportChatWidget";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
-
-const MarketingScripts = lazy(() => import("../MarketingScripts"));
-const SuggestionDrawer = lazy(() => import("../SuggestionDrawer"));
-const CookieConsent = lazy(() => import("../CookieConsent"));
-const PushManager = lazy(() => import("../PushManager"));
-const PwaInstallPrompt = lazy(() => import("../PwaInstallPrompt"));
-const SupportChatWidget = lazy(() => import("../SupportChatWidget"));
 
 interface LayoutProps {
   children: ReactNode;
@@ -26,7 +25,6 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const { session, user } = useAuth();
   const [profileRole, setProfileRole] = useState<string | null>(null);
-  const [showDeferredWidgets, setShowDeferredWidgets] = useState(false);
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -46,42 +44,6 @@ const Layout = ({ children }: LayoutProps) => {
 
     fetchRole();
   }, [user]);
-
-  useEffect(() => {
-    let timer: number | null = null;
-
-    const enableDeferredWidgets = () => {
-      if ("requestIdleCallback" in window) {
-        const win = window as Window & {
-          requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
-        };
-        timer = win.requestIdleCallback?.(() => setShowDeferredWidgets(true), { timeout: 3000 }) ?? null;
-        if (timer !== null) return;
-      }
-
-      timer = window.setTimeout(() => setShowDeferredWidgets(true), 1800);
-    };
-
-    if (document.readyState === "complete") {
-      enableDeferredWidgets();
-    } else {
-      const onLoad = () => enableDeferredWidgets();
-      window.addEventListener("load", onLoad, { once: true });
-      return () => {
-        window.removeEventListener("load", onLoad);
-      };
-    }
-
-    return () => {
-      if (timer === null) return;
-      if ("cancelIdleCallback" in window) {
-        const win = window as Window & { cancelIdleCallback?: (id: number) => void };
-        win.cancelIdleCallback?.(timer);
-      } else {
-        window.clearTimeout(timer);
-      }
-    };
-  }, []);
 
   const isTabActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -107,24 +69,16 @@ const Layout = ({ children }: LayoutProps) => {
       <ScrollToTop />
       <Navbar />
       <ImpersonationBar />
-      {showDeferredWidgets ? (
-        <Suspense fallback={null}>
-          <MarketingScripts />
-          <SuggestionDrawer autoPromptEnabled />
-          <CookieConsent />
-          <PushManager />
-          <PwaInstallPrompt />
-        </Suspense>
-      ) : null}
+      <MarketingScripts />
+      <SuggestionDrawer autoPromptEnabled />
+      <CookieConsent />
+      <PushManager />
+      <PwaInstallPrompt />
 
       <main className="flex-1 py-6 pb-24 md:py-12 md:pb-12">{children}</main>
 
       <Footer />
-      {showDeferredWidgets ? (
-        <Suspense fallback={null}>
-          <SupportChatWidget context="public" />
-        </Suspense>
-      ) : null}
+      <SupportChatWidget context="public" />
       <ScrollToTopButton />
       <AppVersion />
 

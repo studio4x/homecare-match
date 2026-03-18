@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { Mail, LifeBuoy, LayoutGrid, ShieldCheck, Search, Building2, Home, UserRound, Newspaper } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
-import { optimizeSupabasePublicImageUrl } from "@/lib/image-optimization";
 import SuggestionDrawer from "../SuggestionDrawer";
 
 const DEFAULT_LOGO =
@@ -11,11 +10,6 @@ const Footer = () => {
   const { data: config } = useSiteConfig();
 
   const logoUrl = config?.footer_logo_url || config?.logo_url || DEFAULT_LOGO;
-  const optimizedLogoUrl = optimizeSupabasePublicImageUrl(logoUrl, {
-    width: 260,
-    quality: 70,
-    format: "webp",
-  });
   const logoHeight = config?.footer_logo_height_px || 48;
 
   const quickLinks = [
@@ -72,10 +66,8 @@ const Footer = () => {
           <div className="col-span-2 flex flex-col items-center space-y-4 text-center lg:col-span-1 lg:items-start lg:text-left">
             <Link to="/" className="flex w-full items-center justify-center gap-2 lg:justify-start">
               <img
-                src={optimizedLogoUrl || logoUrl}
+                src={logoUrl}
                 alt="HomeCare Match"
-                loading="lazy"
-                decoding="async"
                 style={{ height: `${logoHeight}px`, width: "auto" }}
                 className="object-contain"
               />

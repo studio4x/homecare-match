@@ -320,34 +320,30 @@
 - Em itens P1 que envolvam mais de um perfil, preencher separado por `Profissional`, `Familia` e `Empresa`.
 
 ### 2.1 UX e Responsividade
-- [OK] P1-01 Dashboard profissional sem quebra
-- [OK] P1-02 Dashboard empresa sem quebra
-- [OK] P1-03 Dashboard familia sem quebra
-- [OK] P1-04 Modais/safe-area/menu inferior OK
+- [ ] P1-01 Dashboard profissional sem quebra
+- [ ] P1-02 Dashboard empresa sem quebra
+- [ ] P1-03 Dashboard familia sem quebra
+- [ ] P1-04 Modais/safe-area/menu inferior OK
 
 ### 2.2 Funcionalidades complementares
-- [OK] P1-05 Upload avatar e documento
-- [OK] P1-06 Cursos e progresso (quando aplicavel)
-- [OK] P1-07 Certificado (quando aplicavel)
-- [OK] P1-08 Suporte: abertura + resposta + notificacao email/whatsapp
-- [OK] P1-09 Config admin reflete no frontend
+- [ ] P1-05 Upload avatar e documento
+- [ ] P1-06 Cursos e progresso (quando aplicavel)
+- [ ] P1-07 Certificado (quando aplicavel)
+- [ ] P1-08 Suporte: abertura + resposta + notificacao email/whatsapp
+- [ ] P1-09 Config admin reflete no frontend
 
 ### 2.3 Canais e comunicacao
-- [OK] P1-10 Notificacoes de painel (widget/admin) funcionando
-- [OK] P1-11 Push prompt e permissao sem sobreposicao indevida
-- [OK] P1-12 WhatsApp historico de testes no admin consistente com fila
+- [ ] P1-10 Notificacoes de painel (widget/admin) funcionando
+- [ ] P1-11 Push prompt e permissao sem sobreposicao indevida
+- [ ] P1-12 WhatsApp historico de testes no admin consistente com fila
 
 ### 2.4 Performance e carga
-- [OK] P1-13 Carga leve em fluxos criticos (login, busca, contato, checkout)
-- [OK] P1-14 Tempo de resposta aceitavel no horario de pico
+- [ ] P1-13 Carga leve em fluxos criticos (login, busca, contato, checkout)
+- [ ] P1-14 Tempo de resposta aceitavel no horario de pico
 
 ### 2.5 Observabilidade
-- [OK] P1-15 Monitoramento de erros frontend/edge ativo
-  - Evidencia: `qa-evidencias/p1-15-p1-16-observability-20260317.json` (probe `notify-contact` retornou `200` e gerou logs `widget/email` em `notification_delivery_logs`; monitor de entregas em `admin/notificacoes` consome `notification_delivery_logs` + `whatsapp_notification_queue`; teste limpo ao final).
-  - Observacoes: Monitoramento operacional para erros de entregas/edge de notificacoes. Nao foi encontrado SDK dedicado de rastreio global de erro de frontend (Sentry/Datadog/Rollbar) no bundle/app.
-- [NOK] P1-16 Alerta para falha de webhook e fila whatsapp acumulada
-  - Evidencia: `qa-evidencias/p1-15-p1-16-observability-20260317.json` (`asaas-webhook` com token invalido retornou `401`; sentinela na fila WhatsApp mudou `pending -> failed` automaticamente em segundos; nenhum alerta automatico encontrado em `admin_notifications`; cron atual contem apenas jobs de processamento, sem job dedicado de alerta de falha/acumulo).
-  - Observacoes: Existe monitoracao manual via tela `admin/notificacoes`, mas falta alerta ativo/proativo para falha de webhook e backlog de fila.
+- [ ] P1-15 Monitoramento de erros frontend/edge ativo
+- [ ] P1-16 Alerta para falha de webhook e fila whatsapp acumulada
 
 ### Resumo P1
 - Total itens P1:

@@ -73,6 +73,36 @@ const getHostname = (value?: string | null) => {
   }
 };
 
+const parseUrl = (value?: string | null) => {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  try {
+    return new URL(raw);
+  } catch {
+    try {
+      return new URL(`https://${raw}`);
+    } catch {
+      return null;
+    }
+  }
+};
+
+const getPagePathLabel = (item: WhatsAppCommercialClickRow) => {
+  const parsed = parseUrl(item.page_url);
+  if (parsed) return parsed.pathname || "/";
+  if (item.page_path) return item.page_path;
+  if (item.page_url) return item.page_url;
+  return "-";
+};
+
+const getReferrerLabel = (value?: string | null) => {
+  const parsed = parseUrl(value);
+  if (!parsed) return value || "-";
+  const path = parsed.pathname && parsed.pathname !== "/" ? parsed.pathname : "";
+  return `${parsed.hostname}${path}`;
+};
+
 const getUtmEntries = (value?: string | null) => {
   const raw = String(value || "").trim();
   if (!raw) return [] as Array<{ key: string; value: string }>;
@@ -340,80 +370,110 @@ const WhatsappCommercialClicksPage = () => {
               Nenhum clique encontrado para os filtros selecionados.
             </div>
           ) : (
-            <Table>
+            <Table className="table-fixed min-w-[1550px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Data/Hora</TableHead>
-                  <TableHead>Tag</TableHead>
-                  <TableHead>Placement</TableHead>
-                  <TableHead>Pagina</TableHead>
-                  <TableHead>Referencia</TableHead>
-                  <TableHead>UTM</TableHead>
-                  <TableHead>Botao</TableHead>
-                  <TableHead>Numero</TableHead>
-                  <TableHead>Usuario</TableHead>
+                  <TableHead className="w-[140px]">Data/Hora</TableHead>
+                  <TableHead className="w-[190px]">Tag</TableHead>
+                  <TableHead className="w-[160px]">Placement</TableHead>
+                  <TableHead className="w-[220px]">Pagina</TableHead>
+                  <TableHead className="w-[220px]">Referencia</TableHead>
+                  <TableHead className="w-[280px]">UTM</TableHead>
+                  <TableHead className="w-[190px]">Botao</TableHead>
+                  <TableHead className="w-[140px]">Numero</TableHead>
+                  <TableHead className="w-[120px]">Usuario</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredItems.map((item) => {
                   const utmEntries = getUtmEntries(item.page_url);
                   const refHost = getHostname(item.referrer);
+                  const pagePathLabel = getPagePathLabel(item);
+                  const pageHost = getHostname(item.page_url);
+                  const referrerLabel = getReferrerLabel(item.referrer);
 
                   return (
                     <TableRow key={item.id}>
-                      <TableCell className="whitespace-nowrap text-xs">
+                      <TableCell className="align-top whitespace-nowrap text-xs">
                         {new Date(item.created_at).toLocaleString("pt-BR")}
                       </TableCell>
-                      <TableCell className="max-w-[220px]">
-                        <p className="truncate text-xs font-medium">{item.origin_tag}</p>
+                      <TableCell className="align-top">
+                        <p className="truncate text-xs font-medium" title={item.origin_tag}>
+                          {item.origin_tag}
+                        </p>
                       </TableCell>
-                      <TableCell className="text-xs">{item.placement_id}</TableCell>
-                      <TableCell className="max-w-[240px]">
+                      <TableCell className="align-top text-xs">
+                        <p className="truncate" title={item.placement_id}>
+                          {item.placement_id}
+                        </p>
+                      </TableCell>
+                      <TableCell className="align-top">
                         {item.page_url ? (
                           <a
                             href={item.page_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="truncate text-xs text-primary hover:underline"
+                            className="block truncate text-xs text-primary hover:underline"
+                            title={item.page_url}
                           >
-                            {item.page_path || item.page_url}
+                            {pagePathLabel}
                           </a>
                         ) : (
-                          <p className="truncate text-xs">{item.page_path || "-"}</p>
+                          <p className="truncate text-xs" title={item.page_path || "-"}>
+                            {pagePathLabel}
+                          </p>
                         )}
+                        <p className="mt-1 truncate text-[10px] text-muted-foreground" title={pageHost || "-"}>
+                          {pageHost || "-"}
+                        </p>
                       </TableCell>
-                      <TableCell className="max-w-[220px]">
+                      <TableCell className="align-top">
                         {item.referrer ? (
                           <a
                             href={item.referrer}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="truncate text-xs text-primary hover:underline"
+                            className="block truncate text-xs text-primary hover:underline"
+                            title={item.referrer}
                           >
-                            {refHost || item.referrer}
+                            {referrerLabel}
                           </a>
                         ) : (
                           <p className="text-xs text-muted-foreground">-</p>
                         )}
+                        <p className="mt-1 truncate text-[10px] text-muted-foreground" title={refHost || "-"}>
+                          {refHost || "-"}
+                        </p>
                       </TableCell>
-                      <TableCell className="max-w-[260px]">
+                      <TableCell className="align-top">
                         {utmEntries.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
+                          <div className="space-y-1">
                             {utmEntries.map((entry) => (
-                              <Badge key={`${item.id}-${entry.key}`} variant="outline" className="max-w-[240px] truncate text-[10px]">
-                                {entry.key.replace("utm_", "")}: {entry.value}
-                              </Badge>
+                              <div
+                                key={`${item.id}-${entry.key}`}
+                                className="rounded-md border border-border/80 bg-background px-2 py-1 text-[10px] leading-tight"
+                                title={`${entry.key}: ${entry.value}`}
+                              >
+                                <span className="font-semibold">{entry.key.replace("utm_", "")}:</span>{" "}
+                                <span className="break-all">{entry.value}</span>
+                              </div>
                             ))}
                           </div>
                         ) : (
                           <p className="text-xs text-muted-foreground">-</p>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[180px]">
-                        <p className="truncate text-xs">{item.button_label || "-"}</p>
+                      <TableCell className="align-top">
+                        <p className="truncate text-xs" title={item.button_label || "-"}>
+                          {item.button_label || "-"}
+                        </p>
                       </TableCell>
-                      <TableCell className="text-xs">{item.whatsapp_number || "-"}</TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="align-top text-xs">
+                        <span className="block truncate" title={item.whatsapp_number || "-"}>
+                          {item.whatsapp_number || "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="align-top text-xs">
                         {item.user_id ? `${item.user_id.slice(0, 8)}...` : "anon"}
                       </TableCell>
                     </TableRow>

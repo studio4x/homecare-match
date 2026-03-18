@@ -18,9 +18,11 @@ import {
 import {
   Loader2,
   Copy,
+  CopyPlus,
   Plus,
   Link as LinkIcon,
   Wand2,
+  Pencil,
   Trash2,
   ExternalLink,
   BarChart3,
@@ -76,6 +78,7 @@ type LinkForm = {
 const DEFAULT_BASE_URL = "https://www.homecarematch.com.br";
 const PERIOD_OPTIONS = [7, 30, 90] as const;
 const CHART_DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" });
+const UTM_PARAM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"] as const;
 
 const RESERVED_SLUGS = new Set([
   "admin",
@@ -129,6 +132,72 @@ const isSlugValid = (value: string) => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
 const toOptional = (value: string) => {
   const trimmed = String(value || "").trim();
   return trimmed.length > 0 ? trimmed : null;
+};
+
+const stripUtmFromUrl = (rawUrl: string) => {
+  try {
+    const parsed = new URL(rawUrl);
+    for (const key of UTM_PARAM_KEYS) {
+      parsed.searchParams.delete(key);
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+};
+
+const resolveDestinationPath = (targetUrl: string, baseUrl: string) => {
+  const parsed = stripUtmFromUrl(targetUrl);
+  if (!parsed) return targetUrl;
+
+  const normalizedBase = normalizeBaseUrl(baseUrl);
+  try {
+    const base = new URL(normalizedBase);
+    if (parsed.origin === base.origin) {
+      const query = parsed.searchParams.toString();
+      return `${parsed.pathname}${query ? `?${query}` : ""}${parsed.hash || ""}`;
+    }
+  } catch {
+    // ignore base parse fallback
+  }
+
+  return parsed.toString();
+};
+
+const buildDuplicatedSlug = (seedSlug: string, existingLinks: MarketingShortLink[]) => {
+  const baseSeed = normalizeSlug(seedSlug) || "link";
+  const used = new Set(existingLinks.map((row) => normalizeSlug(row.slug)));
+  const makeCandidate = (suffixIndex: number) => {
+    const suffix = suffixIndex === 1 ? "-copia" : `-copia-${suffixIndex}`;
+    return normalizeSlug(`${baseSeed}${suffix}`);
+  };
+
+  let attempt = 1;
+  let candidate = makeCandidate(attempt);
+  while (!candidate || used.has(candidate) || RESERVED_SLUGS.has(candidate)) {
+    attempt += 1;
+    candidate = makeCandidate(attempt);
+  }
+  return candidate;
+};
+
+const normalizeHost = (value: string) => String(value || "").trim().toLowerCase().replace(/^www\./, "");
+
+const pointsToOwnSlug = (targetUrl: string, slug: string, baseUrl: string) => {
+  try {
+    const base = new URL(normalizeBaseUrl(baseUrl));
+    const resolvedTarget = new URL(targetUrl, base.origin);
+
+    if (normalizeHost(base.hostname) !== normalizeHost(resolvedTarget.hostname)) {
+      return false;
+    }
+
+    const cleanedPath = String(resolvedTarget.pathname || "").replace(/^\/+|\/+$/g, "");
+    if (!cleanedPath || cleanedPath.includes("/")) return false;
+    return normalizeSlug(cleanedPath) === slug;
+  } catch {
+    return false;
+  }
 };
 
 const truncateMiddle = (value: string, max = 90) => {
@@ -204,6 +273,7 @@ const UtmShortLinksCard = () => {
   const [events, setEvents] = useState<MarketingShortLinkEvent[]>([]);
   const [periodDays, setPeriodDays] = useState<(typeof PERIOD_OPTIONS)[number]>(30);
   const [selectedChartLinkId, setSelectedChartLinkId] = useState<string>("");
+  const [editingLinkId, setEditingLinkId] = useState<string | null>(null);
   const [form, setForm] = useState<LinkForm>({
     name: "",
     baseUrl: DEFAULT_BASE_URL,
@@ -365,7 +435,58 @@ const UtmShortLinksCard = () => {
     setForm((prev) => ({ ...prev, slug: generated }));
   };
 
-  const handleCreate = async () => {
+  const resetForm = () => {
+    setEditingLinkId(null);
+    setForm((prev) => ({
+      ...prev,
+      name: "",
+      destinationPath: "/",
+      utmSource: "",
+      utmMedium: "",
+      utmCampaign: "",
+      utmTerm: "",
+      utmContent: "",
+      slug: "",
+    }));
+  };
+
+  const hydrateFormFromLink = (row: MarketingShortLink, nextSlug?: string) => {
+    setForm((prev) => ({
+      ...prev,
+      name: row.name,
+      destinationPath: resolveDestinationPath(row.target_url, prev.baseUrl),
+      utmSource: String(row.utm_source || ""),
+      utmMedium: String(row.utm_medium || ""),
+      utmCampaign: String(row.utm_campaign || ""),
+      utmTerm: String(row.utm_term || ""),
+      utmContent: String(row.utm_content || ""),
+      slug: nextSlug || row.slug,
+    }));
+  };
+
+  const handleEdit = (row: MarketingShortLink) => {
+    setEditingLinkId(row.id);
+    hydrateFormFromLink(row);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    toast.success(`Editando link: ${row.name}`);
+  };
+
+  const handleDuplicate = (row: MarketingShortLink) => {
+    const nextSlug = buildDuplicatedSlug(row.slug, links);
+    setEditingLinkId(null);
+    hydrateFormFromLink(
+      { ...row, name: `${row.name} (Copia)` },
+      nextSlug,
+    );
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    toast.success("Formulario preenchido para duplicacao.");
+  };
+
+  const handleSaveLink = async () => {
     const name = String(form.name || "").trim();
     const slug = normalizeSlug(form.slug);
     const targetUrl = buildTrackedUrl(form);
@@ -386,6 +507,16 @@ const UtmShortLinksCard = () => {
       toast.error("Destino invalido. Informe um caminho ou URL valido.");
       return;
     }
+    if (pointsToOwnSlug(targetUrl, slug, form.baseUrl)) {
+      toast.error("Destino invalido: este link curto aponta para ele mesmo e geraria loop.");
+      return;
+    }
+
+    const rowBeingEdited = editingLinkId ? links.find((row) => row.id === editingLinkId) || null : null;
+    if (editingLinkId && !rowBeingEdited) {
+      toast.error("Link original nao encontrado para edicao.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -398,11 +529,28 @@ const UtmShortLinksCard = () => {
         utm_campaign: toOptional(form.utmCampaign),
         utm_term: toOptional(form.utmTerm),
         utm_content: toOptional(form.utmContent),
-        is_active: true,
-        created_by: user?.id || null,
       };
 
-      const { error } = await supabase.from("marketing_short_links").insert(payload);
+      let error: { message?: string } | null = null;
+      if (editingLinkId) {
+        const updatePayload = {
+          ...payload,
+        };
+        const response = await supabase
+          .from("marketing_short_links")
+          .update(updatePayload)
+          .eq("id", editingLinkId);
+        error = response.error;
+      } else {
+        const createPayload = {
+          ...payload,
+          is_active: true,
+          created_by: user?.id || null,
+        };
+        const response = await supabase.from("marketing_short_links").insert(createPayload);
+        error = response.error;
+      }
+
       if (error) {
         if (String(error.message || "").toLowerCase().includes("duplicate")) {
           toast.error("Este slug ja existe. Escolha outro.");
@@ -411,22 +559,12 @@ const UtmShortLinksCard = () => {
         throw error;
       }
 
-      toast.success("Link curto criado com sucesso.");
-      setForm((prev) => ({
-        ...prev,
-        name: "",
-        destinationPath: "/",
-        utmSource: "",
-        utmMedium: "",
-        utmCampaign: "",
-        utmTerm: "",
-        utmContent: "",
-        slug: "",
-      }));
+      toast.success(editingLinkId ? "Link curto atualizado com sucesso." : "Link curto criado com sucesso.");
+      resetForm();
       await Promise.all([loadLinks(), loadEvents(periodDays)]);
     } catch (error: any) {
-      console.error("[UtmShortLinksCard] create error:", error);
-      toast.error(error?.message || "Nao foi possivel criar o link curto.");
+      console.error("[UtmShortLinksCard] save error:", error);
+      toast.error(error?.message || "Nao foi possivel salvar o link curto.");
     } finally {
       setSaving(false);
     }
@@ -571,6 +709,11 @@ const UtmShortLinksCard = () => {
         </div>
 
         <div className="space-y-3 rounded-lg border p-4">
+          {editingLinkId ? (
+            <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-sm">
+              Modo edicao ativo. Altere os campos e clique em <strong>Salvar Edicao</strong>.
+            </div>
+          ) : null}
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preview URL com UTM</p>
             <p className="break-all text-sm">{trackedUrlPreview || "Preencha destino e UTM para gerar a URL final."}</p>
@@ -588,10 +731,15 @@ const UtmShortLinksCard = () => {
               <Copy className="h-4 w-4" />
               Copiar Link Curto
             </Button>
-            <Button type="button" className="gap-2" onClick={handleCreate} disabled={saving}>
+            <Button type="button" className="gap-2" onClick={handleSaveLink} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Criar Link Curto
+              {editingLinkId ? "Salvar Edicao" : "Criar Link Curto"}
             </Button>
+            {editingLinkId ? (
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Cancelar Edicao
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -720,6 +868,14 @@ const UtmShortLinksCard = () => {
                         >
                           <BarChart3 className="h-3.5 w-3.5" />
                           Ver grafico
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => handleEdit(row)}>
+                          <Pencil className="h-3.5 w-3.5" />
+                          Editar
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => handleDuplicate(row)}>
+                          <CopyPlus className="h-3.5 w-3.5" />
+                          Duplicar
                         </Button>
                         <Button type="button" size="sm" variant="outline" onClick={() => void handleToggleActive(row)}>
                           {row.is_active ? "Desativar" : "Ativar"}

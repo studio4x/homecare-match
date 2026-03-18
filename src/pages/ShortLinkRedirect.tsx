@@ -17,6 +17,31 @@ const normalizeSlug = (value: string) =>
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
 
+const normalizeHost = (value: string) => String(value || "").trim().toLowerCase().replace(/^www\./, "");
+
+const isSingleSegmentSameSlugPath = (pathname: string, slug: string) => {
+  const cleanedPath = String(pathname || "").replace(/^\/+|\/+$/g, "");
+  if (!cleanedPath || cleanedPath.includes("/")) return false;
+  return normalizeSlug(cleanedPath) === slug;
+};
+
+const isRedirectLoopTarget = (targetUrl: string, slug: string) => {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const currentUrl = new URL(window.location.href);
+    const resolvedTarget = new URL(targetUrl, currentUrl.origin);
+
+    if (normalizeHost(currentUrl.hostname) !== normalizeHost(resolvedTarget.hostname)) {
+      return false;
+    }
+
+    return isSingleSegmentSameSlugPath(resolvedTarget.pathname, slug);
+  } catch {
+    return false;
+  }
+};
+
 const getOrCreateVisitorId = () => {
   if (typeof window === "undefined" || !window.localStorage) return "";
   try {
@@ -57,6 +82,11 @@ const ShortLinkRedirect = () => {
         const targetUrl = String(data?.target_url || "").trim();
         if (!targetUrl) {
           setStatus("not_found");
+          return;
+        }
+        if (isRedirectLoopTarget(targetUrl, slug)) {
+          console.warn("[ShortLinkRedirect] loop prevented for slug:", slug, "target:", targetUrl);
+          setStatus("error");
           return;
         }
 

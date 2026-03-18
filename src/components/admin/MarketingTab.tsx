@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Loader2, Copy, Download, ExternalLink, FileCode } from "lucide-react";
 import { toast } from "sonner";
-import UtmShortLinksCard from "@/components/admin/UtmShortLinksCard";
 
 interface SiteConfig {
   id: number;
@@ -282,8 +281,6 @@ const MarketingTab = () => {
           </div>
         </CardContent>
       </Card>
-
-      <UtmShortLinksCard />
     </div>
   );
 };

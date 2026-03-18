@@ -33,7 +33,8 @@ import {
   Headset,
   Smartphone,
   Newspaper,
-  Bot
+  Bot,
+  Link2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -162,6 +163,7 @@ const AdminLayout = () => {
     { href: "/admin/sugestoes", label: "Sugestões", icon: MessageSquare },
     { href: "/admin/auditoria", label: "Auditoria", icon: Activity },
     { href: "/admin/marketing", label: "Marketing", icon: BarChart },
+    { href: "/admin/utm-links", label: "UTM + Links Curtos", icon: Link2 },
     { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
   ];
 

@@ -60,6 +60,7 @@ import PlansPage from "./pages/admin/PlansPage";
 import ReferralsAdminPage from "./pages/admin/ReferralsPage";
 import CoursesAdminPage from "./pages/admin/CoursesPage";
 import MarketingPage from "./pages/admin/MarketingPage";
+import UtmShortLinksPage from "./pages/admin/UtmShortLinksPage";
 import SettingsPage from "./pages/admin/SettingsPage";
 import SuggestionsPage from "./pages/admin/SuggestionsPage";
 import CouponsPage from "./pages/admin/CouponsPage";
@@ -152,6 +153,7 @@ const App = () => (
                 <Route path="sugestoes" element={<SuggestionsPage />} />
                 <Route path="cupons" element={<CouponsPage />} />
                 <Route path="marketing" element={<MarketingPage />} />
+                <Route path="utm-links" element={<UtmShortLinksPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />
                 <Route path="suporte" element={<SupportAdminPage />} />
                 <Route path="suporte/:id" element={<TicketDetailPage />} />

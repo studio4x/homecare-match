@@ -146,7 +146,7 @@ const AffiliatesAdminPage = () => {
       const minimum = parseNumber(minimumAmount, 100);
 
       if (signup < 0 || recurring < 0 || minimum < 0) {
-        toast.error("Valores de comissao e minimo precisam ser positivos.");
+        toast.error("Valores de comissão e mínimo precisam ser positivos.");
         return;
       }
 
@@ -166,10 +166,10 @@ const AffiliatesAdminPage = () => {
       );
 
       if (error) throw error;
-      toast.success("Configuracao do programa atualizada.");
+      toast.success("Configuração do programa atualizada.");
       await refetch();
     } catch (error: any) {
-      toast.error(error?.message || "Erro ao salvar configuracoes.");
+      toast.error(error?.message || "Erro ao salvar configurações.");
     } finally {
       setIsSavingConfig(false);
     }
@@ -186,7 +186,7 @@ const AffiliatesAdminPage = () => {
       if (data?.created) {
         toast.success(`Lote criado com ${data.total_affiliates || 0} afiliado(s).`);
       } else {
-        toast.message(data?.message || "Nenhum lote elegivel neste momento.");
+        toast.message(data?.message || "Nenhum lote elegível neste momento.");
       }
       await refetch();
     } catch (error: any) {
@@ -224,7 +224,7 @@ const AffiliatesAdminPage = () => {
       if (error) throw error;
 
       toast.success(
-        `Reconciliacao concluida: cadastro ${data?.signup?.inserted || 0}, recorrente ${data?.recurring?.inserted || 0}, clawback ${data?.clawback?.inserted || 0}.`,
+        `Reconciliação concluída: cadastro ${data?.signup?.inserted || 0}, recorrente ${data?.recurring?.inserted || 0}, clawback ${data?.clawback?.inserted || 0}.`,
       );
       await refetch();
     } catch (error: any) {
@@ -261,7 +261,7 @@ const AffiliatesAdminPage = () => {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Carregando modulo de afiliados...
+        Carregando módulo de afiliados...
       </div>
     );
   }
@@ -273,7 +273,7 @@ const AffiliatesAdminPage = () => {
           <ShieldCheck className="h-7 w-7 text-primary" />
           Afiliados (Admin)
         </h1>
-        <p className="text-muted-foreground">Gestao de parceiros, comissoes, lotes de pagamento e reconciliacao.</p>
+        <p className="text-muted-foreground">Gestão de parceiros, comissões, lotes de pagamento e reconciliação.</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -286,8 +286,8 @@ const AffiliatesAdminPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Configuracoes do programa</CardTitle>
-          <CardDescription>Defina regras do v1: bonus por marcos, recorrencia, minimo e rollout.</CardDescription>
+          <CardTitle>Configurações do programa</CardTitle>
+          <CardDescription>Defina regras do v1: bônus por marcos, recorrência, mínimo e rollout.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
@@ -295,7 +295,7 @@ const AffiliatesAdminPage = () => {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">Programa habilitado</p>
-                  <p className="text-xs text-muted-foreground">Habilita atribuicao e ledger.</p>
+                  <p className="text-xs text-muted-foreground">Habilita atribuição e ledger.</p>
                 </div>
                 <Switch checked={enabled} onCheckedChange={setEnabled} />
               </div>
@@ -313,15 +313,15 @@ const AffiliatesAdminPage = () => {
 
           <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="signup_amount">Bonus por 10 cadastros (R$)</Label>
+              <Label htmlFor="signup_amount">Bônus por 10 cadastros (R$)</Label>
               <Input id="signup_amount" value={signupAmount} onChange={(e) => setSignupAmount(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="recurring_percent">Comissao recorrente (%)</Label>
+              <Label htmlFor="recurring_percent">Comissão recorrente (%)</Label>
               <Input id="recurring_percent" value={recurringPercent} onChange={(e) => setRecurringPercent(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="minimum_amount">Minimo payout (R$)</Label>
+              <Label htmlFor="minimum_amount">Mínimo payout (R$)</Label>
               <Input id="minimum_amount" value={minimumAmount} onChange={(e) => setMinimumAmount(e.target.value)} />
             </div>
           </div>
@@ -337,7 +337,7 @@ const AffiliatesAdminPage = () => {
             </Button>
             <Button onClick={handleSaveConfig} disabled={isSavingConfig || !hasConfigChanges} className="gap-2">
               {isSavingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Salvar configuracoes
+              Salvar configurações
             </Button>
           </div>
         </CardContent>
@@ -346,7 +346,7 @@ const AffiliatesAdminPage = () => {
       <Card>
         <CardHeader>
           <CardTitle>Candidaturas de afiliado</CardTitle>
-          <CardDescription>Canal publico de cadastro para afiliados dedicados (sem role profissional).</CardDescription>
+          <CardDescription>Canal público de cadastro para afiliados dedicados (sem role profissional).</CardDescription>
         </CardHeader>
         <CardContent>
           {applications.length === 0 ? (
@@ -360,7 +360,7 @@ const AffiliatesAdminPage = () => {
                     <TableHead>E-mail</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Criado em</TableHead>
-                    <TableHead className="text-right">Acoes</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -425,7 +425,7 @@ const AffiliatesAdminPage = () => {
           <DialogHeader>
             <DialogTitle>Dados da candidatura</DialogTitle>
             <DialogDescription>
-              Informacoes enviadas no formulario publico de afiliado.
+              Informações enviadas no formulário público de afiliado.
             </DialogDescription>
           </DialogHeader>
 
@@ -456,11 +456,11 @@ const AffiliatesAdminPage = () => {
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <span className="text-muted-foreground">Publico</span>
+                <span className="text-muted-foreground">Público</span>
                 <span className="col-span-2">{selectedApplication.audience || "-"}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <span className="text-muted-foreground">Experiencia</span>
+                <span className="text-muted-foreground">Experiência</span>
                 <span className="col-span-2">{selectedApplication.experience || "-"}</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -489,7 +489,7 @@ const AffiliatesAdminPage = () => {
       <Card>
         <CardHeader>
           <CardTitle>Parceiros afiliados</CardTitle>
-          <CardDescription>Visao operacional de status, atribuicoes e saldo.</CardDescription>
+          <CardDescription>Visão operacional de status, atribuições e saldo.</CardDescription>
         </CardHeader>
         <CardContent>
           {partners.length === 0 ? (
@@ -501,8 +501,8 @@ const AffiliatesAdminPage = () => {
                   <TableRow>
                     <TableHead>Parceiro</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Atribuicoes validas</TableHead>
-                    <TableHead>Saldo disponivel</TableHead>
+                    <TableHead>Atribuições válidas</TableHead>
+                    <TableHead>Saldo disponível</TableHead>
                     <TableHead>Saldo sombra</TableHead>
                     <TableHead>Acumulado</TableHead>
                     <TableHead>PIX</TableHead>
@@ -513,7 +513,7 @@ const AffiliatesAdminPage = () => {
                     <TableRow key={partner.id}>
                       <TableCell>
                         <p className="text-sm font-medium">{partner.display_name}</p>
-                        <p className="text-xs text-muted-foreground">{partner.email || "Sem email"}</p>
+                        <p className="text-xs text-muted-foreground">{partner.email || "Sem e-mail"}</p>
                       </TableCell>
                       <TableCell>
                         <Badge variant={partner.status === "active" ? "default" : "secondary"}>
@@ -528,7 +528,7 @@ const AffiliatesAdminPage = () => {
                         {partner.pix_key ? (
                           <span className="text-xs">{partner.pix_key_type || "pix"}</span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Nao informado</span>
+                          <span className="text-xs text-muted-foreground">Não informado</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -543,7 +543,7 @@ const AffiliatesAdminPage = () => {
       <Card>
         <CardHeader>
           <CardTitle>Lotes de pagamento</CardTitle>
-          <CardDescription>Aprovacao e baixa manual com trilha operacional.</CardDescription>
+          <CardDescription>Aprovação e baixa manual com trilha operacional.</CardDescription>
         </CardHeader>
         <CardContent>
           {batches.length === 0 ? (
@@ -553,14 +553,14 @@ const AffiliatesAdminPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Periodo</TableHead>
+                    <TableHead>Período</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Afiliados</TableHead>
                     <TableHead>Entradas</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Aprovado em</TableHead>
                     <TableHead>Pago em</TableHead>
-                    <TableHead className="text-right">Acao</TableHead>
+                    <TableHead className="text-right">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -570,7 +570,7 @@ const AffiliatesAdminPage = () => {
 
                     return (
                       <TableRow key={batch.id}>
-                        <TableCell>{batch.period_label || "Sem periodo"}</TableCell>
+                        <TableCell>{batch.period_label || "Sem período"}</TableCell>
                         <TableCell>
                           <Badge variant={isPaid ? "default" : "outline"}>
                             {batchStatusLabel[batch.status] || batch.status}

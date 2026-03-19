@@ -73,7 +73,7 @@ BEGIN
   VALUES (
     v_attr.affiliate_partner_id, v_tx.user_id, v_attr.id, v_tx.id, v_tx.payment_id,
     'recurring_credit', 'credit', v_amount, COALESCE(v_tx.currency, 'BRL'),
-    'Comissao recorrente por pagamento valido do indicado',
+    'Comissão recorrente por pagamento válido do indicado',
     'payment', v_event_id, v_entry_status,
     jsonb_build_object('rule', 'recurring_percent', 'percent', v_percent, 'transaction_amount', v_tx.amount, 'plan_id', v_tx.plan_id)
   )

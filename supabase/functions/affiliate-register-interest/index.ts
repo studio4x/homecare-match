@@ -37,13 +37,13 @@ const notifyAffiliateInterest = async (supabaseAdmin: any, application: any) => 
   const fullName = String(application?.full_name || "Candidato");
   const email = String(application?.email || "");
   const phone = String(application?.phone || "");
-  const audience = String(application?.audience || "Publico nao informado");
+  const audience = String(application?.audience || "Público não informado");
   const siteUrl = resolveSiteUrl();
   const detailsPath = "/admin/afiliados";
   const detailsLink = `${siteUrl}${detailsPath}`;
 
   const widgetTitle = "Nova candidatura de afiliado";
-  const widgetContent = `${fullName} enviou cadastro de interesse (${email || "sem email"}).`;
+  const widgetContent = `${fullName} enviou cadastro de interesse (${email || "sem e-mail"}).`;
 
   try {
     const { error: widgetError } = await supabaseAdmin.from("admin_notifications").insert({
@@ -99,7 +99,7 @@ const notifyAffiliateInterest = async (supabaseAdmin: any, application: any) => 
       eventType: "affiliate_interest_admin",
       templateParams: [
         String(fullName || waConfig?.var1Default || "Candidato"),
-        String(audience || waConfig?.var2Default || "Publico nao informado"),
+        String(audience || waConfig?.var2Default || "Público não informado"),
         configuredDetailsPath,
       ],
       payload: {
@@ -210,8 +210,8 @@ const notifyAffiliateInterest = async (supabaseAdmin: any, application: any) => 
             <tr><td style="padding: 6px 0;"><strong>E-mail:</strong></td><td>${escapeHtml(email || "-")}</td></tr>
             <tr><td style="padding: 6px 0;"><strong>Telefone:</strong></td><td>${escapeHtml(phone || "-")}</td></tr>
             <tr><td style="padding: 6px 0;"><strong>Cidade/Estado:</strong></td><td>${escapeHtml(location)}</td></tr>
-            <tr><td style="padding: 6px 0;"><strong>Publico:</strong></td><td>${escapeHtml(application?.audience || "-")}</td></tr>
-            <tr><td style="padding: 6px 0;"><strong>Experiencia:</strong></td><td>${escapeHtml(application?.experience || "-")}</td></tr>
+            <tr><td style="padding: 6px 0;"><strong>Público:</strong></td><td>${escapeHtml(application?.audience || "-")}</td></tr>
+            <tr><td style="padding: 6px 0;"><strong>Experiência:</strong></td><td>${escapeHtml(application?.experience || "-")}</td></tr>
             <tr><td style="padding: 6px 0;"><strong>PIX:</strong></td><td>${escapeHtml(application?.pix_key_type || "-")} / ${escapeHtml(application?.pix_key || "-")}</td></tr>
           </table>
           <div style="background: #f3f4f6; border-radius: 8px; padding: 12px; margin-bottom: 18px; white-space: pre-wrap;">
@@ -278,7 +278,7 @@ const notifyAffiliateInterest = async (supabaseAdmin: any, application: any) => 
       html: `
         <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
           <h2 style="margin: 0 0 12px; color: #2563eb;">Cadastro recebido</h2>
-          <p style="margin: 0 0 12px;">Ola, ${escapeHtml(fullName)}.</p>
+          <p style="margin: 0 0 12px;">Olá, ${escapeHtml(fullName)}.</p>
           <p style="margin: 0 0 12px;">
             Recebemos seu cadastro de interesse para o programa de afiliados da HomeCare Match.
           </p>
@@ -325,7 +325,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    if (req.method !== "POST") return jsonResponse({ error: "Metodo nao permitido" }, 405);
+    if (req.method !== "POST") return jsonResponse({ error: "Método não permitido" }, 405);
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -348,10 +348,10 @@ serve(async (req) => {
     const termsVersion = normalizeText(body?.terms_version, 50) || null;
 
     if (!fullName || !email || !phone) {
-      return jsonResponse({ error: "Nome, email e telefone sao obrigatorios." }, 400);
+      return jsonResponse({ error: "Nome, e-mail e telefone são obrigatórios." }, 400);
     }
     if (!termsAccepted || !termsVersion) {
-      return jsonResponse({ error: "Aceite do Termo e Condicoes e obrigatorio para concluir o cadastro." }, 400);
+      return jsonResponse({ error: "Aceite do Termo e Condições é obrigatório para concluir o cadastro." }, 400);
     }
 
     const { data: existingApplication } = await supabaseAdmin
@@ -368,8 +368,8 @@ serve(async (req) => {
         status: existingApplication.status,
         message:
           existingApplication.status === "approved"
-            ? "Seu cadastro de afiliado ja foi aprovado."
-            : "Ja recebemos seu cadastro. Retornaremos em breve.",
+            ? "Seu cadastro de afiliado já foi aprovado."
+            : "Já recebemos seu cadastro. Retornaremos em breve.",
       });
     }
 
@@ -384,7 +384,7 @@ serve(async (req) => {
         success: true,
         already_exists: true,
         status: existingPartner.status || "active",
-        message: "Ja existe um parceiro afiliado com este email.",
+        message: "Já existe um parceiro afiliado com este e-mail.",
       });
     }
 
@@ -397,7 +397,7 @@ serve(async (req) => {
     if (existingProfile?.id) {
       return jsonResponse(
         {
-          error: "Este email ja possui conta ativa na plataforma. O programa de afiliados e exclusivo para parceiros dedicados.",
+          error: "Este e-mail já possui conta ativa na plataforma. O programa de afiliados é exclusivo para parceiros dedicados.",
         },
         409,
       );

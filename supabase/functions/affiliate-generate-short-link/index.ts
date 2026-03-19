@@ -112,7 +112,7 @@ serve(async (req) => {
     }
 
     if (!createdLink?.id) {
-      throw new Error("Nao foi possivel gerar slug unico para o link afiliado.");
+      throw new Error("Não foi possível gerar slug único para o link de afiliado.");
     }
 
     const { error: mapError } = await supabaseAdmin.from("affiliate_short_links").insert({

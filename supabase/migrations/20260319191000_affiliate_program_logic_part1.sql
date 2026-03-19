@@ -194,7 +194,7 @@ BEGIN
   )
   VALUES (
     v_attr.affiliate_partner_id, p_referred_user_id, v_attr.id, 'signup_credit', 'credit',
-    v_amount, 'BRL', 'Comissao por cadastro completo (docs validados)',
+    v_amount, 'BRL', 'Comissão por cadastro completo (docs validados)',
     COALESCE(NULLIF(p_event_source, ''), 'profile_verification'), v_event_id, v_entry_status,
     jsonb_build_object('rule', 'signup_docs_verified', 'fixed_amount', v_amount)
   )

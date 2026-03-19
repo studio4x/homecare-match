@@ -21,7 +21,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    if (req.method !== "POST") return jsonResponse({ error: "Metodo nao permitido" }, 405);
+    if (req.method !== "POST") return jsonResponse({ error: "Método não permitido" }, 405);
 
     const body = await req.json().catch(() => ({}));
     const email = normalizeEmail(body?.email);
@@ -31,7 +31,7 @@ serve(async (req) => {
         {
           available: false,
           reason: "invalid_format",
-          message: "Digite um email valido.",
+          message: "Digite um e-mail válido.",
         },
         400,
       );
@@ -53,7 +53,7 @@ serve(async (req) => {
       return jsonResponse({
         available: false,
         reason: "profile_exists",
-        message: "Este email ja possui conta ativa na plataforma.",
+        message: "Este e-mail já possui conta ativa na plataforma.",
       });
     }
 
@@ -68,7 +68,7 @@ serve(async (req) => {
       return jsonResponse({
         available: false,
         reason: "affiliate_partner_exists",
-        message: "Ja existe parceiro afiliado com este email.",
+        message: "Já existe parceiro afiliado com este e-mail.",
       });
     }
 
@@ -87,17 +87,16 @@ serve(async (req) => {
         reason: "affiliate_application_exists",
         message:
           existingApplication.status === "approved"
-            ? "Seu cadastro de afiliado para este email ja foi aprovado."
-            : "Ja recebemos uma candidatura com este email.",
+            ? "Seu cadastro de afiliado para este e-mail já foi aprovado."
+            : "Já recebemos uma candidatura com este e-mail.",
       });
     }
 
     return jsonResponse({
       available: true,
-      message: "Email aceito para utilizacao.",
+      message: "E-mail aceito para utilização.",
     });
   } catch (error: any) {
-    return jsonResponse({ error: error?.message || "Erro ao validar email" }, 500);
+    return jsonResponse({ error: error?.message || "Erro ao validar e-mail" }, 500);
   }
 });
-

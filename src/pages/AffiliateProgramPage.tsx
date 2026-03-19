@@ -27,71 +27,71 @@ const affiliateTermsSections = [
   {
     title: "1. Objeto",
     paragraphs: [
-      "Este termo regula a participacao no Programa de Afiliados da Home Care Match para divulgacao da plataforma e captacao de novos profissionais.",
-      "A participacao no programa nao cria vinculo trabalhista, societario, de representacao comercial exclusiva ou de franquia.",
+      "Este termo regula a participação no Programa de Afiliados da Home Care Match para divulgação da plataforma e captação de novos profissionais.",
+      "A participação no programa não cria vínculo trabalhista, societário, de representação comercial exclusiva ou de franquia.",
     ],
   },
   {
     title: "2. Elegibilidade",
     paragraphs: [
-      "O cadastro de afiliado e destinado a parceiros dedicados. Contas profissionais da plataforma seguem regras proprias no sistema de indicacoes.",
-      "A Home Care Match pode aprovar, reprovar, suspender ou encerrar participacao no programa, com base em criterios operacionais, legais e antifraude.",
+      "O cadastro de afiliado é destinado a parceiros dedicados. Contas profissionais da plataforma seguem regras próprias no sistema de indicações.",
+      "A Home Care Match pode aprovar, reprovar, suspender ou encerrar participação no programa, com base em critérios operacionais, legais e antifraude.",
     ],
   },
   {
-    title: "3. Regras de atribuicao",
+    title: "3. Regras de atribuição",
     paragraphs: [
-      "A atribuicao de indicados segue regra de primeiro afiliado (first-touch) e permanece imutavel apos atribuida, conforme configuracao vigente do programa.",
-      "Nao ha retroatividade para cadastros anteriores a ativacao do modulo de afiliados.",
+      "A atribuição de indicados segue regra de primeiro afiliado (first-touch) e permanece imutável após atribuída, conforme configuração vigente do programa.",
+      "Não há retroatividade para cadastros anteriores à ativação do módulo de afiliados.",
     ],
   },
   {
-    title: "4. Comissoes e apuracao",
+    title: "4. Comissões e apuração",
     paragraphs: [
-      "No modelo atual, o afiliado recebe bonus fixo por marco de cadastros completos validados e comissao recorrente sobre pagamentos validos do indicado, conforme configuracao ativa no admin.",
-      "Valores, percentuais, gatilhos e criterios de validacao podem ser atualizados pela Home Care Match para novos ciclos de apuracao.",
+      "No modelo atual, o afiliado recebe bônus fixo por marco de cadastros completos validados e comissão recorrente sobre pagamentos válidos do indicado, conforme configuração ativa no admin.",
+      "Valores, percentuais, gatilhos e critérios de validação podem ser atualizados pela Home Care Match para novos ciclos de apuração.",
     ],
   },
   {
     title: "5. Pagamento",
     paragraphs: [
-      "O pagamento e realizado por lote manual, em ciclo mensal, observando valor minimo de saque e chave PIX valida cadastrada.",
-      "Valores podem permanecer em status de sombra, pendente, disponivel, reservado ou pago, conforme etapas operacionais do programa.",
+      "O pagamento é realizado por lote manual, em ciclo mensal, observando valor mínimo de saque e chave PIX válida cadastrada.",
+      "Valores podem permanecer em status de sombra, pendente, disponível, reservado ou pago, conforme etapas operacionais do programa.",
     ],
   },
   {
     title: "6. Estornos, cancelamentos e clawback",
     paragraphs: [
-      "Pagamentos estornados, cancelados, contestados ou invalidados podem gerar ajuste negativo no extrato do afiliado (clawback), inclusive apos creditos anteriores.",
-      "A Home Care Match pode compensar ajustes negativos em creditos futuros, observando controles de auditoria do ledger.",
+      "Pagamentos estornados, cancelados, contestados ou invalidados podem gerar ajuste negativo no extrato do afiliado (clawback), inclusive após créditos anteriores.",
+      "A Home Care Match pode compensar ajustes negativos em créditos futuros, observando controles de auditoria do ledger.",
     ],
   },
   {
     title: "7. Condutas proibidas",
     paragraphs: [
-      "E proibido auto-indicacao, fraude, uso de identidades de terceiros, spam, publicidade enganosa, promessa de resultado garantido ou uso indevido de marca.",
-      "Violacoes podem resultar em bloqueio de atribuicoes, estorno de comissoes, suspensao do parceiro e medidas legais cabiveis.",
+      "É proibido auto-indicação, fraude, uso de identidades de terceiros, spam, publicidade enganosa, promessa de resultado garantido ou uso indevido de marca.",
+      "Violações podem resultar em bloqueio de atribuições, estorno de comissões, suspensão do parceiro e medidas legais cabíveis.",
     ],
   },
   {
     title: "8. Responsabilidades do afiliado",
     paragraphs: [
-      "O afiliado e responsavel pelas informacoes enviadas no cadastro, pela manutencao de dados de pagamento atualizados e pelo cumprimento da legislacao aplicavel em suas acoes de divulgacao.",
-      "O afiliado deve manter postura etica e comunicar de forma clara que atua como parceiro de divulgacao da plataforma.",
+      "O afiliado é responsável pelas informações enviadas no cadastro, pela manutenção de dados de pagamento atualizados e pelo cumprimento da legislação aplicável em suas ações de divulgação.",
+      "O afiliado deve manter postura ética e comunicar de forma clara que atua como parceiro de divulgação da plataforma.",
     ],
   },
   {
     title: "9. Privacidade e dados",
     paragraphs: [
-      "A Home Care Match trata dados pessoais conforme legislacao aplicavel e sua politica de privacidade.",
-      "Dados de cadastro e operacao do afiliado podem ser usados para analise de risco, auditoria, prevencao a fraude, suporte e obrigacoes legais.",
+      "A Home Care Match trata dados pessoais conforme legislação aplicável e sua política de privacidade.",
+      "Dados de cadastro e operação do afiliado podem ser usados para análise de risco, auditoria, prevenção a fraude, suporte e obrigações legais.",
     ],
   },
   {
-    title: "10. Vigencia e alteracoes",
+    title: "10. Vigência e alterações",
     paragraphs: [
-      "Este termo vigora a partir do aceite e permanece valido enquanto o afiliado participar do programa.",
-      "A Home Care Match pode alterar este termo e regras do programa. Novas condicoes passam a valer na versao publicada.",
+      "Este termo vigora a partir do aceite e permanece válido enquanto o afiliado participar do programa.",
+      "A Home Care Match pode alterar este termo e regras do programa. Novas condições passam a valer na versão publicada.",
     ],
   },
 ];
@@ -128,7 +128,7 @@ const AffiliateProgramPage = () => {
 
     if (!isValidEmail(normalizedEmail)) {
       setEmailValidationStatus("invalid");
-      setEmailValidationMessage("Digite um email valido.");
+      setEmailValidationMessage("Digite um e-mail válido.");
       return;
     }
 
@@ -148,12 +148,12 @@ const AffiliateProgramPage = () => {
 
         if (data?.available === true) {
           setEmailValidationStatus("available");
-          setEmailValidationMessage(data?.message || "Email aceito para utilizacao.");
+          setEmailValidationMessage(data?.message || "E-mail aceito para utilização.");
           return;
         }
 
         setEmailValidationStatus("unavailable");
-        setEmailValidationMessage(data?.message || "Este email ja possui cadastro.");
+        setEmailValidationMessage(data?.message || "Este e-mail já possui cadastro.");
       } catch (_error) {
         if (requestId !== emailValidationRequestIdRef.current) return;
         setEmailValidationStatus("idle");
@@ -169,22 +169,22 @@ const AffiliateProgramPage = () => {
     const normalizedEmail = normalizeEmail(email);
 
     if (!isValidEmail(normalizedEmail)) {
-      toast.error("Digite um email valido.");
+      toast.error("Digite um e-mail válido.");
       return;
     }
 
     if (emailValidationStatus === "checking") {
-      toast.error("Aguarde a validacao do email antes de enviar.");
+      toast.error("Aguarde a validação do e-mail antes de enviar.");
       return;
     }
 
     if (emailValidationStatus === "unavailable") {
-      toast.error(emailValidationMessage || "Este email ja possui cadastro.");
+      toast.error(emailValidationMessage || "Este e-mail já possui cadastro.");
       return;
     }
 
     if (!acceptedTerms) {
-      toast.error("Voce precisa aceitar o Termo e Condicoes para continuar.");
+      toast.error("Você precisa aceitar o Termo e Condições para continuar.");
       return;
     }
 
@@ -238,13 +238,13 @@ const AffiliateProgramPage = () => {
         <div className="rounded-3xl border bg-gradient-to-br from-primary/10 via-background to-emerald-50 p-6 md:p-10">
           <h1 className="text-3xl md:text-4xl font-bold">Programa de Afiliados Home Care Match</h1>
           <p className="mt-3 text-muted-foreground max-w-3xl">
-            Divulgue a plataforma, traga novos profissionais e receba comissoes de acordo com o desempenho.
-            Este programa e separado do sistema de indicacoes de profissionais.
+            Divulgue a plataforma, traga novos profissionais e receba comissões de acordo com o desempenho.
+            Este programa é separado do sistema de indicações de profissionais.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Badge variant="outline">Bonus de R$ 50 a cada 10 cadastros completos</Badge>
+            <Badge variant="outline">Bônus de R$ 50 a cada 10 cadastros completos</Badge>
             <Badge variant="outline">10% recorrente enquanto ativo</Badge>
-            <Badge variant="outline">Payout mensal minimo de R$ 100</Badge>
+            <Badge variant="outline">Payout mensal mínimo de R$ 100</Badge>
           </div>
         </div>
 
@@ -254,18 +254,18 @@ const AffiliateProgramPage = () => {
               <CardTitle className="flex items-center gap-2 text-lg"><Megaphone className="h-5 w-5" /> Como funciona</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>1. Voce recebe um link curto oficial de afiliado.</p>
-              <p>2. O primeiro toque fica atribuido ao seu codigo.</p>
-              <p>3. A cada 10 cadastros completos validados, libera um bonus de R$ 50.</p>
+              <p>1. Você recebe um link curto oficial de afiliado.</p>
+              <p>2. O primeiro toque fica atribuído ao seu código.</p>
+              <p>3. A cada 10 cadastros completos validados, libera um bônus de R$ 50.</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg"><Repeat className="h-5 w-5" /> Comissao recorrente</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-lg"><Repeat className="h-5 w-5" /> Comissão recorrente</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>1. Pagamentos validos do profissional indicado geram 10% recorrente.</p>
+              <p>1. Pagamentos válidos do profissional indicado geram 10% recorrente.</p>
               <p>2. Estorno/cancelamento gera ajuste negativo (clawback).</p>
               <p>3. Tudo fica registrado em extrato de auditoria.</p>
             </CardContent>
@@ -277,7 +277,7 @@ const AffiliateProgramPage = () => {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
               <p>1. Fechamento mensal manual no v1.</p>
-              <p>2. Minimo de R$ 100 para entrar no lote.</p>
+              <p>2. Mínimo de R$ 100 para entrar no lote.</p>
               <p>3. Pagamento via PIX com comprovante interno.</p>
             </CardContent>
           </Card>
@@ -287,7 +287,7 @@ const AffiliateProgramPage = () => {
           <CardHeader>
             <CardTitle>Cadastro de interesse para afiliado</CardTitle>
             <CardDescription>
-              Este cadastro e para parceiros afiliados dedicados. Nao e o mesmo fluxo de conta profissional da plataforma.
+              Este cadastro é para parceiros afiliados dedicados. Não é o mesmo fluxo de conta profissional da plataforma.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -297,7 +297,7 @@ const AffiliateProgramPage = () => {
                 <Input id="full_name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email">E-mail *</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 {emailValidationMessage ? (
                   <p
@@ -341,7 +341,7 @@ const AffiliateProgramPage = () => {
                 <Input id="pix_key" value={pixKey} onChange={(e) => setPixKey(e.target.value)} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="audience">Seu publico principal</Label>
+                <Label htmlFor="audience">Seu público principal</Label>
                 <Input
                   id="audience"
                   value={audience}
@@ -350,12 +350,12 @@ const AffiliateProgramPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="experience">Experiencia com afiliacao</Label>
+                <Label htmlFor="experience">Experiência com afiliação</Label>
                 <Input
                   id="experience"
                   value={experience}
                   onChange={(e) => setExperience(e.target.value)}
-                  placeholder="Iniciante, intermediario, avancado"
+                  placeholder="Iniciante, intermediário, avançado"
                 />
               </div>
               <div className="md:col-span-2 space-y-2">
@@ -376,10 +376,10 @@ const AffiliateProgramPage = () => {
                   />
                   <div className="space-y-1">
                     <Label htmlFor="affiliate_terms" className="text-sm font-medium">
-                      Li e aceito o Termo e Condicoes para Afiliados *
+                      Li e aceito o Termo e Condições para Afiliados *
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Versao {AFFILIATE_TERMS_VERSION} (ultima atualizacao: {AFFILIATE_TERMS_LAST_UPDATE}).
+                      Versão {AFFILIATE_TERMS_VERSION} (última atualização: {AFFILIATE_TERMS_LAST_UPDATE}).
                     </p>
                   </div>
                 </div>
@@ -412,9 +412,9 @@ const AffiliateProgramPage = () => {
         <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Termo e Condicoes para Afiliados</DialogTitle>
+              <DialogTitle>Termo e Condições para Afiliados</DialogTitle>
               <DialogDescription>
-                Versao {AFFILIATE_TERMS_VERSION} - ultima atualizacao em {AFFILIATE_TERMS_LAST_UPDATE}.
+                Versão {AFFILIATE_TERMS_VERSION} - última atualização em {AFFILIATE_TERMS_LAST_UPDATE}.
               </DialogDescription>
             </DialogHeader>
             <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2 text-sm">

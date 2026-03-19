@@ -17,14 +17,14 @@ const currency = (value: number) =>
 
 const statusLabel: Record<string, string> = {
   shadow: "Sombra",
-  available: "Disponivel",
+  available: "Disponível",
   reserved: "Reservado",
   paid: "Pago",
   voided: "Anulado",
 };
 
 const entryTypeLabel: Record<string, string> = {
-  signup_credit: "Bonus por marco de cadastros",
+  signup_credit: "Bônus por marco de cadastros",
   recurring_credit: "Recorrente",
   clawback_debit: "Clawback",
   manual_adjustment: "Ajuste manual",
@@ -94,7 +94,7 @@ const AffiliatesPage = () => {
       await navigator.clipboard.writeText(value);
       toast.success(message);
     } catch {
-      toast.error("Nao foi possivel copiar.");
+      toast.error("Não foi possível copiar.");
     }
   };
 
@@ -111,7 +111,7 @@ const AffiliatesPage = () => {
       }
       await refetch();
     } catch (error: any) {
-      toast.error(error?.message || "Erro ao gerar link afiliado.");
+      toast.error(error?.message || "Erro ao gerar link de afiliado.");
     } finally {
       setIsGenerating(false);
     }
@@ -129,7 +129,7 @@ const AffiliatesPage = () => {
       toast.success("Dados PIX atualizados.");
       await refetch();
     } catch (error: any) {
-      toast.error(error?.message || "Erro ao salvar dados PIX.");
+      toast.error(error?.message || "Erro ao salvar dados de PIX.");
     } finally {
       setIsSavingPix(false);
     }
@@ -148,7 +148,7 @@ const AffiliatesPage = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Afiliados</h1>
-        <p className="text-muted-foreground">Acompanhe comissoes, saldo e seu link oficial de divulgacao.</p>
+        <p className="text-muted-foreground">Acompanhe comissões, saldo e seu link oficial de divulgação.</p>
       </div>
 
       <Card className={isProgramDisabled ? "border-amber-300 bg-amber-50/50" : ""}>
@@ -160,9 +160,9 @@ const AffiliatesPage = () => {
             <Badge variant={isShadowMode ? "outline" : "default"}>
               {isShadowMode ? "Modo sombra" : "Payout habilitado"}
             </Badge>
-            <Badge variant="outline">Bonus por 10 cadastros: {currency(config?.signup_commission_amount || 50)}</Badge>
+            <Badge variant="outline">Bônus por 10 cadastros: {currency(config?.signup_commission_amount || 50)}</Badge>
             <Badge variant="outline">Recorrente: {Number(config?.recurring_commission_percent || 10)}%</Badge>
-            <Badge variant="outline">Minimo payout: {currency(config?.payout_minimum_amount || 100)}</Badge>
+            <Badge variant="outline">Mínimo payout: {currency(config?.payout_minimum_amount || 100)}</Badge>
             <Badge variant={partner?.status === "active" ? "default" : "secondary"}>
               Status do parceiro: {partnerStatusLabel[partner?.status] || partner?.status || "Ativo"}
             </Badge>
@@ -172,7 +172,7 @@ const AffiliatesPage = () => {
 
       <div className="grid gap-4 md:grid-cols-5">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Saldo disponivel</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Saldo disponível</CardTitle></CardHeader>
           <CardContent><p className="text-2xl font-bold">{currency(balances.available_balance)}</p></CardContent>
         </Card>
         <Card>
@@ -206,7 +206,7 @@ const AffiliatesPage = () => {
             </Button>
 
             {links.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum link afiliado encontrado.</p>
+              <p className="text-sm text-muted-foreground">Nenhum link de afiliado encontrado.</p>
             ) : (
               <div className="space-y-2">
                 {links.map((link: any) => (
@@ -267,12 +267,12 @@ const AffiliatesPage = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Extrato de comissoes</CardTitle>
-          <CardDescription>Ultimos lancamentos de credito/debito do seu afiliado.</CardDescription>
+          <CardTitle>Extrato de comissões</CardTitle>
+          <CardDescription>Últimos lançamentos de crédito/débito do seu afiliado.</CardDescription>
         </CardHeader>
         <CardContent>
           {ledger.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem movimentacoes no periodo.</p>
+            <p className="text-sm text-muted-foreground">Sem movimentações no período.</p>
           ) : (
             <div className="space-y-2">
               {ledger.map((row: any) => (
@@ -301,7 +301,7 @@ const AffiliatesPage = () => {
       <Card>
         <CardHeader>
           <CardTitle>Lotes de pagamento</CardTitle>
-          <CardDescription>Historico de lotes reservados/pagos para sua conta afiliada.</CardDescription>
+          <CardDescription>Histórico de lotes reservados/pagos para sua conta afiliada.</CardDescription>
         </CardHeader>
         <CardContent>
           {payouts.length === 0 ? (
@@ -312,7 +312,7 @@ const AffiliatesPage = () => {
                 <div key={row.id} className="rounded-lg border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-medium">{row?.batch?.period_label || "Periodo sem identificacao"}</p>
+                      <p className="text-sm font-medium">{row?.batch?.period_label || "Período sem identificação"}</p>
                       <p className="text-xs text-muted-foreground">
                         Criado em {new Date(row.created_at).toLocaleDateString("pt-BR")}
                       </p>

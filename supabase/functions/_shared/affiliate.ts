@@ -43,7 +43,7 @@ export const resolveToken = (req: Request, body: any) => {
 
 export const requireUser = async (supabaseAdmin: any, token: string) => {
   if (!token) {
-    return { error: jsonResponse({ error: "Sessao invalida (token ausente)" }, 401) };
+    return { error: jsonResponse({ error: "Sessão inválida (token ausente)" }, 401) };
   }
 
   const {
@@ -52,7 +52,7 @@ export const requireUser = async (supabaseAdmin: any, token: string) => {
   } = await supabaseAdmin.auth.getUser(token);
 
   if (error || !user) {
-    return { error: jsonResponse({ error: "Sessao invalida" }, 401) };
+    return { error: jsonResponse({ error: "Sessão inválida" }, 401) };
   }
 
   return { user };

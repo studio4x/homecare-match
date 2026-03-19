@@ -14,9 +14,9 @@ VALUES (
   'admin',
   'Nova candidatura de afiliado (admin)',
   'hcm_admin_notification',
-  E'Alerta administrativo HomeCare Match.\n\n{{1}} enviou candidatura de afiliado.\nPublico: {{2}}.\n\nAcesse: https://www.homecarematch.com.br{{3}}',
+  E'Alerta administrativo HomeCare Match.\n\n{{1}} enviou candidatura de afiliado.\nPúblico: {{2}}.\n\nAcesse: https://www.homecarematch.com.br{{3}}',
   'Candidato',
-  'Publico nao informado',
+  'Público não informado',
   '/admin/afiliados',
   jsonb_build_object(
     'details_path', '/admin/afiliados'
@@ -25,4 +25,3 @@ VALUES (
 ON CONFLICT (event_type) DO NOTHING;
 
 NOTIFY pgrst, 'reload schema';
-

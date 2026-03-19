@@ -245,9 +245,9 @@ const DEFAULT_TEMPLATE_CONFIGS: TemplateConfigRow[] = [
     label: "Nova candidatura de afiliado (admin)",
     template_name: "hcm_admin_notification",
     sample_message:
-      "Alerta administrativo HomeCare Match.\n\n{{1}} enviou candidatura de afiliado.\nPublico: {{2}}.\n\nAcesse: https://www.homecarematch.com.br{{3}}",
+      "Alerta administrativo HomeCare Match.\n\n{{1}} enviou candidatura de afiliado.\nPúblico: {{2}}.\n\nAcesse: https://www.homecarematch.com.br{{3}}",
     var1_default: "Candidato",
-    var2_default: "Publico nao informado",
+    var2_default: "Público não informado",
     var3_default: "/admin/afiliados",
     variations: {
       details_path: "/admin/afiliados",

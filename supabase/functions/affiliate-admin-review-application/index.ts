@@ -67,7 +67,7 @@ const createShortLinkForPartner = async (supabaseAdmin: any, req: Request, partn
   }
 
   if (!createdLink?.id) {
-    throw new Error("Nao foi possivel criar link curto unico para o afiliado.");
+    throw new Error("Não foi possível criar link curto único para o afiliado.");
   }
 
   const { error: mapError } = await supabaseAdmin.from("affiliate_short_links").insert({
@@ -102,7 +102,7 @@ serve(async (req) => {
     const applicationId = String(body?.application_id || "").trim();
     const decision = String(body?.decision || "approved").trim().toLowerCase();
 
-    if (!applicationId) return jsonResponse({ error: "application_id obrigatorio" }, 400);
+    if (!applicationId) return jsonResponse({ error: "application_id obrigatório" }, 400);
     if (!["approved", "rejected"].includes(decision)) {
       return jsonResponse({ error: "decision deve ser approved ou rejected" }, 400);
     }
@@ -114,7 +114,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (appError) throw appError;
-    if (!application?.id) return jsonResponse({ error: "Aplicacao nao encontrada" }, 404);
+    if (!application?.id) return jsonResponse({ error: "Aplicação não encontrada" }, 404);
 
     const reviewedAt = new Date().toISOString();
 
@@ -145,7 +145,7 @@ serve(async (req) => {
       return jsonResponse(
         {
           error:
-            "Nao e possivel aprovar: o email da candidatura ja pertence a uma conta da plataforma. Afiliado deve ser parceiro dedicado.",
+            "Não é possível aprovar: o e-mail da candidatura já pertence a uma conta da plataforma. Afiliado deve ser parceiro dedicado.",
         },
         409,
       );

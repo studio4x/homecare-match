@@ -13,9 +13,14 @@ import {
   sanitizeSlug,
 } from "../_shared/affiliate.ts";
 import {
+  enqueueWhatsappQueueEntry,
   enqueueUserWhatsappNotification,
+  getConfiguredTemplateNameForEvent,
+  getTemplateNameForTarget,
   getWhatsappTemplateConfig,
   getWhatsappTemplateVariation,
+  isWhatsappEnabled,
+  normalizeBrazilPhoneToE164,
 } from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
@@ -404,21 +409,114 @@ const notifyAffiliateDecision = async ({
       });
     }
   } else {
-    await logNotificationDelivery({
-      supabaseAdmin,
-      eventType,
-      channel: "whatsapp",
-      status: "skipped",
-      recipientKind: "external",
-      recipientContact: email || null,
-      title: widgetTitle,
-      content: widgetContent,
-      errorMessage: "missing_recipient_user_id",
-      metadata: {
-        application_id: application?.id || null,
-        decision,
-      },
-    });
+    try {
+      if (!isWhatsappEnabled()) {
+        await logNotificationDelivery({
+          supabaseAdmin,
+          eventType,
+          channel: "whatsapp",
+          status: "skipped",
+          recipientKind: "external",
+          recipientContact: email || null,
+          title: widgetTitle,
+          content: widgetContent,
+          errorMessage: "whatsapp_disabled",
+          metadata: {
+            application_id: application?.id || null,
+            decision,
+          },
+        });
+      } else {
+        const externalPhoneE164 = normalizeBrazilPhoneToE164(application?.phone || "");
+
+        if (!externalPhoneE164) {
+          await logNotificationDelivery({
+            supabaseAdmin,
+            eventType,
+            channel: "whatsapp",
+            status: "skipped",
+            recipientKind: "external",
+            recipientContact: email || null,
+            title: widgetTitle,
+            content: widgetContent,
+            errorMessage: "invalid_candidate_phone",
+            metadata: {
+              application_id: application?.id || null,
+              decision,
+            },
+          });
+        } else {
+          const waConfig = await getWhatsappTemplateConfig(supabaseAdmin, eventType, "user");
+          const statusText = getWhatsappTemplateVariation(
+            waConfig,
+            "status_text",
+            String(
+              waConfig?.var2Default ||
+                (decision === "approved"
+                  ? "sua candidatura de afiliado foi aprovada"
+                  : "sua candidatura de afiliado foi rejeitada"),
+            ),
+          );
+          const detailsValue = getWhatsappTemplateVariation(
+            waConfig,
+            "details_path",
+            String(waConfig?.var3Default || detailsPath),
+          );
+          const configuredTemplateName = await getConfiguredTemplateNameForEvent(supabaseAdmin, "user", eventType);
+
+          const queued = await enqueueWhatsappQueueEntry({
+            supabaseAdmin,
+            eventType,
+            targetKind: "user",
+            recipientPhoneE164: externalPhoneE164,
+            templateName: configuredTemplateName || getTemplateNameForTarget("user", eventType),
+            templateParams: [
+              String(fullName || waConfig?.var1Default || "Afiliado"),
+              statusText,
+              detailsValue,
+            ],
+            payload: {
+              application_id: application?.id || null,
+              decision,
+              source: "affiliate_application_review_external",
+            },
+          });
+
+          await logNotificationDelivery({
+            supabaseAdmin,
+            eventType,
+            channel: "whatsapp",
+            status: queued?.queued ? "queued" : queued?.reason === "whatsapp_disabled" ? "skipped" : "failed",
+            recipientKind: "external",
+            recipientContact: email || null,
+            title: widgetTitle,
+            content: widgetContent,
+            errorMessage: queued?.queued ? null : queued?.reason || null,
+            metadata: {
+              application_id: application?.id || null,
+              decision,
+              recipient_phone_e164: externalPhoneE164,
+            },
+          });
+        }
+      }
+    } catch (error: any) {
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType,
+        channel: "whatsapp",
+        status: "failed",
+        recipientKind: "external",
+        recipientContact: email || null,
+        title: widgetTitle,
+        content: widgetContent,
+        errorMessage: error?.message || String(error),
+        metadata: {
+          application_id: application?.id || null,
+          decision,
+        },
+      });
+    }
   }
 
   if (!isValidEmail(email)) {

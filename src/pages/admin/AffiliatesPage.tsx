@@ -73,6 +73,7 @@ const AffiliatesAdminPage = () => {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isApprovingBatch, setIsApprovingBatch] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
+  const [isClearingRejected, setIsClearingRejected] = useState(false);
   const [payingBatchId, setPayingBatchId] = useState<string | null>(null);
   const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<any | null>(null);
@@ -285,6 +286,33 @@ const AffiliatesAdminPage = () => {
     }
   };
 
+  const handleClearRejectedApplications = async () => {
+    const rejectedCount = groupedApplications.rejected.length;
+    if (rejectedCount === 0) return;
+
+    const confirmed = window.confirm(
+      `Deseja remover ${rejectedCount} candidatura(s) rejeitada(s)? Esta ação não pode ser desfeita.`,
+    );
+    if (!confirmed) return;
+
+    setIsClearingRejected(true);
+    try {
+      const { error } = await supabase.from("affiliate_applications").delete().eq("status", "rejected");
+      if (error) throw error;
+
+      if (selectedApplication?.status === "rejected") {
+        setSelectedApplication(null);
+      }
+
+      toast.success("Candidaturas rejeitadas removidas com sucesso.");
+      await refetch();
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao limpar candidaturas rejeitadas.");
+    } finally {
+      setIsClearingRejected(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -388,8 +416,20 @@ const AffiliatesAdminPage = () => {
               ].map((section) => (
                 <div key={section.status} className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">{section.title}</h3>
-                    <Badge variant="outline">{section.rows.length}</Badge>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold">{section.title}</h3>
+                      <Badge variant="outline">{section.rows.length}</Badge>
+                    </div>
+                    {section.status === "rejected" && section.rows.length > 0 ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleClearRejectedApplications}
+                        disabled={isClearingRejected}
+                      >
+                        {isClearingRejected ? <Loader2 className="h-4 w-4 animate-spin" /> : "Limpar candidaturas"}
+                      </Button>
+                    ) : null}
                   </div>
 
                   {section.rows.length === 0 ? (

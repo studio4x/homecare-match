@@ -242,17 +242,37 @@ const AffiliatesAdminPage = () => {
     }
   };
 
-  const handleReviewApplication = async (applicationId: string, decision: "approved" | "rejected") => {
+  const handleReviewApplication = async (
+    applicationId: string,
+    decision: "approved" | "rejected",
+    sendAccessEmail = true,
+  ) => {
     setReviewingApplicationId(applicationId);
     try {
       const { data, error } = await supabase.functions.invoke("affiliate-admin-review-application", {
-        body: { application_id: applicationId, decision },
+        body: { application_id: applicationId, decision, send_access_email: sendAccessEmail },
       });
 
       if (error) throw error;
 
       if (decision === "approved") {
-        toast.success(data?.short_url ? `Candidatura aprovada. Link: ${data.short_url}` : "Candidatura aprovada.");
+        if (data?.already_approved) {
+          if (data?.access_email_sent) {
+            toast.success("Acesso reenviado por e-mail para o afiliado.");
+          } else {
+            toast.success("Cadastro já estava aprovado. Dados de acesso mantidos.");
+          }
+        } else {
+          const linkMessage = data?.short_url ? ` Link: ${data.short_url}` : "";
+          const emailMessage = data?.access_email_sent
+            ? " Conta criada e e-mail de acesso enviado."
+            : " Conta criada, mas o e-mail de acesso não foi enviado automaticamente.";
+          toast.success(`Candidatura aprovada.${emailMessage}${linkMessage}`);
+        }
+
+        if (data?.access_email_sent === false && data?.access_email_error) {
+          toast.message(`Falha ao enviar e-mail de acesso: ${data.access_email_error}`);
+        }
       } else {
         toast.success("Candidatura rejeitada.");
       }
@@ -437,6 +457,15 @@ const AffiliatesAdminPage = () => {
                                           {reviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aprovar"}
                                         </Button>
                                       </>
+                                    ) : application.status === "approved" ? (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={reviewing}
+                                        onClick={() => handleReviewApplication(application.id, "approved", true)}
+                                      >
+                                        {reviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enviar acesso"}
+                                      </Button>
                                     ) : null}
                                   </div>
                                 </TableCell>

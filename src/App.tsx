@@ -51,6 +51,7 @@ import TicketDetailPage from "./pages/dashboard/TicketDetailPage";
 import PaymentsPage from "./pages/dashboard/PaymentsPage";
 import NoticesPage from "./pages/dashboard/NoticesPage";
 import CompanyPatientsPage from "./pages/dashboard/CompanyPatientsPage"; // New import
+import AffiliatesDashboardPage from "./pages/dashboard/AffiliatesPage";
 
 // Admin Layout & Pages
 import AdminLayout from "./components/layout/AdminLayout";
@@ -135,6 +136,7 @@ const App = () => (
                 <Route path="indicacoes" element={<ReferralsPage />} />
                 <Route path="pagamentos" element={<PaymentsPage />} />
                 <Route path="avisos" element={<NoticesPage />} />
+                <Route path="afiliados" element={<AffiliatesDashboardPage />} />
                 <Route path="suporte" element={<SupportTicketsPage />} />
                 <Route path="suporte/:id" element={<TicketDetailPage />} />
                 <Route path="pacientes" element={<CompanyPatientsPage />} /> {/* New route */}

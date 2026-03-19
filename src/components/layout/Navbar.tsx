@@ -87,7 +87,7 @@ const Navbar = () => {
     : "??";
 
   const isAdmin = profile?.is_admin || profile?.role === "admin";
-  const canSeeSearch = !session || (session && profile && profile.role !== "professional" && !isAdmin);
+  const canSeeSearch = !session || (session && profile && (profile.role === "company" || profile.role === "family") && !isAdmin);
 
   const logoUrl = config?.logo_url || DEFAULT_LOGO;
   const logoHeight = config?.logo_height_px || 48;

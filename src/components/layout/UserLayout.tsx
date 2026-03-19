@@ -51,7 +51,9 @@ const isTransientNetworkError = (error: unknown) => {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const normalizeRole = (value: unknown) => {
   const role = String(value || "").toLowerCase();
-  if (role === "professional" || role === "company" || role === "family" || role === "admin") return role;
+  if (role === "professional" || role === "company" || role === "family" || role === "affiliate" || role === "admin") {
+    return role;
+  }
   return "professional";
 };
 
@@ -186,27 +188,39 @@ const UserLayout = () => {
 
   const isProfessional = role === "professional";
   const isCompany = role === "company";
+  const isAffiliate = role === "affiliate";
 
-  const navItems = [
-    { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, end: true },
-    { href: "/dashboard/perfil", label: "Meus Dados", icon: User },
-    { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
-    { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell },
-  ];
+  const navItems = [{ href: "/dashboard", label: "Inicio", icon: LayoutDashboard, end: true }];
 
   if (isProfessional) {
     navItems.push(
+      { href: "/dashboard/perfil", label: "Meus Dados", icon: User },
+      { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
+      { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell },
       { href: "/dashboard/cursos", label: "Cursos", icon: BookOpen },
       { href: "/dashboard/indicacoes", label: "Indicações", icon: Award },
       { href: "/dashboard/pagamentos", label: "Pagamentos", icon: CreditCard }
     );
   } else if (isCompany) {
     navItems.push(
+      { href: "/dashboard/perfil", label: "Meus Dados", icon: User },
+      { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
+      { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell },
       { href: "/dashboard/pacientes", label: "Meus Pacientes", icon: Users },
       { href: "/buscar", label: "Buscar Profissionais", icon: Search }
     );
+  } else if (isAffiliate) {
+    navItems.push(
+      { href: "/dashboard/afiliados", label: "Afiliados", icon: Award },
+      { href: "/dashboard/perfil", label: "Meus Dados", icon: User }
+    );
   } else {
-    navItems.push({ href: "/buscar", label: "Buscar Profissionais", icon: Search });
+    navItems.push(
+      { href: "/dashboard/perfil", label: "Meus Dados", icon: User },
+      { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
+      { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell },
+      { href: "/buscar", label: "Buscar Profissionais", icon: Search }
+    );
   }
 
   navItems.push({ href: "/dashboard/suporte", label: "Suporte", icon: LifeBuoy });
@@ -231,6 +245,13 @@ const UserLayout = () => {
         { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, end: true },
         { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
         { href: "/dashboard/cursos", label: "Cursos", icon: BookOpen },
+        { href: "/dashboard/perfil", label: "Perfil", icon: User },
+      ]
+    : isAffiliate
+    ? [
+        { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, end: true },
+        { href: "/dashboard/afiliados", label: "Afiliados", icon: Award },
+        { href: "/dashboard/suporte", label: "Suporte", icon: LifeBuoy },
         { href: "/dashboard/perfil", label: "Perfil", icon: User },
       ]
     : isCompany
@@ -292,7 +313,7 @@ const UserLayout = () => {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{profile?.full_name || "Usuario"}</p>
                   <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    {role === "professional" ? "Profissional" : role === "company" ? "Empresa" : "Familia"}
+                    {role === "professional" ? "Profissional" : role === "company" ? "Empresa" : role === "affiliate" ? "Afiliado" : "Familia"}
                   </p>
                   <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
                     <Mail className="h-2.5 w-2.5 shrink-0" />
@@ -410,3 +431,4 @@ const UserLayout = () => {
 };
 
 export default UserLayout;
+

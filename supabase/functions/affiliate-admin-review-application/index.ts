@@ -12,6 +12,123 @@ import {
   sanitizeSlug,
 } from "../_shared/affiliate.ts";
 
+const isValidEmail = (value: unknown) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+
+const ensureAffiliateUserAccount = async (
+  supabaseAdmin: any,
+  req: Request,
+  application: any,
+  reviewedAt: string,
+  sendAccessEmail: boolean,
+) => {
+  const email = String(application?.email || "").trim().toLowerCase();
+  const fullName = String(application?.full_name || "").trim();
+  const redirectTo = `${getBaseUrl(req).replace(/\/+$/, "")}/redefinir-senha`;
+
+  if (!isValidEmail(email)) {
+    throw new Error("Candidatura sem e-mail válido para criação de acesso.");
+  }
+
+  const findProfileByEmail = async () =>
+    await supabaseAdmin
+      .from("profiles")
+      .select("id,role,is_admin,full_name,email")
+      .ilike("email", email)
+      .maybeSingle();
+
+  let accountCreated = false;
+  let accessEmailSent = false;
+  let accessEmailError: string | null = null;
+
+  let { data: existingProfile, error: existingProfileError } = await findProfileByEmail();
+  if (existingProfileError) throw existingProfileError;
+
+  if (existingProfile?.id && String(existingProfile.role || "").toLowerCase() !== "affiliate") {
+    throw new Error(
+      "Não é possível aprovar: o e-mail da candidatura já pertence a uma conta da plataforma. Afiliado deve ser parceiro dedicado.",
+    );
+  }
+
+  let userId = existingProfile?.id || null;
+
+  if (!userId) {
+    const temporaryPassword = `${crypto.randomUUID()}Aa!`;
+    const { data: createdUser, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: temporaryPassword,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName || null,
+        role: "affiliate",
+      },
+    });
+
+    if (createUserError) {
+      const message = String(createUserError?.message || "").toLowerCase();
+      const isDuplicated = message.includes("already registered") || message.includes("duplicate");
+
+      if (!isDuplicated) throw createUserError;
+
+      const { data: duplicatedProfile, error: duplicatedProfileError } = await findProfileByEmail();
+      if (duplicatedProfileError) throw duplicatedProfileError;
+
+      if (!duplicatedProfile?.id) {
+        throw new Error(
+          "Não foi possível vincular o acesso do afiliado. Conta já registrada sem perfil associado.",
+        );
+      }
+
+      if (String(duplicatedProfile.role || "").toLowerCase() !== "affiliate") {
+        throw new Error(
+          "Não é possível aprovar: o e-mail da candidatura já pertence a uma conta da plataforma. Afiliado deve ser parceiro dedicado.",
+        );
+      }
+
+      existingProfile = duplicatedProfile;
+      userId = duplicatedProfile.id;
+    } else {
+      userId = createdUser?.user?.id || null;
+      accountCreated = Boolean(userId);
+    }
+  }
+
+  if (!userId) {
+    throw new Error("Não foi possível identificar a conta de acesso do afiliado.");
+  }
+
+  const { error: profileUpsertError } = await supabaseAdmin.from("profiles").upsert(
+    {
+      id: userId,
+      full_name: fullName || existingProfile?.full_name || "Afiliado",
+      email,
+      role: "affiliate",
+      is_admin: false,
+      subscription_tier: null,
+      subscription_end_at: null,
+      trial_started_at: null,
+      coupon_days: null,
+      cancel_at_period_end: false,
+      updated_at: reviewedAt,
+    },
+    { onConflict: "id" },
+  );
+
+  if (profileUpsertError) throw profileUpsertError;
+
+  if (sendAccessEmail) {
+    const { error: resetPasswordError } = await supabaseAdmin.auth.resetPasswordForEmail(email, { redirectTo });
+    accessEmailSent = !resetPasswordError;
+    accessEmailError = resetPasswordError?.message || null;
+  }
+
+  return {
+    userId,
+    accountCreated,
+    accessEmailSent,
+    accessEmailError,
+  };
+};
+
 const createShortLinkForPartner = async (supabaseAdmin: any, req: Request, partner: any, adminUserId: string) => {
   const { data: existingRows } = await supabaseAdmin
     .from("affiliate_short_links")
@@ -101,6 +218,7 @@ serve(async (req) => {
 
     const applicationId = String(body?.application_id || "").trim();
     const decision = String(body?.decision || "approved").trim().toLowerCase();
+    const sendAccessEmail = body?.send_access_email !== false;
 
     if (!applicationId) return jsonResponse({ error: "application_id obrigatório" }, 400);
     if (!["approved", "rejected"].includes(decision)) {
@@ -133,40 +251,49 @@ serve(async (req) => {
       return jsonResponse({ success: true, application_id: application.id, status: "rejected" });
     }
 
+    const alreadyApproved = application.status === "approved";
+    const accountSetup = await ensureAffiliateUserAccount(supabaseAdmin, req, application, reviewedAt, sendAccessEmail);
+
     let partner = null;
-
-    const { data: existingProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("id,role")
-      .ilike("email", String(application.email || ""))
-      .maybeSingle();
-
-    if (existingProfile?.id) {
-      return jsonResponse(
-        {
-          error:
-            "Não é possível aprovar: o e-mail da candidatura já pertence a uma conta da plataforma. Afiliado deve ser parceiro dedicado.",
-        },
-        409,
-      );
+    let existingPartner = null;
+    if (application?.affiliate_partner_id) {
+      const { data: partnerById } = await supabaseAdmin
+        .from("affiliate_partners")
+        .select("*")
+        .eq("id", application.affiliate_partner_id)
+        .maybeSingle();
+      existingPartner = partnerById;
     }
 
-    const { data: existingPartner } = await supabaseAdmin
-      .from("affiliate_partners")
-      .select("*")
-      .ilike("email", String(application.email || ""))
-      .maybeSingle();
+    if (!existingPartner?.id) {
+      const { data: partnerByEmail } = await supabaseAdmin
+        .from("affiliate_partners")
+        .select("*")
+        .ilike("email", String(application.email || ""))
+        .maybeSingle();
+      existingPartner = partnerByEmail;
+    }
 
     if (existingPartner?.id) {
+      if (existingPartner.user_id && existingPartner.user_id !== accountSetup.userId) {
+        return jsonResponse(
+          {
+            error: "Parceiro afiliado já vinculado a outro usuário. Revise o cadastro antes de aprovar novamente.",
+          },
+          409,
+        );
+      }
+
       const { data: updatedPartner, error: updatePartnerError } = await supabaseAdmin
         .from("affiliate_partners")
         .update({
+          user_id: accountSetup.userId,
           display_name: existingPartner.display_name || application.full_name,
           phone: existingPartner.phone || application.phone || null,
           pix_key: existingPartner.pix_key || application.pix_key || null,
           pix_key_type: existingPartner.pix_key_type || application.pix_key_type || null,
           status: "active",
-          is_external: true,
+          is_external: false,
           updated_at: reviewedAt,
         })
         .eq("id", existingPartner.id)
@@ -179,13 +306,13 @@ serve(async (req) => {
       const { data: createdPartner, error: createPartnerError } = await supabaseAdmin
         .from("affiliate_partners")
         .insert({
-          user_id: null,
+          user_id: accountSetup.userId,
           display_name: application.full_name,
           email: application.email,
           phone: application.phone || null,
           pix_key: application.pix_key || null,
           pix_key_type: application.pix_key_type || null,
-          is_external: true,
+          is_external: false,
           status: "active",
           notes: application.message || null,
           created_by: userResult.user.id,
@@ -220,6 +347,10 @@ serve(async (req) => {
       short_link_id: link.short_link_id,
       short_url: link.short_url,
       reused_link: link.reused,
+      already_approved: alreadyApproved,
+      account_created: accountSetup.accountCreated,
+      access_email_sent: accountSetup.accessEmailSent,
+      access_email_error: accountSetup.accessEmailError,
     });
   } catch (error: any) {
     return jsonResponse({ error: error?.message || "Erro ao revisar candidatura de afiliado" }, 500);

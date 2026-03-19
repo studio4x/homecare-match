@@ -219,6 +219,12 @@ const AffiliatesPage = () => {
               {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ticket className="h-4 w-4" />}
               {links.length > 0 ? "Revalidar link" : "Gerar link"}
             </Button>
+            {links.length > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                O botão <strong>Revalidar link</strong> confirma seu link oficial atual e garante que ele continue ativo.
+                Ele não cria outro link nem altera seu código de divulgação.
+              </p>
+            ) : null}
 
             {links.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum link de afiliado encontrado.</p>

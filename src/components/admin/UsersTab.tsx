@@ -506,6 +506,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                 <SelectItem value="professional">Função: Profissional</SelectItem>
                 <SelectItem value="company">Função: Empresa</SelectItem>
                 <SelectItem value="family">Função: Família</SelectItem>
+                <SelectItem value="affiliate">Função: Afiliado</SelectItem>
                 <SelectItem value="admin">Função: Admin</SelectItem>
               </SelectContent>
             </Select>
@@ -635,6 +636,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                               <SelectItem value="professional">Profissional</SelectItem>
                               <SelectItem value="company">Empresa</SelectItem>
                               <SelectItem value="family">Família</SelectItem>
+                              <SelectItem value="affiliate">Afiliado</SelectItem>
                               <SelectItem value="admin" disabled={u.email !== MASTER_ADMIN_EMAIL}>Admin</SelectItem>
                             </SelectContent>
                           </Select>

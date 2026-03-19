@@ -1,49 +1,22 @@
--- Add behavior controls for coupons (where applies + target tier).
+-- Enable affiliate role on profiles and keep signup trigger aligned.
 
-ALTER TABLE public.coupons
-  ADD COLUMN IF NOT EXISTS apply_mode TEXT,
-  ADD COLUMN IF NOT EXISTS target_tier TEXT;
-
-UPDATE public.coupons
-SET apply_mode = CASE WHEN only_new_users THEN 'signup_only' ELSE 'dashboard_only' END
-WHERE apply_mode IS NULL OR btrim(apply_mode) = '';
-
-UPDATE public.coupons
-SET target_tier = COALESCE(NULLIF(lower(target_tier), ''), 'monthly')
-WHERE target_tier IS NULL OR btrim(target_tier) = '';
-
-ALTER TABLE public.coupons ALTER COLUMN apply_mode SET DEFAULT 'signup_only';
-ALTER TABLE public.coupons ALTER COLUMN apply_mode SET NOT NULL;
-ALTER TABLE public.coupons ALTER COLUMN target_tier SET DEFAULT 'monthly';
-ALTER TABLE public.coupons ALTER COLUMN target_tier SET NOT NULL;
-
-DO $coupon_constraints$
+DO $$
 BEGIN
-  IF NOT EXISTS (
+  IF EXISTS (
     SELECT 1
     FROM pg_constraint
-    WHERE conname = 'coupons_apply_mode_check'
-      AND conrelid = 'public.coupons'::regclass
+    WHERE conname = 'profiles_role_check'
+      AND conrelid = 'public.profiles'::regclass
   ) THEN
-    ALTER TABLE public.coupons
-      ADD CONSTRAINT coupons_apply_mode_check
-      CHECK (apply_mode IN ('signup_only', 'dashboard_only', 'signup_and_dashboard'));
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1
-    FROM pg_constraint
-    WHERE conname = 'coupons_target_tier_check'
-      AND conrelid = 'public.coupons'::regclass
-  ) THEN
-    ALTER TABLE public.coupons
-      ADD CONSTRAINT coupons_target_tier_check
-      CHECK (target_tier IN ('monthly', 'yearly'));
+    ALTER TABLE public.profiles DROP CONSTRAINT profiles_role_check;
   END IF;
 END
-$coupon_constraints$;
+$$;
 
--- Keep signup logic aligned with coupon behavior.
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_role_check
+  CHECK (role = ANY (ARRAY['professional'::text, 'company'::text, 'family'::text, 'admin'::text, 'affiliate'::text]));
+
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -147,5 +120,18 @@ BEGIN
   RETURN new;
 END;
 $function$;
+
+UPDATE public.profiles p
+SET
+  role = 'affiliate',
+  is_admin = false,
+  subscription_tier = NULL,
+  subscription_end_at = NULL,
+  trial_started_at = NULL,
+  coupon_days = NULL,
+  cancel_at_period_end = false
+FROM public.affiliate_partners ap
+WHERE ap.user_id = p.id
+  AND COALESCE(p.is_admin, false) = false;
 
 NOTIFY pgrst, 'reload schema';

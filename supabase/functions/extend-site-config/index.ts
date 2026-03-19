@@ -440,7 +440,7 @@ serve(async (req) => {
         IF admin_count = 0 THEN
           user_role := 'admin';
         ELSE
-          IF user_role IS NULL OR user_role NOT IN ('company', 'family', 'professional') THEN
+          IF user_role IS NULL OR user_role NOT IN ('company', 'family', 'professional', 'affiliate') THEN
             user_role := 'professional';
           END IF;
         END IF;

@@ -36,6 +36,12 @@ const payoutStatusLabel: Record<string, string> = {
   canceled: "Cancelado",
 };
 
+const partnerStatusLabel: Record<string, string> = {
+  active: "Ativo",
+  inactive: "Inativo",
+  blocked: "Bloqueado",
+};
+
 const AffiliatesPage = () => {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -158,7 +164,7 @@ const AffiliatesPage = () => {
             <Badge variant="outline">Recorrente: {Number(config?.recurring_commission_percent || 10)}%</Badge>
             <Badge variant="outline">Minimo payout: {currency(config?.payout_minimum_amount || 100)}</Badge>
             <Badge variant={partner?.status === "active" ? "default" : "secondary"}>
-              Status do parceiro: {partner?.status || "active"}
+              Status do parceiro: {partnerStatusLabel[partner?.status] || partner?.status || "Ativo"}
             </Badge>
           </div>
         </CardContent>

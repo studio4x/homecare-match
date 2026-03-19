@@ -43,6 +43,12 @@ const partnerStatusLabel: Record<string, string> = {
   blocked: "Bloqueado",
 };
 
+const applicationStatusLabel: Record<string, string> = {
+  pending: "Pendente",
+  approved: "Aprovado",
+  rejected: "Rejeitado",
+};
+
 const parseNumber = (value: string, fallback: number) => {
   const raw = String(value || "").trim();
   const normalized =
@@ -372,7 +378,7 @@ const AffiliatesAdminPage = () => {
                         </TableCell>
                         <TableCell>
                           <Badge variant={application.status === "approved" ? "default" : "outline"}>
-                            {application.status}
+                            {applicationStatusLabel[application.status] || application.status}
                           </Badge>
                         </TableCell>
                         <TableCell>{new Date(application.created_at).toLocaleDateString("pt-BR")}</TableCell>
@@ -459,7 +465,9 @@ const AffiliatesAdminPage = () => {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-muted-foreground">Status</span>
-                <span className="col-span-2">{selectedApplication.status || "-"}</span>
+                <span className="col-span-2">
+                  {applicationStatusLabel[selectedApplication.status] || selectedApplication.status || "-"}
+                </span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <span className="text-muted-foreground">Criado em</span>

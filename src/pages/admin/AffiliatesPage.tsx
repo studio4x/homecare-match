@@ -6,6 +6,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -17,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, RefreshCw, Save, ShieldCheck, Wallet } from "lucide-react";
+import { Eye, Loader2, RefreshCw, Save, ShieldCheck, Wallet } from "lucide-react";
 import { toast } from "sonner";
 
 const currency = (value: number) =>
@@ -62,6 +69,7 @@ const AffiliatesAdminPage = () => {
   const [isReconciling, setIsReconciling] = useState(false);
   const [payingBatchId, setPayingBatchId] = useState<string | null>(null);
   const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<any | null>(null);
 
   const [enabled, setEnabled] = useState(false);
   const [shadowMode, setShadowMode] = useState(true);
@@ -343,8 +351,7 @@ const AffiliatesAdminPage = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
-                    <TableHead>Contato</TableHead>
-                    <TableHead>Cidade/UF</TableHead>
+                    <TableHead>E-mail</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Criado em</TableHead>
                     <TableHead className="text-right">Acoes</TableHead>
@@ -358,15 +365,10 @@ const AffiliatesAdminPage = () => {
                     return (
                       <TableRow key={application.id}>
                         <TableCell>
-                          <p className="text-sm font-medium">{application.full_name}</p>
-                          <p className="text-xs text-muted-foreground">{application.audience || "Sem publico informado"}</p>
+                          <p className="text-sm font-medium">{application.full_name || "-"}</p>
                         </TableCell>
                         <TableCell>
-                          <p className="text-sm">{application.email}</p>
-                          <p className="text-xs text-muted-foreground">{application.phone}</p>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {application.city || "-"} / {application.state || "-"}
+                          <p className="text-sm">{application.email || "-"}</p>
                         </TableCell>
                         <TableCell>
                           <Badge variant={application.status === "approved" ? "default" : "outline"}>
@@ -376,6 +378,15 @@ const AffiliatesAdminPage = () => {
                         <TableCell>{new Date(application.created_at).toLocaleDateString("pt-BR")}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setSelectedApplication(application)}
+                              className="gap-1"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                              Ver dados
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
@@ -402,6 +413,70 @@ const AffiliatesAdminPage = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!selectedApplication} onOpenChange={(open) => !open && setSelectedApplication(null)}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Dados da candidatura</DialogTitle>
+            <DialogDescription>
+              Informacoes enviadas no formulario publico de afiliado.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedApplication ? (
+            <div className="grid gap-3 text-sm">
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">Nome</span>
+                <span className="col-span-2 font-medium">{selectedApplication.full_name || "-"}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">E-mail</span>
+                <span className="col-span-2">{selectedApplication.email || "-"}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">Telefone</span>
+                <span className="col-span-2">{selectedApplication.phone || "-"}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">Cidade / UF</span>
+                <span className="col-span-2">
+                  {selectedApplication.city || "-"} / {selectedApplication.state || "-"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">PIX</span>
+                <span className="col-span-2">
+                  {selectedApplication.pix_key_type || "-"} / {selectedApplication.pix_key || "-"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">Publico</span>
+                <span className="col-span-2">{selectedApplication.audience || "-"}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">Experiencia</span>
+                <span className="col-span-2">{selectedApplication.experience || "-"}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">Status</span>
+                <span className="col-span-2">{selectedApplication.status || "-"}</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <span className="text-muted-foreground">Criado em</span>
+                <span className="col-span-2">
+                  {selectedApplication.created_at
+                    ? new Date(selectedApplication.created_at).toLocaleString("pt-BR")
+                    : "-"}
+                </span>
+              </div>
+              <div className="space-y-1 rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Mensagem complementar</p>
+                <p className="whitespace-pre-wrap">{selectedApplication.message || "-"}</p>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>

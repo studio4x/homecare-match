@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
@@ -40,6 +41,20 @@ const partnerStatusLabel: Record<string, string> = {
   active: "Ativo",
   inactive: "Inativo",
   blocked: "Bloqueado",
+};
+
+const PIX_KEY_TYPE_OPTIONS = [
+  { value: "random", label: "Aleatória" },
+  { value: "cpf", label: "CPF" },
+  { value: "cnpj", label: "CNPJ" },
+  { value: "email", label: "E-mail" },
+  { value: "phone", label: "Telefone" },
+] as const;
+
+const normalizePixKeyType = (value: unknown) => {
+  const text = String(value || "").trim().toLowerCase();
+  if (PIX_KEY_TYPE_OPTIONS.some((option) => option.value === text)) return text;
+  return "random";
 };
 
 const AffiliatesPage = () => {
@@ -80,7 +95,7 @@ const AffiliatesPage = () => {
 
   useEffect(() => {
     setPixKey(String(partner?.pix_key || ""));
-    setPixKeyType(String(partner?.pix_key_type || "random"));
+    setPixKeyType(normalizePixKeyType(partner?.pix_key_type));
   }, [partner?.id, partner?.pix_key, partner?.pix_key_type]);
 
   const hasPixChanged = useMemo(() => {
@@ -241,12 +256,18 @@ const AffiliatesPage = () => {
           <CardContent className="space-y-3">
             <div className="space-y-2">
               <Label htmlFor="pixType">Tipo da chave</Label>
-              <Input
-                id="pixType"
-                value={pixKeyType}
-                onChange={(e) => setPixKeyType(e.target.value)}
-                placeholder="cpf | cnpj | email | phone | random"
-              />
+              <Select value={pixKeyType} onValueChange={setPixKeyType}>
+                <SelectTrigger id="pixType">
+                  <SelectValue placeholder="Selecione o tipo da chave" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PIX_KEY_TYPE_OPTIONS.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="pixKey">Chave PIX</Label>
@@ -257,6 +278,9 @@ const AffiliatesPage = () => {
                 placeholder="Informe sua chave PIX"
               />
             </div>
+            <p className="text-xs text-muted-foreground">
+              A chave PIX deve estar em nome do afiliado. Caso contrário, o pagamento não será realizado.
+            </p>
             <Button onClick={handleSavePix} disabled={isSavingPix || !hasPixChanged} className="gap-2">
               {isSavingPix ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Salvar PIX

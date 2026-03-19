@@ -368,6 +368,11 @@ const AffiliateProgramPage = () => {
                 <Label htmlFor="pix_key">Chave PIX</Label>
                 <Input id="pix_key" value={pixKey} onChange={(e) => setPixKey(e.target.value)} />
               </div>
+              <div className="md:col-span-2">
+                <p className="text-xs text-muted-foreground">
+                  A chave PIX deve estar em nome do afiliado. Caso contrário, o pagamento não será realizado.
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="audience">Seu público principal</Label>
                 <Input

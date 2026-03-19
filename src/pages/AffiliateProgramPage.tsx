@@ -78,7 +78,7 @@ const AffiliateProgramPage = () => {
             Este programa e separado do sistema de indicacoes de profissionais.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Badge variant="outline">R$ 50 por cadastro completo</Badge>
+            <Badge variant="outline">Bonus de R$ 50 a cada 10 cadastros completos</Badge>
             <Badge variant="outline">10% recorrente enquanto ativo</Badge>
             <Badge variant="outline">Payout mensal minimo de R$ 100</Badge>
           </div>
@@ -92,7 +92,7 @@ const AffiliateProgramPage = () => {
             <CardContent className="text-sm text-muted-foreground space-y-2">
               <p>1. Voce recebe um link curto oficial de afiliado.</p>
               <p>2. O primeiro toque fica atribuido ao seu codigo.</p>
-              <p>3. Quando o indicado conclui cadastro validado, gera credito fixo.</p>
+              <p>3. A cada 10 cadastros completos validados, libera um bonus de R$ 50.</p>
             </CardContent>
           </Card>
 

@@ -16,6 +16,17 @@ interface ReferralStats {
   count: number;
   currentTier?: { badge_label?: string; threshold?: number } | null;
   nextTier?: { badge_label?: string; threshold?: number } | null;
+  rewardProgram?: {
+    milestone_every?: number;
+    reward_days?: number;
+    target_tier?: string;
+    missing_to_next?: number;
+    granted?: Array<{
+      coupon_code?: string | null;
+      free_days?: number;
+      target_tier?: string;
+    }>;
+  } | null;
 }
 
 interface ReferralLinkCardProps {
@@ -61,7 +72,13 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
     fetchTiers();
   }, []);
 
-  const safeStats = stats ?? { count: 0, currentTier: null, nextTier: null };
+  const safeStats = stats ?? { count: 0, currentTier: null, nextTier: null, rewardProgram: null };
+  const rewardMilestone = Number(safeStats.rewardProgram?.milestone_every || 10);
+  const rewardDays = Number(safeStats.rewardProgram?.reward_days || 7);
+  const missingToReward = Number(
+    safeStats.rewardProgram?.missing_to_next ?? Math.max(0, rewardMilestone - (safeStats.count ?? 0)),
+  );
+  const rewardCoupons = Array.isArray(safeStats.rewardProgram?.granted) ? safeStats.rewardProgram?.granted || [] : [];
 
   const remainingToNext = useMemo(() => {
     if (!safeStats.nextTier) return null;
@@ -145,8 +162,8 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
         <CardContent className="space-y-6 pt-6">
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Indique outros profissionais e ganhe destaque no topo das buscas! A indicação só é válida quando o
-              indicado conclui até "Validou documentos".
+              Indique profissionais e ganhe destaque no ranking. A cada {rewardMilestone} indicações válidas você
+              recebe {rewardDays} dias de crédito no plano mensal via cupom.
             </p>
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
               <div className="flex items-start gap-2">
@@ -183,6 +200,23 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
                   <p className="text-muted-foreground">Faltam para o próximo selo</p>
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <p className="text-xs font-semibold text-primary">Benefício econômico por marco</p>
+              <p className="text-xs text-muted-foreground">
+                Faltam <strong>{loadingStats ? "..." : missingToReward}</strong> indicações válidas para liberar
+                novo cupom de {rewardDays} dias.
+              </p>
+              {rewardCoupons.length > 0 && (
+                <div className="space-y-1">
+                  {rewardCoupons.slice(0, 3).map((reward: any, index: number) => (
+                    <p key={`${reward?.coupon_code || "cupom"}-${index}`} className="text-[11px] text-muted-foreground">
+                      Cupom gerado: <strong>{reward?.coupon_code || "-"}</strong>
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

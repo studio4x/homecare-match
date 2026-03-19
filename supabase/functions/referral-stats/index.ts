@@ -80,6 +80,136 @@ const getCurrentStatusLabel = (stages: {
   return "Criou cadastro";
 };
 
+const REFERRAL_REWARD_MILESTONE = 10;
+const REFERRAL_REWARD_FREE_DAYS = 7;
+const REFERRAL_REWARD_TARGET_TIER = "monthly";
+
+const buildRewardCouponCode = (milestone: number) => {
+  const seed = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+  return `IND${milestone}${seed}`.slice(0, 20);
+};
+
+const createSingleUseRewardCoupon = async (supabaseAdmin: any, milestone: number) => {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const code = buildRewardCouponCode(milestone);
+    const { data, error } = await supabaseAdmin
+      .from("coupons")
+      .insert({
+        code,
+        free_days: REFERRAL_REWARD_FREE_DAYS,
+        max_uses: 1,
+        current_uses: 0,
+        is_active: true,
+        only_new_users: false,
+        apply_mode: "dashboard_only",
+        target_tier: REFERRAL_REWARD_TARGET_TIER,
+      })
+      .select("id,code,free_days,target_tier")
+      .maybeSingle();
+
+    if (!error && data?.id) return data;
+
+    const message = String(error?.message || "").toLowerCase();
+    if (message.includes("duplicate")) continue;
+    if (message.includes("relation") && message.includes("coupons")) {
+      console.warn("[referral-stats] tabela coupons nao encontrada para gerar bonus de indicacao.");
+      return null;
+    }
+    throw error;
+  }
+
+  return null;
+};
+
+const issueReferralRewards = async (supabaseAdmin: any, referrerId: string, validCount: number, enabled: boolean) => {
+  const milestonesReached = Math.floor(validCount / REFERRAL_REWARD_MILESTONE);
+  const nextMilestoneAt = (milestonesReached + 1) * REFERRAL_REWARD_MILESTONE;
+
+  const summary: any = {
+    enabled,
+    milestone_every: REFERRAL_REWARD_MILESTONE,
+    reward_days: REFERRAL_REWARD_FREE_DAYS,
+    target_tier: REFERRAL_REWARD_TARGET_TIER,
+    milestones_reached: milestonesReached,
+    next_milestone_at: nextMilestoneAt,
+    missing_to_next: Math.max(0, nextMilestoneAt - validCount),
+    newly_granted: 0,
+    granted: [],
+  };
+
+  if (!enabled || milestonesReached <= 0) return summary;
+
+  const { data: existingGrants, error: existingGrantsError } = await supabaseAdmin
+    .from("referral_reward_grants")
+    .select("id,milestone_reached,coupon_code,free_days,target_tier,status,granted_at")
+    .eq("referrer_id", referrerId)
+    .order("milestone_reached", { ascending: true });
+
+  if (existingGrantsError) {
+    console.warn("[referral-stats] nao foi possivel consultar referral_reward_grants:", existingGrantsError?.message);
+    return summary;
+  }
+
+  const existingMilestones = new Set(
+    (existingGrants || []).map((grant: any) => Number(grant.milestone_reached || 0)).filter((value: number) => value > 0),
+  );
+  summary.granted = existingGrants || [];
+
+  for (let milestone = 1; milestone <= milestonesReached; milestone += 1) {
+    if (existingMilestones.has(milestone)) continue;
+
+    let coupon: any = null;
+    try {
+      coupon = await createSingleUseRewardCoupon(supabaseAdmin, milestone);
+    } catch (couponError: any) {
+      console.warn("[referral-stats] erro ao criar cupom de recompensa:", couponError?.message || couponError);
+      continue;
+    }
+
+    if (!coupon?.id) continue;
+
+    const grantPayload = {
+      referrer_id: referrerId,
+      milestone_reached: milestone,
+      valid_referrals_count: milestone * REFERRAL_REWARD_MILESTONE,
+      reward_type: "coupon_days",
+      coupon_id: coupon.id,
+      coupon_code: coupon.code,
+      free_days: coupon.free_days || REFERRAL_REWARD_FREE_DAYS,
+      target_tier: coupon.target_tier || REFERRAL_REWARD_TARGET_TIER,
+      status: "granted",
+      granted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: insertedGrant, error: grantError } = await supabaseAdmin
+      .from("referral_reward_grants")
+      .insert(grantPayload)
+      .select("id,milestone_reached,coupon_code,free_days,target_tier,status,granted_at")
+      .maybeSingle();
+
+    if (grantError) {
+      const message = String(grantError?.message || "").toLowerCase();
+      if (message.includes("duplicate")) continue;
+      console.warn("[referral-stats] erro ao gravar bonus de indicacao:", grantError?.message);
+      continue;
+    }
+
+    summary.newly_granted += 1;
+    summary.granted.unshift(insertedGrant);
+
+    await supabaseAdmin.from("notifications").insert({
+      user_id: referrerId,
+      title: "Bonus de indicacao liberado",
+      content: `Voce desbloqueou ${REFERRAL_REWARD_FREE_DAYS} dias no plano mensal. Cupom: ${coupon.code}`,
+      type: "success",
+      link: "/dashboard/pagamentos",
+    });
+  }
+
+  return summary;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -98,6 +228,7 @@ serve(async (req) => {
     }
 
     const referrerId = body?.referrerId;
+    const issueRewards = body?.issueRewards === true;
     if (!referrerId) {
       return new Response(JSON.stringify({ error: "referrerId_required" }), {
         status: 400,
@@ -269,6 +400,7 @@ serve(async (req) => {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     const validCount = registeredUsers.filter((user) => user.is_valid_referral).length;
+    const rewardProgram = await issueReferralRewards(supabaseAdmin, String(referrerId), validCount, issueRewards);
 
     let tiers: any[] = [];
     const { data: tiersFile } = await supabaseAdmin.storage.from("uploads").download("referrals/tiers.json");
@@ -324,6 +456,7 @@ serve(async (req) => {
         totalRegistered: registeredUsers.length,
         currentTier,
         nextTier,
+        rewardProgram,
         registeredUsers,
       }),
       {

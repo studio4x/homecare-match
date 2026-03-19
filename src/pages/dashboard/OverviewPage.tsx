@@ -152,7 +152,7 @@ const OverviewPage = () => {
 
       if (data.role === 'professional') {
         const { data: stats } = await supabase.functions.invoke('referral-stats', {
-          body: { referrerId: user.id }
+          body: { referrerId: user.id, issueRewards: true }
         });
         if (stats) setReferralStats(stats);
       }

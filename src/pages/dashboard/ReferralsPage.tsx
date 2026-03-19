@@ -30,6 +30,22 @@ interface ReferralStatsResponse {
   totalRegistered: number;
   currentTier?: { badge_label?: string; threshold?: number } | null;
   nextTier?: { badge_label?: string; threshold?: number } | null;
+  rewardProgram?: {
+    enabled?: boolean;
+    milestone_every?: number;
+    reward_days?: number;
+    target_tier?: string;
+    milestones_reached?: number;
+    next_milestone_at?: number;
+    missing_to_next?: number;
+    newly_granted?: number;
+    granted?: Array<{
+      coupon_code?: string | null;
+      free_days?: number;
+      target_tier?: string;
+      granted_at?: string;
+    }>;
+  } | null;
   registeredUsers: ReferralRegisteredUser[];
 }
 
@@ -62,10 +78,10 @@ const ReferralsPage = () => {
       const accessToken = sessionData?.session?.access_token;
 
       const invokeOptions: {
-        body: { referrerId: string };
+        body: { referrerId: string; issueRewards?: boolean };
         headers?: Record<string, string>;
       } = {
-        body: { referrerId: user.id },
+        body: { referrerId: user.id, issueRewards: true },
       };
 
       if (accessToken) {

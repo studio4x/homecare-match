@@ -273,7 +273,7 @@ const AffiliatesAdminPage = () => {
       <Card>
         <CardHeader>
           <CardTitle>Configuracoes do programa</CardTitle>
-          <CardDescription>Defina regras do v1: cadastro fixo, recorrencia, minimo e rollout.</CardDescription>
+          <CardDescription>Defina regras do v1: bonus por marcos, recorrencia, minimo e rollout.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
@@ -299,7 +299,7 @@ const AffiliatesAdminPage = () => {
 
           <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="signup_amount">Comissao cadastro (R$)</Label>
+              <Label htmlFor="signup_amount">Bonus por 10 cadastros (R$)</Label>
               <Input id="signup_amount" value={signupAmount} onChange={(e) => setSignupAmount(e.target.value)} />
             </div>
             <div className="space-y-2">

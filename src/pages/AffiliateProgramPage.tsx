@@ -23,7 +23,13 @@ import { toast } from "sonner";
 
 const AFFILIATE_TERMS_VERSION = "2026-03-19-v1";
 const AFFILIATE_TERMS_LAST_UPDATE = "19/03/2026";
-const PIX_KEY_TYPES = ["random", "cpf", "cnpj", "email", "phone"] as const;
+const PIX_KEY_TYPE_OPTIONS = [
+  { value: "random", label: "Aleatória" },
+  { value: "cpf", label: "CPF" },
+  { value: "cnpj", label: "CNPJ" },
+  { value: "email", label: "E-mail" },
+  { value: "phone", label: "Telefone" },
+] as const;
 
 const affiliateTermsSections = [
   {
@@ -350,9 +356,9 @@ const AffiliateProgramPage = () => {
                     <SelectValue placeholder="Selecione o tipo da chave" />
                   </SelectTrigger>
                   <SelectContent>
-                    {PIX_KEY_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
+                    {PIX_KEY_TYPE_OPTIONS.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

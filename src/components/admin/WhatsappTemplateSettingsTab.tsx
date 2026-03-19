@@ -452,8 +452,10 @@ const WhatsappTemplateSettingsTab = () => {
   const [rows, setRows] = useState<TemplateConfigRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingByEvent, setSavingByEvent] = useState<Record<string, boolean>>({});
   const [syncingDefaults, setSyncingDefaults] = useState(false);
   const [sendingTestByEvent, setSendingTestByEvent] = useState<Record<string, boolean>>({});
+  const [clearingTestHistory, setClearingTestHistory] = useState(false);
   const [testDestinationByEvent, setTestDestinationByEvent] = useState<Record<string, string>>({});
   const [testHistory, setTestHistory] = useState<WhatsappTestHistoryRow[]>([]);
   const [loadingTestHistory, setLoadingTestHistory] = useState(false);
@@ -565,6 +567,13 @@ const WhatsappTemplateSettingsTab = () => {
     );
   };
 
+  const setEventSaving = (eventType: string, isSavingEvent: boolean) => {
+    setSavingByEvent((prev) => ({
+      ...prev,
+      [eventType]: isSavingEvent,
+    }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -581,6 +590,35 @@ const WhatsappTemplateSettingsTab = () => {
       toast.error("Erro ao salvar configuracoes de templates WhatsApp.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveTemplate = async (row: TemplateConfigRow) => {
+    setEventSaving(row.event_type, true);
+    setError(null);
+    try {
+      const payload = toDbPayload(row);
+      const { error: saveError } = await supabase
+        .from("whatsapp_template_configs")
+        .upsert(payload, { onConflict: "event_type" });
+      if (saveError) throw saveError;
+
+      setRows((prev) =>
+        prev.map((item) =>
+          item.event_type === row.event_type
+            ? {
+                ...item,
+                updated_at: new Date().toISOString(),
+              }
+            : item,
+        ),
+      );
+      toast.success(`Template ${row.label} salvo.`);
+    } catch (saveError: any) {
+      setError(saveError?.message || "Falha ao salvar template.");
+      toast.error("Erro ao salvar template WhatsApp.");
+    } finally {
+      setEventSaving(row.event_type, false);
     }
   };
 
@@ -663,6 +701,29 @@ const WhatsappTemplateSettingsTab = () => {
     }
   };
 
+  const handleClearTestHistory = async () => {
+    const ids = Array.from(new Set(testHistory.map((item) => item.id).filter(Boolean)));
+    if (ids.length === 0) {
+      toast.message("Nao ha testes para limpar.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Deseja remover ${ids.length} item(ns) do historico de testes?`);
+    if (!confirmed) return;
+
+    setClearingTestHistory(true);
+    try {
+      const { error: deleteError } = await supabase.from("whatsapp_notification_queue").delete().in("id", ids);
+      if (deleteError) throw deleteError;
+      setTestHistory([]);
+      toast.success("Historico de testes limpo.");
+    } catch (clearError: any) {
+      toast.error(clearError?.message || "Falha ao limpar historico de testes.");
+    } finally {
+      setClearingTestHistory(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -687,7 +748,20 @@ const WhatsappTemplateSettingsTab = () => {
                   <p className="text-sm font-semibold">{row.label}</p>
                   <p className="text-[11px] text-muted-foreground">{row.event_type}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSaveTemplate(row)}
+                    disabled={saving || syncingDefaults || Boolean(savingByEvent[row.event_type])}
+                  >
+                    {savingByEvent[row.event_type] ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    Salvar template
+                  </Button>
                   <Badge variant="outline">{row.target_kind === "admin" ? "admin" : "usuario"}</Badge>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs">Ativo</Label>
@@ -866,6 +940,19 @@ const WhatsappTemplateSettingsTab = () => {
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
               Atualizar historico
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearTestHistory}
+              disabled={loadingTestHistory || clearingTestHistory || testHistory.length === 0}
+            >
+              {clearingTestHistory ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              )}
+              Limpar historico
             </Button>
           </div>
         </CardHeader>

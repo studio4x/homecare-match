@@ -164,6 +164,38 @@ const DEFAULT_TEMPLATE_CONFIGS: TemplateConfigRow[] = [
     is_active: true,
   },
   {
+    event_type: "affiliate_application_approved_user",
+    target_kind: "user",
+    label: "Afiliado: candidatura aprovada (usuario)",
+    template_name: "hcm_user_notification_v2",
+    sample_message:
+      "Atualizacao do programa de afiliados.\n\n{{1}}, {{2}}.\n\nAcesse: https://www.homecarematch.com.br{{3}}",
+    var1_default: "Afiliado",
+    var2_default: "sua candidatura foi aprovada",
+    var3_default: "/dashboard/afiliados",
+    variations: {
+      status_text: "sua candidatura foi aprovada",
+      details_path: "/dashboard/afiliados",
+    },
+    is_active: true,
+  },
+  {
+    event_type: "affiliate_application_rejected_user",
+    target_kind: "user",
+    label: "Afiliado: candidatura rejeitada (usuario)",
+    template_name: "hcm_user_notification_v2",
+    sample_message:
+      "Atualizacao do programa de afiliados.\n\n{{1}}, {{2}}.\n\nAcesse: https://www.homecarematch.com.br{{3}}",
+    var1_default: "Afiliado",
+    var2_default: "sua candidatura nao foi aprovada",
+    var3_default: "/afiliados",
+    variations: {
+      status_text: "sua candidatura nao foi aprovada",
+      details_path: "/afiliados",
+    },
+    is_active: true,
+  },
+  {
     event_type: "verification_request_admin",
     target_kind: "admin",
     label: "Verificacao pendente (admin)",
@@ -291,6 +323,14 @@ const VARIATION_FIELDS: Record<string, VariationField[]> = {
       label: "Padrao de caminho",
       placeholder: "/dashboard/pagamentos?renewalReminder={reminder_key}",
     },
+  ],
+  affiliate_application_approved_user: [
+    { key: "status_text", label: "Texto de status", placeholder: "sua candidatura foi aprovada" },
+    { key: "details_path", label: "Detalhes/caminho", placeholder: "/dashboard/afiliados" },
+  ],
+  affiliate_application_rejected_user: [
+    { key: "status_text", label: "Texto de status", placeholder: "sua candidatura nao foi aprovada" },
+    { key: "details_path", label: "Detalhes/caminho", placeholder: "/afiliados" },
   ],
   verification_request_admin: [
     { key: "status_text", label: "Texto de status", placeholder: "enviou documentos para verificacao" },

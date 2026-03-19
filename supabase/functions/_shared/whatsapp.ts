@@ -53,6 +53,8 @@ const USER_EVENT_TEMPLATE_DEFAULTS: Record<string, string> = {
   verification_request_user_confirmation: "hcm_user_verification_update",
   verification_approved_user: "hcm_user_verification_update",
   verification_rejected_user: "hcm_user_verification_update",
+  affiliate_application_approved_user: "hcm_user_notification_v2",
+  affiliate_application_rejected_user: "hcm_user_notification_v2",
   subscription_renewal_reminder_user: "hcm_user_subscription_reminder",
 };
 
@@ -63,6 +65,8 @@ const USER_EVENT_TEMPLATE_ENV_KEYS: Record<string, string> = {
   verification_request_user_confirmation: "WHATSAPP_TEMPLATE_USER_VERIFICATION_UPDATE",
   verification_approved_user: "WHATSAPP_TEMPLATE_USER_VERIFICATION_UPDATE",
   verification_rejected_user: "WHATSAPP_TEMPLATE_USER_VERIFICATION_UPDATE",
+  affiliate_application_approved_user: "WHATSAPP_TEMPLATE_USER_AFFILIATE_APPROVED",
+  affiliate_application_rejected_user: "WHATSAPP_TEMPLATE_USER_AFFILIATE_REJECTED",
   subscription_renewal_reminder_user: "WHATSAPP_TEMPLATE_USER_SUBSCRIPTION_REMINDER",
 };
 

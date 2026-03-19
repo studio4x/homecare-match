@@ -1,5 +1,6 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import nodemailer from "npm:nodemailer";
 import {
   corsHeaders,
   getBaseUrl,
@@ -11,8 +12,22 @@ import {
   resolveToken,
   sanitizeSlug,
 } from "../_shared/affiliate.ts";
+import {
+  enqueueUserWhatsappNotification,
+  getWhatsappTemplateConfig,
+  getWhatsappTemplateVariation,
+} from "../_shared/whatsapp.ts";
+import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const isValidEmail = (value: unknown) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+const escapeHtml = (value: unknown) =>
+  String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+const resolveSiteUrl = () => String(Deno.env.get("SITE_URL") || "https://www.homecarematch.com.br").replace(/\/+$/, "");
 
 const ensureAffiliateUserAccount = async (
   supabaseAdmin: any,
@@ -202,6 +217,338 @@ const createShortLinkForPartner = async (supabaseAdmin: any, req: Request, partn
   };
 };
 
+const resolveAffiliateRecipientUserId = async (supabaseAdmin: any, email: string, fallbackUserId?: string | null) => {
+  if (fallbackUserId) return fallbackUserId;
+  if (!isValidEmail(email)) return null;
+
+  const { data: profileByEmail, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id,role")
+    .ilike("email", email)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[affiliate-admin-review-application] falha ao resolver perfil de afiliado:", error.message);
+    return null;
+  }
+
+  if (!profileByEmail?.id) return null;
+  if (String(profileByEmail.role || "").toLowerCase() !== "affiliate") return null;
+  return profileByEmail.id;
+};
+
+const notifyAffiliateDecision = async ({
+  supabaseAdmin,
+  application,
+  decision,
+  recipientUserId,
+  accessEmailSent = false,
+}: {
+  supabaseAdmin: any;
+  application: any;
+  decision: "approved" | "rejected";
+  recipientUserId?: string | null;
+  accessEmailSent?: boolean;
+}) => {
+  const fullName = String(application?.full_name || "Afiliado").trim() || "Afiliado";
+  const email = String(application?.email || "").trim().toLowerCase();
+  const eventType =
+    decision === "approved" ? "affiliate_application_approved_user" : "affiliate_application_rejected_user";
+  const detailsPath = decision === "approved" ? "/dashboard/afiliados" : "/afiliados";
+  const widgetType = decision === "approved" ? "success" : "error";
+  const widgetTitle =
+    decision === "approved" ? "Candidatura de afiliado aprovada" : "Candidatura de afiliado rejeitada";
+  const widgetContent =
+    decision === "approved"
+      ? "Sua candidatura foi aprovada. Acesse o painel de afiliados para acompanhar o link e os ganhos."
+      : "Sua candidatura nao foi aprovada neste momento. Voce pode enviar um novo cadastro no futuro.";
+
+  const finalRecipientUserId = await resolveAffiliateRecipientUserId(supabaseAdmin, email, recipientUserId);
+
+  if (finalRecipientUserId) {
+    try {
+      const { error: widgetError } = await supabaseAdmin.from("notifications").insert({
+        user_id: finalRecipientUserId,
+        title: widgetTitle,
+        content: widgetContent,
+        link: detailsPath,
+        type: widgetType,
+      });
+
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType,
+        channel: "widget",
+        status: widgetError ? "failed" : "sent",
+        recipientKind: "user",
+        recipientUserId: finalRecipientUserId,
+        recipientContact: email || null,
+        title: widgetTitle,
+        content: widgetContent,
+        errorMessage: widgetError?.message || null,
+        metadata: {
+          application_id: application?.id || null,
+          decision,
+        },
+      });
+    } catch (error: any) {
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType,
+        channel: "widget",
+        status: "failed",
+        recipientKind: "user",
+        recipientUserId: finalRecipientUserId,
+        recipientContact: email || null,
+        title: widgetTitle,
+        content: widgetContent,
+        errorMessage: error?.message || String(error),
+        metadata: {
+          application_id: application?.id || null,
+          decision,
+        },
+      });
+    }
+  } else {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType,
+      channel: "widget",
+      status: "skipped",
+      recipientKind: "external",
+      recipientContact: email || null,
+      title: widgetTitle,
+      content: widgetContent,
+      errorMessage: "missing_recipient_user_id",
+      metadata: {
+        application_id: application?.id || null,
+        decision,
+      },
+    });
+  }
+
+  if (finalRecipientUserId) {
+    try {
+      const waConfig = await getWhatsappTemplateConfig(supabaseAdmin, eventType, "user");
+      const statusText = getWhatsappTemplateVariation(
+        waConfig,
+        "status_text",
+        String(
+          waConfig?.var2Default ||
+            (decision === "approved"
+              ? "sua candidatura de afiliado foi aprovada"
+              : "sua candidatura de afiliado foi rejeitada"),
+        ),
+      );
+      const detailsValue = getWhatsappTemplateVariation(
+        waConfig,
+        "details_path",
+        String(waConfig?.var3Default || detailsPath),
+      );
+
+      const queued = await enqueueUserWhatsappNotification({
+        supabaseAdmin,
+        userId: finalRecipientUserId,
+        eventType,
+        templateParams: [
+          String(fullName || waConfig?.var1Default || "Afiliado"),
+          statusText,
+          detailsValue,
+        ],
+        payload: {
+          application_id: application?.id || null,
+          decision,
+        },
+      });
+
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType,
+        channel: "whatsapp",
+        status: queued?.queued
+          ? "queued"
+          : queued?.reason === "whatsapp_disabled" ||
+              queued?.reason === "opt_in_disabled" ||
+              queued?.reason === "invalid_phone" ||
+              queued?.reason === "profile_not_found" ||
+              queued?.reason === "missing_user_id"
+            ? "skipped"
+            : "failed",
+        recipientKind: "user",
+        recipientUserId: finalRecipientUserId,
+        recipientContact: email || null,
+        title: widgetTitle,
+        content: widgetContent,
+        errorMessage: queued?.queued ? null : queued?.reason || null,
+        metadata: {
+          application_id: application?.id || null,
+          decision,
+        },
+      });
+    } catch (error: any) {
+      await logNotificationDelivery({
+        supabaseAdmin,
+        eventType,
+        channel: "whatsapp",
+        status: "failed",
+        recipientKind: "user",
+        recipientUserId: finalRecipientUserId,
+        recipientContact: email || null,
+        title: widgetTitle,
+        content: widgetContent,
+        errorMessage: error?.message || String(error),
+        metadata: {
+          application_id: application?.id || null,
+          decision,
+        },
+      });
+    }
+  } else {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType,
+      channel: "whatsapp",
+      status: "skipped",
+      recipientKind: "external",
+      recipientContact: email || null,
+      title: widgetTitle,
+      content: widgetContent,
+      errorMessage: "missing_recipient_user_id",
+      metadata: {
+        application_id: application?.id || null,
+        decision,
+      },
+    });
+  }
+
+  if (!isValidEmail(email)) {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType,
+      channel: "email",
+      status: "skipped",
+      recipientKind: "external",
+      recipientContact: email || null,
+      title: widgetTitle,
+      errorMessage: "invalid_candidate_email",
+      metadata: {
+        application_id: application?.id || null,
+        decision,
+      },
+    });
+    return;
+  }
+
+  const smtpHost = Deno.env.get("SMTP_HOST");
+  const smtpUser = Deno.env.get("SMTP_USER");
+  const smtpPass = Deno.env.get("SMTP_PASS");
+  const smtpPort = Deno.env.get("SMTP_PORT") || "587";
+  const hasSmtp = Boolean(smtpHost && smtpUser && smtpPass);
+
+  if (!hasSmtp) {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType,
+      channel: "email",
+      status: "skipped",
+      recipientKind: finalRecipientUserId ? "user" : "external",
+      recipientUserId: finalRecipientUserId,
+      recipientContact: email,
+      title: widgetTitle,
+      errorMessage: "smtp_not_configured",
+      metadata: {
+        application_id: application?.id || null,
+        decision,
+      },
+    });
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: Number.parseInt(smtpPort, 10),
+    secure: smtpPort === "465",
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+
+  const siteUrl = resolveSiteUrl();
+  const emailSubject =
+    decision === "approved" ? "Sua candidatura de afiliado foi aprovada" : "Atualizacao da sua candidatura de afiliado";
+
+  const emailHtml =
+    decision === "approved"
+      ? `
+        <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
+          <h2 style="margin: 0 0 12px; color: #16a34a;">Candidatura aprovada</h2>
+          <p style="margin: 0 0 12px;">Ola, ${escapeHtml(fullName)}.</p>
+          <p style="margin: 0 0 12px;">Sua candidatura para o programa de afiliados foi aprovada.</p>
+          <p style="margin: 0 0 16px;">
+            ${accessEmailSent
+              ? "Enviamos tambem um e-mail de acesso para definir sua senha e entrar no painel."
+              : "Seu acesso esta ativo. Caso necessario, utilize a recuperacao de senha para entrar no painel."}
+          </p>
+          <a href="${siteUrl}/dashboard/afiliados" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
+            Acessar painel do afiliado
+          </a>
+        </div>
+      `
+      : `
+        <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
+          <h2 style="margin: 0 0 12px; color: #dc2626;">Candidatura nao aprovada</h2>
+          <p style="margin: 0 0 12px;">Ola, ${escapeHtml(fullName)}.</p>
+          <p style="margin: 0 0 12px;">
+            No momento, sua candidatura para o programa de afiliados nao foi aprovada.
+          </p>
+          <p style="margin: 0 0 16px;">
+            Voce pode revisar seus dados e enviar uma nova candidatura futuramente.
+          </p>
+          <a href="${siteUrl}/afiliados" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
+            Ver pagina de afiliados
+          </a>
+        </div>
+      `;
+
+  try {
+    await transporter.sendMail({
+      from: `"HomeCare Match" <${smtpUser}>`,
+      to: email,
+      subject: emailSubject,
+      html: emailHtml,
+    });
+
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType,
+      channel: "email",
+      status: "sent",
+      recipientKind: finalRecipientUserId ? "user" : "external",
+      recipientUserId: finalRecipientUserId,
+      recipientContact: email,
+      title: emailSubject,
+      metadata: {
+        application_id: application?.id || null,
+        decision,
+      },
+    });
+  } catch (error: any) {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType,
+      channel: "email",
+      status: "failed",
+      recipientKind: finalRecipientUserId ? "user" : "external",
+      recipientUserId: finalRecipientUserId,
+      recipientContact: email,
+      title: emailSubject,
+      errorMessage: error?.message || String(error),
+      metadata: {
+        application_id: application?.id || null,
+        decision,
+      },
+    });
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -248,6 +595,26 @@ serve(async (req) => {
         .eq("id", application.id);
 
       if (rejectError) throw rejectError;
+
+      if (application.status !== "rejected") {
+        try {
+          await notifyAffiliateDecision({
+            supabaseAdmin,
+            application: {
+              ...application,
+              status: "rejected",
+              reviewed_at: reviewedAt,
+            },
+            decision: "rejected",
+          });
+        } catch (notifyError: any) {
+          console.warn(
+            "[affiliate-admin-review-application] falha ao notificar rejeicao:",
+            notifyError?.message || notifyError,
+          );
+        }
+      }
+
       return jsonResponse({ success: true, application_id: application.id, status: "rejected" });
     }
 
@@ -338,6 +705,27 @@ serve(async (req) => {
       .eq("id", application.id);
 
     if (approveError) throw approveError;
+
+    if (!alreadyApproved) {
+      try {
+        await notifyAffiliateDecision({
+          supabaseAdmin,
+          application: {
+            ...application,
+            status: "approved",
+            reviewed_at: reviewedAt,
+          },
+          decision: "approved",
+          recipientUserId: accountSetup.userId,
+          accessEmailSent: accountSetup.accessEmailSent,
+        });
+      } catch (notifyError: any) {
+        console.warn(
+          "[affiliate-admin-review-application] falha ao notificar aprovacao:",
+          notifyError?.message || notifyError,
+        );
+      }
+    }
 
     return jsonResponse({
       success: true,

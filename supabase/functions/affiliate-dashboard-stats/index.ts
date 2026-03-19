@@ -11,39 +11,18 @@ import {
   toMoney,
 } from "../_shared/affiliate.ts";
 
-const ensurePartner = async (supabaseAdmin: any, userId: string) => {
-  const { data: existing } = await supabaseAdmin
+const getPartnerForUser = async (supabaseAdmin: any, userId: string) => {
+  const { data: partner } = await supabaseAdmin
     .from("affiliate_partners")
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (existing) return existing;
+  if (!partner?.id) {
+    throw new Error("Conta sem perfil de afiliado habilitado.");
+  }
 
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("id,full_name,email,phone")
-    .eq("id", userId)
-    .maybeSingle();
-
-  const payload = {
-    user_id: userId,
-    display_name: String(profile?.full_name || profile?.email || "Afiliado"),
-    email: profile?.email || null,
-    phone: profile?.phone || null,
-    is_external: false,
-    status: "active",
-    created_by: userId,
-  };
-
-  const { data: created, error } = await supabaseAdmin
-    .from("affiliate_partners")
-    .insert(payload)
-    .select("*")
-    .maybeSingle();
-
-  if (error) throw error;
-  return created;
+  return partner;
 };
 
 serve(async (req) => {
@@ -58,7 +37,7 @@ serve(async (req) => {
     if (userResult.error) return userResult.error;
 
     const user = userResult.user;
-    const partner = await ensurePartner(supabaseAdmin, user.id);
+    const partner = await getPartnerForUser(supabaseAdmin, user.id);
 
     const [{ data: cfg }, { data: balance }, { data: linkRows }, { data: ledgerRows }, { data: payoutRows }] = await Promise.all([
       supabaseAdmin.from("affiliate_program_config").select("*").eq("id", 1).maybeSingle(),

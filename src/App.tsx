@@ -37,6 +37,7 @@ import BlogTagsPage from "./pages/BlogTags";
 import BlogSearchPage from "./pages/BlogSearch";
 import ShortLinkRedirect from "./pages/ShortLinkRedirect";
 import EmailConfirmed from "./pages/EmailConfirmed";
+import AffiliateProgramPage from "./pages/AffiliateProgramPage";
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -45,7 +46,6 @@ import ProfilePage from "./pages/dashboard/ProfilePage";
 import InteractionsPage from "./pages/dashboard/InteractionsPage";
 import AcademyPage from "./pages/dashboard/AcademyPage";
 import ReferralsPage from "./pages/dashboard/ReferralsPage";
-import AffiliatesPage from "./pages/dashboard/AffiliatesPage";
 import SupportTicketsPage from "./pages/dashboard/SupportTicketsPage";
 import TicketDetailPage from "./pages/dashboard/TicketDetailPage";
 import PaymentsPage from "./pages/dashboard/PaymentsPage";
@@ -121,6 +121,7 @@ const App = () => (
               <Route path="/blog/busca" element={<BlogSearchPage />} />
               <Route path="/redefinir-senha" element={<ResetPassword />} />
               <Route path="/email-confirmado" element={<EmailConfirmed />} />
+              <Route path="/afiliados" element={<AffiliateProgramPage />} />
               <Route path="/conversion/course" element={<ConversionCourse />} /> {/* New route */}
               <Route path="/conversion/subscription" element={<ConversionSubscription />} /> {/* New route */}
               <Route path="/:shortSlug" element={<ShortLinkRedirect />} />
@@ -132,7 +133,6 @@ const App = () => (
                 <Route path="contatos" element={<InteractionsPage />} />
                 <Route path="cursos" element={<AcademyPage />} />
                 <Route path="indicacoes" element={<ReferralsPage />} />
-                <Route path="afiliados" element={<AffiliatesPage />} />
                 <Route path="pagamentos" element={<PaymentsPage />} />
                 <Route path="avisos" element={<NoticesPage />} />
                 <Route path="suporte" element={<SupportTicketsPage />} />

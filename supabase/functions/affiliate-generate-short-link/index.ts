@@ -11,37 +11,18 @@ import {
   sanitizeSlug,
 } from "../_shared/affiliate.ts";
 
-const ensurePartner = async (supabaseAdmin: any, userId: string) => {
-  const { data: existing } = await supabaseAdmin
+const getPartnerForUser = async (supabaseAdmin: any, userId: string) => {
+  const { data: partner } = await supabaseAdmin
     .from("affiliate_partners")
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (existing) return existing;
+  if (!partner?.id) {
+    throw new Error("Conta sem perfil de afiliado habilitado.");
+  }
 
-  const { data: profile } = await supabaseAdmin
-    .from("profiles")
-    .select("full_name,email,phone")
-    .eq("id", userId)
-    .maybeSingle();
-
-  const { data: created, error } = await supabaseAdmin
-    .from("affiliate_partners")
-    .insert({
-      user_id: userId,
-      display_name: String(profile?.full_name || profile?.email || "Afiliado"),
-      email: profile?.email || null,
-      phone: profile?.phone || null,
-      status: "active",
-      is_external: false,
-      created_by: userId,
-    })
-    .select("*")
-    .maybeSingle();
-
-  if (error) throw error;
-  return created;
+  return partner;
 };
 
 const buildTargetUrl = (baseUrl: string, targetPath: string) => {
@@ -64,7 +45,7 @@ serve(async (req) => {
     if (userResult.error) return userResult.error;
 
     const user = userResult.user;
-    const partner = await ensurePartner(supabaseAdmin, user.id);
+    const partner = await getPartnerForUser(supabaseAdmin, user.id);
 
     const forceNew = body?.force_new === true;
     const targetPath = String(body?.target_path || "/convite");

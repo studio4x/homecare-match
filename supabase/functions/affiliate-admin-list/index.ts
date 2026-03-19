@@ -25,7 +25,7 @@ serve(async (req) => {
     const adminResult = await requireAdmin(supabaseAdmin, userResult.user.id);
     if (adminResult.error) return adminResult.error;
 
-    const [{ data: config }, { data: partners }, { data: balances }, { data: attributions }, { data: batches }] = await Promise.all([
+    const [{ data: config }, { data: partners }, { data: balances }, { data: attributions }, { data: batches }, { data: applications }] = await Promise.all([
       supabaseAdmin.from("affiliate_program_config").select("*").eq("id", 1).maybeSingle(),
       supabaseAdmin
         .from("affiliate_partners")
@@ -38,6 +38,11 @@ serve(async (req) => {
         .select("id,period_label,period_start,period_end,status,minimum_amount,total_affiliates,total_entries,total_amount,approved_at,paid_at,payment_reference")
         .order("created_at", { ascending: false })
         .limit(50),
+      supabaseAdmin
+        .from("affiliate_applications")
+        .select("id,full_name,email,phone,city,state,pix_key,pix_key_type,audience,experience,message,status,affiliate_partner_id,reviewed_at,created_at")
+        .order("created_at", { ascending: false })
+        .limit(200),
     ]);
 
     const balanceMap = new Map<string, any>();
@@ -76,6 +81,7 @@ serve(async (req) => {
       },
       partners: partnerList,
       batches: batches || [],
+      applications: applications || [],
     });
   } catch (error: any) {
     return jsonResponse({ error: error?.message || "Erro ao listar afiliados" }, 500);

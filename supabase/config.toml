@@ -503,6 +503,12 @@ verify_jwt = false
 [functions.affiliate-reconcile-events]
 verify_jwt = false
 
+[functions.affiliate-register-interest]
+verify_jwt = false
+
+[functions.affiliate-admin-review-application]
+verify_jwt = false
+
 # Experimental features may be deprecated any time
 [experimental]
 # Configures Postgres storage engine to use OrioleDB (S3)

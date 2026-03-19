@@ -3,7 +3,7 @@
 import React from 'react';
 
 const AppVersion = () => {
-  const version = "5.8.197"; // Versão incrementada
+  const version = "5.8.198"; // Versão incrementada
   const lastUpdate = new Date().toLocaleDateString('pt-BR');
 
   return (

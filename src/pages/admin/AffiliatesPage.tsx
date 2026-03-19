@@ -61,6 +61,7 @@ const AffiliatesAdminPage = () => {
   const [isApprovingBatch, setIsApprovingBatch] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
   const [payingBatchId, setPayingBatchId] = useState<string | null>(null);
+  const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
 
   const [enabled, setEnabled] = useState(false);
   const [shadowMode, setShadowMode] = useState(true);
@@ -80,6 +81,8 @@ const AffiliatesAdminPage = () => {
   const config = data?.config || {};
   const partners = Array.isArray(data?.partners) ? data.partners : [];
   const batches = Array.isArray(data?.batches) ? data.batches : [];
+  const applications = Array.isArray(data?.applications) ? data.applications : [];
+  const pendingApplications = applications.filter((row: any) => row.status === "pending");
 
   useEffect(() => {
     setEnabled(config?.affiliate_program_enabled === true);
@@ -217,6 +220,29 @@ const AffiliatesAdminPage = () => {
     }
   };
 
+  const handleReviewApplication = async (applicationId: string, decision: "approved" | "rejected") => {
+    setReviewingApplicationId(applicationId);
+    try {
+      const { data, error } = await supabase.functions.invoke("affiliate-admin-review-application", {
+        body: { application_id: applicationId, decision },
+      });
+
+      if (error) throw error;
+
+      if (decision === "approved") {
+        toast.success(data?.short_url ? `Candidatura aprovada. Link: ${data.short_url}` : "Candidatura aprovada.");
+      } else {
+        toast.success("Candidatura rejeitada.");
+      }
+
+      await refetch();
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao revisar candidatura.");
+    } finally {
+      setReviewingApplicationId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -240,6 +266,7 @@ const AffiliatesAdminPage = () => {
         <Badge variant={enabled ? "default" : "secondary"}>{enabled ? "Programa ativo" : "Programa desativado"}</Badge>
         <Badge variant={shadowMode ? "outline" : "default"}>{shadowMode ? "Modo sombra" : "Payout ativo"}</Badge>
         <Badge variant="outline">Parceiros: {partners.length}</Badge>
+        <Badge variant="outline">Candidaturas pendentes: {pendingApplications.length}</Badge>
         <Badge variant="outline">Lotes: {batches.length}</Badge>
       </div>
 
@@ -299,6 +326,80 @@ const AffiliatesAdminPage = () => {
               Salvar configuracoes
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Candidaturas de afiliado</CardTitle>
+          <CardDescription>Canal publico de cadastro para afiliados dedicados (sem role profissional).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {applications.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma candidatura recebida.</p>
+          ) : (
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Contato</TableHead>
+                    <TableHead>Cidade/UF</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Criado em</TableHead>
+                    <TableHead className="text-right">Acoes</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {applications.map((application: any) => {
+                    const reviewing = reviewingApplicationId === application.id;
+                    const isPending = application.status === "pending";
+
+                    return (
+                      <TableRow key={application.id}>
+                        <TableCell>
+                          <p className="text-sm font-medium">{application.full_name}</p>
+                          <p className="text-xs text-muted-foreground">{application.audience || "Sem publico informado"}</p>
+                        </TableCell>
+                        <TableCell>
+                          <p className="text-sm">{application.email}</p>
+                          <p className="text-xs text-muted-foreground">{application.phone}</p>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {application.city || "-"} / {application.state || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={application.status === "approved" ? "default" : "outline"}>
+                            {application.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(application.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={!isPending || reviewing}
+                              onClick={() => handleReviewApplication(application.id, "rejected")}
+                            >
+                              Rejeitar
+                            </Button>
+                            <Button
+                              size="sm"
+                              disabled={!isPending || reviewing}
+                              onClick={() => handleReviewApplication(application.id, "approved")}
+                            >
+                              {reviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aprovar"}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
 

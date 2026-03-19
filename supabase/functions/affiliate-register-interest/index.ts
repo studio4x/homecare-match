@@ -344,9 +344,14 @@ serve(async (req) => {
     const audience = normalizeText(body?.audience, 120) || null;
     const experience = normalizeText(body?.experience, 120) || null;
     const message = normalizeText(body?.message, 2000) || null;
+    const termsAccepted = body?.terms_accepted === true;
+    const termsVersion = normalizeText(body?.terms_version, 50) || null;
 
     if (!fullName || !email || !phone) {
       return jsonResponse({ error: "Nome, email e telefone sao obrigatorios." }, 400);
+    }
+    if (!termsAccepted || !termsVersion) {
+      return jsonResponse({ error: "Aceite do Termo e Condicoes e obrigatorio para concluir o cadastro." }, 400);
     }
 
     const { data: existingApplication } = await supabaseAdmin
@@ -412,9 +417,12 @@ serve(async (req) => {
         audience,
         experience,
         message,
+        terms_accepted: true,
+        terms_version: termsVersion,
+        terms_accepted_at: new Date().toISOString(),
         status: "pending",
       })
-      .select("id,status,created_at,full_name,email,phone,city,state,pix_key,pix_key_type,audience,experience,message")
+      .select("id,status,created_at,full_name,email,phone,city,state,pix_key,pix_key_type,audience,experience,message,terms_accepted,terms_version,terms_accepted_at")
       .single();
 
     if (insertError) throw insertError;

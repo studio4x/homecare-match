@@ -3,6 +3,14 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +19,82 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Megaphone, Repeat, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+const AFFILIATE_TERMS_VERSION = "2026-03-19-v1";
+const AFFILIATE_TERMS_LAST_UPDATE = "19/03/2026";
+
+const affiliateTermsSections = [
+  {
+    title: "1. Objeto",
+    paragraphs: [
+      "Este termo regula a participacao no Programa de Afiliados da Home Care Match para divulgacao da plataforma e captacao de novos profissionais.",
+      "A participacao no programa nao cria vinculo trabalhista, societario, de representacao comercial exclusiva ou de franquia.",
+    ],
+  },
+  {
+    title: "2. Elegibilidade",
+    paragraphs: [
+      "O cadastro de afiliado e destinado a parceiros dedicados. Contas profissionais da plataforma seguem regras proprias no sistema de indicacoes.",
+      "A Home Care Match pode aprovar, reprovar, suspender ou encerrar participacao no programa, com base em criterios operacionais, legais e antifraude.",
+    ],
+  },
+  {
+    title: "3. Regras de atribuicao",
+    paragraphs: [
+      "A atribuicao de indicados segue regra de primeiro afiliado (first-touch) e permanece imutavel apos atribuida, conforme configuracao vigente do programa.",
+      "Nao ha retroatividade para cadastros anteriores a ativacao do modulo de afiliados.",
+    ],
+  },
+  {
+    title: "4. Comissoes e apuracao",
+    paragraphs: [
+      "No modelo atual, o afiliado recebe bonus fixo por marco de cadastros completos validados e comissao recorrente sobre pagamentos validos do indicado, conforme configuracao ativa no admin.",
+      "Valores, percentuais, gatilhos e criterios de validacao podem ser atualizados pela Home Care Match para novos ciclos de apuracao.",
+    ],
+  },
+  {
+    title: "5. Pagamento",
+    paragraphs: [
+      "O pagamento e realizado por lote manual, em ciclo mensal, observando valor minimo de saque e chave PIX valida cadastrada.",
+      "Valores podem permanecer em status de sombra, pendente, disponivel, reservado ou pago, conforme etapas operacionais do programa.",
+    ],
+  },
+  {
+    title: "6. Estornos, cancelamentos e clawback",
+    paragraphs: [
+      "Pagamentos estornados, cancelados, contestados ou invalidados podem gerar ajuste negativo no extrato do afiliado (clawback), inclusive apos creditos anteriores.",
+      "A Home Care Match pode compensar ajustes negativos em creditos futuros, observando controles de auditoria do ledger.",
+    ],
+  },
+  {
+    title: "7. Condutas proibidas",
+    paragraphs: [
+      "E proibido auto-indicacao, fraude, uso de identidades de terceiros, spam, publicidade enganosa, promessa de resultado garantido ou uso indevido de marca.",
+      "Violacoes podem resultar em bloqueio de atribuicoes, estorno de comissoes, suspensao do parceiro e medidas legais cabiveis.",
+    ],
+  },
+  {
+    title: "8. Responsabilidades do afiliado",
+    paragraphs: [
+      "O afiliado e responsavel pelas informacoes enviadas no cadastro, pela manutencao de dados de pagamento atualizados e pelo cumprimento da legislacao aplicavel em suas acoes de divulgacao.",
+      "O afiliado deve manter postura etica e comunicar de forma clara que atua como parceiro de divulgacao da plataforma.",
+    ],
+  },
+  {
+    title: "9. Privacidade e dados",
+    paragraphs: [
+      "A Home Care Match trata dados pessoais conforme legislacao aplicavel e sua politica de privacidade.",
+      "Dados de cadastro e operacao do afiliado podem ser usados para analise de risco, auditoria, prevencao a fraude, suporte e obrigacoes legais.",
+    ],
+  },
+  {
+    title: "10. Vigencia e alteracoes",
+    paragraphs: [
+      "Este termo vigora a partir do aceite e permanece valido enquanto o afiliado participar do programa.",
+      "A Home Care Match pode alterar este termo e regras do programa. Novas condicoes passam a valer na versao publicada.",
+    ],
+  },
+];
 
 const AffiliateProgramPage = () => {
   const emailValidationRequestIdRef = useRef(0);
@@ -25,6 +109,8 @@ const AffiliateProgramPage = () => {
   const [experience, setExperience] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [emailValidationStatus, setEmailValidationStatus] = useState<"idle" | "invalid" | "checking" | "available" | "unavailable">("idle");
   const [emailValidationMessage, setEmailValidationMessage] = useState("");
 
@@ -97,6 +183,11 @@ const AffiliateProgramPage = () => {
       return;
     }
 
+    if (!acceptedTerms) {
+      toast.error("Voce precisa aceitar o Termo e Condicoes para continuar.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -112,6 +203,8 @@ const AffiliateProgramPage = () => {
           audience,
           experience,
           message,
+          terms_accepted: true,
+          terms_version: AFFILIATE_TERMS_VERSION,
         },
       });
 
@@ -130,6 +223,7 @@ const AffiliateProgramPage = () => {
         setAudience("");
         setExperience("");
         setMessage("");
+        setAcceptedTerms(false);
       }
     } catch (error: any) {
       toast.error(error?.message || "Erro ao enviar candidatura de afiliado.");
@@ -273,6 +367,28 @@ const AffiliateProgramPage = () => {
                   placeholder="Conte como pretende divulgar a plataforma."
                 />
               </div>
+              <div className="md:col-span-2 space-y-3 rounded-md border p-3">
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="affiliate_terms"
+                    checked={acceptedTerms}
+                    onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="affiliate_terms" className="text-sm font-medium">
+                      Li e aceito o Termo e Condicoes para Afiliados *
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Versao {AFFILIATE_TERMS_VERSION} (ultima atualizacao: {AFFILIATE_TERMS_LAST_UPDATE}).
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setTermsOpen(true)}>
+                    Ler termo completo
+                  </Button>
+                </div>
+              </div>
               <div className="md:col-span-2 flex justify-end">
                 <Button
                   type="submit"
@@ -280,7 +396,8 @@ const AffiliateProgramPage = () => {
                     isSubmitting ||
                     emailValidationStatus === "checking" ||
                     emailValidationStatus === "unavailable" ||
-                    emailValidationStatus === "invalid"
+                    emailValidationStatus === "invalid" ||
+                    !acceptedTerms
                   }
                   className="gap-2"
                 >
@@ -291,6 +408,29 @@ const AffiliateProgramPage = () => {
             </form>
           </CardContent>
         </Card>
+
+        <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Termo e Condicoes para Afiliados</DialogTitle>
+              <DialogDescription>
+                Versao {AFFILIATE_TERMS_VERSION} - ultima atualizacao em {AFFILIATE_TERMS_LAST_UPDATE}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2 text-sm">
+              {affiliateTermsSections.map((section) => (
+                <div key={section.title} className="space-y-2">
+                  <h3 className="font-semibold">{section.title}</h3>
+                  {section.paragraphs.map((paragraph, index) => (
+                    <p key={`${section.title}-${index}`} className="text-muted-foreground">
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

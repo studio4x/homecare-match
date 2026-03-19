@@ -1,6 +1,13 @@
 ﻿// @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import nodemailer from "npm:nodemailer";
+import {
+  enqueueAdminWhatsappNotification,
+  getWhatsappTemplateConfig,
+  getWhatsappTemplateVariation,
+} from "../_shared/whatsapp.ts";
+import { logNotificationDelivery } from "../_shared/notification-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +23,303 @@ const jsonResponse = (payload: Record<string, unknown>, status = 200) =>
 
 const normalizeText = (value: unknown, max = 500) => String(value || "").trim().slice(0, max);
 const normalizeEmail = (value: unknown) => normalizeText(value, 200).toLowerCase();
+const escapeHtml = (value: unknown) =>
+  String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const resolveSiteUrl = () => String(Deno.env.get("SITE_URL") || "https://www.homecarematch.com.br").replace(/\/+$/, "");
+
+const notifyAffiliateInterest = async (supabaseAdmin: any, application: any) => {
+  const fullName = String(application?.full_name || "Candidato");
+  const email = String(application?.email || "");
+  const phone = String(application?.phone || "");
+  const audience = String(application?.audience || "Publico nao informado");
+  const siteUrl = resolveSiteUrl();
+  const detailsPath = "/admin/afiliados";
+  const detailsLink = `${siteUrl}${detailsPath}`;
+
+  const widgetTitle = "Nova candidatura de afiliado";
+  const widgetContent = `${fullName} enviou cadastro de interesse (${email || "sem email"}).`;
+
+  try {
+    const { error: widgetError } = await supabaseAdmin.from("admin_notifications").insert({
+      title: widgetTitle,
+      content: widgetContent,
+      link: detailsPath,
+      type: "info",
+    });
+
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_admin",
+      channel: "widget",
+      status: widgetError ? "failed" : "sent",
+      recipientKind: "admin",
+      recipientContact: "admin_notifications",
+      title: widgetTitle,
+      content: widgetContent,
+      errorMessage: widgetError?.message || null,
+      metadata: {
+        application_id: application?.id || null,
+        candidate_email: email || null,
+      },
+    });
+  } catch (error: any) {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_admin",
+      channel: "widget",
+      status: "failed",
+      recipientKind: "admin",
+      recipientContact: "admin_notifications",
+      title: widgetTitle,
+      content: widgetContent,
+      errorMessage: error?.message || String(error),
+      metadata: {
+        application_id: application?.id || null,
+        candidate_email: email || null,
+      },
+    });
+  }
+
+  try {
+    const waConfig = await getWhatsappTemplateConfig(supabaseAdmin, "affiliate_interest_admin", "admin");
+    const configuredDetailsPath = getWhatsappTemplateVariation(
+      waConfig,
+      "details_path",
+      String(waConfig?.var3Default || detailsPath),
+    );
+
+    const queued = await enqueueAdminWhatsappNotification({
+      supabaseAdmin,
+      eventType: "affiliate_interest_admin",
+      templateParams: [
+        String(fullName || waConfig?.var1Default || "Candidato"),
+        String(audience || waConfig?.var2Default || "Publico nao informado"),
+        configuredDetailsPath,
+      ],
+      payload: {
+        application_id: application?.id || null,
+        candidate_email: email || null,
+        candidate_phone: phone || null,
+      },
+    });
+
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_admin",
+      channel: "whatsapp",
+      status: queued?.queued
+        ? "queued"
+        : queued?.reason === "whatsapp_disabled" || queued?.reason === "invalid_admin_destination"
+          ? "skipped"
+          : "failed",
+      recipientKind: "admin",
+      recipientContact: "whatsapp_admin_destination",
+      title: widgetTitle,
+      content: widgetContent,
+      errorMessage: queued?.queued ? null : queued?.reason || null,
+      metadata: {
+        application_id: application?.id || null,
+      },
+    });
+  } catch (error: any) {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_admin",
+      channel: "whatsapp",
+      status: "failed",
+      recipientKind: "admin",
+      recipientContact: "whatsapp_admin_destination",
+      title: widgetTitle,
+      content: widgetContent,
+      errorMessage: error?.message || String(error),
+      metadata: {
+        application_id: application?.id || null,
+      },
+    });
+  }
+
+  const smtpHost = Deno.env.get("SMTP_HOST");
+  const smtpUser = Deno.env.get("SMTP_USER");
+  const smtpPass = Deno.env.get("SMTP_PASS");
+  const smtpPort = Deno.env.get("SMTP_PORT") || "587";
+  const adminEmail = Deno.env.get("ADMIN_EMAIL") || "contato@homecarematch.com.br";
+  const hasSmtp = Boolean(smtpHost && smtpUser && smtpPass);
+
+  if (!hasSmtp) {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_admin",
+      channel: "email",
+      status: "skipped",
+      recipientKind: "admin",
+      recipientContact: adminEmail,
+      title: widgetTitle,
+      errorMessage: "smtp_not_configured",
+      metadata: {
+        application_id: application?.id || null,
+      },
+    });
+
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_received_external",
+      channel: "email",
+      status: "skipped",
+      recipientKind: "external",
+      recipientContact: email || null,
+      title: "Cadastro de afiliado recebido",
+      errorMessage: "smtp_not_configured",
+      metadata: {
+        application_id: application?.id || null,
+      },
+    });
+
+    return;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: Number.parseInt(smtpPort, 10),
+    secure: smtpPort === "465",
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+
+  const location = [String(application?.city || "").trim(), String(application?.state || "").trim()]
+    .filter(Boolean)
+    .join(" - ") || "-";
+
+  const adminSubject = `Nova candidatura de afiliado: ${fullName}`;
+
+  try {
+    await transporter.sendMail({
+      from: `"HomeCare Match" <${smtpUser}>`,
+      to: adminEmail,
+      subject: adminSubject,
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
+          <h2 style="margin: 0 0 12px; color: #2563eb;">Nova candidatura de afiliado</h2>
+          <p style="margin: 0 0 16px;">Um novo cadastro de interesse para o programa de afiliados foi recebido.</p>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+            <tr><td style="padding: 6px 0;"><strong>Nome:</strong></td><td>${escapeHtml(fullName)}</td></tr>
+            <tr><td style="padding: 6px 0;"><strong>E-mail:</strong></td><td>${escapeHtml(email || "-")}</td></tr>
+            <tr><td style="padding: 6px 0;"><strong>Telefone:</strong></td><td>${escapeHtml(phone || "-")}</td></tr>
+            <tr><td style="padding: 6px 0;"><strong>Cidade/Estado:</strong></td><td>${escapeHtml(location)}</td></tr>
+            <tr><td style="padding: 6px 0;"><strong>Publico:</strong></td><td>${escapeHtml(application?.audience || "-")}</td></tr>
+            <tr><td style="padding: 6px 0;"><strong>Experiencia:</strong></td><td>${escapeHtml(application?.experience || "-")}</td></tr>
+            <tr><td style="padding: 6px 0;"><strong>PIX:</strong></td><td>${escapeHtml(application?.pix_key_type || "-")} / ${escapeHtml(application?.pix_key || "-")}</td></tr>
+          </table>
+          <div style="background: #f3f4f6; border-radius: 8px; padding: 12px; margin-bottom: 18px; white-space: pre-wrap;">
+            ${escapeHtml(application?.message || "Sem mensagem complementar.")}
+          </div>
+          <a href="${detailsLink}" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
+            Abrir candidaturas no admin
+          </a>
+        </div>
+      `,
+    });
+
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_admin",
+      channel: "email",
+      status: "sent",
+      recipientKind: "admin",
+      recipientContact: adminEmail,
+      title: adminSubject,
+      metadata: {
+        application_id: application?.id || null,
+      },
+    });
+  } catch (error: any) {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_admin",
+      channel: "email",
+      status: "failed",
+      recipientKind: "admin",
+      recipientContact: adminEmail,
+      title: adminSubject,
+      errorMessage: error?.message || String(error),
+      metadata: {
+        application_id: application?.id || null,
+      },
+    });
+  }
+
+  const candidateEmail = email.includes("@") ? email : "";
+  if (!candidateEmail) {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_received_external",
+      channel: "email",
+      status: "skipped",
+      recipientKind: "external",
+      recipientContact: email || null,
+      title: "Cadastro de afiliado recebido",
+      errorMessage: "invalid_candidate_email",
+      metadata: {
+        application_id: application?.id || null,
+      },
+    });
+    return;
+  }
+
+  try {
+    await transporter.sendMail({
+      from: `"HomeCare Match" <${smtpUser}>`,
+      to: candidateEmail,
+      subject: "Recebemos seu cadastro de interesse de afiliado",
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #1f2937; max-width: 680px; margin: 0 auto; padding: 20px;">
+          <h2 style="margin: 0 0 12px; color: #2563eb;">Cadastro recebido</h2>
+          <p style="margin: 0 0 12px;">Ola, ${escapeHtml(fullName)}.</p>
+          <p style="margin: 0 0 12px;">
+            Recebemos seu cadastro de interesse para o programa de afiliados da HomeCare Match.
+          </p>
+          <p style="margin: 0 0 16px;">
+            Nossa equipe vai analisar sua candidatura e entrar em contato em breve pelos dados informados.
+          </p>
+          <a href="${siteUrl}/afiliados" style="display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 10px 14px; border-radius: 8px;">
+            Ver programa de afiliados
+          </a>
+        </div>
+      `,
+    });
+
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_received_external",
+      channel: "email",
+      status: "sent",
+      recipientKind: "external",
+      recipientContact: candidateEmail,
+      title: "Cadastro de afiliado recebido",
+      metadata: {
+        application_id: application?.id || null,
+      },
+    });
+  } catch (error: any) {
+    await logNotificationDelivery({
+      supabaseAdmin,
+      eventType: "affiliate_interest_received_external",
+      channel: "email",
+      status: "failed",
+      recipientKind: "external",
+      recipientContact: candidateEmail,
+      title: "Cadastro de afiliado recebido",
+      errorMessage: error?.message || String(error),
+      metadata: {
+        application_id: application?.id || null,
+      },
+    });
+  }
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -110,10 +414,16 @@ serve(async (req) => {
         message,
         status: "pending",
       })
-      .select("id,status,created_at")
+      .select("id,status,created_at,full_name,email,phone,city,state,pix_key,pix_key_type,audience,experience,message")
       .single();
 
     if (insertError) throw insertError;
+
+    try {
+      await notifyAffiliateInterest(supabaseAdmin, created);
+    } catch (notifyError: any) {
+      console.warn("[affiliate-register-interest] falha ao notificar candidatura:", notifyError?.message || notifyError);
+    }
 
     return jsonResponse({
       success: true,

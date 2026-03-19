@@ -239,6 +239,21 @@ const DEFAULT_TEMPLATE_CONFIGS: TemplateConfigRow[] = [
     },
     is_active: true,
   },
+  {
+    event_type: "affiliate_interest_admin",
+    target_kind: "admin",
+    label: "Nova candidatura de afiliado (admin)",
+    template_name: "hcm_admin_notification",
+    sample_message:
+      "Alerta administrativo HomeCare Match.\n\n{{1}} enviou candidatura de afiliado.\nPublico: {{2}}.\n\nAcesse: https://www.homecarematch.com.br{{3}}",
+    var1_default: "Candidato",
+    var2_default: "Publico nao informado",
+    var3_default: "/admin/afiliados",
+    variations: {
+      details_path: "/admin/afiliados",
+    },
+    is_active: true,
+  },
 ];
 
 const VARIATION_FIELDS: Record<string, VariationField[]> = {
@@ -292,6 +307,9 @@ const VARIATION_FIELDS: Record<string, VariationField[]> = {
   ],
   concierge_request_admin: [
     { key: "details_path", label: "Detalhes/caminho", placeholder: "/admin/concierge" },
+  ],
+  affiliate_interest_admin: [
+    { key: "details_path", label: "Detalhes/caminho", placeholder: "/admin/afiliados" },
   ],
 };
 

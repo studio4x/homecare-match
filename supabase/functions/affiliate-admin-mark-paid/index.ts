@@ -44,7 +44,7 @@ serve(async (req) => {
 
     const { data: items, error: itemsError } = await supabaseAdmin
       .from("affiliate_payout_items")
-      .select("id")
+      .select("id,status")
       .eq("batch_id", batchId);
 
     if (itemsError) throw itemsError;
@@ -60,14 +60,16 @@ serve(async (req) => {
           payment_proof_url: paymentProofUrl,
           updated_at: paidAt,
         })
-        .in("id", itemIds);
+        .in("id", itemIds)
+        .neq("status", "paid");
 
       if (itemsUpdateError) throw itemsUpdateError;
 
       const { error: ledgerUpdateError } = await supabaseAdmin
         .from("affiliate_commission_ledger")
         .update({ entry_status: "paid", updated_at: paidAt })
-        .in("payout_item_id", itemIds);
+        .in("payout_item_id", itemIds)
+        .in("entry_status", ["reserved", "available"]);
 
       if (ledgerUpdateError) throw ledgerUpdateError;
     }
@@ -83,9 +85,21 @@ serve(async (req) => {
         notes,
         updated_at: paidAt,
       })
-      .eq("id", batchId);
+      .eq("id", batchId)
+      .neq("status", "paid");
 
     if (batchUpdateError) throw batchUpdateError;
+
+    try {
+      await supabaseAdmin.from("admin_logs").insert({
+        admin_id: userResult.user.id,
+        action_type: "AFFILIATE_PAYOUT_BATCH_PAID",
+        target_id: batchId,
+        details: `Marcou lote ${batchId} como pago. Itens afetados: ${itemIds.length}. Ref: ${paymentReference || "-"}.`,
+      });
+    } catch (auditError) {
+      console.warn("[affiliate-admin-mark-paid] falha ao registrar auditoria:", auditError);
+    }
 
     return jsonResponse({ success: true, batch_id: batchId, item_count: itemIds.length, paid_at: paidAt });
   } catch (error: any) {

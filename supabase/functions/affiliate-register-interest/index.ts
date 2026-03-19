@@ -404,6 +404,7 @@ serve(async (req) => {
       .from("affiliate_partners")
       .select("id,status")
       .ilike("email", email)
+      .limit(1)
       .maybeSingle();
 
     if (existingPartner?.id) {
@@ -419,6 +420,7 @@ serve(async (req) => {
       .from("profiles")
       .select("id,role")
       .ilike("email", email)
+      .limit(1)
       .maybeSingle();
 
     if (existingProfile?.id) {

@@ -27,9 +27,9 @@ const getPartnerForUser = async (supabaseAdmin: any, userId: string) => {
 
 const buildTargetUrl = (baseUrl: string, targetPath: string) => {
   const base = String(baseUrl || "").replace(/\/+$/, "");
-  const path = String(targetPath || "/convite").trim();
-  if (/^https?:\/\//i.test(path)) return path;
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const rawPath = String(targetPath || "/convite").trim();
+  const safePath = rawPath.replace(/^https?:\/\/[^/]+/i, "");
+  const normalizedPath = safePath.startsWith("/") ? safePath : `/${safePath}`;
   return `${base}${normalizedPath}`;
 };
 

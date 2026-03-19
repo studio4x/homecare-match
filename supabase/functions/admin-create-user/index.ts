@@ -8,7 +8,7 @@ const corsHeaders = {
 }
 
 // Valid roles that can be assigned
-const VALID_ROLES = ['professional', 'company', 'family'];
+const VALID_ROLES = ['professional', 'company', 'family', 'affiliate'];
 
 // Validate email format
 const isValidEmail = (email: string): boolean => {

@@ -80,9 +80,17 @@ export const trackShortLinkSignupConversion = async (userId?: string | null) => 
   if (!attribution?.slug) return false;
 
   try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const sessionUserId = session?.user?.id || null;
+
+    if (!sessionUserId) return false;
+    if (userId && userId !== sessionUserId) return false;
+
     const { data, error } = await supabase.rpc("track_marketing_short_link_signup", {
       p_slug: attribution.slug,
-      p_user_id: userId || null,
+      p_user_id: sessionUserId,
     });
 
     if (error) {

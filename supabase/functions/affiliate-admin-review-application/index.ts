@@ -54,6 +54,7 @@ const ensureAffiliateUserAccount = async (
       .from("profiles")
       .select("id,role,is_admin,full_name,email")
       .ilike("email", email)
+      .limit(1)
       .maybeSingle();
 
   let accountCreated = false;
@@ -713,6 +714,20 @@ serve(async (req) => {
         }
       }
 
+      try {
+        await supabaseAdmin.from("admin_logs").insert({
+          admin_id: userResult.user.id,
+          action_type: "AFFILIATE_APPLICATION_REJECTED",
+          target_id: application.id,
+          details: `Rejeitou candidatura de afiliado (${application.email || "sem-email"}).`,
+        });
+      } catch (auditError) {
+        console.warn(
+          "[affiliate-admin-review-application] falha ao registrar auditoria de rejeicao:",
+          auditError,
+        );
+      }
+
       return jsonResponse({ success: true, application_id: application.id, status: "rejected" });
     }
 
@@ -735,6 +750,7 @@ serve(async (req) => {
         .from("affiliate_partners")
         .select("*")
         .ilike("email", String(application.email || ""))
+        .limit(1)
         .maybeSingle();
       existingPartner = partnerByEmail;
     }
@@ -823,6 +839,22 @@ serve(async (req) => {
           notifyError?.message || notifyError,
         );
       }
+    }
+
+    try {
+      await supabaseAdmin.from("admin_logs").insert({
+        admin_id: userResult.user.id,
+        action_type: alreadyApproved ? "AFFILIATE_APPLICATION_ACCESS_RESEND" : "AFFILIATE_APPLICATION_APPROVED",
+        target_id: application.id,
+        details: alreadyApproved
+          ? `Reenviou acesso para afiliado aprovado (${application.email || "sem-email"}).`
+          : `Aprovou candidatura de afiliado (${application.email || "sem-email"}) e vinculou parceiro ${partner.id}.`,
+      });
+    } catch (auditError) {
+      console.warn(
+        "[affiliate-admin-review-application] falha ao registrar auditoria de aprovacao:",
+        auditError,
+      );
     }
 
     return jsonResponse({

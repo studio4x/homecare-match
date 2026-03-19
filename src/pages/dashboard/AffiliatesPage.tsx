@@ -92,6 +92,7 @@ const AffiliatesPage = () => {
 
   const isProgramDisabled = config?.affiliate_program_enabled !== true;
   const isShadowMode = config?.affiliate_shadow_mode === true;
+  const programLabel = isProgramDisabled ? (isShadowMode ? "Coleta em sombra" : "Programa desativado") : "Programa ativo";
 
   useEffect(() => {
     setPixKey(String(partner?.pix_key || ""));
@@ -170,7 +171,7 @@ const AffiliatesPage = () => {
         <CardContent className="pt-6">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={isProgramDisabled ? "secondary" : "default"}>
-              {isProgramDisabled ? "Programa desativado" : "Programa ativo"}
+              {programLabel}
             </Badge>
             <Badge variant={isShadowMode ? "outline" : "default"}>
               {isShadowMode ? "Modo sombra" : "Payout habilitado"}

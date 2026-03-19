@@ -54,7 +54,7 @@ const formSchema = z.object({
   email: z.string().email("E-mail inválido").min(1, "E-mail é obrigatório"),
   password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres"),
   fullName: z.string().min(3, "Nome completo é obrigatório"),
-  role: z.enum(["professional", "company", "family"], { required_error: "Selecione o tipo de conta" }),
+  role: z.enum(["professional", "company", "family", "affiliate"], { required_error: "Selecione o tipo de conta" }),
   
   phone: z.string().optional(),
   avatar_url: z.string().optional(),
@@ -244,6 +244,7 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
                       <SelectItem value="professional">Profissional</SelectItem>
                       <SelectItem value="company">Empresa</SelectItem>
                       <SelectItem value="family">Família</SelectItem>
+                      <SelectItem value="affiliate">Afiliado</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

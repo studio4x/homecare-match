@@ -37,6 +37,7 @@ import SuggestionDrawer from "../SuggestionDrawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import PwaInstallPrompt from "../PwaInstallPrompt";
 import SupportChatWidget from "../SupportChatWidget";
+import { trackShortLinkSignupConversion } from "@/lib/short-link-attribution";
 
 const isTransientNetworkError = (error: unknown) => {
   const message = String((error as any)?.message || "").toLowerCase();
@@ -170,6 +171,25 @@ const UserLayout = () => {
 
     fetchProfile();
   }, [user, navigate, signOut]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void trackShortLinkSignupConversion(user.id);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!role || role !== "affiliate") return;
+    const path = location.pathname;
+    const isAllowedAffiliatePath =
+      path === "/dashboard" ||
+      path === "/dashboard/afiliados" ||
+      path === "/dashboard/perfil" ||
+      path.startsWith("/dashboard/suporte");
+
+    if (!isAllowedAffiliatePath) {
+      navigate("/dashboard/afiliados", { replace: true });
+    }
+  }, [role, location.pathname, navigate]);
 
   if (!authLoading && !user) {
     return <Navigate to="/login" replace />;

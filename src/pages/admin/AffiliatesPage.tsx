@@ -351,7 +351,7 @@ const AffiliatesAdminPage = () => {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">Programa habilitado</p>
-                  <p className="text-xs text-muted-foreground">Habilita atribuição e ledger.</p>
+                  <p className="text-xs text-muted-foreground">Habilita operação em produção. Em modo sombra, a coleta continua ativa.</p>
                 </div>
                 <Switch checked={enabled} onCheckedChange={setEnabled} />
               </div>
@@ -360,7 +360,7 @@ const AffiliatesAdminPage = () => {
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-medium">Modo sombra</p>
-                  <p className="text-xs text-muted-foreground">Coleta dados sem liberar payout.</p>
+                  <p className="text-xs text-muted-foreground">Coleta atribuição/ledger sem liberar payout.</p>
                 </div>
                 <Switch checked={shadowMode} onCheckedChange={setShadowMode} />
               </div>

@@ -96,7 +96,15 @@ const AffiliatesAdminPage = () => {
   const partners = Array.isArray(data?.partners) ? data.partners : [];
   const batches = Array.isArray(data?.batches) ? data.batches : [];
   const applications = Array.isArray(data?.applications) ? data.applications : [];
-  const pendingApplications = applications.filter((row: any) => row.status === "pending");
+  const groupedApplications = useMemo(
+    () => ({
+      pending: applications.filter((row: any) => row.status === "pending"),
+      approved: applications.filter((row: any) => row.status === "approved"),
+      rejected: applications.filter((row: any) => row.status === "rejected"),
+    }),
+    [applications],
+  );
+  const pendingApplications = groupedApplications.pending;
 
   useEffect(() => {
     setEnabled(config?.affiliate_program_enabled === true);
@@ -352,69 +360,95 @@ const AffiliatesAdminPage = () => {
           {applications.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma candidatura recebida.</p>
           ) : (
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>E-mail</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Criado em</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {applications.map((application: any) => {
-                    const reviewing = reviewingApplicationId === application.id;
-                    const isPending = application.status === "pending";
+            <div className="space-y-5">
+              {[
+                { status: "pending", title: "Pendentes", rows: groupedApplications.pending },
+                { status: "approved", title: "Aprovadas", rows: groupedApplications.approved },
+                { status: "rejected", title: "Rejeitadas", rows: groupedApplications.rejected },
+              ].map((section) => (
+                <div key={section.status} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">{section.title}</h3>
+                    <Badge variant="outline">{section.rows.length}</Badge>
+                  </div>
 
-                    return (
-                      <TableRow key={application.id}>
-                        <TableCell>
-                          <p className="text-sm font-medium">{application.full_name || "-"}</p>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm">{application.email || "-"}</p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={application.status === "approved" ? "default" : "outline"}>
-                            {applicationStatusLabel[application.status] || application.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(application.created_at).toLocaleDateString("pt-BR")}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setSelectedApplication(application)}
-                              className="gap-1"
-                            >
-                              <Eye className="h-3.5 w-3.5" />
-                              Ver dados
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!isPending || reviewing}
-                              onClick={() => handleReviewApplication(application.id, "rejected")}
-                            >
-                              Rejeitar
-                            </Button>
-                            <Button
-                              size="sm"
-                              disabled={!isPending || reviewing}
-                              onClick={() => handleReviewApplication(application.id, "approved")}
-                            >
-                              {reviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aprovar"}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                  {section.rows.length === 0 ? (
+                    <p className="rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                      Nenhuma candidatura {section.title.toLowerCase().slice(0, -1)}.
+                    </p>
+                  ) : (
+                    <div className="rounded-md border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Nome</TableHead>
+                            <TableHead>E-mail</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Criado em</TableHead>
+                            <TableHead className="text-right">Ações</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {section.rows.map((application: any) => {
+                            const reviewing = reviewingApplicationId === application.id;
+                            const isPending = application.status === "pending";
+
+                            return (
+                              <TableRow key={application.id}>
+                                <TableCell>
+                                  <p className="text-sm font-medium">{application.full_name || "-"}</p>
+                                </TableCell>
+                                <TableCell>
+                                  <p className="text-sm">{application.email || "-"}</p>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant={application.status === "approved" ? "default" : "outline"}>
+                                    {applicationStatusLabel[application.status] || application.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{new Date(application.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setSelectedApplication(application)}
+                                      className="gap-1"
+                                    >
+                                      <Eye className="h-3.5 w-3.5" />
+                                      Ver dados
+                                    </Button>
+
+                                    {isPending ? (
+                                      <>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          disabled={reviewing}
+                                          onClick={() => handleReviewApplication(application.id, "rejected")}
+                                        >
+                                          Rejeitar
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          disabled={reviewing}
+                                          onClick={() => handleReviewApplication(application.id, "approved")}
+                                        >
+                                          {reviewing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aprovar"}
+                                        </Button>
+                                      </>
+                                    ) : null}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

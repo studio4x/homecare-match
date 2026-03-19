@@ -23,6 +23,26 @@ const jsonResponse = (payload: Record<string, unknown>, status = 200) =>
 
 const normalizeText = (value: unknown, max = 500) => String(value || "").trim().slice(0, max);
 const normalizeEmail = (value: unknown) => normalizeText(value, 200).toLowerCase();
+const normalizePixKeyType = (value: unknown) => {
+  const raw = normalizeText(value, 20);
+  if (!raw) return null;
+
+  const normalized = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+
+  if (normalized === "cpf") return "cpf";
+  if (normalized === "cnpj") return "cnpj";
+  if (normalized === "email" || normalized === "mail") return "email";
+  if (normalized === "phone" || normalized === "telefone" || normalized === "celular" || normalized === "whatsapp") {
+    return "phone";
+  }
+  if (normalized === "random" || normalized === "aleatorio" || normalized === "aleatoria") return "random";
+
+  return null;
+};
 const escapeHtml = (value: unknown) =>
   String(value || "")
     .replace(/&/g, "&amp;")
@@ -332,7 +352,10 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return jsonResponse({ error: "Payload inválido. Verifique os dados enviados." }, 400);
+    }
 
     const fullName = normalizeText(body?.full_name, 180);
     const email = normalizeEmail(body?.email);
@@ -340,7 +363,8 @@ serve(async (req) => {
     const city = normalizeText(body?.city, 120) || null;
     const state = normalizeText(body?.state, 80) || null;
     const pixKey = normalizeText(body?.pix_key, 160) || null;
-    const pixKeyType = normalizeText(body?.pix_key_type, 20) || null;
+    const rawPixKeyType = normalizeText(body?.pix_key_type, 20);
+    const pixKeyType = normalizePixKeyType(rawPixKeyType);
     const audience = normalizeText(body?.audience, 120) || null;
     const experience = normalizeText(body?.experience, 120) || null;
     const message = normalizeText(body?.message, 2000) || null;
@@ -352,6 +376,9 @@ serve(async (req) => {
     }
     if (!termsAccepted || !termsVersion) {
       return jsonResponse({ error: "Aceite do Termo e Condições é obrigatório para concluir o cadastro." }, 400);
+    }
+    if (rawPixKeyType && !pixKeyType) {
+      return jsonResponse({ error: "Tipo de chave PIX inválido. Use: cpf, cnpj, email, phone ou random." }, 400);
     }
 
     const { data: existingApplication } = await supabaseAdmin
@@ -425,7 +452,22 @@ serve(async (req) => {
       .select("id,status,created_at,full_name,email,phone,city,state,pix_key,pix_key_type,audience,experience,message,terms_accepted,terms_version,terms_accepted_at")
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      if (insertError.code === "23505") {
+        return jsonResponse({
+          success: true,
+          already_exists: true,
+          status: "pending",
+          message: "Já recebemos seu cadastro. Retornaremos em breve.",
+        });
+      }
+
+      if (insertError.code === "23514" && String(insertError.message || "").includes("affiliate_applications_pix_type_check")) {
+        return jsonResponse({ error: "Tipo de chave PIX inválido. Use: cpf, cnpj, email, phone ou random." }, 400);
+      }
+
+      throw insertError;
+    }
 
     try {
       await notifyAffiliateInterest(supabaseAdmin, created);

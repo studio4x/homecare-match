@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,7 @@ import { toast } from "sonner";
 
 const AFFILIATE_TERMS_VERSION = "2026-03-19-v1";
 const AFFILIATE_TERMS_LAST_UPDATE = "19/03/2026";
+const PIX_KEY_TYPES = ["random", "cpf", "cnpj", "email", "phone"] as const;
 
 const affiliateTermsSections = [
   {
@@ -164,6 +166,20 @@ const AffiliateProgramPage = () => {
     return () => clearTimeout(timer);
   }, [email]);
 
+  const getFunctionErrorMessage = async (error: any, fallback: string) => {
+    if (error?.context?.json && typeof error.context.json === "function") {
+      try {
+        const payload = await error.context.json();
+        if (typeof payload?.error === "string" && payload.error.trim()) return payload.error;
+        if (typeof payload?.message === "string" && payload.message.trim()) return payload.message;
+      } catch {
+        // ignore parse errors and fallback below
+      }
+    }
+
+    return error?.message || fallback;
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const normalizedEmail = normalizeEmail(email);
@@ -226,7 +242,7 @@ const AffiliateProgramPage = () => {
         setAcceptedTerms(false);
       }
     } catch (error: any) {
-      toast.error(error?.message || "Erro ao enviar candidatura de afiliado.");
+      toast.error(await getFunctionErrorMessage(error, "Erro ao enviar candidatura de afiliado."));
     } finally {
       setIsSubmitting(false);
     }
@@ -329,12 +345,18 @@ const AffiliateProgramPage = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pix_type">Tipo de chave PIX</Label>
-                <Input
-                  id="pix_type"
-                  value={pixKeyType}
-                  onChange={(e) => setPixKeyType(e.target.value)}
-                  placeholder="cpf | cnpj | email | phone | random"
-                />
+                <Select value={pixKeyType} onValueChange={setPixKeyType}>
+                  <SelectTrigger id="pix_type">
+                    <SelectValue placeholder="Selecione o tipo da chave" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PIX_KEY_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pix_key">Chave PIX</Label>

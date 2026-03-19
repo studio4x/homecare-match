@@ -80,6 +80,9 @@ serve(async (req) => {
       SELECT cron.unschedule('processar-notificacoes-whatsapp')
       WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'processar-notificacoes-whatsapp');
 
+      SELECT cron.unschedule('reconciliar-afiliados')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'reconciliar-afiliados');
+
       SELECT cron.schedule(
         'processar-notificacoes-push',
         '* * * * *',
@@ -127,6 +130,18 @@ serve(async (req) => {
         );
         $$
       );
+
+      SELECT cron.schedule(
+        'reconciliar-afiliados',
+        '15 2 * * *',
+        $$
+        SELECT net.http_post(
+          url := '${escapedSupabaseUrl}/functions/v1/affiliate-reconcile-events',
+          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedServiceRole}"}'::jsonb,
+          body := '{"limit": 2000}'::jsonb
+        );
+        $$
+      );
     `;
 
     await client.queryObject(sql);
@@ -136,7 +151,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         ok: true,
-        message: "Automacao ativada com sucesso (push + estornos pendentes + alertas de assinatura + whatsapp).",
+        message: "Automacao ativada com sucesso (push + estornos + alertas de assinatura + whatsapp + reconciliacao de afiliados).",
       }),
       {
         status: 200,

@@ -11,6 +11,7 @@ import {
   MessageSquare,
   BookOpen,
   Award,
+  HandCoins,
   LogOut,
   Menu,
   X,
@@ -198,6 +199,7 @@ const UserLayout = () => {
     navItems.push(
       { href: "/dashboard/cursos", label: "Cursos", icon: BookOpen },
       { href: "/dashboard/indicacoes", label: "Indicações", icon: Award },
+      { href: "/dashboard/afiliados", label: "Afiliados", icon: HandCoins },
       { href: "/dashboard/pagamentos", label: "Pagamentos", icon: CreditCard }
     );
   } else if (isCompany) {

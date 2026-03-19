@@ -45,6 +45,7 @@ import ProfilePage from "./pages/dashboard/ProfilePage";
 import InteractionsPage from "./pages/dashboard/InteractionsPage";
 import AcademyPage from "./pages/dashboard/AcademyPage";
 import ReferralsPage from "./pages/dashboard/ReferralsPage";
+import AffiliatesPage from "./pages/dashboard/AffiliatesPage";
 import SupportTicketsPage from "./pages/dashboard/SupportTicketsPage";
 import TicketDetailPage from "./pages/dashboard/TicketDetailPage";
 import PaymentsPage from "./pages/dashboard/PaymentsPage";
@@ -80,6 +81,7 @@ import PwaSettingsPage from "./pages/admin/PwaSettingsPage";
 import BlogAdminPage from "./pages/admin/BlogPage";
 import ChatbotConversationsPage from "./pages/admin/ChatbotConversationsPage";
 import NotificationDeliveriesPage from "./pages/admin/NotificationDeliveriesPage";
+import AffiliatesAdminPage from "./pages/admin/AffiliatesPage";
 
 const queryClient = new QueryClient();
 
@@ -130,6 +132,7 @@ const App = () => (
                 <Route path="contatos" element={<InteractionsPage />} />
                 <Route path="cursos" element={<AcademyPage />} />
                 <Route path="indicacoes" element={<ReferralsPage />} />
+                <Route path="afiliados" element={<AffiliatesPage />} />
                 <Route path="pagamentos" element={<PaymentsPage />} />
                 <Route path="avisos" element={<NoticesPage />} />
                 <Route path="suporte" element={<SupportTicketsPage />} />
@@ -146,6 +149,7 @@ const App = () => (
                 <Route path="planos" element={<PlansPage />} />
                 <Route path="pagamentos" element={<PaymentsAdminPage />} />
                 <Route path="indicacoes" element={<ReferralsAdminPage />} />
+                <Route path="afiliados" element={<AffiliatesAdminPage />} />
                 <Route path="cursos" element={<CoursesAdminPage />} />
                 <Route path="videos" element={<VideosPage />} />
                 <Route path="push" element={<PushNotificationsPage />} />

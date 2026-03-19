@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Layout from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const AffiliateProgramPage = () => {
+  const emailValidationRequestIdRef = useRef(0);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -24,16 +25,85 @@ const AffiliateProgramPage = () => {
   const [experience, setExperience] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailValidationStatus, setEmailValidationStatus] = useState<"idle" | "invalid" | "checking" | "available" | "unavailable">("idle");
+  const [emailValidationMessage, setEmailValidationMessage] = useState("");
+
+  const normalizeEmail = (value: string) => value.trim().toLowerCase();
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+  useEffect(() => {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail) {
+      setEmailValidationStatus("idle");
+      setEmailValidationMessage("");
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setEmailValidationStatus("invalid");
+      setEmailValidationMessage("Digite um email valido.");
+      return;
+    }
+
+    const requestId = emailValidationRequestIdRef.current + 1;
+    emailValidationRequestIdRef.current = requestId;
+    setEmailValidationStatus("checking");
+    setEmailValidationMessage("Validando disponibilidade...");
+
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("affiliate-check-email", {
+          body: { email: normalizedEmail },
+        });
+
+        if (requestId !== emailValidationRequestIdRef.current) return;
+        if (error) throw error;
+
+        if (data?.available === true) {
+          setEmailValidationStatus("available");
+          setEmailValidationMessage(data?.message || "Email aceito para utilizacao.");
+          return;
+        }
+
+        setEmailValidationStatus("unavailable");
+        setEmailValidationMessage(data?.message || "Este email ja possui cadastro.");
+      } catch (_error) {
+        if (requestId !== emailValidationRequestIdRef.current) return;
+        setEmailValidationStatus("idle");
+        setEmailValidationMessage("");
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [email]);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!isValidEmail(normalizedEmail)) {
+      toast.error("Digite um email valido.");
+      return;
+    }
+
+    if (emailValidationStatus === "checking") {
+      toast.error("Aguarde a validacao do email antes de enviar.");
+      return;
+    }
+
+    if (emailValidationStatus === "unavailable") {
+      toast.error(emailValidationMessage || "Este email ja possui cadastro.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const { data, error } = await supabase.functions.invoke("affiliate-register-interest", {
         body: {
           full_name: fullName,
-          email,
+          email: normalizedEmail,
           phone,
           city,
           state,
@@ -135,6 +205,19 @@ const AffiliateProgramPage = () => {
               <div className="space-y-2">
                 <Label htmlFor="email">Email *</Label>
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                {emailValidationMessage ? (
+                  <p
+                    className={`text-xs ${
+                      emailValidationStatus === "available"
+                        ? "text-emerald-600"
+                        : emailValidationStatus === "unavailable" || emailValidationStatus === "invalid"
+                          ? "text-destructive"
+                          : "text-muted-foreground"
+                    }`}
+                  >
+                    {emailValidationMessage}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone/WhatsApp *</Label>
@@ -191,7 +274,16 @@ const AffiliateProgramPage = () => {
                 />
               </div>
               <div className="md:col-span-2 flex justify-end">
-                <Button type="submit" disabled={isSubmitting} className="gap-2">
+                <Button
+                  type="submit"
+                  disabled={
+                    isSubmitting ||
+                    emailValidationStatus === "checking" ||
+                    emailValidationStatus === "unavailable" ||
+                    emailValidationStatus === "invalid"
+                  }
+                  className="gap-2"
+                >
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   Enviar candidatura
                 </Button>

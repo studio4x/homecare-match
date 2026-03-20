@@ -1,5 +1,5 @@
 interface Window {
-  gtag?: (...args: any[]) => void;
-  fbq?: (...args: any[]) => void;
-  dataLayer?: Array<Record<string, unknown>>;
+  gtag?: (...args: unknown[]) => void;
+  fbq?: (...args: unknown[]) => void;
+  dataLayer?: Array<Record<string, unknown> | unknown[]>;
 }

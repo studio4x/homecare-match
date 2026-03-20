@@ -37,68 +37,164 @@ const ensureScript = (id: string, create: () => HTMLScriptElement) => {
   document.head.appendChild(script);
 };
 
+const getDataLayer = () => {
+  window.dataLayer = window.dataLayer || [];
+  return window.dataLayer;
+};
+
+const pushDataLayerArgs = (...args: unknown[]) => {
+  getDataLayer().push(args);
+};
+
+const ensureMarker = (id: string, value?: string) => {
+  if (document.getElementById(id)) return false;
+  const marker = document.createElement("meta");
+  marker.id = id;
+  if (value) marker.setAttribute("content", value);
+  document.head.appendChild(marker);
+  return true;
+};
+
+const GA_MEASUREMENT_ID_REGEX = /^G-[A-Z0-9]+$/i;
+const GTM_CONTAINER_ID_REGEX = /^GTM-[A-Z0-9]+$/i;
+const FB_PIXEL_ID_REGEX = /^\d{5,20}$/;
+
+const getSafeGAId = (value: string) => {
+  const normalized = String(value || "").trim();
+  return GA_MEASUREMENT_ID_REGEX.test(normalized) ? normalized : null;
+};
+
+const getSafeGTMContainerId = (value: string) => {
+  const normalized = String(value || "").trim();
+  return GTM_CONTAINER_ID_REGEX.test(normalized) ? normalized : null;
+};
+
+const getSafePixelId = (value: string) => {
+  const normalized = String(value || "").trim();
+  return FB_PIXEL_ID_REGEX.test(normalized) ? normalized : null;
+};
+
 const injectGA = (measurementId: string) => {
+  const safeMeasurementId = getSafeGAId(measurementId);
+  if (!safeMeasurementId) {
+    console.warn("[MarketingScripts] GA measurement ID invalido.");
+    return;
+  }
+
   ensureScript("ga-lib", () => {
     const script = document.createElement("script");
     script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(safeMeasurementId)}`;
     return script;
   });
 
-  ensureScript("ga-init", () => {
-    const script = document.createElement("script");
-    script.innerHTML = `
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', '${measurementId}', { send_page_view: false });
-    `;
-    return script;
-  });
+  if (!ensureMarker("ga-init", safeMeasurementId)) return;
+
+  getDataLayer();
+  if (!window.gtag) {
+    window.gtag = (...args: unknown[]) => {
+      pushDataLayerArgs(...args);
+    };
+  }
+
+  window.gtag("js", new Date());
+  window.gtag("config", safeMeasurementId, { send_page_view: false });
 };
 
 const injectGTM = (containerId: string) => {
-  ensureScript("gtm-init", () => {
-    const script = document.createElement("script");
-    script.innerHTML = `
-      (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-      new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-      j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-      'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-      })(window,document,'script','dataLayer','${containerId}');
-    `;
-    return script;
-  });
+  const safeContainerId = getSafeGTMContainerId(containerId);
+  if (!safeContainerId) {
+    console.warn("[MarketingScripts] GTM container ID invalido.");
+    return;
+  }
+
+  if (ensureMarker("gtm-init", safeContainerId)) {
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      "gtm.start": new Date().getTime(),
+      event: "gtm.js",
+    });
+
+    ensureScript("gtm-lib", () => {
+      const script = document.createElement("script");
+      script.async = true;
+      script.src = `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(safeContainerId)}`;
+      return script;
+    });
+  }
 
   if (!document.getElementById("gtm-noscript")) {
     const noScript = document.createElement("noscript");
     noScript.id = "gtm-noscript";
-    noScript.innerHTML = `<iframe src="https://www.googletagmanager.com/ns.html?id=${containerId}" height="0" width="0" style="display:none;visibility:hidden"></iframe>`;
+
+    const iframe = document.createElement("iframe");
+    iframe.src = `https://www.googletagmanager.com/ns.html?id=${encodeURIComponent(safeContainerId)}`;
+    iframe.height = "0";
+    iframe.width = "0";
+    iframe.style.display = "none";
+    iframe.style.visibility = "hidden";
+    noScript.appendChild(iframe);
+
     document.body.appendChild(noScript);
   }
 };
 
 const injectFBPixel = (pixelId: string) => {
-  ensureScript("fb-pixel-lib", () => {
-    const script = document.createElement("script");
-    script.innerHTML = `
-      !function(f,b,e,v,n,t,s)
-      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-      n.queue=[];t=b.createElement(e);t.async=!0;
-      t.src=v;s=b.getElementsByTagName(e)[0];
-      s.parentNode.insertBefore(t,s)}(window, document,'script',
-      'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', '${pixelId}');
-    `;
-    return script;
-  });
+  const safePixelId = getSafePixelId(pixelId);
+  if (!safePixelId) {
+    console.warn("[MarketingScripts] Pixel ID invalido.");
+    return;
+  }
+
+  if (ensureMarker("fb-pixel-init", safePixelId)) {
+    if (!window.fbq) {
+      type FbqStub = ((...args: unknown[]) => void) & {
+        callMethod?: (...args: unknown[]) => void;
+        queue: unknown[][];
+        push: (...args: unknown[]) => void;
+        loaded: boolean;
+        version: string;
+      };
+
+      const fbqStub = ((...args: unknown[]) => {
+        if (fbqStub.callMethod) {
+          fbqStub.callMethod(...args);
+          return;
+        }
+        fbqStub.queue.push(args);
+      }) as FbqStub;
+
+      fbqStub.push = (...args: unknown[]) => {
+        fbqStub(...args);
+      };
+      fbqStub.loaded = true;
+      fbqStub.version = "2.0";
+      fbqStub.queue = [];
+      window.fbq = fbqStub;
+      (window as typeof window & { _fbq?: FbqStub })._fbq = fbqStub;
+    }
+
+    ensureScript("fb-pixel-lib", () => {
+      const script = document.createElement("script");
+      script.async = true;
+      script.src = "https://connect.facebook.net/en_US/fbevents.js";
+      return script;
+    });
+  }
+
+  window.fbq?.("init", safePixelId);
 
   if (!document.getElementById("fb-pixel-noscript")) {
     const noScript = document.createElement("noscript");
     noScript.id = "fb-pixel-noscript";
-    noScript.innerHTML = `<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1"/>`;
+
+    const pixel = document.createElement("img");
+    pixel.height = 1;
+    pixel.width = 1;
+    pixel.style.display = "none";
+    pixel.src = `https://www.facebook.com/tr?id=${encodeURIComponent(safePixelId)}&ev=PageView&noscript=1`;
+    noScript.appendChild(pixel);
+
     document.body.appendChild(noScript);
   }
 };

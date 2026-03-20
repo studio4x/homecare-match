@@ -7,6 +7,7 @@ import {
   isWhatsappEnabled,
   normalizeTemplateParams,
 } from "../_shared/whatsapp.ts";
+import { timingSafeEqual } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,7 +59,7 @@ serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const authToken = req.headers.get("authorization")?.replace("Bearer ", "").trim() || "";
 
-  if (!serviceRoleKey || authToken !== serviceRoleKey) {
+  if (!serviceRoleKey || !timingSafeEqual(authToken, serviceRoleKey)) {
     return new Response(JSON.stringify({ error: "Nao autorizado." }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

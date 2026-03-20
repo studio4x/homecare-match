@@ -8,6 +8,7 @@ import {
   getWhatsappTemplateVariation,
 } from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
+import { timingSafeEqual } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,7 +124,7 @@ serve(async (req) => {
 
   let authMode: "service_role" | "admin" | null = null;
 
-  if (authToken === serviceRoleKey) {
+  if (authToken && timingSafeEqual(authToken, serviceRoleKey)) {
     authMode = "service_role";
   } else if (authToken) {
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(authToken);

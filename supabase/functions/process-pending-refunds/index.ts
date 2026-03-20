@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { timingSafeEqual } from "../_shared/timing-safe.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,7 +91,7 @@ serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const authToken = req.headers.get("authorization")?.replace("Bearer ", "").trim() || "";
 
-  if (!serviceRoleKey || authToken !== serviceRoleKey) {
+  if (!serviceRoleKey || !timingSafeEqual(authToken, serviceRoleKey)) {
     return new Response(JSON.stringify({ error: "Nao autorizado." }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ShieldAlert } from "lucide-react";
+import { getSupabaseAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
 
 const ImpersonationBar: React.FC = () => {
   const { signOut, user } = useAuth();
@@ -53,7 +54,13 @@ const ImpersonationBar: React.FC = () => {
                 localStorage.removeItem("adminReturnUserId");
               } catch {}
               await signOut();
-              window.location.href = link || "/admin";
+              const redirected = navigateSafely(link || "/admin", {
+                allowExternal: true,
+                allowedHosts: getSupabaseAllowedHosts(),
+              });
+              if (!redirected) {
+                window.location.assign("/admin");
+              }
             }}
           >
             Voltar ao Admin

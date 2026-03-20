@@ -39,6 +39,7 @@ import { resolveLandingVideoAssets } from "@/lib/landing-video";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveVideoOrientation } from "@/lib/video-utils";
 import WhatsAppContactButton from "@/components/WhatsAppContactButton";
+import { getCheckoutAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -98,7 +99,13 @@ const Index = () => {
       if (data?.url) {
         toast.dismiss(toastId);
         toast.success("Redirecionando para pagamento...");
-        window.location.href = data.url;
+        const redirected = navigateSafely(data.url, {
+          allowExternal: true,
+          allowedHosts: getCheckoutAllowedHosts(),
+        });
+        if (!redirected) {
+          throw new Error("URL de checkout invalida.");
+        }
       } else {
         throw new Error("URL de checkout não retornada pelo servidor.");
       }

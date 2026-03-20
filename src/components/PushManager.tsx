@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { BellRing, ShieldCheck, Loader2, Megaphone, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/hooks/use-site-config";
+import { navigateSafely } from "@/lib/safe-navigation";
 import {
   Dialog,
   DialogContent,
@@ -272,7 +273,10 @@ const PushManager = () => {
                     onClick={() => {
                       const link = activeNotification.link;
                       setActiveNotification(null);
-                      window.location.href = link;
+                      const redirected = navigateSafely(link);
+                      if (!redirected) {
+                        toast.error("Link de notificacao invalido.");
+                      }
                     }}
                   >
                     Ver Detalhes <ExternalLink className="h-4 w-4" />

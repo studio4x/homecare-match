@@ -49,6 +49,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useQuery } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label";
+import { navigateSafely } from "@/lib/safe-navigation";
 
 const PLAN_DISPLAY_ORDER = ["free_trial", "monthly", "yearly", "annual"];
 const getPlanDisplayPriority = (planId: string) => {
@@ -213,7 +214,10 @@ const OverviewPage = () => {
       const { data, error } = await supabase.functions.invoke('create-portal-session');
       if (error) throw error;
       if (data?.url) {
-        window.location.href = data.url;
+        const redirected = navigateSafely(data.url);
+        if (!redirected) {
+          throw new Error("URL de redirecionamento invalida.");
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -921,7 +925,7 @@ const OverviewPage = () => {
                   </p>
                   <div className="flex flex-wrap gap-3">
                     <Button 
-                      onClick={() => (window.location.href = "/#planos")}
+                      onClick={() => navigateSafely("/#planos")}
                       className="gap-2 bg-destructive hover:bg-destructive/90 text-white shadow-lg"
                     >
                       <CreditCard className="h-4 w-4" />

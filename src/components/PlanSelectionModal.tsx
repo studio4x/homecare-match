@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { createCheckoutSession } from "@/lib/checkout";
+import { getCheckoutAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
 
 interface PlanSelectionModalProps {
   open: boolean;
@@ -102,8 +103,12 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
       const data = await createCheckoutSession({ planId: plan.id });
 
       if (data?.url) {
-        window.location.href = data.url;
-        return;
+        const redirected = navigateSafely(data.url, {
+          allowExternal: true,
+          allowedHosts: getCheckoutAllowedHosts(),
+        });
+        if (redirected) return;
+        throw new Error("URL de checkout invalida.");
       }
 
       throw new Error("URL de checkout nao retornada pelo servidor.");

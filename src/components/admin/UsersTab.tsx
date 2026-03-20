@@ -54,6 +54,7 @@ import { toast } from "sonner";
 import { differenceInDays, addDays, isAfter, subDays, parseISO, isValid } from "date-fns";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { getSupabaseAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
 
 interface UsersTabProps {
   allUsers: any[];
@@ -347,7 +348,14 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
         localStorage.setItem("impersonatingAdmin", "true");
         localStorage.setItem("impersonatorEmail", user.email);
       } catch {}
-      window.location.href = data.action_link;
+      const redirected = navigateSafely(data.action_link, {
+        allowExternal: true,
+        allowedHosts: getSupabaseAllowedHosts(),
+      });
+      if (!redirected) {
+        toast.error("Link de acesso invalido.");
+        return;
+      }
     } catch (e) {
       console.error("[Admin] Impersonate error:", e);
       toast.error("Falha ao entrar como usuário.");

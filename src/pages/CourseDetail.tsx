@@ -47,6 +47,7 @@ import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import CourseAIDisclaimer from "@/components/CourseAIDisclaimer";
 import { sanitizeStoragePath } from "@/lib/storage-path";
+import { getCheckoutAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -349,8 +350,12 @@ const CourseDetail = () => {
     try {
       const data = await createCheckoutSession({ planId });
       if (data?.url) {
-        window.location.href = data.url;
-        return;
+        const redirected = navigateSafely(data.url, {
+          allowExternal: true,
+          allowedHosts: getCheckoutAllowedHosts(),
+        });
+        if (redirected) return;
+        throw new Error("URL de checkout invalida.");
       }
 
       throw new Error("URL de checkout não retornada pelo servidor.");
@@ -412,8 +417,12 @@ const CourseDetail = () => {
     try {
       const data = await createCheckoutSession({ courseSlug: slug });
       if (data?.url) {
-        window.location.href = data.url;
-        return;
+        const redirected = navigateSafely(data.url, {
+          allowExternal: true,
+          allowedHosts: getCheckoutAllowedHosts(),
+        });
+        if (redirected) return;
+        throw new Error("URL de checkout invalida.");
       }
 
       throw new Error("URL de checkout não retornada pelo servidor.");

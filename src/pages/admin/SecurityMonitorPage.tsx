@@ -550,6 +550,7 @@ const SecurityMonitorPage = () => {
             <div className="space-y-3">
               {findings.map((finding) => {
                 const severityMeta = severityBadgeMap[finding.severity] || severityBadgeMap.info;
+                const requiresAction = finding.status === "warn" || finding.status === "fail";
                 return (
                   <div key={finding.id} className="rounded-md border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -560,16 +561,18 @@ const SecurityMonitorPage = () => {
                         <Badge variant="outline">{statusLabelMap[finding.status] || finding.status}</Badge>
                         <span className="text-xs text-muted-foreground">{finding.check_key}</span>
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 gap-1 text-[11px]"
-                        onClick={() => handleGeneratePrompt(finding)}
-                      >
-                        <Wand2 className="h-3.5 w-3.5" />
-                        Gerar prompt
-                      </Button>
+                      {requiresAction ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1 text-[11px]"
+                          onClick={() => handleGeneratePrompt(finding)}
+                        >
+                          <Wand2 className="h-3.5 w-3.5" />
+                          Gerar prompt
+                        </Button>
+                      ) : null}
                     </div>
                     <p className="mt-2 text-sm">{finding.message}</p>
                     {finding.details && Object.keys(finding.details).length > 0 ? (

@@ -183,10 +183,10 @@ const AdminLayout = () => {
       )}
 
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-[230] w-64 bg-card border-r border-border transition-transform duration-200 ease-in-out md:translate-x-0 md:sticky md:top-0 md:h-screen md:block flex flex-col",
+        "fixed inset-y-0 left-0 z-[230] w-64 bg-card border-r border-border transition-transform duration-200 ease-in-out md:translate-x-0 md:sticky md:top-0 md:h-screen md:block flex flex-col min-h-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex h-16 items-center justify-between px-6 border-b">
+        <div className="flex h-14 items-center justify-between px-4 border-b shrink-0">
           <Link to="/" className="flex items-center gap-2 font-bold text-lg">
             <ShieldCheck className="h-6 w-6 text-primary" />
             <span>Admin</span>
@@ -196,15 +196,15 @@ const AdminLayout = () => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-3 py-3">
-          <nav className="space-y-0.5 pb-2">
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
+          <nav className="space-y-0.5 pb-3">
             {navItems.map((item) => (
               <NavLink
                 key={item.href}
                 to={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) => cn(
-                  "flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13px] leading-tight font-medium transition-colors",
+                  "flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] leading-tight font-medium transition-colors",
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -217,7 +217,7 @@ const AdminLayout = () => {
           </nav>
         </div>
 
-        <div className="mt-auto border-t px-3 py-3">
+        <div className="mt-auto border-t px-3 py-3 shrink-0">
           <Button variant="outline" className="w-full justify-start gap-2" onClick={signOut}>
             <LogOut className="h-4 w-4" />
             Sair

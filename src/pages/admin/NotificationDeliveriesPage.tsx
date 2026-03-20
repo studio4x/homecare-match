@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import WhatsappTemplateSettingsTab from "@/components/admin/WhatsappTemplateSettingsTab";
+import WhatsappGroupsAdminTab from "@/components/admin/WhatsappGroupsAdminTab";
 
 type DeliveryItem = {
   id: string;
@@ -441,6 +442,7 @@ const NotificationDeliveriesPage = () => {
         <TabsList>
           <TabsTrigger value="deliveries">Entregas</TabsTrigger>
           <TabsTrigger value="whatsapp_templates">Templates WhatsApp</TabsTrigger>
+          <TabsTrigger value="whatsapp_groups">Grupos WhatsApp</TabsTrigger>
         </TabsList>
       </div>
 
@@ -688,6 +690,10 @@ const NotificationDeliveriesPage = () => {
 
       <TabsContent value="whatsapp_templates">
         <WhatsappTemplateSettingsTab />
+      </TabsContent>
+
+      <TabsContent value="whatsapp_groups">
+        <WhatsappGroupsAdminTab />
       </TabsContent>
 
       <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>

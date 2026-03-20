@@ -43,7 +43,7 @@ type PwaAssetCategory = "icons" | "apple" | "favicon" | "windows" | "splash";
 type PwaAssetKind = "icon" | "maskable" | "splash" | "manual";
 
 type PwaAssetSpec = {
-  key: PwaAssetKey;
+  assetKey: PwaAssetKey;
   label: string;
   category: PwaAssetCategory;
   required: boolean;
@@ -75,28 +75,28 @@ const defaults = {
 };
 
 const pwaAssetSpecs: PwaAssetSpec[] = [
-  { key: "icon_192x192", label: "icon-192x192.png", category: "icons", required: true, recommended: true, auto: true, kind: "icon", width: 192, height: 192, fileName: "icon-192x192.png" },
-  { key: "icon_512x512", label: "icon-512x512.png", category: "icons", required: true, recommended: true, auto: true, kind: "icon", width: 512, height: 512, fileName: "icon-512x512.png" },
-  { key: "icon_512x512_maskable", label: "icon-512x512-maskable.png", category: "icons", required: true, recommended: true, auto: true, kind: "maskable", width: 512, height: 512, fileName: "icon-512x512-maskable.png" },
-  { key: "apple_touch_icon_180x180", label: "apple-touch-icon.png", category: "apple", required: true, recommended: true, auto: true, kind: "icon", width: 180, height: 180, fileName: "apple-touch-icon.png" },
-  { key: "apple_touch_icon_167x167", label: "apple-touch-icon-167x167.png", category: "apple", required: false, recommended: false, auto: true, kind: "icon", width: 167, height: 167, fileName: "apple-touch-icon-167x167.png" },
-  { key: "apple_touch_icon_152x152", label: "apple-touch-icon-152x152.png", category: "apple", required: false, recommended: false, auto: true, kind: "icon", width: 152, height: 152, fileName: "apple-touch-icon-152x152.png" },
-  { key: "favicon_16x16", label: "favicon-16x16.png", category: "favicon", required: true, recommended: true, auto: true, kind: "icon", width: 16, height: 16, fileName: "favicon-16x16.png" },
-  { key: "favicon_32x32", label: "favicon-32x32.png", category: "favicon", required: true, recommended: true, auto: true, kind: "icon", width: 32, height: 32, fileName: "favicon-32x32.png" },
-  { key: "favicon_ico", label: "favicon.ico", category: "favicon", required: true, recommended: false, auto: false, kind: "manual", fileName: "favicon.ico" },
-  { key: "mstile_144x144", label: "mstile-144x144.png", category: "windows", required: true, recommended: false, auto: true, kind: "icon", width: 144, height: 144, fileName: "mstile-144x144.png" },
-  { key: "splash_640x1136", label: "splash-640x1136.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 640, height: 1136, fileName: "splash-640x1136.png" },
-  { key: "splash_750x1334", label: "splash-750x1334.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 750, height: 1334, fileName: "splash-750x1334.png" },
-  { key: "splash_828x1792", label: "splash-828x1792.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 828, height: 1792, fileName: "splash-828x1792.png" },
-  { key: "splash_1125x2436", label: "splash-1125x2436.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1125, height: 2436, fileName: "splash-1125x2436.png" },
-  { key: "splash_1170x2532", label: "splash-1170x2532.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 1170, height: 2532, fileName: "splash-1170x2532.png" },
-  { key: "splash_1242x2208", label: "splash-1242x2208.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1242, height: 2208, fileName: "splash-1242x2208.png" },
-  { key: "splash_1242x2688", label: "splash-1242x2688.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1242, height: 2688, fileName: "splash-1242x2688.png" },
-  { key: "splash_1284x2778", label: "splash-1284x2778.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 1284, height: 2778, fileName: "splash-1284x2778.png" },
-  { key: "splash_1536x2048", label: "splash-1536x2048.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 1536, height: 2048, fileName: "splash-1536x2048.png" },
-  { key: "splash_1668x2224", label: "splash-1668x2224.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1668, height: 2224, fileName: "splash-1668x2224.png" },
-  { key: "splash_1668x2388", label: "splash-1668x2388.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1668, height: 2388, fileName: "splash-1668x2388.png" },
-  { key: "splash_2048x2732", label: "splash-2048x2732.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 2048, height: 2732, fileName: "splash-2048x2732.png" },
+  { assetKey: "icon_192x192", label: "icon-192x192.png", category: "icons", required: true, recommended: true, auto: true, kind: "icon", width: 192, height: 192, fileName: "icon-192x192.png" },
+  { assetKey: "icon_512x512", label: "icon-512x512.png", category: "icons", required: true, recommended: true, auto: true, kind: "icon", width: 512, height: 512, fileName: "icon-512x512.png" },
+  { assetKey: "icon_512x512_maskable", label: "icon-512x512-maskable.png", category: "icons", required: true, recommended: true, auto: true, kind: "maskable", width: 512, height: 512, fileName: "icon-512x512-maskable.png" },
+  { assetKey: "apple_touch_icon_180x180", label: "apple-touch-icon.png", category: "apple", required: true, recommended: true, auto: true, kind: "icon", width: 180, height: 180, fileName: "apple-touch-icon.png" },
+  { assetKey: "apple_touch_icon_167x167", label: "apple-touch-icon-167x167.png", category: "apple", required: false, recommended: false, auto: true, kind: "icon", width: 167, height: 167, fileName: "apple-touch-icon-167x167.png" },
+  { assetKey: "apple_touch_icon_152x152", label: "apple-touch-icon-152x152.png", category: "apple", required: false, recommended: false, auto: true, kind: "icon", width: 152, height: 152, fileName: "apple-touch-icon-152x152.png" },
+  { assetKey: "favicon_16x16", label: "favicon-16x16.png", category: "favicon", required: true, recommended: true, auto: true, kind: "icon", width: 16, height: 16, fileName: "favicon-16x16.png" },
+  { assetKey: "favicon_32x32", label: "favicon-32x32.png", category: "favicon", required: true, recommended: true, auto: true, kind: "icon", width: 32, height: 32, fileName: "favicon-32x32.png" },
+  { assetKey: "favicon_ico", label: "favicon.ico", category: "favicon", required: true, recommended: false, auto: false, kind: "manual", fileName: "favicon.ico" },
+  { assetKey: "mstile_144x144", label: "mstile-144x144.png", category: "windows", required: true, recommended: false, auto: true, kind: "icon", width: 144, height: 144, fileName: "mstile-144x144.png" },
+  { assetKey: "splash_640x1136", label: "splash-640x1136.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 640, height: 1136, fileName: "splash-640x1136.png" },
+  { assetKey: "splash_750x1334", label: "splash-750x1334.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 750, height: 1334, fileName: "splash-750x1334.png" },
+  { assetKey: "splash_828x1792", label: "splash-828x1792.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 828, height: 1792, fileName: "splash-828x1792.png" },
+  { assetKey: "splash_1125x2436", label: "splash-1125x2436.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1125, height: 2436, fileName: "splash-1125x2436.png" },
+  { assetKey: "splash_1170x2532", label: "splash-1170x2532.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 1170, height: 2532, fileName: "splash-1170x2532.png" },
+  { assetKey: "splash_1242x2208", label: "splash-1242x2208.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1242, height: 2208, fileName: "splash-1242x2208.png" },
+  { assetKey: "splash_1242x2688", label: "splash-1242x2688.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1242, height: 2688, fileName: "splash-1242x2688.png" },
+  { assetKey: "splash_1284x2778", label: "splash-1284x2778.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 1284, height: 2778, fileName: "splash-1284x2778.png" },
+  { assetKey: "splash_1536x2048", label: "splash-1536x2048.png", category: "splash", required: true, recommended: true, auto: true, kind: "splash", width: 1536, height: 2048, fileName: "splash-1536x2048.png" },
+  { assetKey: "splash_1668x2224", label: "splash-1668x2224.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1668, height: 2224, fileName: "splash-1668x2224.png" },
+  { assetKey: "splash_1668x2388", label: "splash-1668x2388.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 1668, height: 2388, fileName: "splash-1668x2388.png" },
+  { assetKey: "splash_2048x2732", label: "splash-2048x2732.png", category: "splash", required: true, recommended: false, auto: true, kind: "splash", width: 2048, height: 2732, fileName: "splash-2048x2732.png" },
 ];
 
 const minimumRecommendedKeys = new Set<PwaAssetKey>([
@@ -152,9 +152,9 @@ const normalizeAssetsMap = (value: unknown): PwaAssetsMap => {
   const raw = value as Record<string, unknown>;
   const result: PwaAssetsMap = {};
   for (const spec of pwaAssetSpecs) {
-    const maybeUrl = raw[spec.key];
+    const maybeUrl = raw[spec.assetKey];
     if (typeof maybeUrl === "string" && maybeUrl.trim()) {
-      result[spec.key] = maybeUrl.trim();
+      result[spec.assetKey] = maybeUrl.trim();
     }
   }
   return result;
@@ -579,7 +579,7 @@ const PwaSettingsPage = () => {
       const batchStamp = Date.now();
       const targets = pwaAssetSpecs.filter((spec) => {
         if (!spec.auto || !spec.width || !spec.height) return false;
-        return mode === "full" ? true : minimumRecommendedKeys.has(spec.key);
+        return mode === "full" ? true : minimumRecommendedKeys.has(spec.assetKey);
       });
 
       const newUrls: Partial<Record<PwaAssetKey, string>> = {};
@@ -591,7 +591,7 @@ const PwaSettingsPage = () => {
           paddingRatio: spec.kind === "maskable" ? 0.2 : 0,
         });
         const filePath = `pwa-assets/generated/${spec.fileName.replace(".png", "")}_${batchStamp}.png`;
-        newUrls[spec.key] = await uploadToStorage(filePath, blob, "image/png");
+        newUrls[spec.assetKey] = await uploadToStorage(filePath, blob, "image/png");
       }
 
       setFormData((prev) => {
@@ -773,8 +773,8 @@ const PwaSettingsPage = () => {
 
   const requiredSpecs = useMemo(() => pwaAssetSpecs.filter((item) => item.required), []);
   const recommendedSpecs = useMemo(() => pwaAssetSpecs.filter((item) => item.recommended), []);
-  const requiredReady = requiredSpecs.filter((item) => !!getAssetUrlByKey(item.key)).length;
-  const recommendedReady = recommendedSpecs.filter((item) => !!getAssetUrlByKey(item.key)).length;
+  const requiredReady = requiredSpecs.filter((item) => !!getAssetUrlByKey(item.assetKey)).length;
+  const recommendedReady = recommendedSpecs.filter((item) => !!getAssetUrlByKey(item.assetKey)).length;
 
   return (
     <div className="space-y-6">
@@ -978,7 +978,7 @@ const PwaSettingsPage = () => {
                   onChange={(e) => setSelectedAssetKey(e.target.value as PwaAssetKey)}
                 >
                   {pwaAssetSpecs.map((item) => (
-                    <option key={item.key} value={item.key}>
+                    <option key={item.assetKey} value={item.assetKey}>
                       {item.label}
                     </option>
                   ))}
@@ -1050,10 +1050,10 @@ const PwaSettingsPage = () => {
                 {pwaAssetSpecs
                   .filter((item) => item.category === category)
                   .map((item) => {
-                    const url = getAssetUrlByKey(item.key);
+                    const url = getAssetUrlByKey(item.assetKey);
                     const done = !!url;
                     return (
-                      <div key={item.key} className="rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3">
+                      <div key={item.assetKey} className="rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3">
                         <div className="space-y-1">
                           <div className="flex flex-wrap gap-2 items-center">
                             <span className="text-sm font-medium">{item.label}</span>
@@ -1097,7 +1097,7 @@ const PwaSettingsPage = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              setSelectedAssetKey(item.key);
+                              setSelectedAssetKey(item.assetKey);
                               setManualAssetUrl(url);
                             }}
                           >

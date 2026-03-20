@@ -76,6 +76,7 @@ import {
 } from "@/lib/contact-eligibility";
 import { Link } from "react-router-dom";
 import { BRAZIL_STATES, fetchCitiesByState } from "@/lib/brazil-locations";
+import { sanitizeStoragePath } from "@/lib/storage-path";
 
 type UploadType = "avatar" | "id_doc" | "prof_doc" | "patient_doc" | "patient_address_proof";
 type VerificationUploadType = Exclude<UploadType, "avatar">;
@@ -458,12 +459,15 @@ const ProfilePage = () => {
     if (!file || !user) return;
     setIsUploading(type);
     
-    const fileExt = file.name.split('.').pop();
+    const safeOriginalName = sanitizeFileName(file.name);
+    const fileExt = (safeOriginalName.split('.').pop() || "bin").toLowerCase();
     const bucket = type === 'avatar' ? 'avatars' : 'documents';
-    const safeFileName = sanitizeFileName(file.name);
-    const filePath = type === "avatar"
-      ? `${user.id}/${Math.random()}.${fileExt}`
-      : `${user.id}/${Date.now()}-${safeFileName}`;
+    const filePath = sanitizeStoragePath(
+      type === "avatar"
+        ? `${user.id}/${crypto.randomUUID()}.${fileExt}`
+        : `${user.id}/${Date.now()}-${safeOriginalName}`,
+      { bucket },
+    );
     
     try {
       const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);
@@ -534,9 +538,14 @@ const ProfilePage = () => {
       if (error) throw error;
 
       if (typeof currentPath === "string" && currentPath && !/^https?:\/\//i.test(currentPath)) {
-        const { error: storageDeleteError } = await supabase.storage.from("documents").remove([currentPath]);
-        if (storageDeleteError) {
-          console.warn("[ProfilePage] Não foi possível remover arquivo antigo do storage:", storageDeleteError);
+        try {
+          const safePath = sanitizeStoragePath(currentPath, { bucket: "documents" });
+          const { error: storageDeleteError } = await supabase.storage.from("documents").remove([safePath]);
+          if (storageDeleteError) {
+            console.warn("[ProfilePage] Não foi possível remover arquivo antigo do storage:", storageDeleteError);
+          }
+        } catch (pathError) {
+          console.warn("[ProfilePage] Caminho inválido ao remover arquivo antigo:", pathError);
         }
       }
 

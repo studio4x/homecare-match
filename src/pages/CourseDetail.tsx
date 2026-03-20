@@ -46,6 +46,7 @@ import { createCheckoutSession } from "@/lib/checkout";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import CourseAIDisclaimer from "@/components/CourseAIDisclaimer";
+import { sanitizeStoragePath } from "@/lib/storage-path";
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -120,7 +121,13 @@ const CourseDetail = () => {
         
         lessons.forEach(lesson => {
           if (lesson.resource_url && !lesson.resource_url.startsWith('http')) {
-            storagePathsToSign.push(lesson.resource_url);
+            try {
+              const safePath = sanitizeStoragePath(lesson.resource_url, { bucket: PRIVATE_BUCKET });
+              lesson.resource_url = safePath;
+              storagePathsToSign.push(safePath);
+            } catch {
+              // Ignora caminhos inválidos para evitar path traversal em URLs assinadas.
+            }
           }
         });
 
@@ -290,17 +297,23 @@ const CourseDetail = () => {
     const sourcePath = course.video_storage_path;
     if (sourcePath) {
       setVideoLoading(true);
-      supabase.storage
-        .from(PRIVATE_BUCKET)
-        .createSignedUrl(sourcePath, 3600)
-        .then(({ data, error }) => {
-          if (!error && data?.signedUrl) {
-            setVideoPreviewUrl(data.signedUrl);
-          } else {
-            setVideoPreviewUrl(course.video_url || null);
-          }
-        })
-        .finally(() => setVideoLoading(false));
+      try {
+        const safePath = sanitizeStoragePath(sourcePath, { bucket: PRIVATE_BUCKET });
+        supabase.storage
+          .from(PRIVATE_BUCKET)
+          .createSignedUrl(safePath, 3600)
+          .then(({ data, error }) => {
+            if (!error && data?.signedUrl) {
+              setVideoPreviewUrl(data.signedUrl);
+            } else {
+              setVideoPreviewUrl(course.video_url || null);
+            }
+          })
+          .finally(() => setVideoLoading(false));
+      } catch {
+        setVideoPreviewUrl(course.video_url || null);
+        setVideoLoading(false);
+      }
       return;
     }
 

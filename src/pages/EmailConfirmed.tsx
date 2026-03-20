@@ -12,6 +12,7 @@ import { getEmailConfirmationSteps, type EmailTutorialRole } from "@/lib/email-c
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { sanitizeStoragePath } from "@/lib/storage-path";
 
 type FeatureVideoRecord = {
   feature_key: string;
@@ -123,7 +124,8 @@ const EmailConfirmed = () => {
 
     try {
       if (tutorial.video_storage_path) {
-        const { data, error } = await supabase.storage.from("uploads").createSignedUrl(tutorial.video_storage_path, 3600);
+        const safePath = sanitizeStoragePath(tutorial.video_storage_path, { bucket: "uploads" });
+        const { data, error } = await supabase.storage.from("uploads").createSignedUrl(safePath, 3600);
         if (error) throw error;
         setSelectedVideo({ url: data.signedUrl, title, type: "storage" });
         return;
@@ -241,4 +243,3 @@ const EmailConfirmed = () => {
 };
 
 export default EmailConfirmed;
-

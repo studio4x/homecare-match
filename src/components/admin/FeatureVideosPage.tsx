@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import LandingVideoPlayer
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
 
 const VIDEO_STORAGE_BUCKET = "uploads";
 const VIDEO_STORAGE_FOLDER = "feature-videos";
@@ -105,9 +106,10 @@ const FeatureVideosPage = () => {
     }
 
     setIsUploading(activeFeatureKeyForUpload);
-    const fileExt = file.name.split('.').pop();
+    const safeName = sanitizeStorageFileName(file.name, "video");
+    const fileExt = safeName.split('.').pop();
     const fileName = `${activeFeatureKeyForUpload}_${Date.now()}.${fileExt}`;
-    const filePath = `${VIDEO_STORAGE_FOLDER}/${fileName}`;
+    const filePath = sanitizeStoragePath(`${VIDEO_STORAGE_FOLDER}/${fileName}`);
 
     try {
       const { error: uploadError } = await supabase.storage
@@ -203,9 +205,12 @@ const FeatureVideosPage = () => {
   const getVideoSourceUrl = (video: FeatureVideo | undefined) => {
     if (!video) return null;
     if (video.video_storage_path) {
-      // For storage path, generate a public URL (assuming bucket is public or RLS allows)
-      // If bucket is private, you'd need a signed URL here. For simplicity, using public URL for now.
-      return `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/${VIDEO_STORAGE_BUCKET}/${video.video_storage_path}`;
+      try {
+        const safePath = sanitizeStoragePath(video.video_storage_path, { bucket: VIDEO_STORAGE_BUCKET });
+        return `https://rkjvtnadqkbwomgzyswr.supabase.co/storage/v1/object/public/${VIDEO_STORAGE_BUCKET}/${safePath}`;
+      } catch {
+        return null;
+      }
     }
     return video.video_url;
   };

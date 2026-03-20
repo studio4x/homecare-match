@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sanitizeStoragePath } from "../_shared/storage-path.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,7 +29,7 @@ serve(async (req) => {
     // sem body, assume get
   }
   const action = body?.action || "get";
-  const path = "referrals/tiers.json";
+  const path = sanitizeStoragePath("referrals/tiers.json", { bucket: "uploads" });
 
   // Leitura publica de niveis de indicacao (apenas configuracao).
   if (action === "get") {

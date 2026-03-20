@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { sanitizeStoragePath } from "@/lib/storage-path";
 
 interface VerificationsTabProps {
   pendingProfiles: any[];
@@ -59,6 +60,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
         return;
       }
       // Se for um path de storage, cria signed URL
+      path = sanitizeStoragePath(path, { bucket: "documents" });
       const { data, error } = await supabase.storage
         .from('documents')
         .createSignedUrl(path, 60); // URL válida por 60 segundos

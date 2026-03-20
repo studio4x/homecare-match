@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sanitizeStoragePath } from "../_shared/storage-path.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,9 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
   try {
+    const isUuid = (value: unknown) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
+
     // 1. Listar pastas dentro de referrals/ (cada pasta é um referrerId)
     const { data: folders, error: folderError } = await supabase.storage.from("uploads").list("referrals", { limit: 100 });
     if (folderError) throw folderError;
@@ -27,9 +31,11 @@ serve(async (req) => {
       if (folder.name === ".emptyFolderPlaceholder" || folder.name === "tiers.json" || folder.name === "overrides") continue;
 
       const referrerId = folder.name;
+      if (!isUuid(referrerId)) continue;
       userIdsToFetch.add(referrerId);
 
-      const { data: files } = await supabase.storage.from("uploads").list(`referrals/${referrerId}`, { limit: 100 });
+      const safeFolderPath = sanitizeStoragePath(`referrals/${referrerId}`, { bucket: "uploads" });
+      const { data: files } = await supabase.storage.from("uploads").list(safeFolderPath, { limit: 100 });
       
       if (files) {
         for (const file of files) {

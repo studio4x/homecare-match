@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import CourseEnrollmentsDialog from "./CourseEnrollmentsDialog";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -407,10 +408,12 @@ const CoursesTab = () => {
       return;
     }
     setIsUploading(true);
-    const ext = file.name.split(".").pop();
-    const fileName = `${selectedCourse.slug}_${Date.now()}.${ext}`;
-    const path = `${HERO_DIR}/${fileName}`;
+    let path = "";
     try {
+      const safeName = sanitizeStorageFileName(file.name, "hero");
+      const ext = safeName.includes(".") ? safeName.split(".").pop() : "bin";
+      const fileName = `${selectedCourse.slug}_${Date.now()}.${ext}`;
+      path = sanitizeStoragePath(`${HERO_DIR}/${fileName}`);
       const { error: uploadError } = await supabase.storage.from("uploads").upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
       const { data: publicData } = supabase.storage.from("uploads").getPublicUrl(path);
@@ -430,10 +433,12 @@ const CoursesTab = () => {
       return;
     }
     setIsUploading(true);
-    const ext = file.name.split(".").pop();
-    const fileName = `${selectedCourse.slug}_video_${Date.now()}.${ext}`;
-    const path = `${MATERIALS_DIR}/${selectedCourse.slug}/${fileName}`;
+    let path = "";
     try {
+      const safeName = sanitizeStorageFileName(file.name, "video");
+      const ext = safeName.includes(".") ? safeName.split(".").pop() : "mp4";
+      const fileName = `${selectedCourse.slug}_video_${Date.now()}.${ext}`;
+      path = sanitizeStoragePath(`${MATERIALS_DIR}/${selectedCourse.slug}/${fileName}`);
       const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
       toast.success("Vídeo carregado!");
@@ -467,10 +472,11 @@ const CoursesTab = () => {
     }
 
     try {
-      const ext = (file.name.split(".").pop() || "").toLowerCase();
+      const safeName = sanitizeStorageFileName(file.name, "material");
+      const ext = (safeName.split(".").pop() || "").toLowerCase();
       const safeExt = ext || (file.type.startsWith("video/") ? "mp4" : "bin");
       const fileName = `${lesson.id}.${safeExt}`;
-      const path = `${MATERIALS_DIR}/${selectedCourse.slug}/${modules[selectedModuleIdx].id}/${fileName}`;
+      const path = sanitizeStoragePath(`${MATERIALS_DIR}/${selectedCourse.slug}/${modules[selectedModuleIdx].id}/${fileName}`);
 
       const { error: uploadError } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Database, Upload, ExternalLink, Save, Trash2, PlayCircle, RefreshCw } from "lucide-react";
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
 
 const VIDEO_STORAGE_BUCKET = "uploads";
 const VIDEO_STORAGE_FOLDER = "feature-videos/email-confirmed";
@@ -133,9 +134,10 @@ const EmailConfirmationVideosPage = () => {
     const featureKey = activeUploadStep.featureKey;
     setIsUploadingKey(featureKey);
 
-    const fileExt = file.name.split(".").pop() || "mp4";
+    const safeName = sanitizeStorageFileName(file.name, "video");
+    const fileExt = safeName.split(".").pop() || "mp4";
     const fileName = `${featureKey}_${Date.now()}.${fileExt}`;
-    const filePath = `${VIDEO_STORAGE_FOLDER}/${fileName}`;
+    const filePath = sanitizeStoragePath(`${VIDEO_STORAGE_FOLDER}/${fileName}`);
 
     try {
       const { error: uploadError } = await supabase.storage.from(VIDEO_STORAGE_BUCKET).upload(filePath, file, {
@@ -203,7 +205,8 @@ const EmailConfirmationVideosPage = () => {
     setIsSaving(true);
     try {
       if (current.video_storage_path) {
-        await supabase.storage.from(VIDEO_STORAGE_BUCKET).remove([current.video_storage_path]);
+        const safePath = sanitizeStoragePath(current.video_storage_path, { bucket: VIDEO_STORAGE_BUCKET });
+        await supabase.storage.from(VIDEO_STORAGE_BUCKET).remove([safePath]);
       }
 
       const { error } = await supabase.from("feature_videos").delete().eq("feature_key", step.featureKey);
@@ -224,7 +227,8 @@ const EmailConfirmationVideosPage = () => {
 
     try {
       if (current.video_storage_path) {
-        const { data, error } = await supabase.storage.from(VIDEO_STORAGE_BUCKET).createSignedUrl(current.video_storage_path, 3600);
+        const safePath = sanitizeStoragePath(current.video_storage_path, { bucket: VIDEO_STORAGE_BUCKET });
+        const { data, error } = await supabase.storage.from(VIDEO_STORAGE_BUCKET).createSignedUrl(safePath, 3600);
         if (error) throw error;
         setSelectedVideo({ url: data.signedUrl, title: step.title, type: "storage" });
         return;

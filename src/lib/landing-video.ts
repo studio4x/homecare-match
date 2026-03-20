@@ -1,14 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getYouTubeThumbnailUrl } from "@/lib/video-utils";
+import { sanitizeStoragePath } from "@/lib/storage-path";
 
 const VIDEO_BUCKET = "uploads";
 const POSTER_SUFFIX = "_poster.jpg";
 
 export const normalizeLandingVideoStoragePath = (storagePath: string | null | undefined) =>
-  String(storagePath || "")
-    .trim()
-    .replace(/^\/+/, "")
-    .replace(/^uploads\//i, "");
+  (() => {
+    try {
+      return sanitizeStoragePath(storagePath, { bucket: VIDEO_BUCKET, allowEmpty: true });
+    } catch {
+      return "";
+    }
+  })();
 
 export const buildLandingVideoPosterPath = (storagePath: string | null | undefined) => {
   const normalizedPath = normalizeLandingVideoStoragePath(storagePath);

@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
 import {
   Select,
   SelectContent,
@@ -631,9 +632,9 @@ const SiteConfigTab = () => {
     if (!file) return;
 
     setIsUploading(field);
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${field}_${Date.now()}.${fileExt}`;
-    const filePath = `site-assets/${fileName}`;
+    const safeName = sanitizeStorageFileName(file.name, "asset");
+    const fileName = `${field}_${Date.now()}_${safeName}`;
+    const filePath = sanitizeStoragePath(`site-assets/${fileName}`);
 
     try {
       const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, file, {

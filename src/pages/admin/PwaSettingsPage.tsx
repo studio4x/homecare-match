@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { sanitizeStoragePath } from "@/lib/storage-path";
 import { toast } from "sonner";
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Download, ImagePlus, Loader2, Plus, RefreshCw, Save, Smartphone, Trash2, WandSparkles } from "lucide-react";
 
@@ -433,7 +434,8 @@ const PwaSettingsPage = () => {
   };
 
   const uploadToStorage = async (filePath: string, file: Blob, contentType = "image/png") => {
-    const { error: uploadError } = await supabase.storage.from("uploads").upload(filePath, file, {
+    const safePath = sanitizeStoragePath(filePath, { bucket: "uploads" });
+    const { error: uploadError } = await supabase.storage.from("uploads").upload(safePath, file, {
       upsert: true,
       cacheControl: "31536000",
       contentType,
@@ -441,7 +443,7 @@ const PwaSettingsPage = () => {
     if (uploadError) throw uploadError;
     const {
       data: { publicUrl },
-    } = supabase.storage.from("uploads").getPublicUrl(filePath);
+    } = supabase.storage.from("uploads").getPublicUrl(safePath);
     return publicUrl;
   };
 

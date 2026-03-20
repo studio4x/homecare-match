@@ -66,6 +66,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { useQueryClient } from "@tanstack/react-query";
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
 
 const TITLE_LIMIT = 45;
 const BODY_LIMIT = 120;
@@ -241,7 +242,8 @@ const PushNotificationsPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUploading(true);
-    const filePath = `push-images/${Date.now()}_${file.name}`;
+    const safeName = sanitizeStorageFileName(file.name, "imagem");
+    const filePath = sanitizeStoragePath(`push-images/${Date.now()}_${safeName}`);
     try {
       const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, file);
       if (uploadError) throw uploadError;

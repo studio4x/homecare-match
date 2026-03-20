@@ -36,6 +36,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
 
 interface SupportTicketModalProps {
   open: boolean;
@@ -115,9 +116,10 @@ const SupportTicketModal = ({ open, onOpenChange, initialStep = "form" }: Suppor
       let attachmentName = null;
 
       if (attachment) {
-        const fileExt = attachment.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `support/${user?.id}/${fileName}`;
+        const safeName = sanitizeStorageFileName(attachment.name, "anexo");
+        const fileExt = safeName.split('.').pop() || "bin";
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        const filePath = sanitizeStoragePath(`support/${user?.id}/${fileName}`, { bucket: "uploads" });
         const { error: uploadError } = await supabase.storage.from('uploads').upload(filePath, attachment);
         if (uploadError) throw uploadError;
         const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(filePath);

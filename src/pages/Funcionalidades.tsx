@@ -41,6 +41,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import FeatureVideoModal from "@/components/FeatureVideoModal"; 
 import { toast } from "sonner"; // Added import
+import { sanitizeStoragePath } from "@/lib/storage-path";
 
 export const features = [
   {
@@ -409,7 +410,8 @@ const Funcionalidades = () => {
     }
 
     if (videoInfo.video_storage_path) {
-      const { data, error } = await supabase.storage.from('uploads').createSignedUrl(videoInfo.video_storage_path, 3600);
+      const safePath = sanitizeStoragePath(videoInfo.video_storage_path, { bucket: "uploads" });
+      const { data, error } = await supabase.storage.from('uploads').createSignedUrl(safePath, 3600);
       if (error) {
         toast.error("Erro ao carregar vídeo.");
         console.error("Error getting signed URL:", error);

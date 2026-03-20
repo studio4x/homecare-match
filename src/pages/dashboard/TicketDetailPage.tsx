@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
 
 const TicketDetailPage = () => {
   const { id } = useParams();
@@ -204,9 +205,10 @@ const TicketDetailPage = () => {
       let attachmentName = null;
 
       if (attachment) {
-        const fileExt = attachment.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `support/${user?.id}/${fileName}`;
+        const safeName = sanitizeStorageFileName(attachment.name, "anexo");
+        const fileExt = safeName.split('.').pop() || "bin";
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        const filePath = sanitizeStoragePath(`support/${user?.id}/${fileName}`, { bucket: "uploads" });
 
         const { error: uploadError } = await supabase.storage
           .from('uploads')

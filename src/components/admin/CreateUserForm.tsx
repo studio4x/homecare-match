@@ -47,6 +47,7 @@ import { translateAuthError } from "@/lib/error-utils";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
 
 const MAX_AVATAR_SIZE_MB = 2;
 
@@ -129,9 +130,9 @@ const CreateUserForm = ({ onUserCreated }: CreateUserFormProps) => {
 
     setIsUploading(type);
     
-    const fileExt = file.name.split('.').pop();
     const bucket = 'avatars';
-    const filePath = `admin-uploads/${Date.now()}_${file.name}`; // Unique path for admin uploads
+    const safeName = sanitizeStorageFileName(file.name, "avatar");
+    const filePath = sanitizeStoragePath(`admin-uploads/${Date.now()}_${safeName}`);
     
     try {
       const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file);

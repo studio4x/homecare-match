@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { sanitizeStoragePath } from "../_shared/storage-path.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -235,10 +236,18 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (!isUuid(referrerId)) {
+      return new Response(JSON.stringify({ error: "invalid_referrerId" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const referralFolderPath = sanitizeStoragePath(`referrals/${referrerId}`, { bucket: "uploads" });
 
     const { data: files, error: listError } = await supabaseAdmin.storage
       .from("uploads")
-      .list(`referrals/${referrerId}`, { limit: 1000 });
+      .list(referralFolderPath, { limit: 1000 });
 
     if (listError) {
       return new Response(JSON.stringify({ error: "list_failed" }), {
@@ -403,7 +412,8 @@ serve(async (req) => {
     const rewardProgram = await issueReferralRewards(supabaseAdmin, String(referrerId), validCount, issueRewards);
 
     let tiers: any[] = [];
-    const { data: tiersFile } = await supabaseAdmin.storage.from("uploads").download("referrals/tiers.json");
+    const tiersPath = sanitizeStoragePath("referrals/tiers.json", { bucket: "uploads" });
+    const { data: tiersFile } = await supabaseAdmin.storage.from("uploads").download(tiersPath);
     if (tiersFile) {
       try {
         tiers = JSON.parse(await tiersFile.text());
@@ -415,9 +425,10 @@ serve(async (req) => {
     let currentTier = null;
     let nextTier = null;
 
+    const overridePath = sanitizeStoragePath(`referrals/overrides/${referrerId}.json`, { bucket: "uploads" });
     const { data: overrideFile } = await supabaseAdmin.storage
       .from("uploads")
-      .download(`referrals/overrides/${referrerId}.json`);
+      .download(overridePath);
     if (overrideFile) {
       try {
         const overrideTier = JSON.parse(await overrideFile.text());

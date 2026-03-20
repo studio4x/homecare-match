@@ -20,6 +20,7 @@ import {
   resolveLandingVideoAssets,
 } from "@/lib/landing-video";
 import { generatePosterFromVideoFile } from "@/lib/video-poster";
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
 
 const VIDEO_STORAGE_BUCKET = "uploads";
 const VIDEO_STORAGE_FOLDER = "site-videos";
@@ -91,9 +92,10 @@ const VideosTab = () => {
     }
 
     setIsUploading(activeField);
-    const fileExt = file.name.split('.').pop();
+    const safeName = sanitizeStorageFileName(file.name, "video");
+    const fileExt = safeName.split('.').pop();
     const fileName = `${activeField}_${Date.now()}.${fileExt}`;
-    const filePath = `${VIDEO_STORAGE_FOLDER}/${fileName}`;
+    const filePath = sanitizeStoragePath(`${VIDEO_STORAGE_FOLDER}/${fileName}`);
 
     try {
       const { error: uploadError } = await supabase.storage
@@ -109,7 +111,7 @@ const VideosTab = () => {
         .getPublicUrl(filePath);
       let coverGenerated = false;
       let coverGenerationError = "";
-      const posterPath = buildLandingVideoPosterPath(filePath);
+      const posterPath = sanitizeStoragePath(buildLandingVideoPosterPath(filePath), { allowEmpty: true });
 
       if (posterPath) {
         try {
@@ -201,7 +203,7 @@ const VideosTab = () => {
       };
 
       const currentStoragePath = String((config as any)?.[storageId] || "").trim();
-      const posterPath = buildLandingVideoPosterPath(currentStoragePath);
+      const posterPath = sanitizeStoragePath(buildLandingVideoPosterPath(currentStoragePath), { allowEmpty: true });
       if (posterPath) {
         await supabase.storage.from(VIDEO_STORAGE_BUCKET).remove([posterPath]);
       }
@@ -299,7 +301,7 @@ const VideosTab = () => {
       if (saveError) throw saveError;
 
       if (desktopEmbed && currentDesktopStoragePath) {
-        const posterPath = buildLandingVideoPosterPath(currentDesktopStoragePath);
+        const posterPath = sanitizeStoragePath(buildLandingVideoPosterPath(currentDesktopStoragePath), { allowEmpty: true });
         if (posterPath) {
           await supabase.storage.from(VIDEO_STORAGE_BUCKET).remove([posterPath]);
         }

@@ -30,8 +30,32 @@ const SUSPICIOUS_TOKENS = [
 ];
 
 const findings = [];
+const safeRoots = [];
 
 const shouldScanFile = (filePath) => EXTENSIONS.has(path.extname(filePath).toLowerCase());
+
+const isPathInsideRoot = (targetPath, rootPath) => {
+  const relative = path.relative(rootPath, targetPath);
+  return relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+};
+
+const isSafeScanPath = async (filePath) => {
+  const normalized = path.resolve(filePath);
+  let realPath;
+  try {
+    realPath = await fs.realpath(normalized);
+  } catch {
+    return false;
+  }
+
+  for (const root of safeRoots) {
+    if (realPath === root || isPathInsideRoot(realPath, root)) {
+      return true;
+    }
+  }
+
+  return false;
+};
 
 const getLineAndColumn = (content, index) => {
   const before = content.slice(0, index);
@@ -42,6 +66,7 @@ const getLineAndColumn = (content, index) => {
 };
 
 const scanFile = async (filePath) => {
+  if (!(await isSafeScanPath(filePath))) return;
   const content = await fs.readFile(filePath, "utf8");
 
   for (const token of SUSPICIOUS_TOKENS) {
@@ -65,6 +90,11 @@ const walk = async (dirPath) => {
 
   for (const entry of entries) {
     const fullPath = path.join(dirPath, entry.name);
+    if (entry.isSymbolicLink()) {
+      // Do not follow symlinks to avoid scanning paths outside of the repository roots.
+      continue;
+    }
+
     if (entry.isDirectory()) {
       await walk(fullPath);
       continue;
@@ -78,6 +108,8 @@ const walk = async (dirPath) => {
 for (const relativeDir of TARGET_DIRS) {
   const fullDir = path.join(ROOT_DIR, relativeDir);
   try {
+    const realRoot = await fs.realpath(fullDir);
+    safeRoots.push(realRoot);
     await walk(fullDir);
   } catch {
     // Ignore missing directories in edge scenarios

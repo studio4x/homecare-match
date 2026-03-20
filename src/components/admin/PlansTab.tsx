@@ -41,8 +41,8 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
   const parseFreeTrialDays = (periodValue: string | null | undefined) => {
     const text = String(periodValue || "").toLowerCase();
     const match = text.match(/\d+/);
-    const value = match ? Number(match[0]) : 30;
-    return Number.isFinite(value) && value > 0 ? value : 30;
+    const value = match ? Number(match[0]) : 7;
+    return Number.isFinite(value) && value > 0 ? value : 7;
   };
 
   const getTierLabel = (tier: string) => {
@@ -71,11 +71,11 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
         id: "free_trial",
         name: "Teste Grátis (Sistema)",
         price: "R$ 0,00",
-        period: "30 dias",
+        period: "7 dias",
         description: "Plano padrão de cadastro",
         features: "Perfil básico\nVisibilidade limitada\nSuporte por email",
         asaas_installment_max: 1,
-        free_trial_days: 30,
+        free_trial_days: 7,
       });
     }
     setPlanModalOpen(true);
@@ -167,7 +167,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                 </div>
               </TableCell>
               <TableCell>
-                {dbFreeTrial?.price || "R$ 0,00"}/{dbFreeTrial?.period || "30 dias"}
+                {dbFreeTrial?.price || "R$ 0,00"}/{dbFreeTrial?.period || "7 dias"}
               </TableCell>
               <TableCell>
                 <Badge variant="outline" className="gap-1">
@@ -304,8 +304,8 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                       onChange={(e) =>
                         setSelectedPlan({
                           ...selectedPlan,
-                          free_trial_days: Math.max(1, Number(e.target.value || 30)),
-                          period: `${Math.max(1, Number(e.target.value || 30))} dias`,
+                          free_trial_days: Math.max(1, Number(e.target.value || 7)),
+                          period: `${Math.max(1, Number(e.target.value || 7))} dias`,
                         })
                       }
                     />

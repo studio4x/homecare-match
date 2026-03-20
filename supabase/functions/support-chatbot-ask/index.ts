@@ -774,10 +774,10 @@ const buildSignupIntentAnswer = (userName?: string | null) => {
   return `${prefix}Qual tipo de cadastro voce quer fazer? Escolha uma opcao abaixo para iniciar seu cadastro.`;
 };
 
-const FREE_TRIAL_DEFAULT_DAYS = 30;
+const FREE_TRIAL_DEFAULT_DAYS = 7;
 
 const resolveFreeTrialDays = (plans: any[]) => {
-  // Regra oficial do chatbot: cadastro padrao = 30 dias com acesso limitado.
+  // Regra oficial do chatbot: cadastro padrao = 7 dias com acesso limitado.
   // Isso evita respostas inconsistentes por conteudo legado em FAQ/plans.
   return FREE_TRIAL_DEFAULT_DAYS;
 };

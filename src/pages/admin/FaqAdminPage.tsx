@@ -111,7 +111,7 @@ const GUIDE_COVERAGE_AREAS: GuideCoverageArea[] = [
     id: "trial_cupom",
     label: "Teste gratis e cupom",
     moduleHints: ["trial", "planos", "pagamentos"],
-    keywords: ["teste gratis", "30 dias", "cupom", "dias bonus", "acesso limitado"],
+    keywords: ["teste gratis", "7 dias", "cupom", "dias bonus", "acesso limitado"],
   },
   {
     id: "academy_cursos",
@@ -220,7 +220,7 @@ const AUTO_GUIDE_TEMPLATES: Record<string, AutoGuideTemplate> = {
     audience: ["professional"],
     question_variants: ["quanto dura teste gratis", "cupom no cadastro", "dias de beneficio"],
     content:
-      "1) O cadastro padrao ativa 30 dias de teste gratis com acesso limitado. 2) Se houver cupom valido no cadastro, valem os dias do cupom. 3) Acompanhe dias restantes no painel e planeje renovacao.",
+      "1) O cadastro padrao ativa 7 dias de teste gratis com acesso limitado. 2) Se houver cupom valido no cadastro, valem os dias do cupom. 3) Acompanhe dias restantes no painel e planeje renovacao.",
   },
   academy_cursos: {
     title: "Guia essencial: academy e cursos",

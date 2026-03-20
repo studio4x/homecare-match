@@ -107,7 +107,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     const selectedPlan = getPlanConfig(planId);
     const fallback =
       planId === "free_trial" || planId === "monthly"
-        ? 30
+        ? (planId === "free_trial" ? 7 : 30)
         : planId === "annual"
           ? 365
           : 30;

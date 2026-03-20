@@ -286,7 +286,7 @@ const Buscar = () => {
         return;
       }
 
-      const parsePeriodToDays = (periodValue?: string | null, fallbackDays = 30) => {
+      const parsePeriodToDays = (periodValue?: string | null, fallbackDays = 7) => {
         const period = String(periodValue || "").toLowerCase();
         if (!period) return fallbackDays;
         const numberMatch = period.match(/\d+/);
@@ -304,7 +304,7 @@ const Buscar = () => {
         .eq("id", "free_trial")
         .maybeSingle();
 
-      const freeTrialDays = parsePeriodToDays(freeTrialPlan?.period, 30);
+      const freeTrialDays = parsePeriodToDays(freeTrialPlan?.period, 7);
       const trialLimitDate = subDays(new Date(), freeTrialDays).toISOString();
       const nowIso = new Date().toISOString();
 

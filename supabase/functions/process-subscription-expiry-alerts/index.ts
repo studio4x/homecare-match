@@ -192,6 +192,30 @@ serve(async (req) => {
 
     const now = new Date();
     const maxDate = new Date(now.getTime() + 8 * DAY_MS);
+    const nowIso = now.toISOString();
+
+    const resetExpiredCouponsQuery = supabaseAdmin
+      .from("profiles")
+      .update({
+        subscription_tier: null,
+        coupon_days: null,
+        cancel_at_period_end: true,
+        updated_at: nowIso,
+      })
+      .in("subscription_tier", ["monthly", "yearly", "annual"])
+      .not("coupon_days", "is", null)
+      .eq("cancel_at_period_end", true)
+      .not("subscription_end_at", "is", null)
+      .lte("subscription_end_at", nowIso);
+
+    if (targetUserId) {
+      resetExpiredCouponsQuery.eq("id", targetUserId);
+    }
+
+    const { data: resetExpiredCouponsRows, error: resetExpiredCouponsError } = await resetExpiredCouponsQuery.select("id");
+    if (resetExpiredCouponsError) throw resetExpiredCouponsError;
+
+    const couponExpiredResets = Array.isArray(resetExpiredCouponsRows) ? resetExpiredCouponsRows.length : 0;
 
     let candidates: any[] = [];
 
@@ -225,9 +249,14 @@ serve(async (req) => {
           checked: 0,
           notified: 0,
           emailed: 0,
+          coupon_expired_resets: couponExpiredResets,
           mode: authMode,
           target_user_id: targetUserId || null,
-          message: targetUserId ? "Usuario alvo nao encontrado." : "Nenhuma assinatura em janela de alerta.",
+          message: targetUserId
+            ? couponExpiredResets > 0
+              ? "Usuario alvo processado: assinatura via cupom expirada e resetada para sem plano."
+              : "Usuario alvo sem assinatura elegivel na janela de alerta."
+            : "Nenhuma assinatura em janela de alerta.",
         }),
         {
           status: 200,
@@ -487,6 +516,7 @@ serve(async (req) => {
         checked: candidates.length,
         notified,
         emailed,
+        coupon_expired_resets: couponExpiredResets,
         mode: authMode,
         target_user_id: targetUserId || null,
         forced: force,

@@ -298,7 +298,7 @@ const OverviewPage = () => {
 
   const freeTrialDurationDays = useMemo(() => {
     const freeTrialPlan = planCatalog.find((plan) => plan.id === "free_trial");
-    return getPlanDurationDays(freeTrialPlan?.period, 30);
+    return getPlanDurationDays(freeTrialPlan?.period, 7);
   }, [planCatalog]);
 
   const getTrialInfo = () => {

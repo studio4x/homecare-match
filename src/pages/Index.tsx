@@ -235,13 +235,13 @@ const Index = () => {
     id: "free_trial",
     name: "Plano Gratuito",
     price: "R$ 0,00",
-    period: "mês",
-    description: "Aplicado automaticamente no cadastro. Válido por 30 dias.",
+    period: "7 dias",
+    description: "Aplicado automaticamente no cadastro. Válido por 7 dias.",
     features: [
       "Perfil profissional completo",
       "Visibilidade limitada",
       "Suporte por email",
-      "Ao término de 30 dias, selecione um plano pago.",
+      "Ao término de 7 dias, selecione um plano pago.",
     ],
     popular: false,
   };

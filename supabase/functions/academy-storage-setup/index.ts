@@ -7,13 +7,11 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SUPABASE_URL = "https://rkjvtnadqkbwomgzyswr.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJranZ0bmFkcWbid29tZ3p5c3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAwNjI3NTAsImV4cCI6MjA4NTYzODc1MH0.Xc1l3rYeR3zs-9ZRsAtvYDrhnXHvyydf6VmpCoLNeFI";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL")!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-const supabaseAnon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const PRIVATE_BUCKET = "academy-private";
 

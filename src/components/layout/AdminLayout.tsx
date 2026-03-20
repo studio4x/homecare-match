@@ -36,7 +36,8 @@ import {
   Newspaper,
   Bot,
   Link2,
-  MousePointerClick
+  MousePointerClick,
+  ShieldAlert
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -160,6 +161,7 @@ const AdminLayout = () => {
     { href: "/admin/concierge", label: "Solicitações Concierge", icon: Headset },
     { href: "/admin/push", label: "Avisos (Push)", icon: Bell },
     { href: "/admin/notificacoes", label: "Entregas Notificacao", icon: Bell },
+    { href: "/admin/seguranca", label: "Monitoramento Seguranca", icon: ShieldAlert },
     { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },
     { href: "/admin/suporte", label: "Tickets", icon: LifeBuoy },
     { href: "/admin/faq", label: "FAQ / Ajuda", icon: HelpCircle },

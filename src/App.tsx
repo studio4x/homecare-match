@@ -83,6 +83,7 @@ import BlogAdminPage from "./pages/admin/BlogPage";
 import ChatbotConversationsPage from "./pages/admin/ChatbotConversationsPage";
 import NotificationDeliveriesPage from "./pages/admin/NotificationDeliveriesPage";
 import AffiliatesAdminPage from "./pages/admin/AffiliatesPage";
+import SecurityMonitorPage from "./pages/admin/SecurityMonitorPage";
 
 const queryClient = new QueryClient();
 
@@ -156,6 +157,7 @@ const App = () => (
                 <Route path="videos" element={<VideosPage />} />
                 <Route path="push" element={<PushNotificationsPage />} />
                 <Route path="notificacoes" element={<NotificationDeliveriesPage />} />
+                <Route path="seguranca" element={<SecurityMonitorPage />} />
                 <Route path="denuncias" element={<ReportsPage />} />
                 <Route path="sugestoes" element={<SuggestionsPage />} />
                 <Route path="cupons" element={<CouponsPage />} />

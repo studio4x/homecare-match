@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, RefreshCw, ShieldAlert, ShieldCheck, Timer } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Copy, Loader2, RefreshCw, ShieldAlert, ShieldCheck, Timer, Wand2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -117,6 +119,9 @@ const SecurityMonitorPage = () => {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [findings, setFindings] = useState<SecurityMonitorFinding[]>([]);
   const [loadingFindings, setLoadingFindings] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [promptText, setPromptText] = useState("");
+  const [promptCheckKey, setPromptCheckKey] = useState<string | null>(null);
 
   const latestRun = runs[0] || null;
 
@@ -232,6 +237,54 @@ const SecurityMonitorPage = () => {
       toast.error(error?.message || "Erro ao salvar configuracao.");
     } finally {
       setSavingConfig(false);
+    }
+  };
+
+  const buildPromptFromFinding = (finding: SecurityMonitorFinding) => {
+    const run = runs.find((item) => item.id === finding.run_id);
+    const detailsText =
+      finding.details && Object.keys(finding.details).length > 0
+        ? JSON.stringify(finding.details, null, 2)
+        : "{}";
+
+    return [
+      "Quero corrigir este achado de seguranca no projeto HomeCare Match.",
+      "",
+      "Contexto do achado:",
+      `- Run ID: ${finding.run_id}`,
+      `- Check Key: ${finding.check_key}`,
+      `- Severidade: ${finding.severity}`,
+      `- Status: ${finding.status}`,
+      `- Mensagem: ${finding.message}`,
+      `- Trigger da varredura: ${run?.trigger_source || "desconhecido"}`,
+      `- Status geral da varredura: ${run?.overall_status || "desconhecido"}`,
+      "",
+      "Detalhes tecnicos (JSON):",
+      "```json",
+      detailsText,
+      "```",
+      "",
+      "Preciso que voce:",
+      "1. Identifique a causa raiz no codigo e/ou banco.",
+      "2. Implemente a correcao com menor risco de regressao.",
+      "3. Rode validacoes (typecheck/test/build/smoke, conforme aplicavel).",
+      "4. Aplique migracao/deploy se necessario.",
+      "5. Entregue resumo objetivo do que foi alterado.",
+    ].join("\n");
+  };
+
+  const handleGeneratePrompt = (finding: SecurityMonitorFinding) => {
+    setPromptCheckKey(finding.check_key);
+    setPromptText(buildPromptFromFinding(finding));
+    setPromptOpen(true);
+  };
+
+  const handleCopyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(promptText);
+      toast.success("Prompt copiado.");
+    } catch {
+      toast.error("Nao foi possivel copiar o prompt.");
     }
   };
 
@@ -499,12 +552,24 @@ const SecurityMonitorPage = () => {
                 const severityMeta = severityBadgeMap[finding.severity] || severityBadgeMap.info;
                 return (
                   <div key={finding.id} className="rounded-md border p-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={severityMeta.variant || "outline"} className={severityMeta.className}>
-                        {severityMeta.label}
-                      </Badge>
-                      <Badge variant="outline">{statusLabelMap[finding.status] || finding.status}</Badge>
-                      <span className="text-xs text-muted-foreground">{finding.check_key}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={severityMeta.variant || "outline"} className={severityMeta.className}>
+                          {severityMeta.label}
+                        </Badge>
+                        <Badge variant="outline">{statusLabelMap[finding.status] || finding.status}</Badge>
+                        <span className="text-xs text-muted-foreground">{finding.check_key}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1 text-[11px]"
+                        onClick={() => handleGeneratePrompt(finding)}
+                      >
+                        <Wand2 className="h-3.5 w-3.5" />
+                        Gerar prompt
+                      </Button>
                     </div>
                     <p className="mt-2 text-sm">{finding.message}</p>
                     {finding.details && Object.keys(finding.details).length > 0 ? (
@@ -519,9 +584,32 @@ const SecurityMonitorPage = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={promptOpen} onOpenChange={setPromptOpen}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Prompt de correcao do achado</DialogTitle>
+            <DialogDescription>
+              Prompt pronto para enviar e solicitar a correcao do achado <strong>{promptCheckKey || "-"}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea
+              value={promptText}
+              readOnly
+              className="min-h-[320px] font-mono text-xs leading-relaxed"
+            />
+            <div className="flex justify-end">
+              <Button type="button" onClick={handleCopyPrompt}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copiar prompt
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
 export default SecurityMonitorPage;
-

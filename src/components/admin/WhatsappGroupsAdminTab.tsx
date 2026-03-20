@@ -20,6 +20,10 @@ type CreateGroupResult = {
 };
 
 const WhatsappGroupsAdminTab = () => {
+  const whatsappGroupsEnabled = String(import.meta.env.VITE_WHATSAPP_GROUPS_ENABLED || "")
+    .trim()
+    .toLowerCase() === "true";
+
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [joinApprovalMode, setJoinApprovalMode] = useState<JoinApprovalMode>("auto_approve");
@@ -28,6 +32,11 @@ const WhatsappGroupsAdminTab = () => {
   const [lastResult, setLastResult] = useState<CreateGroupResult | null>(null);
 
   const handleCreateGroup = async () => {
+    if (!whatsappGroupsEnabled) {
+      toast.error("Modulo de grupos WhatsApp desabilitado neste ambiente.");
+      return;
+    }
+
     const normalizedSubject = subject.trim();
     const normalizedDescription = description.trim();
     const normalizedPhoneNumberId = phoneNumberIdOverride.trim();
@@ -121,6 +130,20 @@ const WhatsappGroupsAdminTab = () => {
       setCreating(false);
     }
   };
+
+  if (!whatsappGroupsEnabled) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Modulo temporariamente desabilitado</CardTitle>
+          <CardDescription>
+            A criacao de grupos via API foi desativada neste ambiente. Para habilitar no futuro, configure
+            <code>VITE_WHATSAPP_GROUPS_ENABLED=true</code> e o secret de backend correspondente.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">

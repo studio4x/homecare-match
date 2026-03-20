@@ -54,10 +54,25 @@ const normalizeJoinMode = (value: unknown) => {
   return null;
 };
 
+const isGroupsEnabled = () => {
+  const raw = String(Deno.env.get("WHATSAPP_GROUPS_ENABLED") || "").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    if (!isGroupsEnabled()) {
+      return jsonResponse(
+        {
+          error:
+            "WhatsApp Groups API disabled in this environment (requires Official Business Account - OBA).",
+        },
+        403,
+      );
+    }
+
     const supabaseAdmin = getSupabaseAdmin();
     const body = await parseBody(req);
     const token = resolveToken(req, body);

@@ -152,6 +152,10 @@ const getChannelBadge = (channel: DeliveryItem["channel"]) => {
 };
 
 const NotificationDeliveriesPage = () => {
+  const whatsappGroupsEnabled = String(import.meta.env.VITE_WHATSAPP_GROUPS_ENABLED || "")
+    .trim()
+    .toLowerCase() === "true";
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [channelFilter, setChannelFilter] = useState<"all" | "email" | "widget" | "whatsapp">("all");
@@ -442,7 +446,7 @@ const NotificationDeliveriesPage = () => {
         <TabsList>
           <TabsTrigger value="deliveries">Entregas</TabsTrigger>
           <TabsTrigger value="whatsapp_templates">Templates WhatsApp</TabsTrigger>
-          <TabsTrigger value="whatsapp_groups">Grupos WhatsApp</TabsTrigger>
+          {whatsappGroupsEnabled ? <TabsTrigger value="whatsapp_groups">Grupos WhatsApp</TabsTrigger> : null}
         </TabsList>
       </div>
 
@@ -692,9 +696,11 @@ const NotificationDeliveriesPage = () => {
         <WhatsappTemplateSettingsTab />
       </TabsContent>
 
-      <TabsContent value="whatsapp_groups">
-        <WhatsappGroupsAdminTab />
-      </TabsContent>
+      {whatsappGroupsEnabled ? (
+        <TabsContent value="whatsapp_groups">
+          <WhatsappGroupsAdminTab />
+        </TabsContent>
+      ) : null}
 
       <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
         <AlertDialogContent>

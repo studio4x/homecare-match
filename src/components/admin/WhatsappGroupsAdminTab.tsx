@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,8 +50,11 @@ const WhatsappGroupsAdminTab = () => {
     setCreating(true);
 
     try {
-      const { data: authSession } = await supabase.auth.getSession();
-      const accessToken = authSession?.session?.access_token || "";
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
       if (!accessToken) {
         throw new Error("Sessao expirada. Faca login novamente.");
       }
@@ -65,12 +68,42 @@ const WhatsappGroupsAdminTab = () => {
       if (normalizedDescription) body.description = normalizedDescription;
       if (normalizedPhoneNumberId) body.phone_number_id = normalizedPhoneNumberId;
 
-      const { data, error } = await supabase.functions.invoke("whatsapp-create-group", { body });
-      if (error) throw error;
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/whatsapp-create-group`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      });
 
-      const result = (data || {}) as CreateGroupResult;
+      const rawResponse = await response.text();
+      let parsedPayload: unknown = {};
+      if (rawResponse) {
+        try {
+          parsedPayload = JSON.parse(rawResponse);
+        } catch {
+          parsedPayload = { error: rawResponse };
+        }
+      }
+      const result = (parsedPayload || {}) as CreateGroupResult;
+
+      if (!response.ok) {
+        const detail = String(result?.error || `HTTP ${response.status}`).trim();
+        setLastResult({
+          success: false,
+          error: detail,
+          status: response.status,
+          details: result?.details || null,
+          data: result?.data,
+        });
+        throw new Error(detail);
+      }
+
       if (result?.error) {
-        throw new Error(result.error);
+        setLastResult(result);
+        throw new Error(String(result.error));
       }
 
       setLastResult(result);

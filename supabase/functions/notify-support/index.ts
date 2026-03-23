@@ -146,6 +146,9 @@ serve(async (req) => {
       if (type === "ticket_closed") {
         title = "Chamado encerrado";
         content = `Seu chamado "${ticket.subject}" foi marcado como resolvido.`;
+      } else if (ticket.subject === "Mensagem Administrativa") {
+        title = "Nova mensagem direta";
+        content = "Você recebeu uma nova mensagem direta da nossa equipe administrativa.";
       } else if (ticket.status === "in_progress") {
         title = "Chamado em atendimento";
         content = `Seu chamado "${ticket.subject}" agora esta sendo analisado por nossa equipe.`;

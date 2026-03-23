@@ -9,10 +9,8 @@ import {
   Loader2, 
   User, 
   Bot, 
-  ChevronDown,
   Maximize2,
-  Minimize2,
-  RefreshCw
+  Minimize2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -31,7 +29,11 @@ interface ChatMessage {
   createdAt: string;
 }
 
-const SupportChatWidget = () => {
+interface SupportChatWidgetProps {
+  context?: "public" | "dashboard";
+}
+
+const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -62,7 +64,11 @@ const SupportChatWidget = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("support-chat", {
-        body: { message: userMessage.content, userId: user?.id },
+        body: { 
+          message: userMessage.content, 
+          userId: user?.id,
+          context: context 
+        },
       });
 
       if (error) throw error;

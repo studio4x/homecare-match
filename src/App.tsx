@@ -27,8 +27,8 @@ import Support from "./pages/Support";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiePolicy from "./pages/CookiePolicy";
 import Funcionalidades from "./pages/Funcionalidades";
-import ConversionCourse from "./pages/ConversionCourse"; // New import
-import ConversionSubscription from "./pages/ConversionSubscription"; // New import
+import ConversionCourse from "./pages/ConversionCourse";
+import ConversionSubscription from "./pages/ConversionSubscription";
 import ResetPassword from "./pages/ResetPassword";
 import BlogPage from "./pages/Blog";
 import BlogArticlePage from "./pages/BlogArticle";
@@ -38,6 +38,7 @@ import BlogSearchPage from "./pages/BlogSearch";
 import ShortLinkRedirect from "./pages/ShortLinkRedirect";
 import EmailConfirmed from "./pages/EmailConfirmed";
 import AffiliateProgramPage from "./pages/AffiliateProgramPage";
+import TheProblem from "./pages/TheProblem"; // Nova página
 
 // Dashboard Pages
 import UserLayout from "./components/layout/UserLayout";
@@ -50,7 +51,7 @@ import SupportTicketsPage from "./pages/dashboard/SupportTicketsPage";
 import TicketDetailPage from "./pages/dashboard/TicketDetailPage";
 import PaymentsPage from "./pages/dashboard/PaymentsPage";
 import NoticesPage from "./pages/dashboard/NoticesPage";
-import CompanyPatientsPage from "./pages/dashboard/CompanyPatientsPage"; // New import
+import CompanyPatientsPage from "./pages/dashboard/CompanyPatientsPage";
 import AffiliatesDashboardPage from "./pages/dashboard/AffiliatesPage";
 
 // Admin Layout & Pages
@@ -100,6 +101,7 @@ const App = () => (
             <Routes>
               {/* Rotas Públicas */}
               <Route path="/" element={<Index />} />
+              <Route path="/o-problema" element={<TheProblem />} /> {/* Nova Rota */}
               <Route path="/empresas" element={<Empresas />} />
               <Route path="/familias" element={<Familias />} />
               <Route path="/buscar" element={<Buscar />} />
@@ -124,8 +126,8 @@ const App = () => (
               <Route path="/redefinir-senha" element={<ResetPassword />} />
               <Route path="/email-confirmado" element={<EmailConfirmed />} />
               <Route path="/afiliados" element={<AffiliateProgramPage />} />
-              <Route path="/conversion/course" element={<ConversionCourse />} /> {/* New route */}
-              <Route path="/conversion/subscription" element={<ConversionSubscription />} /> {/* New route */}
+              <Route path="/conversion/course" element={<ConversionCourse />} />
+              <Route path="/conversion/subscription" element={<ConversionSubscription />} />
               <Route path="/:shortSlug" element={<ShortLinkRedirect />} />
 
               {/* Novo Painel do Usuário (Aninhado) */}
@@ -140,7 +142,7 @@ const App = () => (
                 <Route path="afiliados" element={<AffiliatesDashboardPage />} />
                 <Route path="suporte" element={<SupportTicketsPage />} />
                 <Route path="suporte/:id" element={<TicketDetailPage />} />
-                <Route path="pacientes" element={<CompanyPatientsPage />} /> {/* New route */}
+                <Route path="pacientes" element={<CompanyPatientsPage />} />
               </Route>
 
               {/* Área Administrativa (Aninhada) */}

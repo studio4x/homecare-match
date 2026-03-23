@@ -368,7 +368,7 @@ const normalizeVariations = (input: unknown) => {
     if (!safeKey) continue;
     const safeValue = normalizeText(value);
     if (!safeValue) continue;
-    result[safeKey] = safeValue;
+    result[safeKey] = safeValue.slice(0, 2000);
   }
   return result;
 };
@@ -400,9 +400,9 @@ const mergeWithDefaults = (rows: TemplateConfigRow[]) => {
 const renderPreview = (row: TemplateConfigRow) => {
   const base = row.sample_message || "";
   return base
-    .replaceAll("{{1}}", row.var1_default || "[var1]")
-    .replaceAll("{{2}}", row.var2_default || "[var2]")
-    .replaceAll("{{3}}", row.var3_default || "[var3]");
+    .replace(/\{\{1\}\}/g, row.var1_default || "[var1]")
+    .replace(/\{\{2\}\}/g, row.var2_default || "[var2]")
+    .replace(/\{\{3\}\}/g, row.var3_default || "[var3]");
 };
 
 const getHistoryStatusBadgeClass = (status: string) => {

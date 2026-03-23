@@ -63,11 +63,13 @@ export function usePublicHighlightedCoupon(audience?: string) {
       if (audience) {
         // Accept coupons with no audience restriction OR matching the given audience
         query = query.or(
-          `eligible_audience.is.null,eligible_audience.eq.${audience}`
+          `eligible_audience.is.null,eligible_audience.eq.,eligible_audience.eq.${audience}`
         );
       } else {
-        // No audience argument: only coupons with no restriction
-        query = query.is("eligible_audience", null);
+        // No audience argument: accept coupons with no restriction (null or empty)
+        query = query.or(
+          `eligible_audience.is.null,eligible_audience.eq.`
+        );
       }
 
       const { data, error } = await query;

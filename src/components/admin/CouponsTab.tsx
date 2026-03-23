@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -35,11 +36,14 @@ import {
   CheckCircle2,
   Database,
   Edit2,
+  Eye,
+  Hash,
   Loader2,
   Mail,
   Plus,
   RefreshCw,
   Save,
+  Star,
   Ticket,
   Trash2,
   User,
@@ -63,6 +67,14 @@ type CouponFormData = {
   is_active: boolean;
   apply_mode: CouponApplyMode;
   target_tier: CouponTargetTier;
+  // Public highlight fields
+  show_publicly: boolean;
+  highlight_on_monthly_plan: boolean;
+  campaign_badge: string;
+  public_title: string;
+  public_description: string;
+  display_priority: number;
+  eligible_audience: string;
 };
 
 const DEFAULT_FORM_DATA: CouponFormData = {
@@ -72,6 +84,14 @@ const DEFAULT_FORM_DATA: CouponFormData = {
   is_active: true,
   apply_mode: "signup_only",
   target_tier: "monthly",
+  // Public highlight fields
+  show_publicly: false,
+  highlight_on_monthly_plan: false,
+  campaign_badge: "",
+  public_title: "",
+  public_description: "",
+  display_priority: 0,
+  eligible_audience: "",
 };
 
 const VALID_APPLY_MODES = new Set<CouponApplyMode>([
@@ -165,6 +185,14 @@ const CouponsTab = () => {
       is_active: coupon.is_active !== false,
       apply_mode: normalizeApplyMode(coupon),
       target_tier: normalizeTargetTier(coupon),
+      // Public highlight fields
+      show_publicly: coupon.show_publicly === true,
+      highlight_on_monthly_plan: coupon.highlight_on_monthly_plan === true,
+      campaign_badge: String(coupon.campaign_badge || ""),
+      public_title: String(coupon.public_title || ""),
+      public_description: String(coupon.public_description || ""),
+      display_priority: Number(coupon.display_priority ?? 0),
+      eligible_audience: String(coupon.eligible_audience || ""),
     });
     setOpenDialog(true);
   };
@@ -210,6 +238,14 @@ const CouponsTab = () => {
         apply_mode: formData.apply_mode,
         target_tier: formData.target_tier,
         only_new_users: formData.apply_mode === "signup_only",
+        // Public highlight fields
+        show_publicly: formData.show_publicly,
+        highlight_on_monthly_plan: formData.highlight_on_monthly_plan,
+        campaign_badge: formData.campaign_badge.trim() || null,
+        public_title: formData.public_title.trim() || null,
+        public_description: formData.public_description.trim() || null,
+        display_priority: Number(formData.display_priority ?? 0),
+        eligible_audience: formData.eligible_audience.trim() || null,
       };
 
       if (editingId) {
@@ -493,6 +529,85 @@ const CouponsTab = () => {
                 checked={formData.is_active}
                 onCheckedChange={(value) => setFormData((prev) => ({ ...prev, is_active: value }))}
               />
+            </div>
+
+            {/* ── Public Highlight Section ───────────────────────────── */}
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Eye className="h-4 w-4 text-primary" />
+                <span className="text-sm font-bold text-primary">Exibição Pública</span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Exibir publicamente</Label>
+                  <p className="text-[10px] text-muted-foreground">Mostra este cupom em destaque para novos usuários.</p>
+                </div>
+                <Switch
+                  checked={formData.show_publicly}
+                  onCheckedChange={(value) => setFormData((prev) => ({ ...prev, show_publicly: value }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="flex items-center gap-1"><Star className="h-3 w-3" /> Destacar no Plano Mensal</Label>
+                  <p className="text-[10px] text-muted-foreground">Exibe o banner promocional no card do plano mensal.</p>
+                </div>
+                <Switch
+                  checked={formData.highlight_on_monthly_plan}
+                  onCheckedChange={(value) => setFormData((prev) => ({ ...prev, highlight_on_monthly_plan: value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Badge da campanha</Label>
+                  <Input
+                    placeholder="Pré-lançamento"
+                    value={formData.campaign_badge}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, campaign_badge: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1"><Hash className="h-3 w-3" /> Prioridade</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={formData.display_priority}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, display_priority: Number(e.target.value ?? 0) }))}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Título público</Label>
+                <Input
+                  placeholder="Ex: Ganhe 30 dias grátis no plano mensal"
+                  value={formData.public_title}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, public_title: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Descrição pública</Label>
+                <Textarea
+                  placeholder="Texto exibido abaixo do título no bloco promocional..."
+                  value={formData.public_description}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, public_description: e.target.value }))}
+                  rows={3}
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Público elegível <span className="text-muted-foreground">(deixe vazio para todos)</span></Label>
+                <Input
+                  placeholder="Ex: professional"
+                  value={formData.eligible_audience}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, eligible_audience: e.target.value.trim() }))}
+                />
+              </div>
             </div>
 
             <DialogFooter className="pt-4">

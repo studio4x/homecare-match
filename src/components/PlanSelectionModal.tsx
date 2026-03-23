@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { createCheckoutSession } from "@/lib/checkout";
 import { getCheckoutAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
+import { usePublicHighlightedCoupon } from "@/hooks/use-public-highlighted-coupon";
+import PublicCouponBanner from "@/components/PublicCouponBanner";
 
 interface PlanSelectionModalProps {
   open: boolean;
@@ -34,6 +36,9 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
   const [showMobileCouponForm, setShowMobileCouponForm] = useState(false);
   const [activePlanIndex, setActivePlanIndex] = useState(0);
   const mobileCarouselRef = useRef<HTMLDivElement | null>(null);
+
+  // Public highlighted coupon for pre-launch campaign
+  const { data: publicCoupon } = usePublicHighlightedCoupon();
 
   const { data: profile } = useQuery({
     queryKey: ["user-profile-tier-modal", user?.id],
@@ -193,8 +198,13 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
 
   const renderPlanCard = (plan: any) => {
     const features = [...(plan.features || [])];
-
     const btnConfig = getPlanButtonConfig(plan.id);
+
+    // Show monthly-card highlight only when flag is set on that plan's coupon
+    const showMonthlyHighlight =
+      plan.id === "monthly" &&
+      publicCoupon != null &&
+      publicCoupon.highlight_on_monthly_plan === true;
 
     return (
       <div
@@ -246,6 +256,17 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
             btnConfig.text
           )}
         </Button>
+
+        {/* Monthly plan promotional highlight */}
+        {showMonthlyHighlight && (
+          <PublicCouponBanner
+            coupon={publicCoupon}
+            variant="monthly-card"
+            onUseCoupon={(code) => {
+              setCouponCode(code);
+            }}
+          />
+        )}
       </div>
     );
   };
@@ -279,6 +300,23 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:space-y-8 sm:p-8">
             {showCoupon && (
               <>
+                {/* Public highlighted coupon banner — pre-launch campaign */}
+                {publicCoupon && (
+                  <PublicCouponBanner
+                    coupon={publicCoupon}
+                    variant="coupon-field"
+                    onUseCoupon={(code) => {
+                      setCouponCode(code);
+                      // Auto-apply: click the hidden apply button after state update
+                      setTimeout(() => {
+                        const applyBtn = document.getElementById("plan-modal-apply-coupon-btn");
+                        applyBtn?.click();
+                      }, 50);
+                    }}
+                  />
+                )}
+
+                {/* Mobile: toggleable coupon form */}
                 <div className="sm:hidden">
                   <Button
                     type="button"
@@ -313,6 +351,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
                   )}
                 </div>
 
+                {/* Desktop: inline coupon form */}
                 <div className="hidden rounded-2xl border border-dashed border-primary/20 bg-secondary/30 p-4 sm:block">
                   <div className="mb-3 flex items-center gap-2">
                     <Ticket className="h-4 w-4 text-primary" />
@@ -327,6 +366,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
                       disabled={isApplyingCoupon}
                     />
                     <Button
+                      id="plan-modal-apply-coupon-btn"
                       onClick={handleApplyCoupon}
                       disabled={isApplyingCoupon || !couponCode.trim()}
                       className="gap-2"
@@ -380,7 +420,6 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
               </>
             )}
 
-
             <p className="hidden text-center text-[10px] text-muted-foreground sm:block">
               Pagamento processado com seguranca via Asaas.
             </p>
@@ -392,4 +431,3 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
 };
 
 export default PlanSelectionModal;
-

@@ -18,7 +18,7 @@ import {
   Zap,
   ShieldCheck,
   LayoutDashboard,
-  CheckCircle2, // Adicionado import para CheckCircle2
+  CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
@@ -141,39 +141,6 @@ const Index = () => {
 
     toast.error("Plano inválido para checkout.");
   };
-
-  const features = [
-    {
-      icon: Search,
-      title: "Mais visibilidade profissional",
-      description: "Oportunidades de atendimento na sua região.",
-    },
-    {
-      icon: Shield,
-      title: "Contato direto com empresas e famílias",
-      description: "Perfil profissional organizado em um só lugar.",
-    },
-    {
-      icon: Star,
-      title: "Mais praticidade para encontrar atendimentos",
-      description: "Plataforma dedicada a profissionais de Home Care.",
-    },
-    {
-      icon: Users,
-      title: "Credibilidade para seu trabalho",
-      description: "Visibilidade para empresas e famílias.",
-    },
-    {
-      icon: Search,
-      title: "Oportunidades por região e especialidade",
-      description: "Aumente suas chances de receber novos atendimentos.",
-    },
-    {
-      icon: Shield,
-      title: "Perfil profissional completo",
-      description: "Seja encontrado por quem precisa de você.",
-    },
-  ];
 
   const faqs = [
     {
@@ -746,83 +713,91 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Nova seção adicionada aqui */}
+      {/* Seção de explicação com layout de 3 colunas e sem asteriscos */}
       <section className="bg-secondary/30 py-14 md:py-20">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <div className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-foreground">
+        <div className="container mx-auto px-4">
+          <div className="mb-16 text-center max-w-4xl mx-auto">
+            <h2 className="text-3xl font-bold text-foreground md:text-4xl">
               Por que investimos nos profissionais e oferecemos gratuidade para empresas e famílias?
             </h2>
-            <p className="mt-4 text-muted-foreground text-lg">
+            <p className="mt-6 text-muted-foreground text-lg leading-relaxed">
               Na Home Care Match, nossa missão é criar um ecossistema de saúde domiciliar eficiente e de alta qualidade. Para isso, focamos em valorizar e capacitar os profissionais, que são o coração do atendimento.
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
-            <div className="space-y-6">
-              <h3 className="text-xl font-bold text-primary">Para os Profissionais (você):</h3>
-              <ul className="space-y-4 text-muted-foreground">
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <span>
-                    Acreditamos que um pequeno investimento mensal na plataforma se traduz em grandes oportunidades e um futuro mais promissor para sua carreira.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <span>
-                    **Manter a qualidade e segurança:** Investimos em tecnologia para garantir que seu perfil seja visto por quem realmente precisa, com um ambiente seguro e confiável.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <span>
-                    **Visibilidade e Conexão:** Promovemos seu perfil ativamente para empresas e famílias, aumentando suas chances de encontrar novos atendimentos e expandir sua carreira.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <span>
-                    **Desenvolvimento Contínuo:** Tenha acesso a **cursos gratuitos** e a **cursos avançados com um investimento extremamente baixo** em nossa Academy, para aprimorar suas habilidades e conquistar novos selos para seu perfil.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <span>
-                    **Ferramentas que Facilitam seu Dia a Dia:** A Home Care Match investe e sempre investirá em trazer funcionalidades que beneficiam você, além de recursos gratuitos pensados para simplificar sua rotina corrida e te dar mais tempo para o que realmente importa: o cuidado.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <span>
-                    **Sustentabilidade da Plataforma:** Sua contribuição é fundamental para a manutenção e evolução da Home Care Match, garantindo que possamos continuar aprimorando a plataforma e gerando ainda mais valor para você.
-                  </span>
-                </li>
-              </ul>
+          <div className="space-y-16">
+            {/* Bloco Profissionais - 3 Colunas */}
+            <div className="space-y-8">
+              <div className="flex items-center gap-3 justify-center md:justify-start">
+                <div className="h-8 w-1 bg-primary rounded-full" />
+                <h3 className="text-2xl font-bold text-primary">Para os Profissionais (você)</h3>
+              </div>
+              
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {[
+                  {
+                    title: "Oportunidades Reais",
+                    text: "Acreditamos que um pequeno investimento mensal na plataforma se traduz em grandes oportunidades e um futuro mais promissor para sua carreira."
+                  },
+                  {
+                    title: "Qualidade e Segurança",
+                    text: "Investimos em tecnologia para garantir que seu perfil seja visto por quem realmente precisa, com um ambiente seguro e confiável."
+                  },
+                  {
+                    title: "Visibilidade e Conexão",
+                    text: "Promovemos seu perfil ativamente para empresas e famílias, aumentando suas chances de encontrar novos atendimentos e expandir sua carreira."
+                  },
+                  {
+                    title: "Desenvolvimento Contínuo",
+                    text: "Tenha acesso a cursos gratuitos e a cursos avançados com um investimento extremamente baixo em nossa Academy, para aprimorar suas habilidades."
+                  },
+                  {
+                    title: "Ferramentas para o Dia a Dia",
+                    text: "Investimos em funcionalidades que beneficiam você, com recursos pensados para simplificar sua rotina e te dar mais tempo para o cuidado."
+                  },
+                  {
+                    title: "Sustentabilidade",
+                    text: "Sua contribuição é fundamental para a evolução da Home Care Match, garantindo que possamos continuar aprimorando a plataforma para você."
+                  }
+                ].map((item, i) => (
+                  <div key={i} className="bg-card p-6 rounded-2xl border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+                    <CheckCircle2 className="h-6 w-6 text-success mb-4" />
+                    <h4 className="font-bold text-foreground mb-2">{item.title}</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            <div className="space-y-6">
-              <h3 className="text-xl font-bold text-foreground">Para Empresas e Famílias:</h3>
-              <ul className="space-y-4 text-muted-foreground">
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <span>
-                    Oferecemos o acesso gratuito para empresas e famílias porque entendemos a urgência e a sensibilidade de encontrar o profissional certo para o cuidado domiciliar.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <span>
-                    Queremos remover barreiras e facilitar essa conexão vital, garantindo que eles tenham acesso rápido e sem custos a uma rede qualificada de profissionais como você.
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <span>
-                    Essa estratégia cria um ciclo virtuoso: ao empoderar os profissionais, garantimos que empresas e famílias encontrem os melhores talentos, fortalecendo todo o setor de home care.
-                  </span>
-                </li>
-              </ul>
+            {/* Bloco Empresas/Famílias - 3 Colunas */}
+            <div className="space-y-8">
+              <div className="flex items-center gap-3 justify-center md:justify-start">
+                <div className="h-8 w-1 bg-foreground rounded-full" />
+                <h3 className="text-2xl font-bold text-foreground">Para Empresas e Famílias</h3>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {[
+                  {
+                    title: "Acesso Facilitado",
+                    text: "Oferecemos o acesso gratuito porque entendemos a urgência e a sensibilidade de encontrar o profissional certo para o cuidado domiciliar."
+                  },
+                  {
+                    title: "Conexão Vital",
+                    text: "Queremos remover barreiras e facilitar essa conexão, garantindo acesso rápido e sem custos a uma rede qualificada de profissionais como você."
+                  },
+                  {
+                    title: "Ciclo Virtuoso",
+                    text: "Ao empoderar os profissionais, garantimos que empresas e famílias encontrem os melhores talentos, fortalecendo todo o setor de home care."
+                  }
+                ].map((item, i) => (
+                  <div key={i} className="bg-card/50 p-6 rounded-2xl border border-border/50 shadow-sm">
+                    <CheckCircle2 className="h-6 w-6 text-success mb-4" />
+                    <h4 className="font-bold text-foreground mb-2">{item.title}</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

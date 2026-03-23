@@ -11,7 +11,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { sanitizeStoragePath } from "@/lib/storage-path";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Download, ImagePlus, Loader2, Plus, RefreshCw, Save, Smartphone, Trash2, WandSparkles } from "lucide-react";
+import { 
+  AlertCircle, 
+  CheckCircle2, 
+  ChevronDown, 
+  ChevronUp, 
+  Download, 
+  ImagePlus, 
+  Loader2, 
+  Plus, 
+  RefreshCw, 
+  Save, 
+  Smartphone, 
+  Trash2, 
+  WandSparkles 
+} from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 type ImageField = "pwa_icon_192_url" | "pwa_icon_512_url" | "pwa_maskable_icon_url" | "pwa_install_image_url";
 type PwaAssetKey =
@@ -140,7 +159,7 @@ const normalizeScreenshots = (value: unknown): ManifestScreenshot[] => {
       sizes: typeof item.sizes === "string" ? item.sizes : "1080x2400",
       type: typeof item.type === "string" ? item.type : "image/png",
       label: typeof item.label === "string" ? item.label : "",
-      form_factor: (item.form_factor === "wide" ? "wide" : "narrow") as "narrow" | "wide", // Explicitly cast form_factor
+      form_factor: (item.form_factor === "wide" ? "wide" : "narrow") as "narrow" | "wide",
     }))
     .filter((item) => item.src.trim() || item.label.trim());
 
@@ -358,7 +377,7 @@ const PwaSettingsPage = () => {
           const text = [message, extra].filter(Boolean).join(" - ");
           if (text) detail = text;
         } catch {
-          // noop: detail remains status code
+          // noop
         }
         const error = new Error(detail) as Error & { status?: number };
         error.status = response.status;
@@ -385,7 +404,7 @@ const PwaSettingsPage = () => {
               return;
             }
           } catch {
-            // noop: keep unauthorized message below
+            // noop
           }
         }
 
@@ -584,7 +603,6 @@ const PwaSettingsPage = () => {
 
       const newUrls: Partial<Record<PwaAssetKey, string>> = {};
       for (const spec of targets) {
-        // Keep generated icons opaque to avoid black background artifacts on some mobile splash implementations.
         const shouldFillBackground = spec.kind === "splash" || spec.kind === "icon" || spec.kind === "maskable";
         const blob = await drawImageAsset(source, spec.width!, spec.height!, {
           backgroundColor: shouldFillBackground ? formData.pwa_background_color : undefined,

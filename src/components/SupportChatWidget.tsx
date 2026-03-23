@@ -1,913 +1,185 @@
-"use client";
-
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { MessageCircle, X, Send, Loader2, Bot, Minus, Maximize2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useSiteConfig } from "@/hooks/use-site-config";
-import { useAuth } from "@/components/auth/AuthProvider";
-import { cn } from "@/lib/utils";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  MessageCircle, 
+  X, 
+  Send, 
+  Loader2, 
+  User, 
+  Bot, 
+  ChevronDown,
+  Maximize2,
+  Minimize2,
+  RefreshCw
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-interface SupportChatWidgetProps {
-  context?: "public" | "dashboard";
-}
+type ChatMode = "ai" | "human" | "system";
 
-type ChatMode = "faq" | "ai" | "fallback" | "human" | "system";
-
-type SourceItem = {
-  id: string;
-  type: string;
-  title: string;
-  route?: string;
-  snippet?: string;
-  score?: number;
-};
-
-type ActionItem = {
-  type: string;
-  label: string;
-  url: string;
-};
-
-type ChatMessage = {
+interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   mode?: ChatMode;
-  sources?: SourceItem[];
-  actions?: ActionItem[];
-  createdAt?: string;
-};
+  sources?: any[];
+  actions?: any[];
+  createdAt: string;
+}
 
-type SessionClosedReason = "user" | "inactivity";
-
-const VISITOR_ID_KEY = "hcm_chatbot_visitor_id";
-const MAX_LOCAL_MESSAGES = 60;
-const LINK_PATTERN = /(https?:\/\/[^\s]+)/g;
-const TRAILING_PUNCTUATION_PATTERN = /[.,;:!?)]$/;
-const INACTIVITY_WARNING_MS = 5 * 60 * 1000; // Defined INACTIVITY_WARNING_MS
-const INACTIVITY_CLOSE_MS = 10 * 60 * 1000; // Defined INACTIVITY_CLOSE_MS
-const USER_INACTIVITY_CLOSED_TEXT = "Chat encerrado por inatividade. Clique em \"Iniciar novo chat\" para continuar.";
-
-const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
-const formatMessageTime = (value?: string) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const getOrCreateVisitorId = () => {
-  const current = window.localStorage.getItem(VISITOR_ID_KEY);
-  if (current) return current;
-  const created = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  window.localStorage.setItem(VISITOR_ID_KEY, created);
-  return created;
-};
-
-const normalizeLoadedMessages = (raw: unknown): ChatMessage[] => {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((item) => item && typeof item === "object")
-    .map((item: any) => ({
-      id: String(item.id || createMessageId()),
-      role: item.role === "user" ? "user" : "assistant", // Explicitly cast role
-      content: String(item.content || ""),
-      mode: item.mode as ChatMode, // Explicitly cast mode
-      sources: Array.isArray(item.sources) ? item.sources : [],
-      actions: Array.isArray(item.actions) ? item.actions : [],
-      createdAt: typeof item.createdAt === "string" ? item.createdAt : typeof item.created_at === "string" ? item.created_at : undefined,
-    }))
-    .filter((item) => item.content.trim().length > 0)
-    .slice(-MAX_LOCAL_MESSAGES);
-};
-
-const splitTrailingPunctuation = (value: string) => {
-  let clean = String(value || "");
-  let suffix = "";
-
-  while (clean.length > 1 && TRAILING_PUNCTUATION_PATTERN.test(clean)) {
-    suffix = clean.slice(-1) + suffix;
-    clean = clean.slice(0, -1);
-  }
-
-  if (clean.endsWith(".")) {
-    suffix = "." + suffix;
-    clean = clean.slice(0, -1);
-  }
-
-  return { clean, suffix };
-};
-
-const extractFirstName = (value: string | null | undefined) => {
-  const normalized = String(value || "")
-    .normalize("NFKC")
-    .replace(/[\u0000-\u001f\u007f]/g, " ")
-    .replace(/[._-]+/g, " ")
-    .replace(/[^\p{L}\p{M}\s'`-]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!normalized) return "";
-
-  const [rawFirst = ""] = normalized.split(" ");
-  const first = rawFirst
-    .replace(/['`-]+$/g, "")
-    .replace(/^['`-]+/g, "")
-    .slice(0, 40);
-  if (!first) return "";
-
-  return first.charAt(0).toLocaleUpperCase("pt-BR") + first.slice(1).toLocaleLowerCase("pt-BR");
-};
-
-const buildWelcomeMessage = (baseMessage: string, firstName: string) => {
-  const base = String(baseMessage || "").trim();
-  if (!firstName) return base;
-  if (!base) return `Ola, ${firstName}!`;
-  if (/^ola[!,\s]/i.test(base)) return base.replace(/^ola[!,\s]*/i, `Ola, ${firstName}! `);
-  return `Ola, ${firstName}! ${base}`;
-};
-
-const getModeBadge = (mode?: ChatMode) => {
-  if (mode === "ai") return { label: "Resposta por IA", className: "bg-blue-600 hover:bg-blue-600 text-white" };
-  if (mode === "faq") return { label: "Resposta por FAQ", className: "bg-emerald-600 hover:bg-emerald-600 text-white" };
-  if (mode === "fallback") return { label: "Resposta fallback", className: "bg-amber-600 hover:bg-amber-600 text-white" };
-  if (mode === "human") return { label: "Atendimento Humano", className: "bg-indigo-600 hover:bg-indigo-600 text-white" };
-  if (mode === "system") return { label: "Mensagem do Sistema", className: "bg-slate-600 hover:bg-slate-600 text-white" };
-  return null;
-};
-
-const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
-  const { data: siteConfig } = useSiteConfig();
+const SupportChatWidget = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [conversationStarted, setConversationStarted] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [isSlowThinking, setIsSlowThinking] = useState(false);
-  const [sessionId, setSessionId] = useState<string>("");
-  const [handoffActive, setHandoffActive] = useState(false);
-  const [handoffAdminName, setHandoffAdminName] = useState("");
-  const [sessionClosedReason, setSessionClosedReason] = useState<SessionClosedReason | null>(null);
-  const [sessionClosedAt, setSessionClosedAt] = useState("");
-  const [visitorId, setVisitorId] = useState<string>("");
-  const [roleContext, setRoleContext] = useState<string | null>(null);
-  const [userFirstName, setUserFirstName] = useState("");
-  const [storageReady, setStorageReady] = useState(false);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const lastSyncedAtRef = useRef<string>("");
-  const lastUserInteractionAtRef = useRef<number>(Date.now());
-  const autoCloseInFlightRef = useRef(false);
-
-  const chatbotEnabled = siteConfig?.chatbot_enabled ?? true;
-  const showModeBadge = siteConfig?.chatbot_show_mode_badge ?? false;
-  const welcomeMessage =
-    siteConfig?.chatbot_welcome_message ||
-    "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.";
-  const fallbackErrorMessage =
-    siteConfig?.chatbot_error_message ||
-    "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.";
-  const thinkingMessage = isSlowThinking
-    ? "Ainda estou analisando nossos documentos. Quase pronto..."
-    : "Estou lendo nossos documentos para te responder...";
-  const personalizedWelcomeMessage = useMemo(
-    () => buildWelcomeMessage(welcomeMessage, userFirstName),
-    [welcomeMessage, userFirstName],
-  );
-
-  const floatingPositionClass =
-    context === "dashboard" ? "bottom-36 md:bottom-6 right-5 md:right-6" : "bottom-24 md:bottom-6 right-5 md:right-6";
-
-  const actorKey = useMemo(() => user?.id || "anon", [user?.id]);
-  const storageSessionKey = useMemo(() => `hcm_chatbot_session:${actorKey}`, [actorKey]);
-  const storageMessagesKey = useMemo(() => `hcm_chatbot_messages:${actorKey}`, [actorKey]);
-  const storageStartedKey = useMemo(() => `hcm_chatbot_started:${actorKey}`, [actorKey]);
-
-  const appendMessage = (message: ChatMessage) => {
-    setMessages((prev) => [...prev, message].slice(-MAX_LOCAL_MESSAGES));
-  };
-
-  const resetConversationLocally = useCallback(() => {
-    setConversationStarted(false);
-    setMessages([]);
-    setSessionId("");
-    setHandoffActive(false);
-    setHandoffAdminName("");
-    setSessionClosedReason(null);
-    setSessionClosedAt("");
-    lastSyncedAtRef.current = "";
-    lastUserInteractionAtRef.current = Date.now();
-    autoCloseInFlightRef.current = false;
-    setInput("");
-    setIsSending(false);
-  }, []);
-
-  const appendSystemClosureMessage = useCallback((reason: SessionClosedReason, closedAt?: string) => {
-    const content =
-      reason === "inactivity"
-        ? USER_INACTIVITY_CLOSED_TEXT
-        : "Conversa encerrada. Clique em \"Iniciar novo chat\" para continuar.";
-    const createdAt = closedAt || new Date().toISOString();
-
-    setMessages((prev) => {
-      const alreadyExists = prev.some(
-        (msg) => msg.role === "assistant" && msg.mode === "system" && String(msg.content || "").trim() === content,
-      );
-      if (alreadyExists) return prev;
-      return [
-        ...prev,
-        {
-          id: createMessageId(),
-          role: "assistant",
-          content,
-          mode: "system",
-          actions: [],
-          createdAt,
-        },
-      ].slice(-MAX_LOCAL_MESSAGES);
-    });
-  }, []);
-
-  const markSessionClosed = useCallback(
-    (reason: SessionClosedReason, closedAt?: string) => {
-      const resolvedClosedAt = closedAt || new Date().toISOString();
-      setSessionClosedReason(reason);
-      setSessionClosedAt(resolvedClosedAt);
-      setIsSending(false);
-      setInput("");
-      setHandoffActive(false);
-      setHandoffAdminName("");
-      autoCloseInFlightRef.current = false;
-      appendSystemClosureMessage(reason, resolvedClosedAt);
-    },
-    [appendSystemClosureMessage],
-  );
-
-  const mergeIncomingAssistantMessages = (incoming: ChatMessage[]) => {
-    if (!Array.isArray(incoming) || incoming.length === 0) return;
-
-    setMessages((prev) => {
-      const existingIds = new Set(prev.map((msg) => msg.id));
-      const next = [...prev];
-      for (const msg of incoming) {
-        if (!msg?.id || existingIds.has(msg.id)) continue;
-        existingIds.add(msg.id);
-        next.push(msg);
-      }
-      return next.slice(-MAX_LOCAL_MESSAGES);
-    });
-  };
+  const [isLoading, setIsLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const id = getOrCreateVisitorId();
-    setVisitorId(id);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const savedSessionId = window.localStorage.getItem(storageSessionKey) || "";
-      setSessionId(savedSessionId);
-
-      const savedRaw = window.localStorage.getItem(storageMessagesKey);
-      const savedStarted = window.localStorage.getItem(storageStartedKey) === "1";
-
-      if (savedRaw) {
-        const parsed = JSON.parse(savedRaw);
-        const loadedMessages = normalizeLoadedMessages(parsed);
-        setMessages(loadedMessages);
-        const latestUserInteractionAt =
-          loadedMessages
-            .filter((msg) => msg.role === "user")
-            .map((msg) => msg.createdAt)
-            .filter((value): value is string => typeof value === "string" && value.length > 0)
-            .sort()
-            .slice(-1)[0] || "";
-        lastUserInteractionAtRef.current = latestUserInteractionAt
-          ? new Date(latestUserInteractionAt).getTime()
-          : Date.now();
-        const latestCreatedAt =
-          loadedMessages
-            .map((msg) => msg.createdAt)
-            .filter((value): value is string => typeof value === "string" && value.length > 0)
-            .sort()
-            .slice(-1)[0] || "";
-        lastSyncedAtRef.current = latestCreatedAt;
-        setConversationStarted(savedStarted || loadedMessages.length > 0 || !!savedSessionId);
-      } else {
-        setMessages([]);
-        lastSyncedAtRef.current = "";
-        lastUserInteractionAtRef.current = Date.now();
-        setConversationStarted(savedStarted || !!savedSessionId);
-      }
-    } catch (_err) {
-      setMessages([]);
-      lastSyncedAtRef.current = "";
-      lastUserInteractionAtRef.current = Date.now();
-      setConversationStarted(false);
-    } finally {
-      setStorageReady(true);
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [storageSessionKey, storageMessagesKey, storageStartedKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!storageReady) return;
-    try {
-      if (messages.length > 0) {
-        window.localStorage.setItem(storageMessagesKey, JSON.stringify(messages.slice(-MAX_LOCAL_MESSAGES)));
-      } else {
-        window.localStorage.removeItem(storageMessagesKey);
-      }
-    } catch (_err) {
-      // ignore storage quota errors
-    }
-  }, [messages, storageMessagesKey, storageReady]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!storageReady) return;
-    try {
-      if (sessionId) window.localStorage.setItem(storageSessionKey, sessionId);
-      else window.localStorage.removeItem(storageSessionKey);
-    } catch (_err) {
-      // ignore
-    }
-  }, [sessionId, storageSessionKey, storageReady]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!storageReady) return;
-    try {
-      if (conversationStarted) window.localStorage.setItem(storageStartedKey, "1");
-      else window.localStorage.removeItem(storageStartedKey);
-    } catch (_err) {
-      // ignore
-    }
-  }, [conversationStarted, storageStartedKey, storageReady]);
-
-  useEffect(() => {
-    const fetchRole = async () => {
-      if (!user?.id) {
-        setRoleContext(null);
-        setUserFirstName("");
-        return;
-      }
-      const { data } = await supabase.from("profiles").select("role,full_name").eq("id", user.id).maybeSingle();
-      setRoleContext(data?.role || null);
-
-      const metadataName =
-        String(user.user_metadata?.full_name || user.user_metadata?.name || "").trim() ||
-        String(user.email || "")
-          .split("@")[0]
-          .replace(/[._-]+/g, " ")
-          .trim();
-      const resolvedName = extractFirstName(data?.full_name || metadataName);
-      setUserFirstName(resolvedName);
-    };
-    fetchRole();
-  }, [user?.id, user?.email, user?.user_metadata]);
-
-  useEffect(() => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [messages, open, isSending, isMinimized, conversationStarted]);
-
-  useEffect(() => {
-    const latestCreatedAt =
-      messages
-        .map((msg) => msg.createdAt)
-        .filter((value): value is string => typeof value === "string" && value.length > 0)
-        .sort()
-        .slice(-1)[0] || "";
-    if (latestCreatedAt) lastSyncedAtRef.current = latestCreatedAt;
   }, [messages]);
 
-  useEffect(() => {
-    if (!isSending) {
-      setIsSlowThinking(false);
-      return;
-    }
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
 
-    setIsSlowThinking(false);
-    const timeoutId = window.setTimeout(() => {
-      setIsSlowThinking(true);
-    }, 10_000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [isSending]);
-
-  useEffect(() => {
-    if (!open || !conversationStarted || !sessionId) return;
-
-    let cancelled = false;
-
-    const syncMessages = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("support-chatbot-sync", {
-          body: {
-            session_id: sessionId,
-            after: lastSyncedAtRef.current || undefined,
-          },
-          headers: {
-            "x-chatbot-visitor-id": visitorId,
-          },
-        });
-
-        if (cancelled || error) return;
-
-        if (typeof data?.handoff_active === "boolean") {
-          setHandoffActive(!!data.handoff_active);
-          setHandoffAdminName(String(data?.handoff_admin_name || "").trim());
-        }
-
-        if (data?.session_closed) {
-          const closedReason = String(data?.closed_reason || "").trim() === "inactivity" ? "inactivity" : "user";
-          markSessionClosed(closedReason, String(data?.closed_at || ""));
-          return;
-        }
-
-        const incomingRows = Array.isArray(data?.messages) ? data.messages : [];
-        if (incomingRows.length > 0) {
-          const incomingMessages = incomingRows
-            .filter(
-              (row: any) =>
-                row?.id &&
-                (row?.role === "assistant" || row?.role === "system") &&
-                String(row?.content || "").trim().length > 0,
-            )
-            .map((row: any) => ({
-              id: String(row.id),
-              role: "assistant" as const,
-              content: String(row.content || ""),
-              mode: (String(row.mode || "system") as ChatMode) || "system",
-              sources: Array.isArray(row.sources) ? row.sources : [],
-              actions: [],
-              createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
-            }));
-
-          mergeIncomingAssistantMessages(incomingMessages);
-        }
-      } catch (_err) {
-        // silent sync errors; send flow remains primary path
-      }
-    };
-
-    void syncMessages();
-    const intervalId = window.setInterval(() => {
-      void syncMessages();
-    }, 4000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [open, conversationStarted, sessionId, visitorId, markSessionClosed]);
-
-  useEffect(() => {
-    if (!open || !conversationStarted || !sessionId || !!sessionClosedReason) return;
-
-    let cancelled = false;
-
-    const evaluateAutoClose = async () => {
-      if (autoCloseInFlightRef.current) return;
-      const elapsed = Date.now() - lastUserInteractionAtRef.current;
-      if (elapsed < INACTIVITY_CLOSE_MS) return;
-
-      autoCloseInFlightRef.current = true;
-      const closedAtIso = new Date().toISOString();
-
-      try {
-        await supabase.functions.invoke("support-chatbot-auto-close-session", {
-          body: { session_id: sessionId },
-          headers: {
-            "x-chatbot-visitor-id": visitorId,
-          },
-        });
-      } catch (error) {
-        console.error("[SupportChatWidget] erro ao autoencerrar sessao:", error);
-      } finally {
-        if (!cancelled) {
-          markSessionClosed("inactivity", closedAtIso);
-        }
-      }
-    };
-
-    void evaluateAutoClose();
-    const intervalId = window.setInterval(() => {
-      void evaluateAutoClose();
-    }, 15_000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [open, conversationStarted, sessionId, visitorId, sessionClosedReason, markSessionClosed]);
-
-  const handleActionClick = (action: ActionItem) => {
-    if (!action?.url) return;
-    navigate(action.url);
-    setOpen(false);
-    setIsMinimized(false);
-  };
-
-  const renderMessageWithLinks = (content: string): ReactNode[] => {
-    const lines = String(content || "").split("\n");
-    const nodes: ReactNode[] = [];
-    let nodeIndex = 0;
-
-    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-      const line = lines[lineIndex];
-      let lastIndex = 0;
-
-      for (const match of line.matchAll(LINK_PATTERN)) {
-        const rawToken = match[0];
-        const startIndex = match.index ?? 0;
-        if (startIndex > lastIndex) {
-          nodes.push(line.slice(lastIndex, startIndex));
-        }
-
-        const { clean, suffix } = splitTrailingPunctuation(rawToken);
-        if (/^https?:\/\//i.test(clean)) {
-          nodes.push(
-            <a
-              key={`msg-link-${nodeIndex++}`}
-              href={clean}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="underline underline-offset-2 hover:opacity-80"
-            >
-              {clean}
-            </a>,
-          );
-        } else {
-          nodes.push(rawToken);
-        }
-
-        if (suffix) nodes.push(suffix);
-        lastIndex = startIndex + rawToken.length;
-      }
-
-      if (lastIndex < line.length) {
-        nodes.push(line.slice(lastIndex));
-      }
-
-      if (lineIndex < lines.length - 1) {
-        nodes.push(<br key={`msg-br-${nodeIndex++}`} />);
-      }
-    }
-
-    return nodes;
-  };
-
-  const handleStartConversation = () => {
-    setSessionClosedReason(null);
-    setSessionClosedAt("");
-    autoCloseInFlightRef.current = false;
-    lastUserInteractionAtRef.current = Date.now();
-    setConversationStarted(true);
-    if (messages.length === 0) {
-      appendMessage({
-        id: createMessageId(),
-        role: "assistant",
-        content: personalizedWelcomeMessage,
-        createdAt: new Date().toISOString(),
-      });
-    }
-  };
-
-  const handleStartNewChat = () => {
-    const nowIso = new Date().toISOString();
-    setMessages([
-      {
-        id: createMessageId(),
-        role: "assistant",
-        content: personalizedWelcomeMessage,
-        mode: "system",
-        actions: [],
-        createdAt: nowIso,
-      },
-    ]);
-    setConversationStarted(true);
-    setSessionId("");
-    setHandoffActive(false);
-    setHandoffAdminName("");
-    setSessionClosedReason(null);
-    setSessionClosedAt("");
-    setInput("");
-    setIsSending(false);
-    lastSyncedAtRef.current = "";
-    lastUserInteractionAtRef.current = Date.now();
-    autoCloseInFlightRef.current = false;
-  };
-
-  const handleEndConversation = async () => {
-    const sessionToClose = sessionId;
-    const visitorHeader = visitorId;
-
-    if (sessionToClose) {
-      try {
-        await supabase.functions.invoke("support-chatbot-close-session", {
-          body: { session_id: sessionToClose },
-          headers: {
-            "x-chatbot-visitor-id": visitorHeader,
-          },
-        });
-      } catch (error) {
-        console.error("[SupportChatWidget] erro ao encerrar sessao:", error);
-      }
-    }
-
-    resetConversationLocally();
-  };
-
-  const sendMessage = async () => {
-    const text = input.trim();
-    if (!conversationStarted || !text || isSending || !!sessionClosedReason) return;
-
-    const userMessageTime = new Date().toISOString();
-    setSessionClosedReason(null);
-    setSessionClosedAt("");
-    autoCloseInFlightRef.current = false;
-    lastUserInteractionAtRef.current = Date.now();
-
-    appendMessage({
-      id: createMessageId(),
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
       role: "user",
-      content: text,
-      createdAt: userMessageTime,
-    });
+      content: input.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
-    setIsSending(true);
+    setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("support-chatbot-ask", {
-        body: {
-          session_id: sessionId || undefined,
-          message: text,
-          page_path: location.pathname,
-          role_context: roleContext || undefined,
-        },
-        headers: {
-          "x-chatbot-visitor-id": visitorId,
-        },
+      const { data, error } = await supabase.functions.invoke("support-chat", {
+        body: { message: userMessage.content, userId: user?.id },
       });
 
-      if (error) {
-        throw new Error(error.message || "Falha ao consultar chatbot.");
-      }
+      if (error) throw error;
 
-      const nextSessionId = String(data?.session_id || "");
-      if (nextSessionId) setSessionId(nextSessionId);
-      if (typeof data?.handoff_active === "boolean") {
-        setHandoffActive(!!data.handoff_active);
-        setHandoffAdminName(String(data?.handoff_admin_name || "").trim());
-      }
-
-      appendMessage({
-        id: createMessageId(),
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
         role: "assistant",
-        content: String(data?.answer || fallbackErrorMessage),
-        mode: (String(data?.mode || "fallback") as ChatMode) || "fallback",
-        sources: Array.isArray(data?.sources) ? data.sources : [],
-        actions: Array.isArray(data?.suggested_actions) ? data.suggested_actions : [],
+        content: data.reply || "Desculpe, não consegui processar sua solicitação.",
+        mode: data.mode || "ai",
         createdAt: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("[SupportChatWidget] erro:", error);
-      appendMessage({
-        id: createMessageId(),
-        role: "assistant",
-        content: fallbackErrorMessage,
-        mode: "fallback",
-        actions: user
-          ? [
-              { type: "link", label: "Ver FAQ", url: "/suporte" },
-              { type: "link", label: "Abrir chamado", url: "/dashboard/suporte?openTicketModal=1&ticketStep=form" },
-            ]
-          : [
-              { type: "link", label: "Ver FAQ", url: "/suporte" },
-              { type: "link", label: "Entrar para abrir chamado", url: "/login" },
-            ],
-        createdAt: new Date().toISOString(),
-      });
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error("Erro no chat de suporte:", err);
+      toast.error("Falha ao enviar mensagem.");
     } finally {
-      setIsSending(false);
+      setIsLoading(false);
     }
   };
 
-  if (!chatbotEnabled) return null;
+  if (!isOpen) {
+    return (
+      <Button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-50"
+      >
+        <MessageCircle className="h-6 w-6" />
+      </Button>
+    );
+  }
 
   return (
-    <div className={cn("fixed z-[70]", floatingPositionClass)}>
-      {open ? (
-        <div
-          className={cn(
-            "flex w-[92vw] max-w-[390px] flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl",
-            isMinimized ? "h-auto" : "h-[560px]",
-          )}
-        >
-          <div className="flex items-center justify-between border-b bg-primary px-4 py-3 text-primary-foreground">
-            <div className="flex items-center gap-2">
-              <Bot className="h-4 w-4" />
-              <span className="text-sm font-semibold">Assistente da Plataforma</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {conversationStarted && (
-                <button
-                  onClick={handleEndConversation}
-                  className="rounded-md px-2 py-1 text-[11px] font-medium hover:bg-white/20"
-                  aria-label="Encerrar conversa"
-                  title="Encerrar conversa"
+    <div
+      className={cn(
+        "fixed bottom-4 right-4 w-80 bg-card border rounded-2xl shadow-2xl z-50 flex flex-col transition-all",
+        isMinimized ? "h-14" : "h-[500px]"
+      )}
+    >
+      <div className="p-4 border-b flex items-center justify-between bg-primary text-primary-foreground rounded-t-2xl">
+        <div className="flex items-center gap-2">
+          <Bot className="h-5 w-5" />
+          <span className="font-semibold">Suporte HomeCare</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/10"
+            onClick={() => setIsMinimized(!isMinimized)}
+          >
+            {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-primary-foreground hover:bg-primary-foreground/10"
+            onClick={() => setIsOpen(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {!isMinimized && (
+        <>
+          <ScrollArea className="flex-1 p-4">
+            <div className="space-y-4">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={cn(
+                    "flex gap-2 max-w-[80%]",
+                    msg.role === "user" ? "ml-auto flex-row-reverse" : "mr-auto"
+                  )}
                 >
-                  Encerrar
-                </button>
-              )}
-              <button
-                onClick={() => setIsMinimized((prev) => !prev)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-white/20"
-                aria-label={isMinimized ? "Expandir chat" : "Minimizar chat"}
-                title={isMinimized ? "Expandir" : "Minimizar"}
-              >
-                {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
-              </button>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  setIsMinimized(false);
-                }}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full hover:bg-white/20"
-                aria-label="Fechar chat"
-                title="Fechar"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {!isMinimized && (
-            <>
-              {conversationStarted ? (
-                <>
-                  <div ref={scrollRef} className="flex-1 overflow-y-auto">
-                    <div className="space-y-3 p-3">
-                      {handoffActive && (
-                        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-indigo-700">
-                          Atendimento humano ativo
-                          {handoffAdminName ? ` com ${handoffAdminName}` : ""}. O chatbot automatico esta pausado.
-                        </div>
-                      )}
-
-                      {messages.map((message) => (
-                        <div
-                          key={message.id}
-                          className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
-                        >
-                          <div
-                            className={cn(
-                              "max-w-[90%] rounded-2xl px-3 py-2 text-sm shadow-sm",
-                              message.role === "user"
-                                ? "rounded-br-sm bg-primary text-primary-foreground"
-                                : "rounded-bl-sm border bg-secondary/40 text-foreground",
-                            )}
-                          >
-                            {message.role === "assistant" && showModeBadge && message.mode && (
-                              <div className="mb-2">
-                                {(() => {
-                                  const modeBadge = getModeBadge(message.mode);
-                                  if (!modeBadge) return null;
-                                  return <Badge className={cn("h-5 px-2 text-[10px] font-semibold", modeBadge.className)}>{modeBadge.label}</Badge>;
-                                })()}
-                              </div>
-                            )}
-                            <p className="leading-relaxed">{renderMessageWithLinks(message.content)}</p>
-
-                            {message.actions && message.actions.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
-                                {message.actions.map((action, index) => (
-                                  <Button
-                                    key={`${message.id}-action-${index}`}
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-[11px]"
-                                    onClick={() => handleActionClick(action)}
-                                  >
-                                    {action.label}
-                                  </Button>
-                                ))}
-                              </div>
-                            )}
-
-                            {message.createdAt && (
-                              <p
-                                className={cn(
-                                  "mt-1 text-right text-[10px]",
-                                  message.role === "user" ? "text-primary-foreground/80" : "text-muted-foreground",
-                                )}
-                              >
-                                {formatMessageTime(message.createdAt)}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-
-                      {isSending && (
-                        <div className="flex justify-start">
-                          <div className="max-w-[90%] rounded-2xl rounded-bl-sm border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
-                            <div className="flex items-start gap-2">
-                              <Loader2 className="mt-0.5 h-3.5 w-3.5 animate-spin shrink-0" />
-                              <span className="leading-relaxed">{thinkingMessage}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {sessionClosedReason && (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                          <p className="leading-relaxed">
-                            {sessionClosedReason === "inactivity"
-                              ? "Chat encerrado por inatividade."
-                              : "Conversa encerrada."}
-                            {sessionClosedAt ? ` (${formatMessageTime(sessionClosedAt)})` : ""}
-                          </p>
-                          <Button type="button" size="sm" className="mt-2 h-7 text-[11px]" onClick={handleStartNewChat}>
-                            Iniciar novo chat
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    {msg.role === "user" ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                   </div>
-
-                  <div className="border-t p-2.5">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            sendMessage();
-                          }
-                        }}
-                        placeholder={
-                          sessionClosedReason
-                            ? "Chat encerrado. Clique em \"Iniciar novo chat\"."
-                            : handoffActive
-                            ? "Envie sua mensagem para o atendimento humano..."
-                            : "Pergunte sobre funcionalidades..."
-                        }
-                        disabled={isSending || !!sessionClosedReason}
-                      />
-                      <Button size="icon" onClick={sendMessage} disabled={isSending || !!sessionClosedReason || !input.trim()}>
-                        {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      </Button>
-                    </div>
+                  <div
+                    className={cn(
+                      "p-3 rounded-2xl text-sm",
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-tr-none"
+                        : "bg-muted rounded-tl-none"
+                    )}
+                  >
+                    {msg.content}
                   </div>
-                </>
-              ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-4 px-5 text-center">
-                  <Bot className="h-10 w-10 text-primary" />
-                  <div className="space-y-2">
-                    <p className="text-base font-semibold">Assistente da Plataforma</p>
-                    <p className="text-sm text-muted-foreground">{personalizedWelcomeMessage}</p>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex gap-2 mr-auto">
+                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                    <Bot className="h-4 w-4" />
                   </div>
-                  <Button onClick={handleStartConversation} className="w-full">
-                    Iniciar conversa
-                  </Button>
-                  <p className="text-[11px] text-muted-foreground">
-                    Depois de iniciar, voce podera enviar mensagens normalmente.
-                  </p>
+                  <div className="bg-muted p-3 rounded-2xl rounded-tl-none">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
                 </div>
               )}
-            </>
-          )}
-        </div>
-      ) : (
-        <button
-          onClick={() => {
-            setOpen(true);
-            setIsMinimized(false);
-          }}
-          className="relative flex h-14 w-14 items-center justify-center rounded-full border border-emerald-300 bg-emerald-500 text-white shadow-2xl transition-transform hover:bg-emerald-600 active:scale-95"
-          aria-label="Abrir assistente da plataforma"
-        >
-          <MessageCircle className="h-6 w-6" />
-        </button>
+              <div ref={scrollRef} />
+            </div>
+          </ScrollArea>
+
+          <div className="p-4 border-t flex gap-2">
+            <Input
+              placeholder="Digite sua mensagem..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            />
+            <Button size="icon" onClick={handleSend} disabled={isLoading}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </>
       )}
     </div>
   );

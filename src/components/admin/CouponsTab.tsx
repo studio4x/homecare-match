@@ -433,184 +433,194 @@ const CouponsTab = () => {
       </Card>
 
       <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Cupom" : "Criar Novo Cupom"}</DialogTitle>
             <DialogDescription>Defina o que este cupom faz e onde ele pode ser usado.</DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSave} className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Codigo do Cupom</Label>
-              <Input
-                placeholder="Ex: LANCAMENTO30"
-                value={formData.code}
-                onChange={(event) => setFormData((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))}
-                required
-                disabled={!!editingId}
-              />
-              <p className="text-[10px] text-muted-foreground">O codigo nao pode ser alterado apos a criacao.</p>
-            </div>
+          <form onSubmit={handleSave} className="overflow-y-auto flex-1">
+            <div className="grid grid-cols-1 gap-6 py-4 sm:grid-cols-2">
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Dias de Beneficio</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={formData.free_days}
-                  onChange={(event) =>
-                    setFormData((prev) => ({ ...prev, free_days: Math.max(1, Number(event.target.value || 1)) }))
-                  }
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Limite de Usos</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={formData.max_uses}
-                  onChange={(event) =>
-                    setFormData((prev) => ({ ...prev, max_uses: Math.max(1, Number(event.target.value || 1)) }))
-                  }
-                  required
-                />
-              </div>
-            </div>
+              {/* ── Coluna Esquerda: Configuração Base ────────────────── */}
+              <div className="space-y-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Configuração</p>
 
-            <div className="space-y-2">
-              <Label>Onde o cupom funciona</Label>
-              <Select
-                value={formData.apply_mode}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, apply_mode: value as CouponApplyMode }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="signup_only">Somente no cadastro</SelectItem>
-                  <SelectItem value="dashboard_only">Somente no painel</SelectItem>
-                  <SelectItem value="signup_and_dashboard">Cadastro e painel</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground">
-                Cadastro aplica no registro da conta. Painel aplica para usuario logado.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Plano de destino</Label>
-              <Select
-                value={formData.target_tier}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, target_tier: value as CouponTargetTier }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Plano Mensal</SelectItem>
-                  <SelectItem value="yearly">Plano Anual</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground">Ao aplicar, o usuario recebe os dias nesse plano.</p>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border bg-secondary/10 p-3">
-              <div className="space-y-0.5">
-                <Label>Cupom Ativo</Label>
-                <p className="text-[10px] text-muted-foreground">Define se o cupom pode ser validado.</p>
-              </div>
-              <Switch
-                checked={formData.is_active}
-                onCheckedChange={(value) => setFormData((prev) => ({ ...prev, is_active: value }))}
-              />
-            </div>
-
-            {/* ── Public Highlight Section ───────────────────────────── */}
-            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
-              <div className="flex items-center gap-2 mb-1">
-                <Eye className="h-4 w-4 text-primary" />
-                <span className="text-sm font-bold text-primary">Exibição Pública</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Exibir publicamente</Label>
-                  <p className="text-[10px] text-muted-foreground">Mostra este cupom em destaque para novos usuários.</p>
-                </div>
-                <Switch
-                  checked={formData.show_publicly}
-                  onCheckedChange={(value) => setFormData((prev) => ({ ...prev, show_publicly: value }))}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="flex items-center gap-1"><Star className="h-3 w-3" /> Destacar no Plano Mensal</Label>
-                  <p className="text-[10px] text-muted-foreground">Exibe o banner promocional no card do plano mensal.</p>
-                </div>
-                <Switch
-                  checked={formData.highlight_on_monthly_plan}
-                  onCheckedChange={(value) => setFormData((prev) => ({ ...prev, highlight_on_monthly_plan: value }))}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Badge da campanha</Label>
+                <div className="space-y-2">
+                  <Label>Codigo do Cupom</Label>
                   <Input
-                    placeholder="Pré-lançamento"
-                    value={formData.campaign_badge}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, campaign_badge: e.target.value }))}
+                    placeholder="Ex: LANCAMENTO30"
+                    value={formData.code}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))}
+                    required
+                    disabled={!!editingId}
                   />
+                  <p className="text-[10px] text-muted-foreground">O codigo nao pode ser alterado apos a criacao.</p>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs flex items-center gap-1"><Hash className="h-3 w-3" /> Prioridade</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={formData.display_priority}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, display_priority: Number(e.target.value ?? 0) }))}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Dias de Beneficio</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={formData.free_days}
+                      onChange={(event) =>
+                        setFormData((prev) => ({ ...prev, free_days: Math.max(1, Number(event.target.value || 1)) }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Limite de Usos</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={formData.max_uses}
+                      onChange={(event) =>
+                        setFormData((prev) => ({ ...prev, max_uses: Math.max(1, Number(event.target.value || 1)) }))
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Onde o cupom funciona</Label>
+                  <Select
+                    value={formData.apply_mode}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, apply_mode: value as CouponApplyMode }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="signup_only">Somente no cadastro</SelectItem>
+                      <SelectItem value="dashboard_only">Somente no painel</SelectItem>
+                      <SelectItem value="signup_and_dashboard">Cadastro e painel</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Cadastro aplica no registro da conta. Painel aplica para usuario logado.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Plano de destino</Label>
+                  <Select
+                    value={formData.target_tier}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, target_tier: value as CouponTargetTier }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">Plano Mensal</SelectItem>
+                      <SelectItem value="yearly">Plano Anual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">Ao aplicar, o usuario recebe os dias nesse plano.</p>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border bg-secondary/10 p-3">
+                  <div className="space-y-0.5">
+                    <Label>Cupom Ativo</Label>
+                    <p className="text-[10px] text-muted-foreground">Define se o cupom pode ser validado.</p>
+                  </div>
+                  <Switch
+                    checked={formData.is_active}
+                    onCheckedChange={(value) => setFormData((prev) => ({ ...prev, is_active: value }))}
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs">Título público</Label>
-                <Input
-                  placeholder="Ex: Ganhe 30 dias grátis no plano mensal"
-                  value={formData.public_title}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, public_title: e.target.value }))}
-                />
-              </div>
+              {/* ── Coluna Direita: Exibição Pública ──────────────────── */}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-bold uppercase tracking-wider text-primary">Exibição Pública</p>
+                </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs">Descrição pública</Label>
-                <Textarea
-                  placeholder="Texto exibido abaixo do título no bloco promocional..."
-                  value={formData.public_description}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, public_description: e.target.value }))}
-                  rows={3}
-                  className="text-xs"
-                />
-              </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-sm">Exibir publicamente</Label>
+                      <p className="text-[10px] text-muted-foreground">Mostra este cupom em destaque para novos usuários.</p>
+                    </div>
+                    <Switch
+                      checked={formData.show_publicly}
+                      onCheckedChange={(value) => setFormData((prev) => ({ ...prev, show_publicly: value }))}
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs">Público elegível <span className="text-muted-foreground">(deixe vazio para todos)</span></Label>
-                <Input
-                  placeholder="Ex: professional"
-                  value={formData.eligible_audience}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, eligible_audience: e.target.value.trim() }))}
-                />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="flex items-center gap-1 text-sm"><Star className="h-3 w-3" /> Destacar no Plano Mensal</Label>
+                      <p className="text-[10px] text-muted-foreground">Exibe banner no card do plano mensal.</p>
+                    </div>
+                    <Switch
+                      checked={formData.highlight_on_monthly_plan}
+                      onCheckedChange={(value) => setFormData((prev) => ({ ...prev, highlight_on_monthly_plan: value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Badge da campanha</Label>
+                    <Input
+                      placeholder="Pré-lançamento"
+                      value={formData.campaign_badge}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, campaign_badge: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs flex items-center gap-1"><Hash className="h-3 w-3" /> Prioridade</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={formData.display_priority}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, display_priority: Number(e.target.value ?? 0) }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Título público</Label>
+                  <Input
+                    placeholder="Ex: Ganhe 30 dias grátis no plano mensal"
+                    value={formData.public_title}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, public_title: e.target.value }))}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Descrição pública</Label>
+                  <Textarea
+                    placeholder="Texto exibido abaixo do título no bloco promocional..."
+                    value={formData.public_description}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, public_description: e.target.value }))}
+                    rows={3}
+                    className="text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Público elegível <span className="text-muted-foreground">(vazio = todos)</span></Label>
+                  <Input
+                    placeholder="Ex: professional"
+                    value={formData.eligible_audience}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, eligible_audience: e.target.value.trim() }))}
+                  />
+                </div>
               </div>
             </div>
 
-            <DialogFooter className="pt-4">
+            <DialogFooter className="pt-2 pb-4">
               <Button type="button" variant="ghost" onClick={() => setOpenDialog(false)}>
                 Cancelar
               </Button>

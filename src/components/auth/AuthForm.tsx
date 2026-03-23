@@ -377,6 +377,19 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
         </Tabs>
       )}
 
+      {mode === "register" && publicCoupon && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+          <PublicCouponBanner
+            coupon={publicCoupon}
+            variant="coupon-field"
+            onUseCoupon={(code) => {
+              setValue("couponCode", code);
+              toast.success(`Cupom ${code} aplicado!`);
+            }}
+          />
+        </div>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
         {mode === "register" && (
           <div className="space-y-2 animate-fade-in">
@@ -455,19 +468,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
                 Cupom de Lançamento (Opcional)
               </Label>
               
-              {/* Banner de cupom público para facilitar o preenchimento */}
-              {mode === "register" && publicCoupon && (
-                <div className="mb-2">
-                  <PublicCouponBanner
-                    coupon={publicCoupon}
-                    variant="coupon-field"
-                    onUseCoupon={(code) => {
-                      setValue("couponCode", code);
-                      toast.success(`Cupom ${code} aplicado!`);
-                    }}
-                  />
-                </div>
-              )}
+              {/* Campo de input de cupom (preenchido automaticamente via banner acima) */}
 
               <Input
                 id="couponCode"

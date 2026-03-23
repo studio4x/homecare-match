@@ -716,16 +716,6 @@ const Index = () => {
                         buttonText={btnConfig.text}
                         isDisabled={btnConfig.disabled}
                       />
-                      {/* Destaque de cupom no card do plano mensal */}
-                      {plan.id === "monthly" && publicCoupon?.highlight_on_monthly_plan && (
-                        <div className="mt-2 px-2">
-                          <PublicCouponBanner
-                            coupon={publicCoupon}
-                            variant="monthly-card"
-                            onUseCoupon={() => {}}
-                          />
-                        </div>
-                      )}
                     </div>
                   </CarouselItem>
                 );

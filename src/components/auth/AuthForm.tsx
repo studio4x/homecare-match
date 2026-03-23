@@ -36,6 +36,8 @@ import { translateAuthError } from "@/lib/error-utils";
 import { trackAccountCreated } from "@/lib/tracking";
 import { trackShortLinkSignupConversion } from "@/lib/short-link-attribution";
 import { useNavigate } from "react-router-dom";
+import { usePublicHighlightedCoupon } from "@/hooks/use-public-highlighted-coupon";
+import PublicCouponBanner from "@/components/PublicCouponBanner";
 
 const authSchema = z.object({
   fullName: z.string().optional(),
@@ -58,6 +60,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
   const [loginMethod, setLoginMethod] = useState<"password" | "magic_link">("password");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { data: publicCoupon } = usePublicHighlightedCoupon("professional");
   
   // Modais
   const [showSuccessRegisterModal, setShowSuccessRegisterModal] = useState(false);
@@ -76,7 +79,8 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
     formState: { errors },
     reset,
     setError,
-    getValues
+    getValues,
+    setValue
   } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
     defaultValues: {
@@ -281,7 +285,7 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
                 icon: <MailWarning className="h-5 w-5" />,
                 duration: Infinity,
                 closeButton: true,
-              });
+                });
               return;
             }
             throw error;
@@ -443,6 +447,21 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
                 <Ticket className="h-4 w-4 text-primary" />
                 Cupom de Lançamento (Opcional)
               </Label>
+              
+              {/* Banner de cupom público para facilitar o preenchimento */}
+              {mode === "register" && publicCoupon && (
+                <div className="mb-2">
+                  <PublicCouponBanner
+                    coupon={publicCoupon}
+                    variant="coupon-field"
+                    onUseCoupon={(code) => {
+                      setValue("couponCode", code);
+                      toast.success(`Cupom ${code} aplicado!`);
+                    }}
+                  />
+                </div>
+              )}
+
               <Input
                 id="couponCode"
                 placeholder="Ex: LANÇAMENTO30"

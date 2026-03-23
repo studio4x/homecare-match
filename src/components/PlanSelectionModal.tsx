@@ -200,12 +200,6 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
     const features = [...(plan.features || [])];
     const btnConfig = getPlanButtonConfig(plan.id);
 
-    // Show monthly-card highlight only when flag is set on that plan's coupon
-    const showMonthlyHighlight =
-      plan.id === "monthly" &&
-      publicCoupon != null &&
-      publicCoupon.highlight_on_monthly_plan === true;
-
     return (
       <div
         key={plan.id}
@@ -256,17 +250,6 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
             btnConfig.text
           )}
         </Button>
-
-        {/* Monthly plan promotional highlight */}
-        {showMonthlyHighlight && (
-          <PublicCouponBanner
-            coupon={publicCoupon}
-            variant="monthly-card"
-            onUseCoupon={(code) => {
-              setCouponCode(code);
-            }}
-          />
-        )}
       </div>
     );
   };

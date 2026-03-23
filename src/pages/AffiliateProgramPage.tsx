@@ -298,9 +298,9 @@ const AffiliateProgramPage = () => {
               <CardTitle className="flex items-center gap-2 text-lg"><Wallet className="h-5 w-5" /> Pagamento</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>1. Fechamento mensal manual no v1.</p>
-              <p>2. Mínimo de R$ 100 para entrar no lote.</p>
-              <p>3. Pagamento via PIX com comprovante interno.</p>
+              <p>1. Fechamento mensal das comissões acumuladas.</p>
+              <p>2. Saldo mínimo de R$ 100 para recebimento.</p>
+              <p>3. Pagamento via PIX com envio de comprovante.</p>
             </CardContent>
           </Card>
         </div>

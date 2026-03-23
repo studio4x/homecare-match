@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, LifeBuoy, LayoutGrid, ShieldCheck, Search, Building2, Home, UserRound, Newspaper } from "lucide-react";
+import { Mail, LifeBuoy, LayoutGrid, ShieldCheck, Search, Building2, Home, UserRound, Newspaper, AlertCircle } from "lucide-react";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import SuggestionDrawer from "../SuggestionDrawer";
 import WhatsAppContactButton from "../WhatsAppContactButton";
@@ -16,7 +16,8 @@ const Footer = () => {
   const quickLinks = [
     { to: "/", label: "Profissionais", icon: UserRound },
     { to: "/empresas", label: "Empresas", icon: Building2 },
-    { to: "/familias", label: "Familias", icon: Home },
+    { to: "/familias", label: "Famílias", icon: Home },
+    { to: "/o-problema", label: "O Problema", icon: AlertCircle },
     { to: "/buscar", label: "Buscar", icon: Search },
     { to: "/blog", label: "Blog", icon: Newspaper },
   ];
@@ -26,7 +27,7 @@ const Footer = () => {
       <div className="container mx-auto px-4 py-10 md:py-12">
         <div className="space-y-8 md:hidden">
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Acesso rapido</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Acesso rápido</p>
             <div className="grid grid-cols-2 gap-2">
               {quickLinks.map((item) => (
                 <Link
@@ -86,7 +87,7 @@ const Footer = () => {
             <ul className="space-y-2">
               <li><Link to="/login#auth-sign-up" className="text-sm text-muted-foreground transition-colors hover:text-primary">Criar Perfil</Link></li>
               <li><Link to="/" className="text-sm text-muted-foreground transition-colors hover:text-primary">Como Funciona</Link></li>
-              <li><Link to="/#planos" className="text-sm text-muted-foreground transition-colors hover:text-primary">Planos e Precos</Link></li>
+              <li><Link to="/#planos" className="text-sm text-muted-foreground transition-colors hover:text-primary">Planos e Preços</Link></li>
               <li><Link to="/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-primary">Meu Dashboard</Link></li>
             </ul>
           </div>
@@ -95,30 +96,36 @@ const Footer = () => {
             <h4 className="font-semibold text-foreground">Para Empresas</h4>
             <ul className="space-y-2">
               <li><Link to="/cadastro-empresa" className="text-sm text-muted-foreground transition-colors hover:text-primary">Criar Perfil</Link></li>
-              <li><Link to="/empresas" className="text-sm text-muted-foreground transition-colors hover:text-primary">Solucoes</Link></li>
+              <li><Link to="/empresas" className="text-sm text-muted-foreground transition-colors hover:text-primary">Soluções</Link></li>
               <li><Link to="/buscar" className="text-sm text-muted-foreground transition-colors hover:text-primary">Buscar Profissionais</Link></li>
               <li><Link to="/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-primary">Meu Dashboard</Link></li>
             </ul>
           </div>
 
           <div className="space-y-4">
-            <h4 className="font-semibold text-foreground">Para Familias</h4>
+            <h4 className="font-semibold text-foreground">Para Famílias</h4>
             <ul className="space-y-2">
               <li><Link to="/cadastro-empresa" className="text-sm text-muted-foreground transition-colors hover:text-primary">Criar Perfil</Link></li>
-              <li><Link to="/familias" className="text-sm text-muted-foreground transition-colors hover:text-primary">Solucoes</Link></li>
+              <li><Link to="/familias" className="text-sm text-muted-foreground transition-colors hover:text-primary">Soluções</Link></li>
               <li><Link to="/buscar" className="text-sm text-muted-foreground transition-colors hover:text-primary">Buscar Profissionais</Link></li>
               <li><Link to="/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-primary">Meu Dashboard</Link></li>
             </ul>
           </div>
 
           <div className="space-y-4">
-            <h4 className="font-semibold text-foreground">Contato Comercial</h4>
+            <h4 className="font-semibold text-foreground">Institucional</h4>
             <WhatsAppContactButton
               placementId="footer_contato"
               variant="inline-primary"
               label="Falar com Comercial"
             />
             <ul className="space-y-3">
+              <li>
+                <Link to="/o-problema" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+                  <AlertCircle className="h-4 w-4" />
+                  O Problema
+                </Link>
+              </li>
               <li>
                 <Link to="/blog" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
                   <Newspaper className="h-4 w-4" />

@@ -868,6 +868,7 @@ const OverviewPage = () => {
     <TooltipProvider>
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
+          <AdminMessageAlert />
           {getRoleBadge()}
           <div className="flex items-center justify-between">
             <div className="space-y-1">

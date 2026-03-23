@@ -83,6 +83,8 @@ const AffiliatesAdminPage = () => {
   const [signupAmount, setSignupAmount] = useState("50");
   const [recurringPercent, setRecurringPercent] = useState("10");
   const [minimumAmount, setMinimumAmount] = useState("100");
+  const [monthlyMax, setMonthlyMax] = useState("24");
+  const [annualMax, setAnnualMax] = useState("2");
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["admin-affiliates"],
@@ -113,25 +115,33 @@ const AffiliatesAdminPage = () => {
     setSignupAmount(String(config?.signup_commission_amount ?? "50"));
     setRecurringPercent(String(config?.recurring_commission_percent ?? "10"));
     setMinimumAmount(String(config?.payout_minimum_amount ?? "100"));
+    setMonthlyMax(String(config?.monthly_commission_max_payments ?? "24"));
+    setAnnualMax(String(config?.annual_commission_max_payments ?? "2"));
   }, [
     config?.affiliate_program_enabled,
     config?.affiliate_shadow_mode,
     config?.signup_commission_amount,
     config?.recurring_commission_percent,
     config?.payout_minimum_amount,
+    config?.monthly_commission_max_payments,
+    config?.annual_commission_max_payments,
   ]);
 
   const hasConfigChanges = useMemo(() => {
     const currentSignup = Number(config?.signup_commission_amount ?? 50);
     const currentRecurring = Number(config?.recurring_commission_percent ?? 10);
     const currentMinimum = Number(config?.payout_minimum_amount ?? 100);
+    const currentMonthlyMax = Number(config?.monthly_commission_max_payments ?? 24);
+    const currentAnnualMax = Number(config?.annual_commission_max_payments ?? 2);
 
     return (
       enabled !== (config?.affiliate_program_enabled === true) ||
       shadowMode !== (config?.affiliate_shadow_mode !== false) ||
       parseNumber(signupAmount, currentSignup) !== currentSignup ||
       parseNumber(recurringPercent, currentRecurring) !== currentRecurring ||
-      parseNumber(minimumAmount, currentMinimum) !== currentMinimum
+      parseNumber(minimumAmount, currentMinimum) !== currentMinimum ||
+      parseNumber(monthlyMax, currentMonthlyMax) !== currentMonthlyMax ||
+      parseNumber(annualMax, currentAnnualMax) !== currentAnnualMax
     );
   }, [
     enabled,
@@ -139,11 +149,15 @@ const AffiliatesAdminPage = () => {
     signupAmount,
     recurringPercent,
     minimumAmount,
+    monthlyMax,
+    annualMax,
     config?.affiliate_program_enabled,
     config?.affiliate_shadow_mode,
     config?.signup_commission_amount,
     config?.recurring_commission_percent,
     config?.payout_minimum_amount,
+    config?.monthly_commission_max_payments,
+    config?.annual_commission_max_payments,
   ]);
 
   const handleSaveConfig = async () => {
@@ -153,9 +167,11 @@ const AffiliatesAdminPage = () => {
       const signup = parseNumber(signupAmount, 50);
       const recurring = parseNumber(recurringPercent, 10);
       const minimum = parseNumber(minimumAmount, 100);
+      const mMax = parseNumber(monthlyMax, 24);
+      const aMax = parseNumber(annualMax, 2);
 
-      if (signup < 0 || recurring < 0 || minimum < 0) {
-        toast.error("Valores de comissão e mínimo precisam ser positivos.");
+      if (signup < 0 || recurring < 0 || minimum < 0 || mMax < 0 || aMax < 0) {
+        toast.error("Valores de comissão e limites precisam ser positivos.");
         return;
       }
 
@@ -167,6 +183,8 @@ const AffiliatesAdminPage = () => {
           signup_commission_amount: signup,
           recurring_commission_percent: recurring,
           payout_minimum_amount: minimum,
+          monthly_commission_max_payments: mMax,
+          annual_commission_max_payments: aMax,
           payout_cycle: "monthly",
           recurring_duration_mode: "while_active",
           updated_at: new Date().toISOString(),
@@ -369,7 +387,7 @@ const AffiliatesAdminPage = () => {
 
           <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="signup_amount">Bônus por 10 cadastros (R$)</Label>
+              <Label htmlFor="signup_amount">Bônus por 10 assinaturas (R$)</Label>
               <Input id="signup_amount" value={signupAmount} onChange={(e) => setSignupAmount(e.target.value)} />
             </div>
             <div className="space-y-2">
@@ -379,6 +397,14 @@ const AffiliatesAdminPage = () => {
             <div className="space-y-2">
               <Label htmlFor="minimum_amount">Mínimo payout (R$)</Label>
               <Input id="minimum_amount" value={minimumAmount} onChange={(e) => setMinimumAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="monthly_max">Limite meses (Mensal)</Label>
+              <Input id="monthly_max" type="number" value={monthlyMax} onChange={(e) => setMonthlyMax(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="annual_max">Limite renovações (Anual)</Label>
+              <Input id="annual_max" type="number" value={annualMax} onChange={(e) => setAnnualMax(e.target.value)} />
             </div>
           </div>
 

@@ -25,8 +25,8 @@ const statusLabel: Record<string, string> = {
 };
 
 const entryTypeLabel: Record<string, string> = {
-  signup_credit: "Bônus por marco de cadastros",
-  recurring_credit: "Recorrente",
+  signup_credit: "Bônus por marco de assinaturas",
+  recurring_credit: "Comissão por assinatura",
   clawback_debit: "Clawback",
   manual_adjustment: "Ajuste manual",
 };
@@ -176,8 +176,9 @@ const AffiliatesPage = () => {
             <Badge variant={isShadowMode ? "outline" : "default"}>
               {isShadowMode ? "Modo sombra" : "Payout habilitado"}
             </Badge>
-            <Badge variant="outline">Bônus por 10 cadastros: {currency(config?.signup_commission_amount || 50)}</Badge>
-            <Badge variant="outline">Recorrente: {Number(config?.recurring_commission_percent || 10)}%</Badge>
+            <Badge variant="outline">Bônus por 10 assinaturas: {currency(config?.signup_commission_amount || 50)}</Badge>
+            <Badge variant="outline">Comissão: {Number(config?.recurring_commission_percent || 10)}%</Badge>
+            <Badge variant="outline">Limite: 24m (mensal) / 2 (anual)</Badge>
             <Badge variant="outline">Mínimo payout: {currency(config?.payout_minimum_amount || 100)}</Badge>
             <Badge variant={partner?.status === "active" ? "default" : "secondary"}>
               Status do parceiro: {partnerStatusLabel[partner?.status] || partner?.status || "Ativo"}

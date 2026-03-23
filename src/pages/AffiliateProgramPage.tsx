@@ -264,8 +264,8 @@ const AffiliateProgramPage = () => {
             Este programa é separado do sistema de indicações de profissionais.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Badge variant="outline">Bônus de R$ 50 a cada 10 cadastros completos</Badge>
-            <Badge variant="outline">10% recorrente enquanto ativo</Badge>
+            <Badge variant="outline">Bônus de R$ 50 a cada 10 assinaturas efetivadas</Badge>
+            <Badge variant="outline">10% de comissão por assinatura</Badge>
             <Badge variant="outline">Payout mensal mínimo de R$ 100</Badge>
           </div>
         </div>
@@ -278,7 +278,7 @@ const AffiliateProgramPage = () => {
             <CardContent className="text-sm text-muted-foreground space-y-2">
               <p>1. Você recebe um link curto oficial de afiliado.</p>
               <p>2. O primeiro toque fica atribuído ao seu código.</p>
-              <p>3. A cada 10 cadastros completos validados, libera um bônus de R$ 50.</p>
+              <p>3. A cada 10 assinaturas efetivadas, libera um bônus de R$ 50.</p>
             </CardContent>
           </Card>
 
@@ -287,9 +287,9 @@ const AffiliateProgramPage = () => {
               <CardTitle className="flex items-center gap-2 text-lg"><Repeat className="h-5 w-5" /> Comissão recorrente</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>1. Pagamentos válidos do profissional indicado geram 10% recorrente.</p>
-              <p>2. Estorno/cancelamento gera ajuste negativo (clawback).</p>
-              <p>3. Tudo fica registrado em extrato de auditoria.</p>
+              <p>1. 10% de comissão sobre cada assinatura efetivada.</p>
+              <p>2. No plano mensal, a comissão é paga por até 24 meses.</p>
+              <p>3. No plano anual, a comissão é paga na contratação e em 1 renovação.</p>
             </CardContent>
           </Card>
 

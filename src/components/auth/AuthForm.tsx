@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -92,6 +92,13 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
     }
   });
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const couponFromUrl = params.get("coupon");
+    if (couponFromUrl && mode === "register") {
+      setValue("couponCode", couponFromUrl.toUpperCase());
+    }
+  }, [setValue, mode]);
   const handleResetPassword = async () => {
     const email = getValues("email");
     if (!email) {

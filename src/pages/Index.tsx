@@ -684,8 +684,8 @@ const Index = () => {
               <PublicCouponBanner
                 coupon={publicCoupon}
                 variant="coupon-field"
-                onUseCoupon={() => {
-                  // Na página pública apenas copia o código; o usuário aplica no cadastro
+                onUseCoupon={(code) => {
+                  navigate(`/login?coupon=${code}#auth-sign-up`);
                 }}
               />
             </div>

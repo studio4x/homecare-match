@@ -344,7 +344,10 @@ const TicketDetailPage = () => {
               {messages.map((msg) => {
                 const isMe = msg.sender_id === user?.id;
                 return (
-                  <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start")}>
+                  <div key={msg.id} className={cn("flex flex-col gap-1", isMe ? "items-end" : "items-start")}>
+                    {!isMe && (
+                      <span className="text-[10px] font-bold text-primary ml-1 uppercase tracking-wider">Equipe de Suporte</span>
+                    )}
                     <div className={cn(
                       "max-w-[80%] rounded-2xl p-3 shadow-sm",
                       isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-card border rounded-tl-none"

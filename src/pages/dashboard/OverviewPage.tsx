@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -46,6 +46,7 @@ import { toast } from "sonner";
 import OnboardingModal from "@/components/OnboardingModal";
 import PlanSelectionModal from "@/components/PlanSelectionModal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AdminMessageAlert } from "@/components/dashboard/AdminMessageAlert";
 import { useQuery } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label";
@@ -992,6 +993,8 @@ const OverviewPage = () => {
             </CardContent>
           </Card>
         )}
+
+        <AdminMessageAlert />
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-6">

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase } from "@/integrations/supabase/client";
@@ -48,7 +48,9 @@ import {
   EyeOff,
   Ticket,
   Clock,
-  Search
+  Search,
+  MessageSquare,
+  Send
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, addDays, isAfter, subDays, parseISO, isValid } from "date-fns";
@@ -79,6 +81,11 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [emailVerifiedFilter, setEmailVerifiedFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [messageModalOpen, setMessageModalOpen] = useState(false);
+  const [selectedUserForMessage, setSelectedUserForMessage] = useState<any>(null);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [messageSubject, setMessageSubject] = useState("Mensagem Administrativa");
+  const [messageContent, setMessageContent] = useState("");
 
   const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
 
@@ -361,6 +368,48 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       toast.error("Falha ao entrar como usuário.");
     }
     setIsImpersonating(null);
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedUserForMessage || !messageContent.trim()) return;
+    setIsSendingMessage(true);
+    try {
+      // 1. Criar o Ticket
+      const { data: ticket, error: ticketError } = await supabase
+        .from('support_tickets')
+        .insert({
+          user_id: selectedUserForMessage.id,
+          subject: messageSubject,
+          description: messageContent,
+          status: 'in_progress',
+          priority: 'high'
+        })
+        .select()
+        .single();
+      
+      if (ticketError) throw ticketError;
+
+      // 2. Criar a primeira mensagem (do admin)
+      const { error: msgError } = await supabase
+        .from('support_messages')
+        .insert({
+          ticket_id: ticket.id,
+          sender_id: user?.id,
+          message: messageContent
+        });
+      
+      if (msgError) throw msgError;
+
+      toast.success("Mensagem enviada com sucesso!");
+      setMessageModalOpen(false);
+      setMessageContent("");
+      setMessageSubject("Mensagem Administrativa");
+    } catch (err: any) {
+      console.error("[AdminMessage] Erro:", err);
+      toast.error("Falha ao enviar mensagem.");
+    } finally {
+      setIsSendingMessage(false);
+    }
   };
 
   const getDaysRemaining = (u: any) => {
@@ -736,6 +785,9 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => { setSelectedUserForMessage(u); setMessageModalOpen(true); }}>
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
                           {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => { setUserToDelete(u); setDeleteModalOpen(true); }}>
                               <Trash2 className="h-4 w-4" />
@@ -804,6 +856,46 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
             <Button variant="destructive" onClick={handleDeleteUser} disabled={isDeletingUser}>
               {isDeletingUser ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Excluir Definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={messageModalOpen} onOpenChange={setMessageModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <MessageSquare className="h-5 w-5" />
+              Enviar Mensagem Individual
+            </DialogTitle>
+            <DialogDescription>
+              A mensagem será enviada para <strong>{selectedUserForMessage?.full_name || selectedUserForMessage?.email}</strong> via suporte e notificada por WhatsApp/E-mail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Assunto</label>
+              <Input 
+                value={messageSubject} 
+                onChange={(e) => setMessageSubject(e.target.value)}
+                placeholder="Ex: Atualização cadastral necessária"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Mensagem</label>
+              <textarea 
+                className="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={messageContent}
+                onChange={(e) => setMessageContent(e.target.value)}
+                placeholder="Digite o conteúdo da mensagem..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setMessageModalOpen(false)} disabled={isSendingMessage}>Cancelar</Button>
+            <Button onClick={handleSendMessage} disabled={isSendingMessage || !messageContent.trim()}>
+              {isSendingMessage ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              Enviar Mensagem
             </Button>
           </DialogFooter>
         </DialogContent>

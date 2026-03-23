@@ -400,6 +400,27 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       
       if (msgError) throw msgError;
 
+      // 3. Notificar o usuário (Edge Function para WhatsApp, Email e Widget de Notificações)
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+
+        await supabase.functions.invoke("notify-support", {
+          body: {
+            type: "new_message",
+            ticketId: ticket.id,
+            senderId: user?.id,
+            message: messageContent
+          },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+      } catch (notifyErr) {
+        console.warn("[AdminMessage] Falha ao disparar notificações externas:", notifyErr);
+        // Não lançamos erro aqui para não travar o envio da mensagem se apenas a notificação falhar
+      }
+
       toast.success("Mensagem enviada com sucesso!");
       setMessageModalOpen(false);
       setMessageContent("");

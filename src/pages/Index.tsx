@@ -53,7 +53,7 @@ const Index = () => {
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<"monthly" | "yearly" | null>(null);
   const [plansCarouselApi, setPlansCarouselApi] = useState<CarouselApi | null>(null);
   const isMobile = useIsMobile();
-  const { data: publicCoupon } = usePublicHighlightedCoupon();
+  const { data: publicCoupon } = usePublicHighlightedCoupon("professional");
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["user-profile-tier", user?.id],

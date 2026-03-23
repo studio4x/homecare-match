@@ -38,7 +38,7 @@ const PlanSelectionModal = ({ open, onOpenChange, showCoupon = true }: PlanSelec
   const mobileCarouselRef = useRef<HTMLDivElement | null>(null);
 
   // Public highlighted coupon for pre-launch campaign
-  const { data: publicCoupon } = usePublicHighlightedCoupon();
+  const { data: publicCoupon } = usePublicHighlightedCoupon("professional");
 
   const { data: profile } = useQuery({
     queryKey: ["user-profile-tier-modal", user?.id],

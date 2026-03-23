@@ -85,16 +85,16 @@ const PublicCouponBanner = ({
         </div>
 
         {/* Code + actions */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <code className="flex-1 rounded-lg border border-primary/30 bg-white px-3 py-2 text-center font-mono text-lg font-bold tracking-widest text-primary">
+        <div className="flex flex-wrap items-center gap-3">
+          <code className="flex-1 min-w-[140px] rounded-lg border border-primary/30 bg-white px-3 py-2 text-center font-mono text-lg font-bold tracking-widest text-primary shadow-sm hover:border-primary/50 transition-colors">
             {coupon.code}
           </code>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full xs:w-auto">
             <Button
               type="button"
               size="sm"
               variant="outline"
-              className="flex-1 gap-1.5 sm:flex-none"
+              className="flex-1 xs:flex-none gap-1.5 h-10 border-primary/30 hover:bg-primary/5"
               onClick={handleCopy}
             >
               {copied ? (
@@ -107,7 +107,7 @@ const PublicCouponBanner = ({
             <Button
               type="button"
               size="sm"
-              className="flex-1 gap-1.5 sm:flex-none"
+              className="flex-1 xs:flex-none gap-1.5 h-10 shadow-sm"
               onClick={() => onUseCoupon(coupon.code)}
             >
               <Ticket className="h-3.5 w-3.5" />

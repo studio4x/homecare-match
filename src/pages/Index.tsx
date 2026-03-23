@@ -41,6 +41,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { resolveVideoOrientation } from "@/lib/video-utils";
 import WhatsAppContactButton from "@/components/WhatsAppContactButton";
 import { getCheckoutAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
+import { usePublicHighlightedCoupon } from "@/hooks/use-public-highlighted-coupon";
+import PublicCouponBanner from "@/components/PublicCouponBanner";
 
 const Index = () => {
   const { session, user, loading: authLoading } = useAuth();
@@ -51,6 +53,7 @@ const Index = () => {
   const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<"monthly" | "yearly" | null>(null);
   const [plansCarouselApi, setPlansCarouselApi] = useState<CarouselApi | null>(null);
   const isMobile = useIsMobile();
+  const { data: publicCoupon } = usePublicHighlightedCoupon();
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["user-profile-tier", user?.id],
@@ -675,6 +678,19 @@ const Index = () => {
             Dica: arraste para o lado para ver todos os planos.
           </p>
 
+          {/* Banner de cupom público — campanha de pré-lançamento */}
+          {publicCoupon && (
+            <div className="mb-8 mx-auto max-w-2xl">
+              <PublicCouponBanner
+                coupon={publicCoupon}
+                variant="coupon-field"
+                onUseCoupon={() => {
+                  // Na página pública apenas copia o código; o usuário aplica no cadastro
+                }}
+              />
+            </div>
+          )}
+
           <Carousel
             className="w-full"
             setApi={setPlansCarouselApi}
@@ -685,7 +701,7 @@ const Index = () => {
                 const btnConfig = getPlanButtonConfig(plan.id);
                 return (
                   <CarouselItem key={plan.id} className="basis-full md:basis-1/2 lg:basis-1/3">
-                    <div className="p-2 h-full">
+                    <div className="p-2 h-full flex flex-col">
                       <PricingCard
                         id={plan.id}
                         name={plan.name}
@@ -700,6 +716,16 @@ const Index = () => {
                         buttonText={btnConfig.text}
                         isDisabled={btnConfig.disabled}
                       />
+                      {/* Destaque de cupom no card do plano mensal */}
+                      {plan.id === "monthly" && publicCoupon?.highlight_on_monthly_plan && (
+                        <div className="mt-2 px-2">
+                          <PublicCouponBanner
+                            coupon={publicCoupon}
+                            variant="monthly-card"
+                            onUseCoupon={() => {}}
+                          />
+                        </div>
+                      )}
                     </div>
                   </CarouselItem>
                 );

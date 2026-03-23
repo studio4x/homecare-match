@@ -29,7 +29,7 @@ const toScreenshots = (value: unknown): PwaManifestScreenshot[] => {
         sizes,
         type: type || "image/png",
         label: label || undefined,
-        form_factor: formFactor,
+        form_factor: formFactor as "narrow" | "wide",
       };
     })
     .filter((item) => item.src && item.sizes);

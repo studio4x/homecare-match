@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, RefObject } from "react";
@@ -140,7 +140,7 @@ const normalizeScreenshots = (value: unknown): ManifestScreenshot[] => {
       sizes: typeof item.sizes === "string" ? item.sizes : "1080x2400",
       type: typeof item.type === "string" ? item.type : "image/png",
       label: typeof item.label === "string" ? item.label : "",
-      form_factor: item.form_factor === "wide" ? "wide" : "narrow",
+      form_factor: (item.form_factor === "wide" ? "wide" : "narrow") as "narrow" | "wide", // Explicitly cast form_factor
     }))
     .filter((item) => item.src.trim() || item.label.trim());
 
@@ -812,486 +812,344 @@ const PwaSettingsPage = () => {
           <div className="space-y-2">
             <Label>Descricao do App</Label>
             <Input
-              value={formData.pwa_description}
-              onChange={(e) => setFormData((prev) => ({ ...prev, pwa_description: e.target.value }))}
-            />
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Titulo do Prompt</Label>
-              <Input
-                value={formData.pwa_install_title}
-                onChange={(e) => setFormData((prev) => ({ ...prev, pwa_install_title: e.target.value }))}
+                value={formData.pwa_description}
+                onChange={(e) => setFormData((prev) => ({ ...prev, pwa_description: e.target.value }))}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Texto do Prompt</Label>
-              <Input
-                value={formData.pwa_install_description}
-                onChange={(e) => setFormData((prev) => ({ ...prev, pwa_install_description: e.target.value }))}
-              />
-            </div>
-          </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Cor Tema</Label>
-              <Input
-                type="color"
-                value={formData.pwa_theme_color}
-                onChange={(e) => setFormData((prev) => ({ ...prev, pwa_theme_color: e.target.value }))}
-                className="h-11"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Cor de Fundo</Label>
-              <Input
-                type="color"
-                value={formData.pwa_background_color}
-                onChange={(e) => setFormData((prev) => ({ ...prev, pwa_background_color: e.target.value }))}
-                className="h-11"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ImagePlus className="h-5 w-5 text-primary" />
-            Imagens do PWA
-          </CardTitle>
-          <CardDescription>
-            Campos principais do PWA com orientacoes de tamanho e uso. Preferencia: PNG para icones.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-3">
-            {imageButtons.map((item) => (
-              <div key={item.field} className="rounded-lg border p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label>{item.label}</Label>
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-muted text-muted-foreground">{item.recommendedSize}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{item.description}</p>
-                <p className="text-xs text-muted-foreground">{item.instruction}</p>
-                {formData[item.field] ? (
-                  <img src={formData[item.field]} alt={item.label} className="h-16 w-16 object-cover rounded border" />
-                ) : (
-                  <div className="h-16 w-16 rounded border bg-muted/40" />
-                )}
-                {formData[item.field] ? (
-                  <a href={formData[item.field]} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all">
-                    {formData[item.field]}
-                  </a>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Sem arquivo enviado.</p>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => item.ref.current?.click()}
-                  disabled={uploadingField === item.field}
-                  className="w-full gap-2"
-                >
-                  {uploadingField === item.field ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  Enviar
-                </Button>
-                <input
-                  ref={item.ref}
-                  type="file"
-                  accept="image/png,image/webp,image/jpeg,image/svg+xml"
-                  className="hidden"
-                  onChange={(e) => handleUpload(e, item.field)}
-                />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <WandSparkles className="h-5 w-5 text-primary" />
-            Automacao de Assets
-          </CardTitle>
-          <CardDescription>
-            Gere automaticamente pacote minimo ou completo a partir de uma imagem base (PNG quadrado recomendado).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-lg border p-3 space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="button" variant="outline" onClick={() => baseAssetRef.current?.click()}>
-                Selecionar imagem base
-              </Button>
-              <input
-                ref={baseAssetRef}
-                type="file"
-                accept="image/png,image/webp,image/jpeg"
-                className="hidden"
-                onChange={(e) => setBaseAssetFile(e.target.files?.[0] || null)}
-              />
-              <span className="text-sm text-muted-foreground">
-                {baseAssetFile ? baseAssetFile.name : "Nenhuma imagem selecionada"}
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="gap-2"
-                onClick={() => generateAssetPack("minimum")}
-                disabled={(!baseAssetFile && !formData.pwa_icon_512_url && !formData.pwa_icon_192_url) || isGeneratingPack !== null}
-              >
-                {isGeneratingPack === "minimum" ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
-                Gerar pacote minimo recomendado
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="gap-2"
-                onClick={() => generateAssetPack("full")}
-                disabled={(!baseAssetFile && !formData.pwa_icon_512_url && !formData.pwa_icon_192_url) || isGeneratingPack !== null}
-              >
-                {isGeneratingPack === "full" ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
-                Gerar pacote completo
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Observacao: `favicon.ico` continua manual. Sem imagem selecionada, usamos o icone 512 atual como base.
-            </p>
-          </div>
-
-          <div className="rounded-lg border p-3 space-y-3">
-            <Label>Upload/URL manual para item selecionado</Label>
-            <div className="grid md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Item</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={selectedAssetKey}
-                  onChange={(e) => setSelectedAssetKey(e.target.value as PwaAssetKey)}
-                >
-                  {pwaAssetSpecs.map((item) => (
-                    <option key={item.assetKey} value={item.assetKey}>
-                      {item.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>Arquivo</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full gap-2"
-                  onClick={() => manualAssetRef.current?.click()}
-                  disabled={uploadingAssetKey !== null}
-                >
-                  {uploadingAssetKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  Enviar arquivo
-                </Button>
-                <input
-                  ref={manualAssetRef}
-                  type="file"
-                  accept={selectedAssetKey === "favicon_ico" ? ".ico,image/x-icon" : "image/png,image/webp,image/jpeg"}
-                  className="hidden"
-                  onChange={handleAssetUpload}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <Label>URL manual</Label>
-              <div className="flex gap-2">
-                <Input value={manualAssetUrl} onChange={(e) => setManualAssetUrl(e.target.value)} placeholder="https://..." />
-                <Button type="button" variant="outline" onClick={() => applyAssetUrl(selectedAssetKey, manualAssetUrl)}>
-                  Aplicar
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="text-destructive"
-                  onClick={() => {
-                    applyAssetUrl(selectedAssetKey, "");
-                    setManualAssetUrl("");
-                  }}
-                >
-                  Limpar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between gap-2">
-            <span>Checklist Completo de Imagens PWA</span>
-            <span className="text-sm font-normal text-muted-foreground">
-              Obrigatorios: {requiredReady}/{requiredSpecs.length} | Minimo recomendado: {recommendedReady}/{recommendedSpecs.length}
-            </span>
-          </CardTitle>
-          <CardDescription>
-            Lista completa solicitada: icones, Apple Touch, favicons, tile e splash iOS.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {(["icons", "apple", "favicon", "windows", "splash"] as PwaAssetCategory[]).map((category) => (
-            <div key={category} className="space-y-2">
-              <h3 className="text-sm font-semibold">{categoryLabels[category]}</h3>
+            <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                {pwaAssetSpecs
-                  .filter((item) => item.category === category)
-                  .map((item) => {
-                    const url = getAssetUrlByKey(item.assetKey);
-                    const done = !!url;
-                    return (
-                      <div key={item.assetKey} className="rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap gap-2 items-center">
-                            <span className="text-sm font-medium">{item.label}</span>
-                            {item.width && item.height ? (
-                              <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                                {item.width}x{item.height}
-                              </span>
-                            ) : null}
-                            <span className={`text-xs px-2 py-0.5 rounded ${item.required ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}>
-                              {item.required ? "Obrigatorio" : "Opcional"}
-                            </span>
-                            {item.recommended ? (
-                              <span className="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">Minimo</span>
-                            ) : null}
-                            <span className={`text-xs px-2 py-0.5 rounded ${item.auto ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
-                              {item.auto ? "Auto" : "Manual"}
-                            </span>
+                <Label>Titulo do Prompt</Label>
+                <Input
+                  value={formData.pwa_install_title}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, pwa_install_title: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Texto do Prompt</Label>
+                <Input
+                  value={formData.pwa_install_description}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, pwa_install_description: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Cor Tema</Label>
+                <Input
+                  type="color"
+                  value={formData.pwa_theme_color}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, pwa_theme_color: e.target.value }))}
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cor de Fundo</Label>
+                <Input
+                  type="color"
+                  value={formData.pwa_background_color}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, pwa_background_color: e.target.value }))}
+                  className="h-11"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImagePlus className="h-5 w-5 text-primary" />
+              Imagens do PWA
+            </CardTitle>
+            <CardDescription>
+              Campos principais do PWA com orientacoes de tamanho e uso. Preferencia: PNG para icones.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-3">
+              {imageButtons.map((item) => (
+                <div key={item.field} className="rounded-lg border p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>{item.label}</Label>
+                    <span className="text-[11px] px-2 py-0.5 rounded bg-muted text-muted-foreground">{item.recommendedSize}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{item.description}</p>
+                  <p className="text-xs text-muted-foreground">{item.instruction}</p>
+                  {formData[item.field] ? (
+                    <img src={formData[item.field]} alt={item.label} className="h-16 w-16 object-cover rounded border" />
+                  ) : (
+                    <div className="h-16 w-16 rounded border bg-muted/40" />
+                  )}
+                  {formData[item.field] ? (
+                    <a href={formData[item.field]} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all">
+                      {formData[item.field]}
+                    </a>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Sem arquivo enviado.</p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => item.ref.current?.click()}
+                    disabled={uploadingField === item.field}
+                    className="w-full gap-2"
+                  >
+                    {uploadingField === item.field ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Enviar
+                  </Button>
+                  <input
+                    ref={item.ref}
+                    type="file"
+                    accept="image/png,image/webp,image/jpeg,image/svg+xml"
+                    className="hidden"
+                    onChange={(e) => handleUpload(e, item.field)}
+                  />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <WandSparkles className="h-5 w-5 text-primary" />
+              Automacao de Assets
+            </CardTitle>
+            <CardDescription>
+              Gere automaticamente pacote minimo ou completo a partir de uma imagem base (PNG quadrado recomendado).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border p-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="outline" onClick={() => baseAssetRef.current?.click()}>
+                  Selecionar imagem base
+                </Button>
+                <input
+                  ref={baseAssetRef}
+                  type="file"
+                  accept="image/png,image/webp,image/jpeg"
+                  className="hidden"
+                  onChange={(e) => setBaseAssetFile(e.target.files?.[0] || null)}
+                />
+                <span className="text-sm text-muted-foreground">
+                  {baseAssetFile ? baseAssetFile.name : "Nenhuma imagem selecionada"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => generateAssetPack("minimum")}
+                  disabled={(!baseAssetFile && !formData.pwa_icon_512_url && !formData.pwa_icon_192_url) || isGeneratingPack !== null}
+                >
+                  {isGeneratingPack === "minimum" ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+                  Gerar pacote minimo recomendado
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => generateAssetPack("full")}
+                  disabled={(!baseAssetFile && !formData.pwa_icon_512_url && !formData.pwa_icon_192_url) || isGeneratingPack !== null}
+                >
+                  {isGeneratingPack === "full" ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+                  Gerar pacote completo
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Observacao: `favicon.ico` continua manual. Sem imagem selecionada, usamos o icone 512 atual como base.
+              </p>
+            </div>
+
+            <div className="rounded-lg border p-3 space-y-3">
+              <Label>Upload/URL manual para item selecionado</Label>
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Item</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={selectedAssetKey}
+                    onChange={(e) => setSelectedAssetKey(e.target.value as PwaAssetKey)}
+                  >
+                    {pwaAssetSpecs.map((item) => (
+                      <option key={item.assetKey} value={item.assetKey}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Arquivo</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => manualAssetRef.current?.click()}
+                    disabled={uploadingAssetKey !== null}
+                  >
+                    {uploadingAssetKey ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Enviar arquivo
+                  </Button>
+                  <input
+                    ref={manualAssetRef}
+                    type="file"
+                    accept={selectedAssetKey === "favicon_ico" ? ".ico,image/x-icon" : "image/png,image/webp,image/jpeg"}
+                    className="hidden"
+                    onChange={handleAssetUpload}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label>URL manual</Label>
+                <div className="flex gap-2">
+                  <Input value={manualAssetUrl} onChange={(e) => setManualAssetUrl(e.target.value)} placeholder="https://..." />
+                  <Button type="button" variant="outline" onClick={() => applyAssetUrl(selectedAssetKey, manualAssetUrl)}>
+                    Aplicar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-destructive"
+                    onClick={() => {
+                      applyAssetUrl(selectedAssetKey, "");
+                      setManualAssetUrl("");
+                    }}
+                  >
+                    Limpar
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex flex-wrap items-center justify-between gap-2">
+                <span>Checklist Completo de Imagens PWA</span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Obrigatorios: {requiredReady}/{requiredSpecs.length} | Minimo recomendado: {recommendedReady}/{recommendedSpecs.length}
+                </span>
+              </CardTitle>
+              <CardDescription>
+                Lista completa solicitada: icones, Apple Touch, favicons, tile e splash iOS.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {(["icons", "apple", "favicon", "windows", "splash"] as PwaAssetCategory[]).map((category) => (
+                <div key={category} className="space-y-2">
+                  <h3 className="text-sm font-semibold">{categoryLabels[category]}</h3>
+                  <div className="space-y-2">
+                    {pwaAssetSpecs
+                      .filter((item) => item.category === category)
+                      .map((item) => {
+                        const url = getAssetUrlByKey(item.assetKey);
+                        const done = !!url;
+                        return (
+                          <div key={item.assetKey} className="rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap gap-2 items-center">
+                                <span className="text-sm font-medium">{item.label}</span>
+                                {item.width && item.height ? (
+                                  <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                                    {item.width}x{item.height}
+                                  </span>
+                                ) : null}
+                                <span className={`text-xs px-2 py-0.5 rounded ${item.required ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}>
+                                  {item.required ? "Obrigatorio" : "Opcional"}
+                                </span>
+                                {item.recommended ? (
+                                  <span className="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">Minimo</span>
+                                ) : null}
+                                <span className={`text-xs px-2 py-0.5 rounded ${item.auto ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                                  {item.auto ? "Auto" : "Manual"}
+                                </span>
+                              </div>
+                              {url ? (
+                                <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all">
+                                  {url}
+                                </a>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">Sem arquivo configurado.</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {done ? (
+                                <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded">
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  OK
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                                  <AlertCircle className="h-3.5 w-3.5" />
+                                  Faltando
+                                </span>
+                              )}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAssetKey(item.assetKey);
+                                  setManualAssetUrl(url);
+                                }}
+                              >
+                                Selecionar
+                              </Button>
+                            </div>
                           </div>
-                          {url ? (
-                            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all">
-                              {url}
-                            </a>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Sem arquivo configurado.</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {done ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-emerald-700 bg-emerald-50 px-2 py-1 rounded">
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              OK
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              Faltando
-                            </span>
-                          )}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedAssetKey(item.assetKey);
-                              setManualAssetUrl(url);
-                            }}
-                          >
-                            Selecionar
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center justify-between gap-2">
-            <span>Screenshots do Manifest</span>
-            <div className="flex items-center gap-2">
-              <Button type="button" size="sm" variant="outline" className="gap-2" onClick={addScreenshot}>
-                <Plus className="h-4 w-4" />
-                Adicionar
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="gap-2"
-                onClick={() => setScreenshotsOpen((prev) => !prev)}
-              >
-                {screenshotsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                {screenshotsOpen ? "Recolher" : "Expandir"}
-              </Button>
-            </div>
-          </CardTitle>
-          <CardDescription>
-            Vertical e permitido e recomendado para mobile. Exemplo: 1080x2400 (narrow/retrato) ou 1920x1080 (wide/paisagem).
-          </CardDescription>
-        </CardHeader>
-        {screenshotsOpen ? (
-          <CardContent className="space-y-3">
-            {formData.pwa_screenshots_json.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                Nenhuma screenshot cadastrada.
-              </div>
-            ) : (
-              formData.pwa_screenshots_json.map((screenshot) => (
-                <div key={screenshot.id} className="rounded-lg border p-3 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="h-20 w-12 rounded border bg-muted/30 overflow-hidden">
-                        {screenshot.src ? (
-                          <img src={screenshot.src} alt={screenshot.label || "Screenshot"} className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="h-full w-full" />
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">{screenshot.label || "Screenshot"}</p>
-                        <p className="text-xs text-muted-foreground">{screenshot.sizes || "1080x2400"}</p>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      onClick={() => removeScreenshot(screenshot.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label>Label</Label>
-                      <Input
-                        value={screenshot.label}
-                        onChange={(e) => updateScreenshot(screenshot.id, { label: e.target.value })}
-                        placeholder="Tela inicial"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Sizes</Label>
-                      <Input
-                        value={screenshot.sizes}
-                        onChange={(e) => updateScreenshot(screenshot.id, { sizes: e.target.value })}
-                        placeholder="1080x2400"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Tipo</Label>
-                      <Input
-                        value={screenshot.type}
-                        onChange={(e) => updateScreenshot(screenshot.id, { type: e.target.value })}
-                        placeholder="image/png"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Form Factor</Label>
-                      <select
-                        value={screenshot.form_factor}
-                        onChange={(e) =>
-                          updateScreenshot(screenshot.id, {
-                            form_factor: e.target.value === "wide" ? "wide" : "narrow",
-                          })
-                        }
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="narrow">narrow (mobile/retrato)</option>
-                        <option value="wide">wide (tablet/paisagem)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label>URL da Screenshot</Label>
-                    <Input
-                      value={screenshot.src}
-                      onChange={(e) => updateScreenshot(screenshot.id, { src: e.target.value })}
-                      placeholder="https://..."
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label>Upload de arquivo</Label>
-                    <Input
-                      type="file"
-                      accept="image/png,image/webp,image/jpeg"
-                      onChange={(e) => handleScreenshotUpload(e, screenshot.id)}
-                      disabled={uploadingScreenshotId === screenshot.id}
-                    />
-                    {uploadingScreenshotId === screenshot.id ? (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Enviando screenshot...
-                      </p>
-                    ) : null}
+                        );
+                      })}
                   </div>
                 </div>
-              ))
-            )}
-          </CardContent>
-        ) : (
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Secao recolhida. Screenshots cadastradas: {formData.pwa_screenshots_json.length}.
-            </p>
-          </CardContent>
-        )}
-      </Card>
+              ))}
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Previa rapida</CardTitle>
-          <CardDescription>Exemplo visual do prompt de instalacao.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="max-w-md rounded-xl border p-4 shadow-sm" style={{ backgroundColor: formData.pwa_background_color }}>
-            <div className="flex items-start gap-3">
-              <div className="h-12 w-12 rounded-lg overflow-hidden border shrink-0 bg-white">
-                {formData.pwa_icon_192_url ? (
-                  <img src={formData.pwa_icon_192_url} alt="icone" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="h-full w-full bg-muted" />
-                )}
-              </div>
-              <div>
-                <p className="font-semibold" style={{ color: formData.pwa_theme_color }}>{formData.pwa_install_title}</p>
-                <p className="text-sm text-muted-foreground">{formData.pwa_install_description}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Screenshots configuradas: {formData.pwa_screenshots_json.filter((item) => item.src.trim() && item.sizes.trim()).length}
-                </p>
-              </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Previa rapida</CardTitle>
+              <CardDescription>Exemplo visual do prompt de instalacao.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="max-w-md rounded-xl border p-4 shadow-sm" style={{ backgroundColor: formData.pwa_background_color }}>
+                <div className="flex items-start gap-3">
+                  <div className="h-12 w-12 rounded-lg overflow-hidden border shrink-0 bg-white">
+                    {formData.pwa_icon_192_url ? (
+                      <img src={formData.pwa_icon_192_url} alt="icone" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="h-full w-full bg-muted" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-semibold" style={{ color: formData.pwa_theme_color }}>{formData.pwa_install_title}</p>
+                    <p className="text-sm text-muted-foreground">{formData.pwa_install_description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Screenshots configuradas: {formData.pwa_screenshots_json.filter((item) => item.src.trim() && item.sizes.trim()).length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={syncBaseStructure} disabled={isSyncing} className="gap-2">
+                {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                Sincronizar Estrutura PWA
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar Configuracoes
+              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={syncBaseStructure} disabled={isSyncing} className="gap-2">
-          {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Sincronizar Estrutura PWA
-        </Button>
-        <Button onClick={handleSave} disabled={isSaving} className="gap-2">
-          {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Salvar Configuracoes
-        </Button>
-      </div>
-    </div>
-  );
-};
+        );
+      };
 
 export default PwaSettingsPage;
-

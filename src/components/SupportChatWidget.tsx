@@ -48,7 +48,8 @@ const VISITOR_ID_KEY = "hcm_chatbot_visitor_id";
 const MAX_LOCAL_MESSAGES = 60;
 const LINK_PATTERN = /(https?:\/\/[^\s]+)/g;
 const TRAILING_PUNCTUATION_PATTERN = /[.,;:!?)]$/;
-const AUTO_CLOSE_AFTER_MS = 10 * 60 * 1000;
+const INACTIVITY_WARNING_MS = 5 * 60 * 1000; // Defined INACTIVITY_WARNING_MS
+const INACTIVITY_CLOSE_MS = 10 * 60 * 1000; // Defined INACTIVITY_CLOSE_MS
 const USER_INACTIVITY_CLOSED_TEXT = "Chat encerrado por inatividade. Clique em \"Iniciar novo chat\" para continuar.";
 
 const createMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -77,9 +78,9 @@ const normalizeLoadedMessages = (raw: unknown): ChatMessage[] => {
     .filter((item) => item && typeof item === "object")
     .map((item: any) => ({
       id: String(item.id || createMessageId()),
-      role: item.role === "user" ? "user" : "assistant",
+      role: item.role === "user" ? "user" : "assistant", // Explicitly cast role
       content: String(item.content || ""),
-      mode: item.mode,
+      mode: item.mode as ChatMode, // Explicitly cast mode
       sources: Array.isArray(item.sources) ? item.sources : [],
       actions: Array.isArray(item.actions) ? item.actions : [],
       createdAt: typeof item.createdAt === "string" ? item.createdAt : typeof item.created_at === "string" ? item.created_at : undefined,
@@ -94,6 +95,11 @@ const splitTrailingPunctuation = (value: string) => {
 
   while (clean.length > 1 && TRAILING_PUNCTUATION_PATTERN.test(clean)) {
     suffix = clean.slice(-1) + suffix;
+    clean = clean.slice(0, -1);
+  }
+
+  if (clean.endsWith(".")) {
+    suffix = "." + suffix;
     clean = clean.slice(0, -1);
   }
 
@@ -479,7 +485,7 @@ const SupportChatWidget = ({ context = "public" }: SupportChatWidgetProps) => {
     const evaluateAutoClose = async () => {
       if (autoCloseInFlightRef.current) return;
       const elapsed = Date.now() - lastUserInteractionAtRef.current;
-      if (elapsed < AUTO_CLOSE_AFTER_MS) return;
+      if (elapsed < INACTIVITY_CLOSE_MS) return;
 
       autoCloseInFlightRef.current = true;
       const closedAtIso = new Date().toISOString();

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import CertificateDisplayContent from "@/components/CertificateDisplayContent";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
 
 const CertificateView = () => {
   const { id } = useParams();
@@ -54,11 +56,6 @@ const CertificateView = () => {
     let clonedNode: HTMLDivElement | null = null;
 
     try {
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
-
       clonedNode = certificateExportRef.current.cloneNode(true) as HTMLDivElement;
       clonedNode.classList.add("pdf-export-force");
       clonedNode.style.position = "fixed";
@@ -243,16 +240,6 @@ const CertificateView = () => {
                 inset: 0 !important;
                 width: 297mm !important;
                 height: 210mm !important;
-                margin: 0 !important;
-                padding: 0 !important;
-              }
-
-              .certificate-container {
-                position: relative !important;
-                inset: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                aspect-ratio: auto !important;
                 margin: 0 !important;
                 padding: 0 !important;
                 box-sizing: border-box !important;

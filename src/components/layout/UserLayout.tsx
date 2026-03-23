@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
@@ -214,36 +214,36 @@ const UserLayout = () => {
 
   if (isProfessional) {
     navItems.push(
-      { href: "/dashboard/perfil", label: "Meus Dados", icon: User },
-      { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
-      { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell },
-      { href: "/dashboard/cursos", label: "Cursos", icon: BookOpen },
-      { href: "/dashboard/indicacoes", label: "Indicações", icon: Award },
-      { href: "/dashboard/pagamentos", label: "Pagamentos", icon: CreditCard }
+      { href: "/dashboard/perfil", label: "Meus Dados", icon: User, end: false },
+      { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare, end: false },
+      { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell, end: false },
+      { href: "/dashboard/cursos", label: "Cursos", icon: BookOpen, end: false },
+      { href: "/dashboard/indicacoes", label: "Indicações", icon: Award, end: false },
+      { href: "/dashboard/pagamentos", label: "Pagamentos", icon: CreditCard, end: false }
     );
   } else if (isCompany) {
     navItems.push(
-      { href: "/dashboard/perfil", label: "Meus Dados", icon: User },
-      { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
-      { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell },
-      { href: "/dashboard/pacientes", label: "Meus Pacientes", icon: Users },
-      { href: "/buscar", label: "Buscar Profissionais", icon: Search }
+      { href: "/dashboard/perfil", label: "Meus Dados", icon: User, end: false },
+      { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare, end: false },
+      { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell, end: false },
+      { href: "/dashboard/pacientes", label: "Meus Pacientes", icon: Users, end: false },
+      { href: "/buscar", label: "Buscar Profissionais", icon: Search, end: false }
     );
   } else if (isAffiliate) {
     navItems.push(
-      { href: "/dashboard/afiliados", label: "Afiliados", icon: Award },
-      { href: "/dashboard/perfil", label: "Meus Dados", icon: User }
+      { href: "/dashboard/afiliados", label: "Afiliados", icon: Award, end: false },
+      { href: "/dashboard/perfil", label: "Meus Dados", icon: User, end: false }
     );
   } else {
     navItems.push(
-      { href: "/dashboard/perfil", label: "Meus Dados", icon: User },
-      { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
-      { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell },
-      { href: "/buscar", label: "Buscar Profissionais", icon: Search }
+      { href: "/dashboard/perfil", label: "Meus Dados", icon: User, end: false },
+      { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare, end: false },
+      { href: "/dashboard/avisos", label: "Mural de Avisos", icon: Bell, end: false },
+      { href: "/buscar", label: "Buscar Profissionais", icon: Search, end: false }
     );
   }
 
-  navItems.push({ href: "/dashboard/suporte", label: "Suporte", icon: LifeBuoy });
+  navItems.push({ href: "/dashboard/suporte", label: "Suporte", icon: LifeBuoy, end: false });
 
   const initials =
     profile?.full_name
@@ -317,7 +317,7 @@ const UserLayout = () => {
               </div>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background"
                 aria-label="Fechar menu"
               >
                 <X className="h-4 w-4" />
@@ -451,4 +451,3 @@ const UserLayout = () => {
 };
 
 export default UserLayout;
-

@@ -1,4 +1,4 @@
-﻿import { MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { cn } from "@/lib/utils";
@@ -59,7 +59,7 @@ const WhatsAppContactButton = ({
   const buttonVariant = variant === "inline-outline" ? "outline" : "success";
   const originTag = `[origem=${placementId}]`;
 
-  const handleTrackClick = () => {
+  const handleTrackClick = async () => {
     if (typeof window === "undefined") return;
 
     const pagePath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -67,19 +67,21 @@ const WhatsAppContactButton = ({
     const referrer = document.referrer || null;
     const userAgent = navigator.userAgent || null;
 
-    void supabase
-      .rpc("track_whatsapp_commercial_click", {
-        p_placement_id: placementId,
-        p_origin_tag: originTag,
-        p_button_label: finalLabel,
-        p_page_path: pagePath,
-        p_page_url: pageUrl,
-        p_referrer: referrer,
-        p_user_agent: userAgent,
-        p_whatsapp_number: phone,
-      })
-      .then(() => undefined)
-      .catch(() => undefined);
+    try {
+      await supabase
+        .rpc("track_whatsapp_commercial_click", {
+          p_placement_id: placementId,
+          p_origin_tag: originTag,
+          p_button_label: finalLabel,
+          p_page_path: pagePath,
+          p_page_url: pageUrl,
+          p_referrer: referrer,
+          p_user_agent: userAgent,
+          p_whatsapp_number: phone,
+        });
+    } catch (error) {
+      console.error("Error tracking WhatsApp click:", error);
+    }
   };
 
   const buttonNode = (

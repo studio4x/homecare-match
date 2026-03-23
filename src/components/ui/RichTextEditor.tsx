@@ -1,121 +1,99 @@
-"use client";
-
 import { useMemo, useState } from "react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Code, Eye, EyeOff, Heading1, Heading2, Heading3, List, ListOrdered, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Link as LinkIcon, Palette, Highlighter, Minus, Plus } from "lucide-react";
+import { Toggle } from "@/components/ui/toggle";
+import { cn } from "@/lib/utils";
 
 interface RichTextEditorProps {
   content: string;
   onChange: (html: string) => void;
+  placeholder?: string;
   className?: string;
   enableHtmlModeToggle?: boolean;
   showHeadingHints?: boolean;
 }
 
-const RichTextEditor = ({
-  content,
-  onChange,
-  className,
-  enableHtmlModeToggle = false,
-  showHeadingHints = false,
-}: RichTextEditorProps) => {
+const modules = {
+  toolbar: [
+    [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+    [{ 'align': [] }],
+    ['link', 'image', 'video'],
+    ['clean']
+  ],
+};
+
+const formats = [
+  'header',
+  'bold', 'italic', 'underline', 'strike',
+  'list', 'bullet', 'indent',
+  'align',
+  'link', 'image', 'video'
+];
+
+const RichTextEditor = ({ content, onChange, placeholder, className, enableHtmlModeToggle = false, showHeadingHints = false }: RichTextEditorProps) => {
   const [htmlMode, setHtmlMode] = useState(false);
+  const [htmlContent, setHtmlContent] = useState(content);
 
-  const modules = useMemo(
-    () => ({
-      toolbar: [
-        [{ header: [1, 2, 3, false] }],
-        [{ size: ["small", false, "large", "huge"] }],
-        ["bold", "italic", "underline"],
-        [{ list: "ordered" }, { list: "bullet" }],
-        [{ align: [] }],
-        ["link"],
-        ["clean"],
-      ],
-    }),
-    [],
-  );
-
-  const formats = useMemo(
-    () => ["header", "size", "bold", "italic", "underline", "list", "bullet", "align", "link"],
-    [],
-  );
-
-  const headingStats = useMemo(() => {
-    const html = String(content || "");
-    return {
-      h1: (html.match(/<h1\b/gi) || []).length,
-      h2: (html.match(/<h2\b/gi) || []).length,
-      h3: (html.match(/<h3\b/gi) || []).length,
-    };
+  // Sync internal state with prop changes
+  useMemo(() => {
+    setHtmlContent(content);
   }, [content]);
 
+  const handleEditorChange = (value: string) => {
+    setHtmlContent(value);
+    onChange(value);
+  };
+
+  const handleHtmlChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setHtmlContent(e.target.value);
+    onChange(e.target.value);
+  };
+
   return (
-    <div className={cn("rounded-md border bg-background", className)}>
-      {(enableHtmlModeToggle || showHeadingHints) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-2">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {showHeadingHints && (
-              <>
-                <span className="font-medium text-foreground">Titulos:</span>
-                <span className="rounded border border-border bg-background px-2 py-0.5">H1: {headingStats.h1}</span>
-                <span className="rounded border border-border bg-background px-2 py-0.5">H2: {headingStats.h2}</span>
-                <span className="rounded border border-border bg-background px-2 py-0.5">H3: {headingStats.h3}</span>
-                <span>Use o seletor "Titulo" na barra para definir H1/H2/H3.</span>
-              </>
-            )}
-          </div>
-          {enableHtmlModeToggle && (
-            <Button type="button" variant="outline" size="sm" onClick={() => setHtmlMode((prev) => !prev)}>
-              {htmlMode ? "Voltar para editor visual" : "Visualizar/editar HTML"}
-            </Button>
-          )}
+    <div className={cn("relative", className)}>
+      {enableHtmlModeToggle && (
+        <div className="flex justify-end mb-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setHtmlMode(!htmlMode)}
+            className="gap-2 text-xs h-8"
+          >
+            {htmlMode ? <Eye className="h-3 w-3" /> : <Code className="h-3 w-3" />}
+            {htmlMode ? "Visualizar" : "Editar HTML"}
+          </Button>
         </div>
       )}
 
       {htmlMode ? (
-        <div className="p-3">
-          <Textarea
-            value={content || ""}
-            onChange={(e) => onChange(e.target.value)}
-            rows={18}
-            className="min-h-[340px] font-mono text-xs"
-            placeholder="<h1>Titulo principal</h1>"
-          />
-        </div>
+        <textarea
+          value={htmlContent}
+          onChange={handleHtmlChange}
+          className="w-full min-h-[300px] p-3 border rounded-md font-mono text-xs bg-background"
+          placeholder="Edite o HTML aqui..."
+        />
       ) : (
         <ReactQuill
           theme="snow"
-          value={content || ""}
-          onChange={onChange}
+          value={htmlContent}
+          onChange={handleEditorChange}
           modules={modules}
           formats={formats}
-          placeholder="Escreva o conteudo aqui..."
+          placeholder={placeholder}
+          className="min-h-[300px]"
         />
       )}
 
-      <style>{`
-        .ql-toolbar.ql-snow {
-          border: 0;
-          border-bottom: 1px solid hsl(var(--border));
-          background: hsl(var(--muted) / 0.3);
-          border-top-left-radius: 0.375rem;
-          border-top-right-radius: 0.375rem;
-        }
-        .ql-container.ql-snow {
-          border: 0;
-          border-bottom-left-radius: 0.375rem;
-          border-bottom-right-radius: 0.375rem;
-          font-size: 0.95rem;
-        }
-        .ql-editor {
-          min-height: 200px;
-          color: hsl(var(--foreground));
-        }
-      `}</style>
+      {showHeadingHints && (
+        <div className="mt-2 text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+          <span>Dica: Use H2 para seções principais, H3 para subseções.</span>
+          <span>Não use H1 no conteúdo (o título da página já é H1).</span>
+        </div>
+      )}
     </div>
   );
 };

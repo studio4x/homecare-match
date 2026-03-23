@@ -18,6 +18,7 @@ import {
   Zap,
   ShieldCheck,
   LayoutDashboard,
+  CheckCircle2, // Adicionado import para CheckCircle2
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
@@ -238,7 +239,7 @@ const Index = () => {
     period: "7 dias",
     description: "Aplicado automaticamente no cadastro. Válido por 7 dias.",
     features: [
-      "Perfil profissional completo",
+      "Perfil básico",
       "Visibilidade limitada",
       "Suporte por email",
       "Ao término de 7 dias, selecione um plano pago.",
@@ -742,6 +743,88 @@ const Index = () => {
               <CarouselNext className="relative" />
             </div>
           </Carousel>
+        </div>
+      </section>
+
+      {/* Nova seção adicionada aqui */}
+      <section className="bg-secondary/30 py-14 md:py-20">
+        <div className="container mx-auto px-4 max-w-4xl">
+          <div className="mb-12 text-center">
+            <h2 className="text-3xl font-bold text-foreground">
+              Por que investimos nos profissionais e oferecemos gratuidade para empresas e famílias?
+            </h2>
+            <p className="mt-4 text-muted-foreground text-lg">
+              Na Home Care Match, nossa missão é criar um ecossistema de saúde domiciliar eficiente e de alta qualidade. Para isso, focamos em valorizar e capacitar os profissionais, que são o coração do atendimento.
+            </p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-2">
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-primary">Para os Profissionais (você):</h3>
+              <ul className="space-y-4 text-muted-foreground">
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                  <span>
+                    Acreditamos que um pequeno investimento mensal na plataforma se traduz em grandes oportunidades e um futuro mais promissor para sua carreira.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                  <span>
+                    **Manter a qualidade e segurança:** Investimos em tecnologia para garantir que seu perfil seja visto por quem realmente precisa, com um ambiente seguro e confiável.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                  <span>
+                    **Visibilidade e Conexão:** Promovemos seu perfil ativamente para empresas e famílias, aumentando suas chances de encontrar novos atendimentos e expandir sua carreira.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                  <span>
+                    **Desenvolvimento Contínuo:** Tenha acesso a **cursos gratuitos** e a **cursos avançados com um investimento extremamente baixo** em nossa Academy, para aprimorar suas habilidades e conquistar novos selos para seu perfil.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                  <span>
+                    **Ferramentas que Facilitam seu Dia a Dia:** A Home Care Match investe e sempre investirá em trazer funcionalidades que beneficiam você, além de recursos gratuitos pensados para simplificar sua rotina corrida e te dar mais tempo para o que realmente importa: o cuidado.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                  <span>
+                    **Sustentabilidade da Plataforma:** Sua contribuição é fundamental para a manutenção e evolução da Home Care Match, garantindo que possamos continuar aprimorando a plataforma e gerando ainda mais valor para você.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-foreground">Para Empresas e Famílias:</h3>
+              <ul className="space-y-4 text-muted-foreground">
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                  <span>
+                    Oferecemos o acesso gratuito para empresas e famílias porque entendemos a urgência e a sensibilidade de encontrar o profissional certo para o cuidado domiciliar.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                  <span>
+                    Queremos remover barreiras e facilitar essa conexão vital, garantindo que eles tenham acesso rápido e sem custos a uma rede qualificada de profissionais como você.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                  <span>
+                    Essa estratégia cria um ciclo virtuoso: ao empoderar os profissionais, garantimos que empresas e famílias encontrem os melhores talentos, fortalecendo todo o setor de home care.
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -126,8 +126,11 @@ export const OnboardingAdmin = () => {
 
   const processNowMutation = useMutation({
     mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessão não encontrada.");
+
       const { data, error } = await supabase.functions.invoke("process-onboarding-emails", {
-        body: {}
+        body: { access_token: session.access_token }
       });
       if (error) throw error;
       return data;

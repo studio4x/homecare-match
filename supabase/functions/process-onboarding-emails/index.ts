@@ -15,15 +15,38 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const authHeader = req.headers.get("authorization")?.replace("Bearer ", "").trim() || "";
+    const authHeader = req.headers.get("authorization")?.replace("Bearer ", "").trim() || "";
+    const body = await req.json().catch(() => ({}));
+    const token = authHeader || body.access_token;
 
-  // Require service role internally
-  if (!serviceRoleKey || authHeader !== serviceRoleKey) {
-    return new Response(JSON.stringify({ error: "Nao autorizado." }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+    let authorized = false;
+
+    // 1. Check if it's the SERVICE_ROLE_KEY (Cron)
+    if (serviceRoleKey && token === serviceRoleKey) {
+      authorized = true;
+    } 
+    // 2. Check if it's an Authenticated Admin (Dashboard Button)
+    else if (token) {
+      const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+      if (!authError && user) {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        if (profile?.role === "admin") {
+          authorized = true;
+        }
+      }
+    }
+
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "Não autorizado." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
   try {
     console.log("[process-onboarding-emails] Iniciando processamento...");

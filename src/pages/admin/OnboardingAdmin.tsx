@@ -124,6 +124,24 @@ export const OnboardingAdmin = () => {
     },
   });
 
+  const processNowMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("process-onboarding-emails", {
+        body: {}
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["admin_logs"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_instances"] });
+      toast.success(`${data.processedCount || 0} e-mails processados na fila.`);
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao disparar processamento: " + err.message);
+    }
+  });
+
   const { data: logs, isLoading: isLoadingLogs } = useQuery({
     queryKey: ["admin_logs"],
     queryFn: async () => {
@@ -285,6 +303,17 @@ export const OnboardingAdmin = () => {
             />
           )}
           {isSystemActive ? <Power className="h-5 w-5 text-green-600" /> : <PowerOff className="h-5 w-5 text-red-400" />}
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="ml-2 gap-2"
+            disabled={!isSystemActive || processNowMutation.isPending}
+            onClick={() => processNowMutation.mutate()}
+          >
+            {processNowMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+            Processar Agora
+          </Button>
         </div>
       </div>
 

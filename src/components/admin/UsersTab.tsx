@@ -50,7 +50,8 @@ import {
   Clock,
   Search,
   MessageSquare,
-  Send
+  Send,
+  User
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, addDays, isAfter, subDays, parseISO, isValid } from "date-fns";

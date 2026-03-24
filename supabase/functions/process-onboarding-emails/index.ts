@@ -77,7 +77,7 @@ serve(async (req) => {
         .select(`
           id, flow_id, step_order, template_id, wait_after_previous_hours,
           send_type, condition_type, condition_config, is_active,
-          email_templates (id, name, slug, subject, html_content, text_content)
+          email_templates (id, name, slug, subject, html_content, text_content, cta_label, cta_url)
         `)
         .eq("flow_id", instance.flow_id)
         .eq("step_order", instance.current_step_order)
@@ -142,24 +142,19 @@ serve(async (req) => {
             email_confirm_url: `${SITE_URL}/email-confirmed`,
           };
 
-          // Determine CTA URL based on template or step (simplified logic for Phase 2)
-          let ctaUrl = vars.dashboard_url;
-          const templateSlug = step.email_templates.slug;
-          if (templateSlug.includes("complete-profile") || templateSlug.includes("profile-mistakes")) ctaUrl = vars.profile_url;
-          if (templateSlug.includes("verify-email")) ctaUrl = vars.email_confirm_url;
-          if (templateSlug.includes("validate-profile")) ctaUrl = vars.profile_url;
-          if (templateSlug.includes("increase-visibility")) ctaUrl = vars.profile_url;
-          if (templateSlug.includes("courses")) ctaUrl = vars.courses_url;
-          if (templateSlug.includes("platform-opportunities")) ctaUrl = vars.search_url;
-          
-          vars.cta_url = ctaUrl;
-
           const rawHtml = step.email_templates.html_content || "";
           const rawText = step.email_templates.text_content || "";
           const rawSubject = step.email_templates.subject || "HomeCare Match";
+          const rawCtaLabel = step.email_templates.cta_label || "";
+          let rawCtaUrl = step.email_templates.cta_url || "";
+
+          // Se a URL do CTA for um path relativo, prefixar com SITE_URL
+          if (rawCtaUrl && rawCtaUrl.startsWith("/")) {
+            rawCtaUrl = `${SITE_URL}${rawCtaUrl}`;
+          }
 
           const processedContent = replacePlaceholders(rawHtml, vars);
-          const finalHtml = wrapLayout(processedContent, SITE_URL).replace("{{cta_url}}", ctaUrl);
+          const finalHtml = wrapLayout(processedContent, SITE_URL, rawCtaLabel, rawCtaUrl);
           const finalSubject = replacePlaceholders(rawSubject, vars);
           const finalText = replacePlaceholders(rawText, vars);
 

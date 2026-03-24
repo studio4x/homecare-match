@@ -47,24 +47,19 @@ serve(async (req) => {
       email_confirm_url: `${SITE_URL}/email-confirmed`,
     };
 
-    // Determine CTA URL
-    let ctaUrl = vars.dashboard_url;
-    const templateSlug = template.slug || "";
-    if (templateSlug.includes("complete-profile") || templateSlug.includes("profile-mistakes")) ctaUrl = vars.profile_url;
-    if (templateSlug.includes("verify-email")) ctaUrl = vars.email_confirm_url;
-    if (templateSlug.includes("validate-profile")) ctaUrl = vars.profile_url;
-    if (templateSlug.includes("increase-visibility")) ctaUrl = vars.profile_url;
-    if (templateSlug.includes("courses")) ctaUrl = vars.courses_url;
-    if (templateSlug.includes("platform-opportunities")) ctaUrl = vars.search_url;
-    
-    vars.cta_url = ctaUrl;
-
     const rawHtml = template.html_content || "";
     const rawText = template.text_content || "";
     const rawSubject = template.subject || "Teste de Template";
+    const rawCtaLabel = template.cta_label || "";
+    let rawCtaUrl = template.cta_url || "";
+
+    // Se a URL do CTA for um path relativo, prefixar com SITE_URL
+    if (rawCtaUrl && rawCtaUrl.startsWith("/")) {
+      rawCtaUrl = `${SITE_URL}${rawCtaUrl}`;
+    }
 
     const processedContent = replacePlaceholders(rawHtml, vars);
-    const finalHtml = wrapLayout(processedContent, SITE_URL).replace("{{cta_url}}", ctaUrl);
+    const finalHtml = wrapLayout(processedContent, SITE_URL, rawCtaLabel, rawCtaUrl);
     const finalSubject = `[TESTE] ${replacePlaceholders(rawSubject, vars)}`;
     const finalText = replacePlaceholders(rawText, vars);
 

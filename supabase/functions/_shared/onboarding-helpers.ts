@@ -6,26 +6,18 @@ export function replacePlaceholders(content: string, vars: Record<string, string
   let result = content;
   for (const [key, value] of Object.entries(vars)) {
     const placeholder = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    // For first_name, we might want to ensure it has a space before it if it's not empty and following 'Olá'
+    // But the user wants it simple. Let's stick to simple replacement.
     result = result.replace(placeholder, value || "");
   }
-  // Handle conditional name: {{first_name ? ' ' + first_name : ''}}
-  result = result.replace(/\{\{first_name \? ' ' \+ first_name : ''\}\}/g, vars.first_name ? ' ' + vars.first_name : '');
-  
   return result;
 }
 
-export function wrapLayout(content: string, siteUrl: string): string {
+export function wrapLayout(content: string, siteUrl: string, ctaLabel?: string, ctaUrl?: string): string {
   // Check if content already looks like full HTML
   if (content.includes("<!DOCTYPE html>") || content.includes("<html")) return content;
 
-  // Simple CTA extraction logic if template ends with "CTA:\n[Text]"
-  let ctaText = "";
   let bodyContent = content;
-  const ctaMatch = content.match(/CTA:\s*\n?([^\n]+)$/i);
-  if (ctaMatch) {
-    ctaText = ctaMatch[1].trim();
-    bodyContent = content.replace(/CTA:\s*\n?([^\n]+)$/i, "").trim();
-  }
 
   // Convert double newlines to paragraphs if not HTML
   if (!bodyContent.includes("<p>") && !bodyContent.includes("<div")) {
@@ -60,9 +52,9 @@ export function wrapLayout(content: string, siteUrl: string): string {
     </div>
     <div class="content">
       ${bodyContent}
-      ${ctaText ? `
+      ${ctaLabel && ctaUrl ? `
       <div class="button-container">
-        <a href="{{cta_url}}" class="button">${ctaText}</a>
+        <a href="${ctaUrl}" class="button">${ctaLabel}</a>
       </div>` : ''}
     </div>
     <div class="footer">

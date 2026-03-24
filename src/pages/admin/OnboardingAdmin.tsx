@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import RichTextEditor from "@/components/ui/RichTextEditor";
-import { Edit2, Search, UserPlus, Mail, Loader2, Power, PowerOff } from "lucide-react";
+import { Edit2, Search, UserPlus, Mail } from "lucide-react";
 
 export const OnboardingAdmin = () => {
   const queryClient = useQueryClient();
@@ -27,7 +27,9 @@ export const OnboardingAdmin = () => {
     subject: "",
     preview_text: "",
     html_content: "",
-    text_content: ""
+    text_content: "",
+    cta_label: "",
+    cta_url: ""
   });
   const [searchTerm, setSearchTerm] = React.useState("");
   const [isAddingUser, setIsAddingUser] = React.useState(false);
@@ -191,7 +193,9 @@ export const OnboardingAdmin = () => {
       subject: template.subject || "",
       preview_text: template.preview_text || "",
       html_content: template.html_content || "",
-      text_content: template.text_content || ""
+      text_content: template.text_content || "",
+      cta_label: template.cta_label || "",
+      cta_url: template.cta_url || ""
     });
     setIsEditDialogOpen(true);
   };
@@ -672,6 +676,29 @@ export const OnboardingAdmin = () => {
                 rows={5}
                 className="font-mono text-sm"
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4 mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="cta_label">Rótulo do Botão (CTA)</Label>
+                <Input 
+                  id="cta_label" 
+                  value={editForm.cta_label} 
+                  onChange={(e) => setEditForm({ ...editForm, cta_label: e.target.value })}
+                  placeholder="Ex: Acessar minha conta"
+                />
+                <p className="text-[10px] text-muted-foreground">Texto que aparecerá no botão.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cta_url">Link/Caminho do CTA</Label>
+                <Input 
+                  id="cta_url" 
+                  value={editForm.cta_url} 
+                  onChange={(e) => setEditForm({ ...editForm, cta_url: e.target.value })}
+                  placeholder="Ex: /dashboard ou https://..."
+                />
+                <p className="text-[10px] text-muted-foreground">URL ou caminho interno para o botão.</p>
+              </div>
             </div>
           </div>
 

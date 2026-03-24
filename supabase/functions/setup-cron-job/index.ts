@@ -131,6 +131,21 @@ serve(async (req) => {
         $$
       );
 
+      SELECT cron.unschedule('processar-onboarding-emails')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'processar-onboarding-emails');
+
+      SELECT cron.schedule(
+        'processar-onboarding-emails',
+        '*/15 * * * *',
+        $$
+        SELECT net.http_post(
+          url := '${escapedSupabaseUrl}/functions/v1/process-onboarding-emails',
+          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedServiceRole}"}'::jsonb,
+          body := '{}'::jsonb
+        );
+        $$
+      );
+
       SELECT cron.schedule(
         'reconciliar-afiliados',
         '15 2 * * *',

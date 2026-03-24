@@ -18,7 +18,7 @@ $$;
 
 SELECT cron.schedule(
   'processar-emails-onboarding',
-  '*/15 * * * *',
+  '*/5 * * * *',
   $$
   SELECT net.http_post(
     url := (SELECT current_setting('app.settings.supabase_url', true)) || '/functions/v1/process-onboarding-emails',

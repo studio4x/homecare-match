@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,6 +47,8 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
   const [rejectionReason, setRejectionReason] = useState("");
   const [isProcessingVerification, setIsProcessingVerification] = useState(false);
   const [isGeneratingUrl, setIsGeneratingUrl] = useState<string | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfileForView, setSelectedProfileForView] = useState<any>(null);
 
   const handleViewDocument = async (pathOrUrl: string, type: string) => {
     if (!pathOrUrl) return;
@@ -228,7 +230,8 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
                       {documents.length === 0 && <span className="text-xs text-muted-foreground">Nenhum documento</span>}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right whitespace-nowrap">
+                    <Button variant="ghost" size="sm" onClick={() => { setSelectedProfileForView(p); setProfileModalOpen(true); }}><User className="h-4 w-4 mr-1" />Ver Perfil</Button>
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
                     <Button variant="ghost" size="sm" className="text-success" onClick={() => { setSelectedProfile(p); setApproveModalOpen(true); }}><ThumbsUp className="h-4 w-4 mr-1" />Aprovar</Button>
                   </TableCell>
@@ -273,6 +276,139 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
               Confirmar Aprovação
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={profileModalOpen} onOpenChange={setProfileModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Dados Completos do Perfil</DialogTitle>
+            <DialogDescription>
+              Visualize abaixo todas as informações fornecidas pelo profissional para análise.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedProfileForView && (
+            <div className="mt-6 space-y-8 pb-4">
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Informações Pessoais</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Nome Completo</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.full_name || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">E-mail</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.email || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">WhatsApp</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.phone || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">CPF / CNPJ</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.cpf || selectedProfileForView.cnpj || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Data de Nascimento</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.birth_date ? new Date(selectedProfileForView.birth_date).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Especialidade</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center capitalize">
+                      {selectedProfileForView.specialty?.replace("-", " ") || "-"}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Localização</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">CEP</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.address_zip || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Cidade / UF</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.city} - {selectedProfileForView.state}
+                    </p>
+                  </div>
+                  <div className="md:col-span-2 space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Logradouro</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.address_street}, {selectedProfileForView.address_number} 
+                      {selectedProfileForView.address_complement ? ` (${selectedProfileForView.address_complement})` : ""} - {selectedProfileForView.neighborhood}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Currículo e Dados Profissionais</h3>
+                <div className="space-y-6">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Formações</span>
+                    <div className="text-sm bg-muted/20 p-4 rounded-md whitespace-pre-wrap border border-dashed border-primary/10">
+                      {selectedProfileForView.experience || "Nenhuma formação informada."}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Experiências Anteriores</span>
+                    <div className="text-sm bg-muted/20 p-4 rounded-md whitespace-pre-wrap border border-dashed border-primary/10">
+                      {selectedProfileForView.professional_experiences || "Nenhuma experiência profissional informada."}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Biografia / Sobre</span>
+                    <div className="text-sm bg-muted/20 p-4 rounded-md whitespace-pre-wrap border border-dashed border-primary/10 italic">
+                      {selectedProfileForView.bio || "Nenhuma biografia disponível."}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Preferências de Atendimento</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Valor/Hora</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center font-semibold">
+                      {selectedProfileForView.hourly_rate ? `R$ ${selectedProfileForView.hourly_rate}` : "Não informado"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Disponibilidade</span>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {selectedProfileForView.availability?.map((item: string) => (
+                        <Badge key={item} variant="outline" className="text-[10px] border-primary/30 text-primary">{item}</Badge>
+                      )) || <span className="text-xs text-muted-foreground italic">Não informado</span>}
+                    </div>
+                  </div>
+                  <div className="md:col-span-2 space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Públicos Atendidos</span>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {selectedProfileForView.patient_profiles?.map((item: string) => (
+                        <Badge key={item} variant="outline" className="text-[10px] border-secondary/30 text-secondary-foreground bg-secondary/10">{item}</Badge>
+                      )) || <span className="text-xs text-muted-foreground italic">Não informado</span>}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

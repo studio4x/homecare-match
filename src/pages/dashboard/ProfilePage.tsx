@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -370,6 +370,7 @@ const ProfilePage = () => {
           patient_communication_skills: data.patient_communication_skills || [],
           patient_document_url: data.patient_document_url || "",
           patient_address_proof_url: data.patient_address_proof_url || "",
+          birth_date: data.birth_date || "",
         });
         setUploadedDocNames({
           id_doc: extractFileNameFromStorageValue(data.id_document_url),
@@ -753,6 +754,7 @@ const ProfilePage = () => {
         patient_communication_skills: profile.patient_communication_skills,
         whatsapp_opt_in: whatsappOptIn,
         whatsapp_opt_in_at: whatsappOptInAt,
+        birth_date: profile.birth_date,
       };
 
       let { error } = await supabase.from("profiles").update(updatePayload).eq("id", user.id);
@@ -1148,7 +1150,7 @@ const ProfilePage = () => {
               </div>
 
               {isProfessional ? (
-                <div className="grid gap-4 md:grid-cols-3">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2">
                     <Label>Especialidade *</Label>
                     <Select value={profile.specialty} onValueChange={v => setProfile({...profile, specialty: v})}>
@@ -1158,6 +1160,7 @@ const ProfilePage = () => {
                   </div>
                   <div className="grid gap-2"><Label>Registro Profissional</Label><Input value={profile.registration || ""} onChange={e => setProfile({...profile, registration: e.target.value})} /></div>
                   <div className="grid gap-2"><Label>CPF *</Label><Input value={profile.cpf || ""} onChange={e => setProfile({...profile, cpf: e.target.value})} placeholder="000.000.000-00" /></div>
+                  <div className="grid gap-2"><Label>Data de Nascimento</Label><Input type="date" value={profile.birth_date || ""} onChange={e => setProfile({...profile, birth_date: e.target.value})} /></div>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">

@@ -60,7 +60,7 @@ export const OnboardingAdmin = () => {
           setting_key: "is_system_active",
           setting_value: { enabled: newValue },
           updated_at: new Date().toISOString()
-        });
+        }, { onConflict: 'setting_key' });
       if (error) throw error;
     },
     onSuccess: () => {

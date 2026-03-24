@@ -68,6 +68,7 @@ import {
 } from "@/components/ui/collapsible";
 import ChangePasswordDialog from "@/components/ChangePasswordDialog";
 import OnboardingModal from "@/components/OnboardingModal";
+import ImageCropper from "@/components/profile/ImageCropper";
 import { getCoordinates } from "@/lib/geo-utils";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import {
@@ -91,6 +92,8 @@ const ProfilePage = () => {
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
   const [isUploading, setIsUploading] = useState<string | null>(null);
   const [isLoadingCep, setIsLoadingCep] = useState(false);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [tempFileExt, setTempFileExt] = useState<string>("jpg");
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [citiesByState, setCitiesByState] = useState<string[]>([]);
   const [loadingCitiesByState, setLoadingCitiesByState] = useState(false);
@@ -462,6 +465,17 @@ const ProfilePage = () => {
     
     const safeOriginalName = sanitizeFileName(file.name);
     const fileExt = (safeOriginalName.split('.').pop() || "bin").toLowerCase();
+    if (type === 'avatar') {
+      setTempFileExt(fileExt);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageToCrop(reader.result as string);
+        setIsUploading(null);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
     const bucket = type === 'avatar' ? 'avatars' : 'documents';
     const filePath = sanitizeStoragePath(
       type === "avatar"
@@ -514,6 +528,31 @@ const ProfilePage = () => {
     } finally {
       setIsUploading(null);
       input.value = "";
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    if (!user) return;
+    setIsUploading('avatar');
+    setImageToCrop(null);
+
+    const filePath = sanitizeStoragePath(`${user.id}/${crypto.randomUUID()}.${tempFileExt}`, { bucket: 'avatars' });
+    
+    try {
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, croppedBlob);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const { error: updateError } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", user.id);
+      
+      if (updateError) throw updateError;
+      setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+      toast.success("Foto de perfil atualizada!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao salvar foto recortada.");
+    } finally {
+      setIsUploading(null);
     }
   };
 
@@ -1545,6 +1584,13 @@ const ProfilePage = () => {
       </Dialog>
 
       <OnboardingModal open={isOnboardingOpen} onOpenChange={setIsOnboardingOpen} forceShow={true} role={profile?.role} />
+      {imageToCrop && (
+        <ImageCropper 
+          image={imageToCrop} 
+          onCropComplete={handleCropComplete} 
+          onCancel={() => setImageToCrop(null)} 
+        />
+      )}
     </div>
   );
 };

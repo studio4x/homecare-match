@@ -59,6 +59,9 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { getSupabaseAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
 import { sanitizeStoragePath } from "@/lib/storage-path";
+import ImageCropper from "@/components/profile/ImageCropper";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Camera } from "lucide-react";
 
 interface UsersTabProps {
   allUsers: any[];
@@ -91,6 +94,9 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedProfileForView, setSelectedProfileForView] = useState<any>(null);
   const [isGeneratingUrl, setIsGeneratingUrl] = useState<string | null>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = React.useRef<HTMLInputElement>(null);
 
   const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
 
@@ -485,6 +491,44 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       { label: "RG/CNH", path: profile.id_document_url, key: `id-${profile.id}` },
       { label: "Registro Prof.", path: profile.prof_registration_url, key: `prof-${profile.id}` },
     ].filter((doc) => !!doc.path);
+  };
+
+  const handleAdminAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedProfileForView) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageToCrop(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAdminCropComplete = async (croppedBlob: Blob) => {
+    if (!selectedProfileForView) return;
+    setIsUploadingAvatar(true);
+    setImageToCrop(null);
+
+    const filePath = sanitizeStoragePath(`${selectedProfileForView.id}/${crypto.randomUUID()}.jpg`, { bucket: 'avatars' });
+    
+    try {
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, croppedBlob);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const { error: updateError } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", selectedProfileForView.id);
+      
+      if (updateError) throw updateError;
+      
+      setSelectedProfileForView((prev: any) => ({ ...prev, avatar_url: publicUrl }));
+      toast.success("Foto de perfil do usuário atualizada!");
+      refetchData();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao salvar foto recortada.");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   const getDaysRemaining = (u: any) => {
@@ -996,6 +1040,43 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
           
           {selectedProfileForView && (
             <div className="mt-6 space-y-8 pb-4">
+              {/* Header com Foto de Perfil */}
+              <div className="flex flex-col items-center gap-4 pb-6 border-b">
+                <div className="relative group">
+                  <Avatar className="h-32 w-32 ring-4 ring-primary/10 transition-transform hover:scale-105 duration-300">
+                    <AvatarImage src={selectedProfileForView.avatar_url} />
+                    <AvatarFallback className="text-3xl font-bold bg-primary/5 text-primary">
+                      {selectedProfileForView.full_name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button 
+                    size="icon" 
+                    variant="secondary" 
+                    className="absolute -bottom-1 -right-1 rounded-full shadow-lg border-2 border-background opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={isUploadingAvatar}
+                  >
+                    {isUploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                  </Button>
+                  <input 
+                    type="file" 
+                    ref={avatarInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleAdminAvatarUpload} 
+                  />
+                  <div className="absolute -top-2 -right-2">
+                     <Badge variant={selectedProfileForView.is_verified ? "success" : "secondary"} className="h-6">
+                      {selectedProfileForView.is_verified ? "Verificado" : "Pendente"}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedProfileForView.full_name}</h2>
+                  <p className="text-sm text-muted-foreground">{selectedProfileForView.email}</p>
+                </div>
+              </div>
+
               {/* Documentos de Verificação */}
               <section className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Documentos de Verificação</h3>
@@ -1134,6 +1215,14 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
           )}
         </DialogContent>
       </Dialog>
+
+      {imageToCrop && (
+        <ImageCropper 
+          image={imageToCrop} 
+          onCropComplete={handleAdminCropComplete} 
+          onCancel={() => setImageToCrop(null)} 
+        />
+      )}
     </>
   );
 };

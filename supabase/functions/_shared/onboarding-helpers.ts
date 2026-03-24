@@ -30,16 +30,18 @@ export function wrapLayout(content: string, siteUrl: string, ctaLabel?: string, 
 
   // Post-process HTML content to ensure Outlook compatibility for common tags
   // 1. Ensure links have the theme color and look professional
-  bodyContent = bodyContent.replace(/<a /g, '<a style="color: #2563eb; text-decoration: underline;" ');
+  // We use a regex that handles both <a> and <a href="..."> but avoids doubling up if a style already exists
+  bodyContent = bodyContent.replace(/<a\s+(?![^>]*style=)/gi, '<a style="color: #2563eb; text-decoration: underline;" ');
   
   // 2. Fix paragraphs (Outlook ignores margins frequently, using padding/div is safer or forcing margin:0)
-  bodyContent = bodyContent.replace(/<p>/g, '<p style="margin: 0 0 16px 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">');
-  bodyContent = bodyContent.replace(/<p /g, '<p style="margin: 0 0 16px 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;" ');
+  const pStyle = 'margin: 0 0 16px 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;';
+  bodyContent = bodyContent.replace(/<p\s*>(?![^>]*style=)/gi, `<p style="${pStyle}">`);
+  bodyContent = bodyContent.replace(/<p\s+(?![^>]*style=)/gi, `<p style="${pStyle}" `);
 
-  // 3. Fix Lists for Outlook (they often lose bullet points or have weird spacing)
-  bodyContent = bodyContent.replace(/<ul>/g, '<ul style="margin: 0 0 16px 20px; padding: 0; list-style-type: disc;">');
-  bodyContent = bodyContent.replace(/<ol>/g, '<ol style="margin: 0 0 16px 20px; padding: 0; list-style-type: decimal;">');
-  bodyContent = bodyContent.replace(/<li>/g, '<li style="margin: 0 0 8px 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">');
+  // 3. Fix Lists for Outlook
+  bodyContent = bodyContent.replace(/<ul\s*>(?![^>]*style=)/gi, '<ul style="margin: 0 0 16px 20px; padding: 0; list-style-type: disc;">');
+  bodyContent = bodyContent.replace(/<ol\s*>(?![^>]*style=)/gi, '<ol style="margin: 0 0 16px 20px; padding: 0; list-style-type: decimal;">');
+  bodyContent = bodyContent.replace(/<li\s*>(?![^>]*style=)/gi, '<li style="margin: 0 0 8px 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">');
 
   return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">

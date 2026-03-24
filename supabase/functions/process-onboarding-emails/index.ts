@@ -148,7 +148,7 @@ serve(async (req) => {
         .select(`
           id, flow_id, step_order, template_id, wait_after_previous_hours,
           send_type, condition_type, condition_config, is_active,
-          email_templates (id, name, subject, html_content, text_content)
+          email_templates (id, name, slug, subject, html_content, text_content)
         `)
         .eq("flow_id", instance.flow_id)
         .eq("step_order", instance.current_step_order)

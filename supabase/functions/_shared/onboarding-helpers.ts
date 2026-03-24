@@ -121,6 +121,5 @@ export function wrapLayout(content: string, siteUrl: string, ctaLabel?: string, 
   </table>
   <![endif]-->
 </body>
-</html>
-;
+</html>`;
 }

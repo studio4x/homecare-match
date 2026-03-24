@@ -42,10 +42,17 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Acesso negado. Apenas administradores podem enviar testes." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { templateId, testEmail } = body;
+    // 2. Identify Recipient (Prefer fixed admin email from env)
+    const adminTestEmail = Deno.env.get("ADMIN_TEST_EMAIL");
+    const recipientEmail = adminTestEmail || body.testEmail;
 
-    if (!templateId || !testEmail) {
-      return new Response(JSON.stringify({ error: "templateId e testEmail são obrigatórios." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!recipientEmail) {
+      return new Response(JSON.stringify({ error: "E-mail de destino não definido (ADMIN_TEST_EMAIL ou testEmail)." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const { templateId } = body;
+    if (!templateId) {
+      return new Response(JSON.stringify({ error: "templateId é obrigatório." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // 1. Fetch Template
@@ -90,7 +97,7 @@ serve(async (req) => {
 
     // 3. Send Email
     const { success, error } = await sendEmail({
-      to: testEmail,
+      to: recipientEmail,
       subject: finalSubject,
       html: finalHtml,
       text: finalText,
@@ -100,7 +107,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: error || "Erro ao enviar e-mail de teste." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    return new Response(JSON.stringify({ ok: true, message: `E-mail de teste enviado para ${testEmail}` }), {
+    return new Response(JSON.stringify({ ok: true, message: `E-mail de teste enviado para ${recipientEmail}` }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

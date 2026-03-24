@@ -38,6 +38,12 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   Loader2,
   Trash2,
@@ -978,18 +984,47 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                               {isImpersonating === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
                             </Button>
                           )}
-                          {u.role === 'professional' && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-blue-600 hover:bg-blue-50" 
-                              onClick={() => handleAddToOnboarding(u.id)}
-                              disabled={isAddingToOnboarding === u.id}
-                              title="Adicionar ao Fluxo de Onboarding"
-                            >
-                              {isAddingToOnboarding === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                            </Button>
-                          )}
+                          {u.role === 'professional' && (() => {
+                            const onboardingFlows = Array.isArray(u.user_onboarding_flows) ? u.user_onboarding_flows : [];
+                            const activeFlow = onboardingFlows.find((f: any) => f.status === 'active');
+                            const completedFlow = onboardingFlows.find((f: any) => f.status === 'completed');
+                            const isInProgress = !!activeFlow;
+                            const isDone = !!completedFlow;
+                            const alreadyInFlow = isInProgress || isDone;
+
+                            return (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        className={cn(
+                                          "h-8 w-8",
+                                          alreadyInFlow ? "text-gray-400 opacity-50 cursor-not-allowed" : "text-blue-600 hover:bg-blue-50"
+                                        )}
+                                        onClick={() => !alreadyInFlow && handleAddToOnboarding(u.id)}
+                                        disabled={isAddingToOnboarding === u.id || alreadyInFlow}
+                                        title=""
+                                      >
+                                        {isAddingToOnboarding === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>
+                                      {isInProgress 
+                                        ? "Usuário já está com fluxo de onboarding em andamento." 
+                                        : isDone 
+                                          ? "Usuário já concluiu o fluxo de onboarding." 
+                                          : "Adicionar ao Fluxo de Onboarding"}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                     </TableRow>

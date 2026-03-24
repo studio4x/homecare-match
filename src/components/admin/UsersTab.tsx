@@ -410,7 +410,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
         .insert({
           user_id: selectedUserForMessage.id,
           subject: messageSubject,
-          description: messageContent,
+          description: `Mensagem enviada administrativamente (${messageSubject}) em ${new Date().toLocaleDateString('pt-BR')}`,
           status: 'in_progress',
           priority: 'high'
         })

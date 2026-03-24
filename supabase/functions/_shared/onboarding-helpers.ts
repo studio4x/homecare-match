@@ -93,11 +93,11 @@ export function wrapLayout(content: string, siteUrl: string, ctaLabel?: string, 
                   <!--[if mso]>
                     <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" href="${ctaUrl}" style="height:54px;v-text-anchor:middle;width:240px;" arcsize="15%" stroke="f" fillcolor="#2563eb">
                       <w:anchorlock/>
-                      <center>
-                        <font face="Arial, Helvetica, sans-serif" size="4" color="#ffffff">
-                          <strong>${ctaLabel}</strong>
-                        </font>
-                      </center>
+                      <v:textbox inset="0,0,0,0">
+                        <center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;line-height:54px;">
+                          ${ctaLabel}
+                        </center>
+                      </v:textbox>
                     </v:roundrect>
                   <![endif]-->
                   <!--[if !mso]><!-->

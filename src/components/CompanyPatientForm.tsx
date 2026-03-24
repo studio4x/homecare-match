@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -88,6 +88,7 @@ const specialtiesOptions = [ // Re-using specialties from other parts of the app
   { value: "medico-clinico", label: "Médico(a) - Clínico Geral / Geriatra" },
   { value: "nutricionista", label: "Nutricionista" },
   { value: "psicologo", label: "Psicólogo(a)" },
+  { value: "psicopedagogo", label: "Psicopedagogo(a)" },
   { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
   { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
 ];

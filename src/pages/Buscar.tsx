@@ -501,6 +501,7 @@ const Buscar = () => {
     { value: "medico-clinico", label: "Médico(a) - Clínico Geral / Geriatra" },
     { value: "nutricionista", label: "Nutricionista" },
     { value: "psicologo", label: "Psicólogo(a)" },
+    { value: "psicopedagogo", label: "Psicopedagogo(a)" },
     { value: "tecnico-enfermagem", label: "Técnico(a) de Enfermagem" },
     { value: "terapeuta-ocupacional", label: "Terapeuta Ocupacional" },
   ];

@@ -96,15 +96,29 @@ serve(async (req) => {
     const finalText = replacePlaceholders(rawText, vars);
 
     // 3. Send Email
-    const { success, error } = await sendEmail({
+    const { success, messageId: providerId, error: sendError } = await sendEmail({
       to: recipientEmail,
       subject: finalSubject,
       html: finalHtml,
       text: finalText,
     });
 
+    // 4. Log the test send in user_onboarding_step_runs to appear in Admin Dashboard
+    try {
+      await supabaseAdmin.from("user_onboarding_step_runs").insert({
+        user_id: user.id, // O admin que disparou o teste
+        template_id: templateId,
+        status: success ? "sent" : "failed",
+        error_message: success ? "[E-mail de Teste]" : `[Erro Teste] ${sendError}`,
+        provider_message_id: providerId || null,
+        processed_at: new Date().toISOString()
+      });
+    } catch (logError) {
+      console.warn("[send-onboarding-email-test] Falha ao gravar log no banco:", logError);
+    }
+
     if (!success) {
-      return new Response(JSON.stringify({ error: error || "Erro ao enviar e-mail de teste." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ error: sendError || "Erro ao enviar e-mail de teste." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     return new Response(JSON.stringify({ ok: true, message: `E-mail de teste enviado para ${recipientEmail}` }), {

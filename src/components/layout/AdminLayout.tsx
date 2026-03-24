@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
@@ -37,7 +37,8 @@ import {
   Bot,
   Link2,
   MousePointerClick,
-  ShieldAlert
+  ShieldAlert,
+  Mail
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import AuthForm from "@/components/auth/AuthForm";
@@ -160,6 +161,7 @@ const AdminLayout = () => {
     { href: "/admin/pwa", label: "PWA Android", icon: Smartphone },
     { href: "/admin/concierge", label: "Solicitações Concierge", icon: Headset },
     { href: "/admin/push", label: "Avisos (Push)", icon: Bell },
+    { href: "/admin/onboarding", label: "Onboarding (E-mails)", icon: Mail },
     { href: "/admin/notificacoes", label: "Entregas Notificacao", icon: Bell },
     { href: "/admin/seguranca", label: "Monitoramento Seguranca", icon: ShieldAlert },
     { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },

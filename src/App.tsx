@@ -85,6 +85,7 @@ import ChatbotConversationsPage from "./pages/admin/ChatbotConversationsPage";
 import NotificationDeliveriesPage from "./pages/admin/NotificationDeliveriesPage";
 import AffiliatesAdminPage from "./pages/admin/AffiliatesPage";
 import SecurityMonitorPage from "./pages/admin/SecurityMonitorPage";
+import OnboardingAdmin from "./pages/admin/OnboardingAdmin";
 
 const queryClient = new QueryClient();
 
@@ -178,6 +179,7 @@ const App = () => (
                 <Route path="pwa" element={<PwaSettingsPage />} />
                 <Route path="blog" element={<BlogAdminPage />} />
                 <Route path="chatbot" element={<ChatbotConversationsPage />} />
+                <Route path="onboarding" element={<OnboardingAdmin />} />
               </Route>
 
               {/* 404 */}

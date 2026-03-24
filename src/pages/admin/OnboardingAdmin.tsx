@@ -169,11 +169,15 @@ export const OnboardingAdmin = () => {
 
   const sendTestMutation = useMutation({
     mutationFn: async (templateId: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) throw new Error("E-mail do administrador não encontrado.");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Sessão não encontrada.");
 
       const { data, error } = await supabase.functions.invoke("send-onboarding-email-test", {
-        body: { templateId, testEmail: user.email }
+        body: { 
+          templateId, 
+          testEmail: session.user.email,
+          access_token: session.access_token 
+        }
       });
       if (error) throw error;
       return data;

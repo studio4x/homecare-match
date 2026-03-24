@@ -15,16 +15,41 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    const { templateId, testEmail } = await req.json();
+    // 1. Manual Auth Validation (Hardened Pattern from AGENTS.md)
+    const authHeader = req.headers.get("Authorization");
+    const body = await req.json().catch(() => ({}));
+    const token = authHeader?.replace("Bearer ", "") || body.access_token;
+
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Token de autenticação ausente." }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Sessão inválida ou expirada." }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // 2. Check Admin Permissions
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role !== "admin") {
+      return new Response(JSON.stringify({ error: "Acesso negado. Apenas administradores podem enviar testes." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const { templateId, testEmail } = body;
 
     if (!templateId || !testEmail) {
       return new Response(JSON.stringify({ error: "templateId e testEmail são obrigatórios." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // 1. Fetch Template
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = await supabaseAdmin
       .from("email_templates")
       .select("*")
       .eq("id", templateId)

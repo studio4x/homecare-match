@@ -104,15 +104,21 @@ export const OnboardingAdmin = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_onboarding_flows")
-        .select(`
-          *,
-          onboarding_email_flows (name),
-          profiles:user_id (full_name, email)
-        `)
+        .select(`*, onboarding_email_flows (name)`)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return data;
+
+      if (!data || data.length === 0) return [];
+
+      const userIds = [...new Set(data.map((r: any) => r.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
+      return data.map((r: any) => ({ ...r, profiles: profileMap[r.user_id] || null }));
     },
   });
 
@@ -121,15 +127,21 @@ export const OnboardingAdmin = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_onboarding_step_runs")
-        .select(`
-          *,
-          email_templates (name),
-          profiles:user_id (full_name, email)
-        `)
+        .select(`*, email_templates (name)`)
         .order("processed_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      return data;
+
+      if (!data || data.length === 0) return [];
+
+      const userIds = [...new Set(data.map((r: any) => r.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      const profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.id, p]));
+      return data.map((r: any) => ({ ...r, profiles: profileMap[r.user_id] || null }));
     },
   });
 

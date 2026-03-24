@@ -13,15 +13,27 @@ const UsersPage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, plansRes] = await Promise.all([
+      const [usersRes, plansRes, onboardingRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("*, user_onboarding_flows(id, status)")
+          .select("*")
           .order('updated_at', { ascending: false }),
         supabase.from("plans").select("*").order('price', { ascending: true }),
+        supabase.from("user_onboarding_flows").select("user_id, status")
       ]);
       
-      setAllUsers(usersRes.data || []);
+      const onboardingMap = (onboardingRes.data || []).reduce((acc: any, curr: any) => {
+        if (!acc[curr.user_id]) acc[curr.user_id] = [];
+        acc[curr.user_id].push(curr);
+        return acc;
+      }, {});
+
+      const usersWithOnboarding = (usersRes.data || []).map(u => ({
+        ...u,
+        user_onboarding_flows: onboardingMap[u.id] || []
+      }));
+
+      setAllUsers(usersWithOnboarding);
       setPlans(plansRes.data || []);
     } finally {
       setLoading(false);

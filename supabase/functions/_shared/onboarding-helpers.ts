@@ -95,7 +95,7 @@ export function wrapLayout(content: string, siteUrl: string, ctaLabel?: string, 
                     <w:anchorlock/>
                     <center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;">
                   <![endif]-->
-                      <a href="${ctaUrl}" target="_blank" style="background-color:#2563eb;border-radius:8px;color:#ffffff;display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;line-height:54px;text-align:center;text-decoration:none;width:260px;-webkit-text-size-adjust:none;mso-hide:all;">
+                      <a href="${ctaUrl}" target="_blank" style="background-color:#2563eb;border-radius:8px;color:#ffffff;display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;line-height:54px;text-align:center;text-decoration:none;width:260px;-webkit-text-size-adjust:none;">
                         ${ctaLabel}
                       </a>
                   <!--[if mso]>

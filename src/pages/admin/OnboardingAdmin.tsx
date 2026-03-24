@@ -278,7 +278,7 @@ export const OnboardingAdmin = () => {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">
-              {isLoadingTemplates ? "..." : templates?.length || 0}
+              {isLoadingTemplates ? "..." : templates?.filter(t => t.is_active).length || 0}
             </div>
           </CardContent>
         </Card>

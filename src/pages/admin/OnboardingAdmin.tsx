@@ -6,9 +6,50 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Loader2, Power, PowerOff } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export const OnboardingAdmin = () => {
+  const queryClient = useQueryClient();
+
   // Queries
+  const { data: globalSettings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["onboarding_settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("onboarding_system_settings")
+        .select("*")
+        .eq("setting_key", "is_system_active")
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const isSystemActive = (globalSettings?.setting_value as any)?.enabled === true;
+
+  const toggleSystemMutation = useMutation({
+    mutationFn: async (newValue: boolean) => {
+      const { error } = await supabase
+        .from("onboarding_system_settings")
+        .upsert({
+          setting_key: "is_system_active",
+          setting_value: { enabled: newValue },
+          updated_at: new Date().toISOString()
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["onboarding_settings"] });
+      toast.success("Status do sistema atualizado com sucesso.");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao atualizar status do sistema: " + err.message);
+    }
+  });
   const { data: flows, isLoading: isLoadingFlows } = useQuery({
     queryKey: ["admin_flows"],
     queryFn: async () => {
@@ -79,6 +120,29 @@ export const OnboardingAdmin = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Automação de E-mails</h1>
           <p className="text-gray-500 mt-1">Gestão de onboarding e comunicações automatizadas (Fase 1).</p>
+        </div>
+
+        <div className={`flex items-center gap-4 border p-4 rounded-lg shadow-sm transition-all duration-300 ${isSystemActive ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'}`}>
+          <div className="flex flex-col items-end mr-2 text-right">
+            <Label htmlFor="master-switch" className={`font-bold text-sm ${isSystemActive ? 'text-green-700' : 'text-red-700'}`}>
+              SISTEMA {isSystemActive ? 'ATIVO' : 'DESATIVADO'}
+            </Label>
+            <span className="text-[10px] text-muted-foreground max-w-[150px] leading-tight">
+              {isSystemActive ? 'Disparos automáticos habilitados.' : 'Todos os envios estão bloqueados globalmente.'}
+            </span>
+          </div>
+          {isLoadingSettings || toggleSystemMutation.isPending ? (
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mr-2" />
+          ) : (
+             <Switch 
+              id="master-switch" 
+              checked={isSystemActive} 
+              disabled={isLoadingSettings || toggleSystemMutation.isPending}
+              onCheckedChange={(val) => toggleSystemMutation.mutate(val)}
+              className={isSystemActive ? "data-[state=checked]:bg-green-600" : "data-[state=unchecked]:bg-red-200"}
+            />
+          )}
+          {isSystemActive ? <Power className="h-5 w-5 text-green-600" /> : <PowerOff className="h-5 w-5 text-red-400" />}
         </div>
       </div>
 

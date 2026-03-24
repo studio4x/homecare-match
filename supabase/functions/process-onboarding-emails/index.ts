@@ -27,6 +27,26 @@ serve(async (req) => {
     console.log("[process-onboarding-emails] Iniciando processamento...");
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // 0. Check Global System Status
+    const { data: globalSettings, error: settingsError } = await supabase
+      .from("onboarding_system_settings")
+      .select("setting_value")
+      .eq("setting_key", "is_system_active")
+      .maybeSingle();
+
+    if (settingsError) {
+       console.warn("[process-onboarding-emails] Alerta: Erro ao buscar configuração global.", settingsError);
+    }
+
+    const isEnabled = (globalSettings?.setting_value as any)?.enabled === true;
+    if (!isEnabled) {
+      console.log("[process-onboarding-emails] Sistema de onboarding DESATIVADO globalmente.");
+      return new Response(JSON.stringify({ message: "O motor de onboarding está desativado globalmente por configuração." }), { 
+        status: 200, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
     // 1. Fetch active instances where next_run_at <= now
     const now = new Date().toISOString();
     const { data: flows, error: flowsError } = await supabase

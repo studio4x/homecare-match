@@ -1,87 +1,341 @@
-import React, from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const OnboardingAdmin = () => {
-  const { data: flows, isLoading } = useQuery({
-    queryKey: ["admin_onboarding_flows"],
+  // Queries
+  const { data: flows, isLoading: isLoadingFlows } = useQuery({
+    queryKey: ["admin_flows"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("onboarding_email_flows")
-        .select("*")
+        .select(`
+          *,
+          onboarding_email_steps (
+            id, template_id, step_order, wait_after_previous_hours, send_type, condition_type, is_active,
+            email_templates (name, subject)
+          )
+        `)
         .order("created_at", { ascending: false });
-      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: templates, isLoading: isLoadingTemplates } = useQuery({
+    queryKey: ["admin_templates"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("email_templates")
+        .select("*")
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: instances, isLoading: isLoadingInstances } = useQuery({
+    queryKey: ["admin_instances"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_onboarding_flows")
+        .select(`
+          *,
+          onboarding_email_flows (name),
+          profiles:user_id (full_name, email)
+        `)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: logs, isLoading: isLoadingLogs } = useQuery({
+    queryKey: ["admin_logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_onboarding_step_runs")
+        .select(`
+          *,
+          email_templates (name),
+          profiles:user_id (full_name, email)
+        `)
+        .order("processed_at", { ascending: false })
+        .limit(100);
       if (error) throw error;
       return data;
     },
   });
 
   return (
-    <div className="space-y-6 animate-fade-in p-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl flex justify-between font-bold text-gray-900 border-b border-gray-200 pb-2">
-          Automação de E-mails
-        </h1>
+    <div className="space-y-6 animate-fade-in p-6 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center border-b border-gray-200 pb-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Automação de E-mails</h1>
+          <p className="text-gray-500 mt-1">Gestão de onboarding e comunicações automatizadas (Fase 1).</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="hover:shadow-lg transition-all duration-300">
-          <CardHeader>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <CardHeader className="pb-2">
             <CardTitle>Fluxos Ativos</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">
-              {isLoading ? "..." : flows?.filter(f => f.is_active).length || 0}
+              {isLoadingFlows ? "..." : flows?.filter(f => f.is_active).length || 0}
             </div>
-            <p className="text-sm text-gray-500 mt-2">Fluxos rodando no momento</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Templates Cadastrados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-primary">
+              {isLoadingTemplates ? "..." : templates?.length || 0}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Instâncias Pendentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-primary">
+              {isLoadingInstances ? "..." : instances?.filter(i => i.status === "active").length || 0}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Fluxos Cadastrados</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Público</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {flows?.map((flow) => (
-                <TableRow key={flow.id}>
-                  <TableCell className="font-medium">{flow.name}</TableCell>
-                  <TableCell className="capitalize">{flow.audience_type}</TableCell>
-                  <TableCell>
-                    <Badge variant={flow.is_active ? "default" : "secondary"}>
-                      {flow.is_active ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {/* Placeholder para as ações de CRUD que serão detalhadas */}
-                    <button className="text-sm text-primary hover:underline">Ver Detalhes</button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {!isLoading && flows?.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-gray-500">
-                    Nenhum fluxo encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="flows" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 max-w-3xl">
+          <TabsTrigger value="flows">Fluxos e Passos</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="instances">Usuários no Fluxo</TabsTrigger>
+          <TabsTrigger value="logs">Logs de Envio</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="flows" className="mt-6 space-y-6">
+          {isLoadingFlows ? (
+            <p>Carregando fluxos...</p>
+          ) : flows?.map((flow) => (
+            <Card key={flow.id} className="overflow-hidden">
+              <CardHeader className="bg-gray-50 border-b">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle className="text-xl">{flow.name}</CardTitle>
+                    <CardDescription>Público alvo: {flow.audience_type}</CardDescription>
+                  </div>
+                  <Badge variant={flow.is_active ? "default" : "secondary"}>
+                    {flow.is_active ? "Ativo" : "Inativo"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16 text-center">Ordem</TableHead>
+                      <TableHead>Template</TableHead>
+                      <TableHead>Espera (h)</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Condição</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {flow.onboarding_email_steps
+                      ?.sort((a: any, b: any) => a.step_order - b.step_order)
+                      .map((step: any) => (
+                      <TableRow key={step.id}>
+                        <TableCell className="text-center font-bold bg-muted/20">
+                          {step.step_order}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{step.email_templates?.name || "Template Desconhecido"}</div>
+                          <div className="text-xs text-muted-foreground truncate max-w-xs">{step.email_templates?.subject}</div>
+                        </TableCell>
+                        <TableCell>{step.wait_after_previous_hours}h</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{step.send_type}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {step.condition_type ? (
+                            <span className="text-sm font-mono text-muted-foreground">{step.condition_type}</span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {!flow.onboarding_email_steps?.length && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-4">Nenhum passo cadastrado neste fluxo.</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="templates" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Templates de E-mail</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[600px] rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Assunto</TableHead>
+                      <TableHead>Slug</TableHead>
+                      <TableHead>Público</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingTemplates ? (
+                      <TableRow><TableCell colSpan={5}>Carregando...</TableCell></TableRow>
+                    ) : templates?.map((tpl) => (
+                      <TableRow key={tpl.id}>
+                        <TableCell className="font-medium">{tpl.name}</TableCell>
+                        <TableCell className="truncate max-w-xs">{tpl.subject}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{tpl.slug}</TableCell>
+                        <TableCell>{tpl.audience_type}</TableCell>
+                        <TableCell>
+                          <Badge variant={tpl.is_active ? "default" : "secondary"}>
+                            {tpl.is_active ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="instances" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuários no Fluxo</CardTitle>
+              <CardDescription>Mostrando os últimos 50 registros de instâncias iniciadas.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[600px] rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Fluxo</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Passo Atual</TableHead>
+                      <TableHead>Próxima Execução</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingInstances ? (
+                      <TableRow><TableCell colSpan={5}>Carregando...</TableCell></TableRow>
+                    ) : instances?.map((inst) => (
+                      <TableRow key={inst.id}>
+                        <TableCell>
+                           {/* @ts-ignore */}
+                          <div className="font-medium">{inst.profiles?.full_name || 'Usuário Sem Nome'}</div>
+                           {/* @ts-ignore */}
+                          <div className="text-sm text-muted-foreground">{inst.profiles?.email}</div>
+                        </TableCell>
+                        <TableCell>
+                           {/* @ts-ignore */}
+                          {inst.onboarding_email_flows?.name}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={inst.status === 'completed' ? 'secondary' : inst.status === 'active' ? 'default' : 'destructive'}>
+                            {inst.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">{inst.current_step_order}</TableCell>
+                        <TableCell>
+                          {inst.next_run_at ? new Date(inst.next_run_at).toLocaleString('pt-BR') : '-'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="logs" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico de Processamento (Logs)</CardTitle>
+              <CardDescription>Mostrando os 100 processamentos mais recentes.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[600px] rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data/Hora</TableHead>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Template / Passo</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Erro / Referência</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingLogs ? (
+                      <TableRow><TableCell colSpan={5}>Carregando...</TableCell></TableRow>
+                    ) : logs?.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {log.processed_at ? new Date(log.processed_at).toLocaleString('pt-BR') : '-'}
+                        </TableCell>
+                        <TableCell>
+                           {/* @ts-ignore */}
+                          <div className="font-medium">{log.profiles?.full_name}</div>
+                           {/* @ts-ignore */}
+                          <div className="text-xs text-muted-foreground">{log.profiles?.email}</div>
+                        </TableCell>
+                        <TableCell>
+                          {/* @ts-ignore */}
+                          <div>Passo {log.step_order}: {log.email_templates?.name}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            log.status === 'sent' ? 'default' :
+                            log.status === 'skipped' ? 'outline' : 'destructive'
+                          }>
+                            {log.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm text-muted-foreground truncate max-w-xs" title={log.error_message || log.provider_message_id}>
+                            {log.error_message || log.provider_message_id || '-'}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

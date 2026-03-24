@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import RichTextEditor from "@/components/ui/RichTextEditor";
-import { Edit2, Search, UserPlus } from "lucide-react";
+import { Edit2, Search, UserPlus, Mail, Loader2, Power, PowerOff } from "lucide-react";
 
 export const OnboardingAdmin = () => {
   const queryClient = useQueryClient();
@@ -162,6 +162,25 @@ export const OnboardingAdmin = () => {
     },
     onError: (err: any) => {
       toast.error("Erro ao atualizar template: " + err.message);
+    }
+  });
+
+  const sendTestMutation = useMutation({
+    mutationFn: async (templateId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("E-mail do administrador não encontrado.");
+
+      const { data, error } = await supabase.functions.invoke("send-onboarding-email-test", {
+        body: { templateId, testEmail: user.email }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "E-mail de teste enviado!");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao enviar teste: " + (err.message || "Erro desconhecido"));
     }
   });
 
@@ -398,7 +417,21 @@ export const OnboardingAdmin = () => {
                             {tpl.is_active ? "Ativo" : "Inativo"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right flex justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => sendTestMutation.mutate(tpl.id)}
+                            disabled={sendTestMutation.isPending && sendTestMutation.variables === tpl.id}
+                            title="Enviar E-mail de Teste"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            {sendTestMutation.isPending && sendTestMutation.variables === tpl.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Mail className="h-4 w-4" />
+                            )}
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="icon"

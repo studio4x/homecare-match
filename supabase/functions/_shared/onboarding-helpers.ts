@@ -24,46 +24,103 @@ export function wrapLayout(content: string, siteUrl: string, ctaLabel?: string, 
     bodyContent = bodyContent.split(/\n\s*\n/).map(p => {
         const trimmed = p.trim();
         if (!trimmed) return "";
-        return `<p style="margin-bottom: 16px;">${trimmed.replace(/\n/g, '<br>')}</p>`;
+        return `<div style="padding-bottom: 16px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">${trimmed.replace(/\n/g, '<br>')}</div>`;
     }).filter(p => p !== "").join("");
   }
 
-  return `
-<!DOCTYPE html>
-<html>
+  // Post-process HTML content to ensure Outlook compatibility for common tags
+  // 1. Ensure links have the theme color and look professional
+  bodyContent = bodyContent.replace(/<a /g, '<a style="color: #2563eb; text-decoration: underline;" ');
+  
+  // 2. Fix paragraphs (Outlook ignores margins frequently, using padding/div is safer or forcing margin:0)
+  bodyContent = bodyContent.replace(/<p>/g, '<p style="margin: 0 0 16px 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">');
+  bodyContent = bodyContent.replace(/<p /g, '<p style="margin: 0 0 16px 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;" ');
+
+  // 3. Fix Lists for Outlook (they often lose bullet points or have weird spacing)
+  bodyContent = bodyContent.replace(/<ul>/g, '<ul style="margin: 0 0 16px 20px; padding: 0; list-style-type: disc;">');
+  bodyContent = bodyContent.replace(/<ol>/g, '<ol style="margin: 0 0 16px 20px; padding: 0; list-style-type: decimal;">');
+  bodyContent = bodyContent.replace(/<li>/g, '<li style="margin: 0 0 8px 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">');
+
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #374151; margin: 0; padding: 0; background-color: #f3f4f6; }
-    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-    .header { background-color: #2563eb; padding: 40px 20px; text-align: center; }
-    .header h1 { color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.025em; }
-    .content { padding: 40px; font-size: 16px; }
-    .footer { background-color: #f9fafb; padding: 32px 20px; text-align: center; font-size: 14px; color: #6b7280; border-top: 1px solid #e5e7eb; }
-    .button-container { text-align: center; margin-top: 32px; padding-top: 24px; border-top: 1px solid #f3f4f6; }
-    .button { display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; transition: background-color 0.2s; }
-    a { color: #2563eb; text-decoration: underline; }
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!--[if mso]>
+  <xml>
+    <o:OfficeDocumentSettings>
+      <o:PixelsPerInch>96</o:PixelsPerInch>
+    </o:OfficeDocumentSettings>
+  </xml>
+  <![endif]-->
+  <style type="text/css">
+    body, table, td, a { -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+    table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { -ms-interpolation-mode: bicubic; }
+    table { border-collapse: collapse !important; }
+    body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+    a[x-apple-data-detectors] { color: inherit !important; text-decoration: none !important; font-size: inherit !important; font-family: inherit !important; font-weight: inherit !important; line-height: inherit !important; }
+    div[style*="margin: 16px 0;"] { margin: 0 !important; }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>HomeCare Match</h1>
-    </div>
-    <div class="content">
-      ${bodyContent}
-      ${ctaLabel && ctaUrl ? `
-      <div class="button-container">
-        <a href="${ctaUrl}" class="button">${ctaLabel}</a>
-      </div>` : ''}
-    </div>
-    <div class="footer">
-      <strong>Equipe HomeCare Match</strong><br>
-      A plataforma que conecta quem cuida com quem precisa.<br><br>
-      <a href="${siteUrl}" style="color: #6b7280;">${siteUrl.replace('https://', '')}</a>
-    </div>
-  </div>
+<body style="margin: 0 !important; padding: 0 !important; background-color: #f3f4f6;">
+  <!--[if (gte mso 9)|(IE)]>
+  <table align="center" border="0" cellpadding="0" cellspacing="0" width="600">
+    <tr>
+      <td align="center" valign="top" width="600">
+  <![endif]-->
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="table-layout: fixed;">
+    <tr>
+      <td align="center" style="background-color: #f3f4f6; padding: 40px 10px;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; border-collapse: separate;">
+          <!-- HEADER -->
+          <tr>
+            <td align="center" valign="top" style="background-color: #2563eb; padding: 40px 20px;">
+              <h1 style="color: #ffffff; margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 28px; font-weight: 800; letter-spacing: -0.025em;">HomeCare Match</h1>
+            </td>
+          </tr>
+          <!-- CONTENT -->
+          <tr>
+            <td align="left" style="padding: 40px; background-color: #ffffff;">
+              <div style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #374151;">
+                ${bodyContent}
+                
+                ${ctaLabel && ctaUrl ? `
+                <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #f3f4f6; text-align: center;">
+                  <!-- BULLETPROOF BUTTON -->
+                  <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; border-collapse: separate;">
+                    <tr>
+                      <td align="center" bgcolor="#2563eb" style="border-radius: 8px;">
+                        <a href="${ctaUrl}" target="_blank" style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; padding: 14px 32px; display: inline-block; border-radius: 8px;">
+                          ${ctaLabel}
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </div>` : ''}
+              </div>
+            </td>
+          </tr>
+          <!-- FOOTER -->
+          <tr>
+            <td align="center" style="background-color: #f9fafb; padding: 32px 20px; border-top: 1px solid #e5e7eb;">
+              <div style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #6b7280; line-height: 1.5;">
+                <strong style="color: #374151;">Equipe HomeCare Match</strong><br>
+                A plataforma que conecta quem cuida com quem precisa.<br><br>
+                <a href="${siteUrl}" style="color: #6b7280; text-decoration: underline;">${siteUrl.replace('https://', '')}</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+  <!--[if (gte mso 9)|(IE)]>
+      </td>
+    </tr>
+  </table>
+  <![endif]-->
 </body>
 </html>
-`;
+;
 }

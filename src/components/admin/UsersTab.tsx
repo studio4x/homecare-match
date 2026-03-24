@@ -51,7 +51,8 @@ import {
   Search,
   MessageSquare,
   Send,
-  User
+  User,
+  Mail
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, addDays, isAfter, subDays, parseISO, isValid } from "date-fns";
@@ -81,6 +82,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [isUpdatingHidden, setIsUpdatingHidden] = useState<string | null>(null);
   const [isUpdatingEmailConfirmed, setIsUpdatingEmailConfirmed] = useState<string | null>(null);
   const [isImpersonating, setIsImpersonating] = useState<string | null>(null);
+  const [isAddingToOnboarding, setIsAddingToOnboarding] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
   const [planStatusFilter, setPlanStatusFilter] = useState("all");
   const [docsVerifiedFilter, setDocsVerifiedFilter] = useState("all");
@@ -398,6 +400,22 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       toast.error("Falha ao entrar como usuário.");
     }
     setIsImpersonating(null);
+  };
+  
+  const handleAddToOnboarding = async (userId: string) => {
+    setIsAddingToOnboarding(userId);
+    try {
+      const { data, error } = await supabase.rpc("start_user_onboarding_flow", {
+        p_user_id: userId
+      });
+      if (error) throw error;
+      toast.success("Usuário adicionado ao fluxo de onboarding!");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao adicionar ao onboarding.");
+      console.error(err);
+    } finally {
+      setIsAddingToOnboarding(null);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -958,6 +976,18 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                           {u.id !== user?.id && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => handleImpersonate(u.id)} disabled={isImpersonating === u.id}>
                               {isImpersonating === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+                            </Button>
+                          )}
+                          {u.role === 'professional' && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-blue-600 hover:bg-blue-50" 
+                              onClick={() => handleAddToOnboarding(u.id)}
+                              disabled={isAddingToOnboarding === u.id}
+                              title="Adicionar ao Fluxo de Onboarding"
+                            >
+                              {isAddingToOnboarding === u.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                             </Button>
                           )}
                         </div>

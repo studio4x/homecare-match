@@ -57,6 +57,7 @@ import { differenceInDays, addDays, isAfter, subDays, parseISO, isValid } from "
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { getSupabaseAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
+import { sanitizeStoragePath } from "@/lib/storage-path";
 
 interface UsersTabProps {
   allUsers: any[];
@@ -86,6 +87,9 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [messageSubject, setMessageSubject] = useState("Mensagem Administrativa");
   const [messageContent, setMessageContent] = useState("");
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfileForView, setSelectedProfileForView] = useState<any>(null);
+  const [isGeneratingUrl, setIsGeneratingUrl] = useState<string | null>(null);
 
   const MASTER_ADMIN_EMAIL = "contato@homecarematch.com.br";
 
@@ -431,6 +435,55 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     } finally {
       setIsSendingMessage(false);
     }
+  };
+
+  const handleViewDocument = async (pathOrUrl: string, type: string) => {
+    if (!pathOrUrl) return;
+    
+    setIsGeneratingUrl(type);
+    try {
+      let path = pathOrUrl;
+      // Verifica se já é uma URL pública ou se precisa de signed URL
+      if (pathOrUrl.startsWith('http')) {
+        window.open(pathOrUrl, '_blank');
+        return;
+      }
+      // Se for um path de storage, cria signed URL
+      path = sanitizeStoragePath(path, { bucket: "documents" });
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(path, 60); // URL válida por 60 segundos
+
+      if (error) throw error;
+      window.open(data.signedUrl, '_blank');
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao gerar link seguro.");
+    } finally {
+      setIsGeneratingUrl(null);
+    }
+  };
+
+  const getDocumentsForProfile = (profile: any) => {
+    if (profile.role === "company") {
+      return [
+        { label: "Cartão CNPJ", path: profile.id_document_url, key: `id-${profile.id}` },
+        { label: "ID Responsável", path: profile.prof_registration_url, key: `prof-${profile.id}` },
+      ].filter((doc) => !!doc.path);
+    }
+
+    if (profile.role === "family") {
+      return [
+        { label: "ID Responsável", path: profile.id_document_url, key: `id-${profile.id}` },
+        { label: "RG/CNH Paciente", path: profile.patient_document_url, key: `patient-id-${profile.id}` },
+        { label: "Comprovante Endereço", path: profile.patient_address_proof_url, key: `patient-address-${profile.id}` },
+      ].filter((doc) => !!doc.path);
+    }
+
+    return [
+      { label: "RG/CNH", path: profile.id_document_url, key: `id-${profile.id}` },
+      { label: "Registro Prof.", path: profile.prof_registration_url, key: `prof-${profile.id}` },
+    ].filter((doc) => !!doc.path);
   };
 
   const getDaysRemaining = (u: any) => {
@@ -806,6 +859,15 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-primary hover:bg-primary/10" 
+                            title="Ver Perfil Completo e Documentos"
+                            onClick={() => { setSelectedProfileForView(u); setProfileModalOpen(true); }}
+                          >
+                            <User className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => { setSelectedUserForMessage(u); setMessageModalOpen(true); }}>
                             <MessageSquare className="h-4 w-4" />
                           </Button>
@@ -919,6 +981,156 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
               Enviar Mensagem
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={profileModalOpen} onOpenChange={setProfileModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Dados Completos do Perfil</DialogTitle>
+            <DialogDescription>
+              Visualize abaixo todas as informações fornecidas pelo usuário e documentos de verificação.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedProfileForView && (
+            <div className="mt-6 space-y-8 pb-4">
+              {/* Documentos de Verificação */}
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Documentos de Verificação</h3>
+                <div className="flex flex-wrap gap-3 pt-1">
+                  {getDocumentsForProfile(selectedProfileForView).map((doc) => (
+                    <Button 
+                      key={doc.key}
+                      variant="outline" 
+                      size="sm" 
+                      className="h-9 gap-1.5"
+                      onClick={() => handleViewDocument(doc.path, doc.key)}
+                      disabled={isGeneratingUrl === doc.key}
+                    >
+                      {isGeneratingUrl === doc.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                      Ver {doc.label}
+                    </Button>
+                  ))}
+                  {getDocumentsForProfile(selectedProfileForView).length === 0 && (
+                    <p className="text-sm text-muted-foreground italic">Nenhum documento disponível para este usuário.</p>
+                  )}
+                </div>
+              </section>
+
+              {/* Informações Pessoais */}
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Informações Pessoais</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Nome Completo</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.full_name || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">E-mail</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.email || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">WhatsApp</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.phone || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">CPF / CNPJ</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.cpf || selectedProfileForView.cnpj || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Data de Nascimento</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.birth_date ? new Date(selectedProfileForView.birth_date).toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Função / Especialidade</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center capitalize">
+                      {selectedProfileForView.role || "-"} {selectedProfileForView.specialty ? ` - ${selectedProfileForView.specialty.replace("-", " ")}` : ""}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Endereço */}
+              <section className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Localização</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">CEP</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.address_zip || "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Cidade / UF</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.city} - {selectedProfileForView.state}
+                    </p>
+                  </div>
+                  <div className="md:col-span-2 space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Logradouro</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.address_street}, {selectedProfileForView.address_number} 
+                      {selectedProfileForView.address_complement ? ` (${selectedProfileForView.address_complement})` : ""} - {selectedProfileForView.neighborhood}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Currículo e Dados Profissionais */}
+              {selectedProfileForView.role === 'professional' && (
+                <section className="space-y-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground border-b pb-2">Currículo e Dados Profissionais</h3>
+                  <div className="space-y-6">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-primary uppercase">Formações</span>
+                      <div className="text-sm bg-muted/20 p-4 rounded-md whitespace-pre-wrap border border-dashed border-primary/10">
+                        {selectedProfileForView.experience || "Nenhuma formação informada."}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-primary uppercase">Experiências Anteriores</span>
+                      <div className="text-sm bg-muted/20 p-4 rounded-md whitespace-pre-wrap border border-dashed border-primary/10">
+                        {selectedProfileForView.professional_experiences || "Nenhuma experiência profissional informada."}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-primary uppercase">Biografia / Sobre</span>
+                      <div className="text-sm bg-muted/20 p-4 rounded-md whitespace-pre-wrap border border-dashed border-primary/10 italic">
+                        {selectedProfileForView.bio || "Nenhuma biografia disponível."}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-primary uppercase">Valor/Hora</span>
+                      <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center font-semibold">
+                        {selectedProfileForView.hourly_rate ? `R$ ${selectedProfileForView.hourly_rate}` : "Não informado"}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-primary uppercase">Disponibilidade</span>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {selectedProfileForView.availability?.map((item: string) => (
+                          <Badge key={item} variant="outline" className="text-[10px] border-primary/30 text-primary">{item}</Badge>
+                        )) || <span className="text-xs text-muted-foreground italic">Não informado</span>}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

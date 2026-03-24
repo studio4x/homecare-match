@@ -16,7 +16,7 @@ const UsersPage = () => {
       const [usersRes, plansRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id, full_name, email, role, subscription_tier, subscription_end_at, coupon_days, is_verified, email_confirmed, trial_started_at, updated_at, avatar_url")
+          .select("*")
           .order('updated_at', { ascending: false }),
         supabase.from("plans").select("*").order('price', { ascending: true }),
       ]);

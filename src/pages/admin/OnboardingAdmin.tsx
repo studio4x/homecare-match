@@ -387,7 +387,7 @@ export const OnboardingAdmin = () => {
                   <TableBody>
                     {isLoadingTemplates ? (
                       <TableRow><TableCell colSpan={6}>Carregando...</TableCell></TableRow>
-                    ) : templates?.map((tpl) => (
+                    ) : templates?.filter(t => t.is_active).map((tpl) => (
                       <TableRow key={tpl.id}>
                         <TableCell className="font-medium">{tpl.name}</TableCell>
                         <TableCell className="truncate max-w-xs">{tpl.subject}</TableCell>

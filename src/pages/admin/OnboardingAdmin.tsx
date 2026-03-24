@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import RichTextEditor from "@/components/ui/RichTextEditor";
-import { Edit2 } from "lucide-react";
+import { Edit2, Search, UserPlus } from "lucide-react";
 
 export const OnboardingAdmin = () => {
   const queryClient = useQueryClient();
@@ -29,6 +29,10 @@ export const OnboardingAdmin = () => {
     html_content: "",
     text_content: ""
   });
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [isAddingUser, setIsAddingUser] = React.useState(false);
+  const [searchResults, setSearchResults] = React.useState<any[]>([]);
+  const [isSearching, setIsSearching] = React.useState(false);
 
   // Queries
   const { data: globalSettings, isLoading: isLoadingSettings } = useQuery({
@@ -168,6 +172,49 @@ export const OnboardingAdmin = () => {
       ...editForm,
       updated_at: new Date().toISOString()
     });
+  };
+
+  const handleSearchProfessionals = async () => {
+    if (!searchTerm.trim()) return;
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, avatar_url")
+        .eq("role", "professional")
+        .or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+        .limit(5);
+      
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (err: any) {
+      toast.error("Erro ao buscar profissionais: " + err.message);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const startFlowMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.rpc("start_user_onboarding_flow", {
+        p_user_id: userId
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_instances"] });
+      toast.success("Profissional adicionado ao fluxo com sucesso!");
+      setSearchTerm("");
+      setSearchResults([]);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Erro ao adicionar profissional.");
+    }
+  });
+
+  const handleAddUserToFlow = (userId: string) => {
+    startFlowMutation.mutate(userId);
   };
 
   return (
@@ -361,11 +408,66 @@ export const OnboardingAdmin = () => {
         <TabsContent value="instances" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Usuários no Fluxo</CardTitle>
-              <CardDescription>Mostrando os últimos 50 registros de instâncias iniciadas.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[600px] rounded-md border">
+                <CardTitle>Instâncias Ativas</CardTitle>
+                <CardDescription>Acompanhe o progresso dos usuários nos fluxos de onboarding.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6 p-4 border rounded-lg bg-gray-50/50">
+                  <div className="flex items-center gap-3 mb-4">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold text-sm">Adicionar Profissional ao Fluxo Manualmente</h3>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        placeholder="Buscar por nome ou e-mail..." 
+                        className="pl-9"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearchProfessionals()}
+                      />
+                    </div>
+                    <Button 
+                      variant="secondary" 
+                      onClick={handleSearchProfessionals}
+                      disabled={isSearching}
+                    >
+                      {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
+                    </Button>
+                  </div>
+
+                  {searchResults.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                       <p className="text-[10px] font-bold text-muted-foreground uppercase px-1">Resultados</p>
+                       {searchResults.map(p => (
+                         <div key={p.id} className="flex items-center justify-between p-2 bg-white border rounded-md shadow-sm">
+                           <div className="flex items-center gap-3">
+                             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                               {p.avatar_url ? <img src={p.avatar_url} alt="" className="h-full w-full object-cover" /> : <span className="text-xs font-bold text-primary">{p.full_name?.charAt(0)}</span>}
+                             </div>
+                             <div>
+                               <p className="text-sm font-medium">{p.full_name}</p>
+                               <p className="text-[10px] text-muted-foreground">{p.email}</p>
+                             </div>
+                           </div>
+                           <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-8 gap-2"
+                            onClick={() => handleAddUserToFlow(p.id)}
+                            disabled={startFlowMutation.isPending && startFlowMutation.variables === p.id}
+                           >
+                             {startFlowMutation.isPending && startFlowMutation.variables === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+                             Adicionar
+                           </Button>
+                         </div>
+                       ))}
+                    </div>
+                  )}
+                </div>
+
+                <ScrollArea className="h-[500px] rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>

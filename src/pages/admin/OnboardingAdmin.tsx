@@ -11,9 +11,24 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Power, PowerOff } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import RichTextEditor from "@/components/ui/RichTextEditor";
+import { Edit2 } from "lucide-react";
 
 export const OnboardingAdmin = () => {
   const queryClient = useQueryClient();
+  const [selectedTemplate, setSelectedTemplate] = React.useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [editForm, setEditForm] = React.useState({
+    name: "",
+    subject: "",
+    preview_text: "",
+    html_content: "",
+    text_content: ""
+  });
 
   // Queries
   const { data: globalSettings, isLoading: isLoadingSettings } = useQuery({
@@ -113,6 +128,47 @@ export const OnboardingAdmin = () => {
       return data;
     },
   });
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: async (vars: any) => {
+      const { id, ...updateData } = vars;
+      const { error } = await supabase
+        .from("email_templates")
+        .update(updateData)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_templates"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_flows"] });
+      setIsEditDialogOpen(false);
+      toast.success("Template atualizado com sucesso.");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao atualizar template: " + err.message);
+    }
+  });
+
+  const handleEditClick = (template: any) => {
+    setSelectedTemplate(template);
+    setEditForm({
+      name: template.name || "",
+      subject: template.subject || "",
+      preview_text: template.preview_text || "",
+      html_content: template.html_content || "",
+      text_content: template.text_content || ""
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveTemplate = () => {
+    if (!selectedTemplate) return;
+    updateTemplateMutation.mutate({
+      id: selectedTemplate.id,
+      ...editForm,
+      updated_at: new Date().toISOString()
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in p-6 max-w-7xl mx-auto">
@@ -266,11 +322,12 @@ export const OnboardingAdmin = () => {
                       <TableHead>Slug</TableHead>
                       <TableHead>Público</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="w-24 text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isLoadingTemplates ? (
-                      <TableRow><TableCell colSpan={5}>Carregando...</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6}>Carregando...</TableCell></TableRow>
                     ) : templates?.map((tpl) => (
                       <TableRow key={tpl.id}>
                         <TableCell className="font-medium">{tpl.name}</TableCell>
@@ -281,6 +338,16 @@ export const OnboardingAdmin = () => {
                           <Badge variant={tpl.is_active ? "default" : "secondary"}>
                             {tpl.is_active ? "Ativo" : "Inativo"}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleEditClick(tpl)}
+                            title="Editar Template"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -400,6 +467,78 @@ export const OnboardingAdmin = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Template: {selectedTemplate?.slug}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-6 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome do Template</Label>
+                <Input 
+                  id="name" 
+                  value={editForm.name} 
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="subject">Assunto do E-mail</Label>
+                <Input 
+                  id="subject" 
+                  value={editForm.subject} 
+                  onChange={(e) => setEditForm({ ...editForm, subject: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="preview">Preview Text (Snippet)</Label>
+              <Input 
+                id="preview" 
+                value={editForm.preview_text} 
+                onChange={(e) => setEditForm({ ...editForm, preview_text: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Conteúdo HTML (Corpo do E-mail)</Label>
+              <RichTextEditor 
+                content={editForm.html_content} 
+                onChange={(html) => setEditForm({ ...editForm, html_content: html })}
+                enableHtmlModeToggle
+                className="border rounded-md"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Dica: Use <code>{"{{first_name}}"}</code>, <code>{"{{profile_completion}}"}</code>, etc. como variáveis dinâmicas.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="text_content">Conteúdo em Texto (Backup / Sem HTML)</Label>
+              <Textarea 
+                id="text_content" 
+                value={editForm.text_content} 
+                onChange={(e) => setEditForm({ ...editForm, text_content: e.target.value })}
+                rows={5}
+                className="font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
+            <Button 
+              onClick={handleSaveTemplate} 
+              disabled={updateTemplateMutation.isPending}
+            >
+              {updateTemplateMutation.isPending ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

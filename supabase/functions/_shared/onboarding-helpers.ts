@@ -89,26 +89,26 @@ export function wrapLayout(content: string, siteUrl: string, ctaLabel?: string, 
                 
                 ${ctaLabel && ctaUrl ? `
                 <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #f3f4f6; text-align: center;">
-                  <!-- VML Bulletproof Button for Outlook Desktop (Word engine) -->
+                  <!-- HIGH COMPATIBILITY CTA BUTTON -->
                   <!--[if mso]>
-                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" href="${ctaUrl}" style="height:54px;v-text-anchor:middle;width:260px;" arcsize="15%" stroke="f" fillcolor="#2563eb">
-                      <w:anchorlock/>
-                      <v:textbox inset="0,0,0,0">
-                        <table border="0" cellpadding="0" cellspacing="0" width="100%" height="54">
-                          <tr>
-                            <td align="center" valign="middle" style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: bold; color: #ffffff;">
-                              ${ctaLabel}
-                            </td>
-                          </tr>
-                        </table>
-                      </v:textbox>
-                    </v:roundrect>
+                  <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" href="${ctaUrl}" style="height:54px;v-text-anchor:middle;width:260px;" arcsize="15%" stroke="f" fillcolor="#2563eb">
+                    <w:anchorlock/>
+                    <center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;">
                   <![endif]-->
+                      <a href="${ctaUrl}" target="_blank" style="background-color:#2563eb;border-radius:8px;color:#ffffff;display:inline-block;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;line-height:54px;text-align:center;text-decoration:none;width:260px;-webkit-text-size-adjust:none;mso-hide:all;">
+                        ${ctaLabel}
+                      </a>
+                  <!--[if mso]>
+                    </center>
+                  </v:roundrect>
+                  <![endif]-->
+
+                  <!-- FALLBACK FOR NON-MSO THAT DON'T SUPPORT THE ABOVE -->
                   <!--[if !mso]><!-->
-                  <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; border-collapse: separate;">
+                  <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; border-collapse: separate; mso-hide:all; display:none;">
                     <tr>
-                      <td align="center" bgcolor="#2563eb" style="border-radius: 8px;">
-                        <a href="${ctaUrl}" target="_blank" style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; padding: 14px 32px; display: inline-block; border-radius: 8px; background-color: #2563eb;">
+                      <td align="center" bgcolor="#2563eb" style="border-radius: 8px; mso-hide:all;">
+                        <a href="${ctaUrl}" target="_blank" style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; font-weight: 600; color: #ffffff; text-decoration: none; padding: 14px 32px; display: inline-block; border-radius: 8px; background-color: #2563eb; mso-hide:all;">
                           ${ctaLabel}
                         </a>
                       </td>

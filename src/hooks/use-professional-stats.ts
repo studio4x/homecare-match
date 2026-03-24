@@ -13,6 +13,7 @@ export function useProfessionalStats() {
         .from("profiles")
         .select("id", { count: "exact", head: true })
         .eq("role", "professional")
+        .eq("is_hidden", false)
         .eq("email_confirmed", true)
         .not("full_name", "is", null);
 

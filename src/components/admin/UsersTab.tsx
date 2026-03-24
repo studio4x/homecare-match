@@ -78,6 +78,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [isUpdatingRole, setIsUpdatingRole] = useState<string | null>(null);
   const [isUpdatingPlan, setIsUpdatingPlan] = useState<string | null>(null);
   const [isUpdatingVerified, setIsUpdatingVerified] = useState<string | null>(null);
+  const [isUpdatingHidden, setIsUpdatingHidden] = useState<string | null>(null);
   const [isUpdatingEmailConfirmed, setIsUpdatingEmailConfirmed] = useState<string | null>(null);
   const [isImpersonating, setIsImpersonating] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
@@ -219,6 +220,24 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       toast.error("Erro ao atualizar status de verificação.");
     } finally {
       setIsUpdatingVerified(null);
+    }
+  };
+
+  const handleToggleHidden = async (profileId: string, currentStatus: boolean) => {
+    setIsUpdatingHidden(profileId);
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_hidden: !currentStatus })
+        .eq("id", profileId);
+      
+      if (error) throw error;
+      toast.success(currentStatus ? "Usuário agora está visível nas buscas." : "Usuário ocultado das buscas.");
+      refetchData();
+    } catch (err) {
+      toast.error("Erro ao atualizar status de visibilidade.");
+    } finally {
+      setIsUpdatingHidden(null);
     }
   };
 
@@ -557,6 +576,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     if (u.role !== 'professional') return false;
     if (!u.full_name) return false;
     if (!u.email_confirmed) return false;
+    if (u.is_hidden) return false;
     
     const isPaid = ['monthly', 'yearly', 'annual'].includes(String(u.subscription_tier || '').toLowerCase());
     const now = new Date();
@@ -751,14 +771,15 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                 <TableHead>Plano / Status</TableHead>
                 <TableHead>Docs Verificados</TableHead>
                 <TableHead>E-mail Verificado</TableHead>
-                <TableHead>Busca</TableHead>
+                <TableHead>Oculto (Busca)</TableHead>
+                <TableHead>Visibilidade</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={10} className="h-24 text-center text-sm text-muted-foreground">
                     Nenhum usuário encontrado para os filtros aplicados.
                   </TableCell>
                 </TableRow>
@@ -879,6 +900,19 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                               checked={!!u.email_confirmed}
                               onCheckedChange={() => handleToggleEmailConfirmed(u.id, !!u.email_confirmed)}
                               className="data-[state=checked]:bg-success"
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center">
+                          {isUpdatingHidden === u.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          ) : (
+                            <Switch 
+                              checked={!!u.is_hidden} 
+                              onCheckedChange={() => handleToggleHidden(u.id, !!u.is_hidden)}
+                              className="data-[state=checked]:bg-yellow-500"
                             />
                           )}
                         </div>

@@ -44,6 +44,7 @@ const Empresas = () => {
         .eq("role", "professional")
         .not("full_name", "is", null)
         .eq("email_confirmed", true)
+        .eq("is_hidden", false)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;

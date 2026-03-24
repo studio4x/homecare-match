@@ -91,9 +91,13 @@ export function wrapLayout(content: string, siteUrl: string, ctaLabel?: string, 
                 <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #f3f4f6; text-align: center;">
                   <!-- VML Bulletproof Button for Outlook Desktop (Word engine) -->
                   <!--[if mso]>
-                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" href="${ctaUrl}" style="height:52px;v-text-anchor:middle;width:240px;" arcsize="15%" stroke="f" fillcolor="#2563eb">
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" href="${ctaUrl}" style="height:54px;v-text-anchor:middle;width:240px;" arcsize="15%" stroke="f" fillcolor="#2563eb">
                       <w:anchorlock/>
-                      <center style="color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;">${ctaLabel}</center>
+                      <center>
+                        <font face="Arial, Helvetica, sans-serif" size="4" color="#ffffff">
+                          <strong>${ctaLabel}</strong>
+                        </font>
+                      </center>
                     </v:roundrect>
                   <![endif]-->
                   <!--[if !mso]><!-->

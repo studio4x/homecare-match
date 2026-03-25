@@ -1,0 +1,106 @@
+CATÁLOGO DE CURSOS E FUNCIONAMENTO DA ACADEMY - HOMECARE MATCH
+
+A Academy é o braço educacional da HomeCare Match, focado na capacitação técnica e profissional dos cuidadores e profissionais da saúde especializados em atendimento domiciliar.
+
+1. ESTRUTURA E NÍVEIS DE CAPACITAÇÃO
+Os cursos são organizados em quatro níveis de complexidade para atender desde quem está começando até especialistas:
+- Iniciante: Conceitos fundamentais e introdução ao Home Care.
+- Básico: Procedimentos rotineiros e cuidados essenciais.
+- Intermediário: Técnicas aplicadas e suporte em casos de média complexidade.
+- Avançado: Especializações técnicas e gestão de casos críticos.
+
+2. MODELO DE ACESSO E ASSINATURA
+O acesso à Academy é vinculado ao plano ativo do profissional:
+- Cursos Gratuitos: Estão disponíveis exclusivamente para assinantes do PLANO ANUAL. Estes cursos são uma recompensa pela fidelidade e compromisso de longo prazo com a plataforma.
+- Cursos Pagos: Qualquer profissional (inclusive do plano mensal ou trial) pode adquirir cursos específicos através de compra avulsa (checkout via Asaas).
+- Acesso Administrativo: Profissionais com selo de verificação ou perfis geridos pela plataforma podem ter acessos bonificados conforme campanhas vigentes.
+
+3. TEMAS E TRILHAS DE CONHECIMENTO (DINÂMICO)
+O catálogo é gerenciado dinamicamente via painel administrativo, mas concentra-se em pilares essenciais:
+- Boas Práticas em Home Care: Postura profissional, ética e segurança do paciente.
+- Capacitação Técnica: Manejo de dispositivos, higiene, mobilidade e primeiros socorros.
+- Gestão e Carreira: Como melhorar o perfil, marketing para cuidadores e organização financeira.
+- Saúde Mental e Bem-Estar: Cuidados com o cuidador e manejo de pacientes com demências.
+
+4. CERTIFICAÇÃO E SELOS DE CONQUISTA
+A conclusão de um curso na Academy gera benefícios diretos para o profissional:
+- Emissão de Certificado: Documento digital gerado automaticamente após a conclusão de 100% das aulas/módulos.
+- Validação Pública: Cada certificado possui um código único de autenticidade que pode ser validado por empresas e famílias em /validar.
+- Selo no Perfil: O profissional ganha um selo visual em seu perfil público para cada curso concluído, aumentando a percepção de autoridade e confiança.
+
+5. IMPACTO NO RANKING DE BUSCA
+A participação na Academy é uma das métricas mais fortes do algoritmo de busca:
+- Bônus de Visibilidade: Profissionais com cursos concluídos e selos ativos aparecem em posições superiores nos resultados de pesquisa.
+- Preferência de Recrutadores: O sistema destaca perfis "em constante atualização", facilitando a escolha por parte de empresas de Home Care e famílias.
+
+6. COMO ACESSAR
+Todo o conteúdo é centralizado no menu "Cursos" dentro do Dashboard do Profissional. O progresso é salvo automaticamente, permitindo que o profissional estude em seu próprio ritmo via computador ou celular.
+
+7. LISTA DE CURSOS DISPONÍVEIS (EXTRAÍDO DO BANCO DE DATAS)
+Abaixo estão listados os cursos atualmente ativos na plataforma:
+
+1. Introdução ao Atendimento Home Care: O Profissional de Excelência no Domicílio
+   Nível: Iniciante | Preço: Gratuito (Plano Anual)
+   Resumo: Foco na capacitação de profissionais para atendimento domiciliar de excelência.
+
+2. Ética e Conduta Profissional no Atendimento Domiciliar
+   Nível: Iniciante | Preço: Gratuito (Plano Anual)
+   Resumo: Importância da ética e postura profissional no ambiente do paciente.
+
+3. Comunicação Profissional com Família e Paciente
+   Nível: Iniciante | Preço: Gratuito (Plano Anual)
+   Resumo: Aprimoramento das habilidades de comunicação no dia a dia do Home Care.
+
+4. Rotina Básica do Profissional de Home Care
+   Nível: Iniciante | Preço: Gratuito (Plano Anual)
+   Resumo: Guia abrangente sobre a rotina e procedimentos básicos na assistência domiciliar.
+
+5. Higiene e Conforto do Paciente no Domicílio
+   Nível: Intermediário | Preço: R$ 14,90
+   Resumo: Técnicas para oferecer cuidados de higiene e conforto com segurança.
+
+6. Prevenção de Lesões por Pressão em Pacientes Home Care
+   Nível: Intermediário | Preço: R$ 19,90
+   Resumo: Conhecimentos essenciais para evitar lesões em pacientes acamados ou com mobilidade reduzida.
+
+7. Cuidados Básicos com Idosos em HomeCare
+   Nível: Intermediário | Preço: R$ 14,90
+   Resumo: Habilidades específicas para o manejo e cuidado da pessoa idosa no domicílio.
+
+8. Administração Segura de Medicamentos (Nível Básico)
+   Nível: Intermediário | Preço: R$ 19,90
+   Resumo: Protocolos de segurança para administração de medicação via oral e tópica.
+
+9. Inteligência Emocional no Home Care
+   Nível: Intermediário | Preço: R$ 14,90
+   Resumo: Desenvolvimento de controle emocional e resiliência no trabalho assistencial.
+
+10. Como Lidar com Pacientes Difíceis
+    Nível: Intermediário | Preço: R$ 14,90
+    Resumo: Estratégias para manejo de comportamentos desafiadores e conflitos.
+
+11. Como Lidar com Familiares Exigentes
+    Nível: Intermediário | Preço: R$ 14,90
+    Resumo: Técnicas de mediação e comunicação assertiva com a família do paciente.
+
+12. Dominando o Manejo Avançado de Dispositivos Invasivos
+    Nível: Avançado | Preço: R$ 24,90
+    Resumo: Manejo técnico de sondas, cateteres e outros dispositivos de alta complexidade.
+
+13. Ventilação Não Invasiva (VNI) e Oxigenioterapia no Home Care
+    Nível: Avançado | Preço: R$ 24,90
+    Resumo: Operação de equipamentos ventilatórios e suporte de oxigênio no domicílio.
+
+14. Gestão de Urgências e Primeiros Socorros
+    Nível: Avançado | Preço: R$ 24,90
+    Resumo: Protocolos de emergência para situações críticas no Home Care.
+
+15. Cuidados Paliativos no Home Care
+    Nível: Avançado | Preço: R$ 24,90
+    Resumo: Assistência humanizada e manejo de sintomas para pacientes em fim de vida.
+
+16. Reabilitação e Segurança no Home Care
+    Nível: Avançado | Preço: R$ 24,90
+    Resumo: Promoção da autonomia e segurança na reabilitação domiciliar.
+
+OBSERVAÇÃO: Por ser um catálogo dinâmico, os títulos específicos dos cursos podem variar conforme a plataforma adiciona novos conteúdos. Os profissionais recebem notificações por e-mail e no painel sempre que um novo curso relevante é lançado.

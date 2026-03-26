@@ -26,6 +26,7 @@ import ValidateCertificate from "./pages/ValidateCertificate";
 import Support from "./pages/Support";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiePolicy from "./pages/CookiePolicy";
+import TermsOfUse from "./pages/TermsOfUse";
 import Funcionalidades from "./pages/Funcionalidades";
 import ConversionCourse from "./pages/ConversionCourse";
 import ConversionSubscription from "./pages/ConversionSubscription";
@@ -71,6 +72,7 @@ import CouponsPage from "./pages/admin/CouponsPage";
 import SupportAdminPage from "./pages/admin/SupportAdminPage";
 import FaqAdminPage from "./pages/admin/FaqAdminPage";
 import ReportsPage from "./pages/admin/ReportsPage";
+import CrisisProtocolPage from "./pages/admin/CrisisProtocolPage";
 import AnalyticsPage from "./pages/admin/AnalyticsPage";
 import VideosPage from "./pages/admin/VideosPage";
 import AuditLogsPage from "./pages/admin/AuditLogsPage";
@@ -116,6 +118,7 @@ const App = () => (
               <Route path="/certificado/:id" element={<CertificateView />} />
               <Route path="/validar" element={<ValidateCertificate />} />
               <Route path="/suporte" element={<Support />} />
+              <Route path="/termos-de-uso" element={<TermsOfUse />} />
               <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
               <Route path="/politica-de-cookies" element={<CookiePolicy />} />
               <Route path="/funcionalidades" element={<Funcionalidades />} />
@@ -169,6 +172,7 @@ const App = () => (
                 <Route path="cliques-whatsapp" element={<WhatsappCommercialClicksPage />} />
                 <Route path="configuracoes" element={<SettingsPage />} />
                 <Route path="suporte" element={<SupportAdminPage />} />
+                <Route path="protocolo-crise" element={<CrisisProtocolPage />} />
                 <Route path="suporte/:id" element={<TicketDetailPage />} />
                 <Route path="faq" element={<FaqAdminPage />} />
                 <Route path="metricas" element={<AnalyticsPage />} />

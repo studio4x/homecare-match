@@ -1,0 +1,107 @@
+FAQ - HOMECARE MATCH
+=====================
+
+PERGUNTAS PARA EMPRESAS
+-----------------------
+
+1. Como encontro profissionais na minha região?
+R: Utilize nossos filtros avançados de busca para selecionar o estado, cidade e até o bairro desejado. Você verá uma lista de profissionais disponíveis naquela localidade.
+
+2. Os profissionais são realmente verificados?
+R: Sim. Nossa equipe analisa os documentos de identificação e os registros profissionais (como COREN ou CREFITO) de cada profissional que solicita o selo de verificação.
+
+3. Existe algum custo para a empresa utilizar a plataforma?
+R: Atualmente, o acesso à base de profissionais e o contato direto são gratuitos para empresas de Home Care parceiras.
+
+4. Como entro em contato com o profissional?
+R: Ao encontrar um perfil de interesse, basta clicar no botão de contato. O sistema liberará o link direto para o WhatsApp do profissional.
+
+5. Posso salvar perfis para consultar depois?
+R: Sim. Todos os profissionais que você entrar em contato ficam salvos automaticamente no seu histórico de contatos no painel administrativo.
+
+6. Sou empresa: como cadastro pacientes?
+R: Empresas podem organizar pacientes em /dashboard/pacientes para estruturar demandas e facilitar recrutamento.
+
+
+PERGUNTAS PARA FAMÍLIAS
+-----------------------
+
+7. É seguro contratar profissionais pela plataforma?
+R: Sim. Priorizamos a segurança através do nosso selo de verificação, onde analisamos documentos e registros profissionais. Recomendamos sempre entrevistar o profissional e checar referências.
+
+8. Como vejo o valor cobrado pelo profissional?
+R: Muitos profissionais informam seu valor por hora diretamente no perfil. Caso não esteja visível, você pode combinar os valores diretamente com eles via WhatsApp.
+
+9. Preciso pagar alguma taxa para o site ao contratar?
+R: Não. O HomeCare Match não cobra taxas de agenciamento ou porcentagem sobre o valor do serviço. O pagamento é combinado e realizado diretamente ao profissional.
+
+10. Como sei se o profissional tem experiência com o perfil do meu familiar?
+R: Os perfis detalham as especialidades e o público-alvo (idosos, pediátrico, pós-cirúrgico, etc). Você também pode ler as avaliações de outras famílias.
+
+11. O que fazer se o profissional não responder?
+R: Caso um profissional não responda em tempo hábil, você pode buscar outros especialistas na mesma região através dos nossos filtros de busca.
+
+
+PERGUNTAS PARA PROFISSIONAIS
+----------------------------
+
+12. Quem pode se cadastrar na plataforma?
+R: Profissionais da área da saúde que realizam atendimentos domiciliares, como enfermeiros, técnicos de enfermagem, cuidadores, fisioterapeutas, fonoaudiólogos e outros profissionais.
+
+13. Como recebo oportunidades de atendimento?
+R: Empresas de home care e famílias podem encontrar seu perfil na plataforma e entrar em contato diretamente com você.
+
+14. Posso cancelar quando quiser?
+R: Sim. Você pode cancelar sua assinatura a qualquer momento.
+
+15. A plataforma funciona em todo o Brasil?
+R: A Home Care Match conecta profissionais e oportunidades em diversas regiões do país.
+
+16. Como atualizo meu perfil profissional?
+R: No painel, entre em /dashboard/perfil e atualize bio, experiências, formações e dados de contato. Perfil completo melhora relevância na busca.
+
+17. Como gerar biografia com IA?
+R: No perfil profissional, use a ação de gerar bio com IA e revise o texto antes de salvar. Ajuste para manter tom profissional e informações reais.
+
+18. Como funcionam planos e destaque premium?
+R: Planos ativos podem melhorar prioridade de exibição na busca. Verifique opções, status e histórico de cobrança em /dashboard/pagamentos.
+
+19. Como funcionam cursos da Academy?
+R: No painel em /dashboard/cursos, selecione um curso, conclua os módulos e acompanhe progresso. Quando aplicável, o certificado fica disponível ao final.
+
+20. Como funciona o programa de indicações?
+R: Profissionais podem indicar colegas e acompanhar resultados em /dashboard/indicações. O impacto depende das regras vigentes de visibilidade e campanha.
+
+
+GERAL E SUPORTE
+---------------
+
+21. Como realizar o cadastro na plataforma e validar meu e-mail?
+R: Confira o tutorial correspondente ao seu perfil para concluir cadastro e validação de e-mail.
+
+22. Onde vejo faturas e pagamentos?
+R: Acesse /dashboard/pagamentos para acompanhar status de cobrança, histórico e detalhes da assinatura.
+
+23. Como recuperar minha senha?
+R: Na tela /login, escolha a opção de recuperar senha. Você receberá o link para redefinição em /redefinir-senha.
+
+24. Como abrir chamado de suporte?
+R: Usuário logado: abra /dashboard/suporte e clique em Novo chamado. Descreva o problema com contexto, prints e objetivo esperado.
+
+25. Como acompanho um chamado de suporte?
+R: No painel em /dashboard/suporte, abra o ticket para ver mensagens, status e atualizações. Responda no mesmo chamado para manter histórico.
+
+26. Como validar um certificado público?
+R: Use a página /validar para conferir autenticidade de certificados emitidos pela plataforma.
+
+27. Como usar avaliações da plataforma?
+R: Avaliações ajudam na tomada de decisão e aparecem no contexto de perfil/interações. Use junto com análise de experiência e entrevista.
+
+28. Como instalar o app da plataforma no celular?
+R: Abra o site no navegador mobile e use a opção de instalar app (PWA). O acesso rápido fica disponível na tela inicial do aparelho.
+
+29. Como denunciar comportamento inadequado?
+R: Use os recursos de report/denúncia disponíveis no fluxo da plataforma e informe detalhes objetivos. Casos sensíveis podem ser acompanhados pelo suporte.
+
+30. Quando devo usar concierge?
+R: Use o concierge para cenário urgente ou quando precisar de apoio manual para encontrar profissional aderente ao perfil buscado.

@@ -1,0 +1,58 @@
+FUNCIONALIDADES DA PLATAFORMA - HOMECARE MATCH
+==========================================
+
+LISTAGEM COMPLETA DE RECURSOS PARA PROFISSIONAIS, EMPRESAS, FAMÍLIAS E ADMINISTRADORES.
+
+
+1. FUNCIONALIDADES PARA PROFISSIONAIS
+-------------------------------------
+
+* Perfil Profissional Completo: Exibição de currículo, formações, experiências e biografia humanizada.
+* IA para Biografia Profissional: Criação de uma biografia humanizada e profissional em segundos com ajuda da inteligência artificial.
+* Selo de Verificação Profissional: Análise manual de documentos e registros profissionais para garantir segurança e credibilidade.
+* Academy (Cursos de Capacitação): Acesso a conteúdos educativos exclusivos para evolução técnica.
+* Emissão e Validação de Certificados: Geração de certificados com página pública para validação de autenticidade por terceiros.
+* Programa de Indicações (Embaixador): Sistema de indicação de colegas com ranking de visibilidade na plataforma.
+* Gestão de Pagamentos e Faturas: Histórico completo de recibos e controle total sobre assinaturas e planos.
+* Destaque Premium na Busca: Selo de destaque e prioridade nos resultados para assinantes anais.
+* Controle de Visibilidade: Gerenciamento manual ou automático da exibição do perfil nas buscas de contratantes.
+* Mural de Avisos e Notificações: Central de comunicados e alertas em tempo real (Push/WhatsApp) sobre novas oportunidades.
+
+
+2. FUNCIONALIDADES PARA EMPRESAS E FAMÍLIAS (RECRUTADORES)
+----------------------------------------------------------
+
+* Busca Inteligente de Profissionais: Filtros avançados por cidade, bairro, especialidade e disponibilidade imediata.
+* Busca por Geolocalização: Visualização de profissionais especialistas mais próximos no mapa.
+* Contato Direto via WhatsApp: Início de conversas sem intermediários e sem cobrança de taxas de agenciamento.
+* Cadastro de Pacientes para Empresas: Organização de demandas e pacientes atendidos para facilitar o recrutamento.
+* Perfil Público de Recrutador: Exibição de informações da empresa ou contexto familiar para os profissionais contatados.
+* Gestão de Contatos: Histórico centralizado de todos os profissionais que já foram contatados no painel.
+* Sistema de Avaliações: Feedback e depoimentos reais sobre atendimentos realizados.
+* Serviço de Concierge: Suporte manual e personalizado da equipe para casos urgentes ou complexos.
+
+
+3. FUNCIONALIDADES OPERACIONAIS E SUPORTE (GERAL)
+-------------------------------------------------
+
+* Central de Ajuda e Suporte: Sistema de tickets para resolução de dúvidas e problemas técnicos.
+* Chatbot Inteligente: Assistente virtual para suporte imediato e triagem de dúvidas comuns.
+* Página de FAQs Dinâmico: Base de conhecimento completa com perguntas frequentes atualizada remotamente.
+* Blog de Conteúdo Especializado: Artigos técnicos, boas práticas e atualizações do setor de Home Care.
+* Instalação do App (PWA): Possibilidade de instalar a plataforma no celular como aplicativo nativo.
+* Segurança e Denúncias: Ferramentas para reportar comportamentos inadequados dentro da comunidade.
+* Canal de Sugestões: Formulário direto para envio de feedbacks e ideias de melhoria para o sistema.
+* Recuperação de Acesso Segura: Fluxo de redefinição de senha com validação em duas etapas por e-mail.
+
+
+4. FUNCIONALIDADES ADMINISTRATIVAS (GESTÃO)
+-------------------------------------------
+
+* Painel de Métricas e Analytics: Visualização de indicadores de crescimento, acessos e conversões.
+* Gestão de Usuários e Perfis: Controle total sobre contas, moderação de currículos e status de verificação.
+* Controle de Planos e Assinaturas: Configuração de preços, benefícios e monitoramento de receitas.
+* Gestão de Cupons e Marketing: Criação de campanhas promocionais e rastreamento de links UTM/Shortlinks.
+* Moderação de Conteúdo (Blog/Academy): Gestão completa de artigos, vídeos e cursos da plataforma.
+* Logs de Auditoria e Segurança: Monitoramento de atividades críticas para prevenção de fraudes e erros.
+* Automação de Onboarding: Configuração de e-mails e fluxos automáticos para novos usuários.
+* Sistema de Notificações em Massa: Envio programado de alertas via push e WhatsApp para a base.

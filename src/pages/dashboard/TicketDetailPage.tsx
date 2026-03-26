@@ -1,40 +1,90 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import { supabase, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/integrations/supabase/client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Loader2, 
-  ArrowLeft, 
-  Send, 
-  Clock, 
-  CheckCircle2,
-  AlertCircle,
-  Paperclip,
-  FileIcon,
-  X,
-  Download
-} from "lucide-react";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { useSiteConfig } from "@/hooks/use-site-config";
+import {
+  supabase,
+  SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_URL,
+} from "@/integrations/supabase/client";
+import {
+  computeLiveSupportSlaStatus,
+  formatSupportBusinessHoursSummary,
+  formatSupportDueDate,
+  formatSupportSlaPromise,
+  getSupportCategoryConfig,
+  getSupportSlaStatusMeta,
+  normalizeSupportBusinessHoursConfig,
+  normalizeSupportSlaConfig,
+} from "@/lib/support-sla";
 import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  Download,
+  FileIcon,
+  Loader2,
+  Paperclip,
+  Send,
+  ShieldAlert,
+  X,
+} from "lucide-react";
+
+const getPriorityLabel = (priority: string) => {
+  switch (priority) {
+    case "low":
+      return "Baixa";
+    case "medium":
+      return "Média";
+    case "high":
+      return "Alta";
+    case "urgent":
+      return "Urgente";
+    default:
+      return priority;
+  }
+};
+
+const getTicketStatusBadge = (status: string) => {
+  switch (status) {
+    case "open":
+      return <Badge className="bg-blue-500">Aberto</Badge>;
+    case "in_progress":
+      return <Badge className="bg-amber-500">Em atendimento</Badge>;
+    case "closed":
+      return <Badge variant="secondary">Fechado</Badge>;
+    default:
+      return <Badge>{status}</Badge>;
+  }
+};
 
 const TicketDetailPage = () => {
   const { id } = useParams();
   const { user } = useAuth();
+  const { data: siteConfig } = useSiteConfig();
   const [ticket, setTicket] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,9 +93,18 @@ const TicketDetailPage = () => {
   const [attachment, setAttachment] = useState<File | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const supportSlaConfig = useMemo(
+    () => normalizeSupportSlaConfig(siteConfig?.support_sla_config),
+    [siteConfig?.support_sla_config],
+  );
+  const supportBusinessHours = useMemo(
+    () => normalizeSupportBusinessHoursConfig(siteConfig?.support_business_hours_config),
+    [siteConfig?.support_business_hours_config],
+  );
 
   const notifySupport = async (payload: Record<string, any>) => {
     try {
@@ -85,44 +144,45 @@ const TicketDetailPage = () => {
   useEffect(() => {
     if (!id) return;
 
-    fetchTicket();
-    fetchMessages();
-    checkAdminStatus();
-    
-    console.log(`[SupportChat] Iniciando canal para ticket: ${id}`);
+    void fetchTicket();
+    void fetchMessages();
+    void checkAdminStatus();
 
-    // Configuração do canal de Realtime
     const channel = supabase
       .channel(`support-chat-${id}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'support_messages',
-        filter: `ticket_id=eq.${id}`
-      }, (payload) => {
-        console.log("[SupportChat] Nova mensagem recebida via Realtime:", payload.new);
-        setMessages(prev => {
-          // Evita duplicatas se a mensagem já foi adicionada localmente
-          if (prev.some(m => m.id === payload.new.id)) return prev;
-          return [...prev, payload.new];
-        });
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'support_tickets',
-        filter: `id=eq.${id}`
-      }, (payload) => {
-        console.log("[SupportChat] Ticket atualizado via Realtime:", payload.new);
-        setTicket(prev => ({ ...prev, ...payload.new }));
-      })
-      .subscribe((status) => {
-        console.log(`[SupportChat] Status da inscrição: ${status}`);
-      });
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "support_messages",
+          filter: `ticket_id=eq.${id}`,
+        },
+        (payload) => {
+          setMessages((current) => {
+            if (current.some((message) => message.id === payload.new.id)) {
+              return current;
+            }
+            return [...current, payload.new];
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "support_tickets",
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          setTicket((current: any) => ({ ...current, ...payload.new }));
+        },
+      )
+      .subscribe();
 
     return () => {
-      console.log("[SupportChat] Removendo canal de Realtime");
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
   }, [id]);
 
@@ -134,12 +194,14 @@ const TicketDetailPage = () => {
 
   const checkAdminStatus = async () => {
     if (!user) return;
+
     const { data } = await supabase
-      .from('profiles')
-      .select('is_admin, role')
-      .eq('id', user.id)
+      .from("profiles")
+      .select("is_admin, role")
+      .eq("id", user.id)
       .single();
-    setIsAdmin(!!(data?.is_admin || data?.role === 'admin'));
+
+    setIsAdmin(Boolean(data?.is_admin || data?.role === "admin"));
   };
 
   const fetchTicket = async () => {
@@ -149,10 +211,11 @@ const TicketDetailPage = () => {
         .select("*, user:profiles!support_tickets_user_id_fkey(full_name, avatar_url)")
         .eq("id", id)
         .single();
+
       if (error) throw error;
       setTicket(data);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error("[TicketDetailPage] Erro ao buscar ticket:", error);
     } finally {
       setLoading(false);
     }
@@ -165,238 +228,275 @@ const TicketDetailPage = () => {
         .select("*")
         .eq("ticket_id", id)
         .order("created_at", { ascending: true });
+
       if (error) throw error;
       setMessages(data || []);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error("[TicketDetailPage] Erro ao buscar mensagens:", error);
     }
   };
 
   const handleUpdateStatus = async (newStatus: string) => {
     setIsUpdatingStatus(true);
+
     try {
       const { error } = await supabase
         .from("support_tickets")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq("id", id);
+
       if (error) throw error;
 
-      if (newStatus === 'closed') {
-        notifySupport({ type: "ticket_closed", ticketId: id, senderId: user?.id });
+      if (newStatus === "closed") {
+        void notifySupport({ type: "ticket_closed", ticketId: id, senderId: user?.id });
       }
 
-      toast.success("Status atualizado!");
-    } catch (err) {
+      toast.success("Status atualizado.");
+    } catch (error) {
+      console.error("[TicketDetailPage] Erro ao atualizar status:", error);
       toast.error("Erro ao atualizar status.");
     } finally {
       setIsUpdatingStatus(false);
     }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendMessage = async (event: React.FormEvent) => {
+    event.preventDefault();
     if ((!newMessage.trim() && !attachment) || isSending) return;
 
     setIsSending(true);
     const messageText = newMessage.trim();
 
     try {
-      let attachmentUrl = null;
-      let attachmentName = null;
+      let attachmentUrl: string | null = null;
+      let attachmentName: string | null = null;
 
       if (attachment) {
         const safeName = sanitizeStorageFileName(attachment.name, "anexo");
-        const fileExt = safeName.split('.').pop() || "bin";
+        const fileExt = safeName.split(".").pop() || "bin";
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
-        const filePath = sanitizeStoragePath(`support/${user?.id}/${fileName}`, { bucket: "uploads" });
+        const filePath = sanitizeStoragePath(`support/${user?.id}/${fileName}`, {
+          bucket: "uploads",
+        });
 
         const { error: uploadError } = await supabase.storage
-          .from('uploads')
+          .from("uploads")
           .upload(filePath, attachment);
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('uploads')
-          .getPublicUrl(filePath);
-        
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("uploads").getPublicUrl(filePath);
+
         attachmentUrl = publicUrl;
         attachmentName = attachment.name;
       }
 
-      const { error } = await supabase
-        .from("support_messages")
-        .insert({
-          ticket_id: id,
-          sender_id: user?.id,
-          message: messageText,
-          attachment_url: attachmentUrl,
-          attachment_name: attachmentName
-        });
+      const { error } = await supabase.from("support_messages").insert({
+        ticket_id: id,
+        sender_id: user?.id,
+        message: messageText,
+        attachment_url: attachmentUrl,
+        attachment_name: attachmentName,
+      });
 
       if (error) throw error;
 
-      notifySupport({
+      void notifySupport({
         type: "new_message",
         ticketId: id,
         senderId: user?.id,
-        message: messageText || (attachment ? "[Arquivo Anexo]" : ""),
+        message: messageText || (attachment ? "[Arquivo anexo]" : ""),
       });
 
       setNewMessage("");
       setAttachment(null);
-    } catch (err) {
+    } catch (error) {
+      console.error("[TicketDetailPage] Erro ao enviar mensagem:", error);
       toast.error("Erro ao enviar mensagem.");
     } finally {
       setIsSending(false);
     }
   };
 
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'low': return 'Baixa';
-      case 'medium': return 'Média';
-      case 'high': return 'Alta';
-      case 'urgent': return 'Urgente';
-      default: return priority;
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex justify-center p-12">
+        <Loader2 className="animate-spin text-primary" />
+      </div>
+    );
+  }
 
-  if (loading) return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-primary" /></div>;
-  if (!ticket) return <div className="text-center p-12">Chamado não encontrado.</div>;
+  if (!ticket) {
+    return <div className="p-12 text-center">Chamado não encontrado.</div>;
+  }
 
-  const isClosed = ticket.status === 'closed';
+  const isClosed = ticket.status === "closed";
+  const category = getSupportCategoryConfig(ticket.category, supportSlaConfig);
+  const slaStatus = computeLiveSupportSlaStatus({
+    createdAt: ticket.created_at,
+    dueAt: ticket.first_response_due_at,
+    firstResponseAt: ticket.first_response_at,
+  });
+  const slaMeta = getSupportSlaStatusMeta(slaStatus);
 
   const renderAttachment = (url: string, name: string) => (
-    <a 
-      href={url} 
-      target="_blank" 
+    <a
+      href={url}
+      target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-2 mt-2 p-2 rounded bg-black/5 hover:bg-black/10 transition-colors border border-black/10 text-xs font-medium"
+      className="mt-2 flex items-center gap-2 rounded border border-black/10 bg-black/5 p-2 text-xs font-medium transition-colors hover:bg-black/10"
     >
       <FileIcon className="h-4 w-4 shrink-0" />
-      <span className="truncate flex-1">{name || "Anexo"}</span>
+      <span className="flex-1 truncate">{name || "Anexo"}</span>
       <Download className="h-3 w-3" />
     </a>
   );
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
-          <Link to={isAdmin ? "/admin/suporte" : "/dashboard/suporte"}><ArrowLeft className="h-5 w-5" /></Link>
+          <Link to={isAdmin ? "/admin/suporte" : "/dashboard/suporte"}>
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold truncate">{ticket.subject}</h1>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-2xl font-bold">{ticket.subject}</h1>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>Ticket #{ticket.id.slice(0, 8)}</span>
             <span>•</span>
-            <span>Aberto em {new Date(ticket.created_at).toLocaleDateString('pt-BR')}</span>
+            <span>Aberto em {new Date(ticket.created_at).toLocaleDateString("pt-BR")}</span>
           </div>
         </div>
-        <Badge className={cn(
-          ticket.status === 'open' ? "bg-blue-500" : 
-          ticket.status === 'in_progress' ? "bg-amber-500" : "bg-slate-500"
-        )}>
-          {ticket.status === 'open' ? 'Aberto' : ticket.status === 'in_progress' ? 'Em Atendimento' : 'Fechado'}
-        </Badge>
+
+        {getTicketStatusBadge(ticket.status)}
       </div>
 
       <div className="grid gap-6 md:grid-cols-4">
-        <div className="md:col-span-3 space-y-4">
-          <Card className="flex flex-col h-[600px]">
-            <CardHeader className="border-b py-3 flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" /> Histórico de Mensagens
+        <div className="space-y-4 md:col-span-3">
+          <Card className="flex h-[600px] flex-col">
+            <CardHeader className="flex-row items-center justify-between border-b py-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                Histórico de mensagens
               </CardTitle>
+
               {isAdmin && (
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Status:</span>
-                  <Select 
-                    defaultValue={ticket.status} 
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                    Status:
+                  </span>
+                  <Select
+                    defaultValue={ticket.status}
                     onValueChange={handleUpdateStatus}
                     disabled={isUpdatingStatus}
                   >
-                    <SelectTrigger className="h-8 text-xs w-[140px]">
+                    <SelectTrigger className="h-8 w-[150px] text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="open">Aberto</SelectItem>
-                      <SelectItem value="in_progress">Em Atendimento</SelectItem>
+                      <SelectItem value="in_progress">Em atendimento</SelectItem>
                       <SelectItem value="closed">Fechado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               )}
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+
+            <CardContent className="flex-1 space-y-4 overflow-y-auto p-4" ref={scrollRef}>
               <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-2xl rounded-tl-none bg-secondary/30 p-4 border">
-                  <p className="text-xs font-bold mb-1 text-primary uppercase tracking-wider">Descrição do Problema</p>
-                  <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
+                <div className="max-w-[80%] rounded-2xl rounded-tl-none border bg-secondary/30 p-4">
+                  <p className="mb-1 text-xs font-bold uppercase tracking-wider text-primary">
+                    Descrição do problema
+                  </p>
+                  <p className="whitespace-pre-wrap text-sm">{ticket.description}</p>
                   {ticket.attachment_url && renderAttachment(ticket.attachment_url, ticket.attachment_name)}
-                  <p className="text-[10px] text-muted-foreground mt-2 text-right">
-                    {new Date(ticket.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  <p className="mt-2 text-right text-[10px] text-muted-foreground">
+                    {new Date(ticket.created_at).toLocaleTimeString("pt-BR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </p>
                 </div>
               </div>
 
-              {messages.map((msg) => {
-                const isMe = msg.sender_id === user?.id;
+              {messages.map((message) => {
+                const isMe = message.sender_id === user?.id;
+
                 return (
-                  <div key={msg.id} className={cn("flex flex-col gap-1", isMe ? "items-end" : "items-start")}>
+                  <div
+                    key={message.id}
+                    className={cn("flex flex-col gap-1", isMe ? "items-end" : "items-start")}
+                  >
                     {!isMe && (
-                      <span className="text-[10px] font-bold text-primary ml-1 uppercase tracking-wider">Equipe de Suporte</span>
+                      <span className="ml-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                        Equipe de suporte
+                      </span>
                     )}
-                    <div className={cn(
-                      "max-w-[80%] rounded-2xl p-3 shadow-sm",
-                      isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-card border rounded-tl-none"
-                    )}>
-                      <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                      {msg.attachment_url && renderAttachment(msg.attachment_url, msg.attachment_name)}
-                      <p className={cn("text-[10px] mt-1 text-right opacity-70")}>
-                        {new Date(msg.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    <div
+                      className={cn(
+                        "max-w-[80%] rounded-2xl p-3 shadow-sm",
+                        isMe
+                          ? "rounded-tr-none bg-primary text-primary-foreground"
+                          : "rounded-tl-none border bg-card",
+                      )}
+                    >
+                      <p className="whitespace-pre-wrap text-sm">{message.message}</p>
+                      {message.attachment_url &&
+                        renderAttachment(message.attachment_url, message.attachment_name)}
+                      <p className="mt-1 text-right text-[10px] opacity-70">
+                        {new Date(message.created_at).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </p>
                     </div>
                   </div>
                 );
               })}
             </CardContent>
-            <CardFooter className="border-t p-4 flex-col gap-2">
+
+            <CardFooter className="flex-col gap-2 border-t p-4">
               {attachment && (
-                <div className="w-full flex items-center gap-2 bg-secondary/50 p-2 rounded text-xs">
+                <div className="flex w-full items-center gap-2 rounded bg-secondary/50 p-2 text-xs">
                   <Paperclip className="h-3 w-3" />
                   <span className="flex-1 truncate">{attachment.name}</span>
-                  <button onClick={() => setAttachment(null)}><X className="h-3 w-3" /></button>
+                  <button type="button" onClick={() => setAttachment(null)}>
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
               )}
-              
+
               {isClosed && !isAdmin ? (
-                <div className="w-full flex items-center justify-center gap-2 text-muted-foreground bg-secondary/20 p-3 rounded-lg">
+                <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary/20 p-3 text-muted-foreground">
                   <CheckCircle2 className="h-4 w-4" />
                   <span className="text-sm font-medium">Este chamado foi encerrado.</span>
                 </div>
               ) : (
                 <form onSubmit={handleSendMessage} className="flex w-full gap-2">
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSending}
                   >
                     <Paperclip className="h-4 w-4" />
                   </Button>
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={(event) => setAttachment(event.target.files?.[0] || null)}
                   />
-                  <Input 
-                    placeholder="Digite sua mensagem..." 
+                  <Input
+                    placeholder="Digite sua mensagem..."
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={(event) => setNewMessage(event.target.value)}
                     disabled={isSending}
                   />
                   <Button type="submit" size="icon" disabled={isSending || (!newMessage.trim() && !attachment)}>
@@ -415,24 +515,61 @@ const TicketDetailPage = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Usuário</p>
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">Usuário</p>
                 <p className="text-xs font-medium">{ticket.user?.full_name}</p>
               </div>
+
               <div className="space-y-1">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Prioridade</p>
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">Categoria</p>
+                <Badge variant="outline">{category.label}</Badge>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">Prioridade</p>
                 <Badge variant="outline">{getPriorityLabel(ticket.priority)}</Badge>
               </div>
+
               <div className="space-y-1">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Última Atualização</p>
-                <p className="text-xs">{new Date(ticket.updated_at).toLocaleString('pt-BR')}</p>
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">SLA da primeira resposta</p>
+                <Badge variant="outline" className={slaMeta.className}>
+                  {slaMeta.label}
+                </Badge>
+                <p className="text-xs text-muted-foreground">
+                  {formatSupportSlaPromise(ticket.category, supportSlaConfig)}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">Prazo previsto</p>
+                <p className="text-xs">{formatSupportDueDate(ticket.first_response_due_at)}</p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">Primeira resposta</p>
+                <p className="text-xs">
+                  {ticket.first_response_at ? formatSupportDueDate(ticket.first_response_at) : "Ainda não respondido"}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold uppercase text-muted-foreground">Ultima atualizacao</p>
+                <p className="text-xs">{new Date(ticket.updated_at).toLocaleString("pt-BR")}</p>
               </div>
             </CardContent>
           </Card>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-            <p className="text-xs text-amber-800 leading-relaxed">
-              Nossa equipe responde em média em até 24 horas úteis.
+          <div className="flex gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+            <div className="space-y-1 text-xs leading-relaxed text-amber-900">
+              <p className="font-semibold">{formatSupportSlaPromise(ticket.category, supportSlaConfig)}</p>
+              <p>Horario do suporte: {formatSupportBusinessHoursSummary(supportBusinessHours)}.</p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4">
+            <ShieldAlert className="h-5 w-5 shrink-0 text-rose-600" />
+            <p className="text-xs leading-relaxed text-rose-900">
+              Se o caso envolver segurança, suspeita de crime ou fraude, mantenha o chamado ativo e registre também a denúncia do perfil envolvido.
             </p>
           </div>
         </div>

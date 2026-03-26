@@ -1,0 +1,281 @@
+GUIAS DE USO - HOMECARE MATCH
+============================
+
+ESTUDO COMPLETO DE FLUXOS E PROCEDIMENTOS DA PLATAFORMA.
+Este arquivo contém todos os tutoriais passo a passo para profissionais, empresas e famílias.
+
+
+CADASTRO E ACESSO (ONBOARDING)
+------------------------------
+
+1. Título: Fluxo de cadastro para profissional
+Módulo: onboarding | Público: Profissional
+R: 1) Acesse /login e escolha criar conta. 2) Conclua os dados iniciais e confirme acesso. 3) Entre no painel em /dashboard. 4) Finalize /dashboard/perfil para melhorar visibilidade na busca.
+
+2. Título: Fluxo de cadastro para empresa e família
+Módulo: onboarding | Público: Empresa, Família
+R: 1) Inicie cadastro em /cadastro-empresa. 2) Conclua informações de contato e contexto de contratação. 3) Acesse /dashboard para organizar processo. 4) Use /buscar para iniciar seleção de profissionais.
+
+3. Título: Cadastro: como escolher o tipo de conta
+Módulo: onboarding | Público: Todos
+R: 1) Se você presta serviço, escolha cadastro de profissional. 2) Se você contrata para operação, escolha empresa. 3) Se você contrata para cuidado familiar, escolha família. 4) Depois de criar a conta, complete seu perfil e siga para o painel.
+
+4. Título: Cadastro com cupom promocional
+Módulo: onboarding | Público: Profissional
+R: 1) No formulário de cadastro, informe o código promocional no campo de cupom. 2) Se válido, os dias de benefício são aplicados automaticamente na conta. 3) Conclua o cadastro e acompanhe o período ativo no painel.
+
+5. Título: Fluxo de onboarding inicial após login
+Módulo: onboarding | Público: Todos
+R: 1) No primeiro acesso, siga o onboarding. 2) Complete os dados principais do perfil. 3) Revise funcionalidades em /funcionalidades. 4) Execute o primeiro fluxo objetivo: buscar profissionais, ajustar perfil ou abrir suporte.
+
+6. Título: Cadastro de empresa e família: fluxo prático
+Módulo: onboarding | Público: Empresa, Família
+R: 1) Crie a conta de contratante e preencha dados de contexto. 2) Entre no Dashboard para organizar demanda. 3) Estruture critérios do caso e parta para busca de profissionais. 4) Registre andamento dos contatos no painel.
+
+
+CONTA E SEGURANÇA
+-----------------
+
+7. Título: Fluxo de login e acesso ao painel
+Módulo: conta | Público: Todos
+R: 1) Entre em /login e autentique sua conta. 2) Acesse /dashboard. 3) Use menu lateral para navegar por perfil, contatos, suporte, pagamentos e demais módulos do seu perfil.
+
+8. Título: Fluxo de redefinição de senha
+Módulo: conta | Público: Todos
+R: 1) Em /login, selecione recuperar senha. 2) Abra o link recebido por e-mail. 3) Finalize redefinição em /redefinir-senha. 4) Retorne ao /login e acesse normalmente.
+
+9. Título: Como recuperar acesso da conta
+Módulo: conta | Público: Todos
+R: 1) Vá para /login e use recuperar senha. 2) Abra o link enviado para seu e-mail. 3) Defina nova senha e volte ao painel.
+
+10. Título: Fluxo de verificação profissional e selo
+Módulo: segurança | Público: Profissional
+R: 1) Siga o fluxo de verificação documental quando solicitado. 2) Envie documentos legíveis e corretos. 3) Acompanhe retorno da análise. 4) Com aprovado, o selo reforça confiança no perfil.
+
+11. Título: Fluxo de segurança e denúncias
+Módulo: segurança | Público: Todos
+R: 1) Reúna fatos objetivos e evidências. 2) Use o canal de denúncia/report no fluxo correspondente. 3) Para urgência operacional, abra ticket em /dashboard/suporte.
+
+12. Título: Acesso logado x visitante
+Módulo: conta | Público: Todos
+R: 1) Visitante pode navegar em páginas públicas e FAQ. 2) Para usar Dashboard, contatos, suporte e recursos pessoais, é necessário estar logado. 3) Se não tiver conta, conclua o cadastro antes de acessar essas áreas.
+
+
+PERFIL PROFISSIONAL
+-------------------
+
+13. Título: Como completar perfil profissional para ganhar relevância
+Módulo: perfil | Público: Profissional
+R: 1) Acesse /dashboard/perfil. 2) Preencha bio, experiências, cursos e dados de contato. 3) Revise clareza e coerência das informações. 4) Atualize periodicamente para manter perfil competitivo.
+
+14. Título: Fluxo para completar perfil profissional estratégico
+Módulo: perfil | Público: Profissional
+R: 1) Entre em /dashboard/perfil. 2) Complete bio, experiências, cursos e dados de contato. 3) Garanta consistência entre informações e serviços oferecidos. 4) Atualize periodicamente.
+
+15. Título: Como gerar e revisar biografia com IA
+Módulo: perfil | Público: Profissional
+R: 1) No perfil, use a opção de gerar biografia com IA. 2) Revise o texto para refletir experiência real. 3) Ajuste termos técnicos e tom de comunicação. 4) Salve a versão final.
+
+16. Título: Como otimizar o perfil profissional
+Módulo: perfil | Público: Profissional
+R: 1) Acesse /dashboard/perfil. 2) Preencha bio, experiências e formações. 3) Mantenha dados de contato atualizados.
+
+
+BUSCA E CONTRATAÇÃO
+-------------------
+
+17. Título: Como buscar profissionais com filtros
+Módulo: busca | Público: Empresa, Família
+R: 1) Entre em /buscar. 2) Aplique filtros de localização, especialidade e disponibilidade. 3) Abra os perfis mais aderentes para comparar experiência e formação. 4) Inicie contato com os melhores candidatos.
+
+18. Título: Fluxo de busca inteligente com filtros
+Módulo: busca | Público: Empresa, Família
+R: 1) Acesse /buscar. 2) Defina filtros de localização, especialidade e disponibilidade. 3) Compare perfis com calma. 4) Abra contato somente com os candidatos aderentes.
+
+19. Título: Fluxo de busca por geolocalização no mapa
+Módulo: busca | Público: Empresa, Família
+R: 1) Em /buscar, habilite visualização por mapa quando disponível. 2) Ajuste região e filtros. 3) Priorize candidatos próximos para reduzir tempo de deslocamento.
+
+20. Título: Fluxo de avaliação de perfil profissional
+Módulo: busca | Público: Empresa, Família
+R: 1) Abra o perfil em /profissional/:id. 2) Revise experiência, formações, bio e sinais de confiança. 3) Cruze com necessidade do paciente. 4) Siga para contato com critérios objetivos.
+
+21. Título: Fluxo de uso do concierge
+Módulo: concierge | Público: Empresa, Família
+R: 1) Acione concierge quando houver urgência ou caso difícil. 2) Informe critérios essenciais do paciente/vaga. 3) Acompanhe orientações da equipe até obter shortlist aderente.
+
+22. Título: Fluxo para consultar perfil público do recrutador
+Módulo: recrutador | Público: Todos
+R: 1) Abra /recruiter/:id ao receber contato. 2) Verifique contexto e perfil de quem está recrutando. 3) Use essas informações para alinhar proposta, disponibilidade e expectativas.
+
+
+GESTÃO DE CONTATOS
+------------------
+
+23. Título: Como iniciar contato e organizar retornos
+Módulo: contatos | Público: Empresa, Família
+R: 1) No resultado da busca, clique em contato. 2) Siga para WhatsApp quando disponível. 3) Registre andamento e retorno em /dashboard/contatos para não perder contexto.
+
+24. Título: Fluxo de contato via WhatsApp sem perder histórico
+Módulo: contatos | Público: Empresa, Família
+R: 1) Inicie contato no resultado da busca/perfil. 2) Continue conversa via WhatsApp quando disponível. 3) Registre contexto e retorno em /dashboard/contatos para manter rastreabilidade.
+
+25. Título: Fluxo de gestão de contatos no painel
+Módulo: contatos | Público: Todos
+R: 1) Acesse /dashboard/contatos. 2) Revise contatos recentes e status do andamento. 3) Atualize sua priorização de próximos passos para evitar perda de oportunidade.
+
+26. Título: Fluxo de qualidade: contato, avaliação e feedback
+Módulo: qualidade | Público: Todos
+R: 1) Conclua a interação principal. 2) Registre feedback no recurso de avaliação quando aplicável. 3) Use aprendizado para melhorar próximos contatos e decisões.
+
+
+ASSINATURAS E PAGAMENTOS
+-------------------------
+
+27. Título: Como gerenciar assinatura e pagamentos
+Módulo: assinatura | Público: Profissional
+R: 1) Abra /dashboard/pagamentos. 2) Confira status da assinatura e histórico de cobrança. 3) Corrija pendências rapidamente para evitar impacto de visibilidade.
+
+28. Título: Fluxo de assinatura e planos para profissional
+Módulo: assinatura | Público: Profissional
+R: 1) Consulte plano e status em /dashboard/pagamentos. 2) Compare benefícios do plano atual. 3) Mantenha assinatura regular para preservar alcance e previsibilidade de uso.
+
+29. Título: Fluxo de acompanhamento de pagamentos e faturas
+Módulo: pagamentos | Público: Profissional
+R: 1) Em /dashboard/pagamentos, revise transações e status. 2) Verifique pendências. 3) Regularize rapidamente para evitar impacto em visibilidade e operação.
+
+30. Título: Fluxo para resolver falha de cobrança
+Módulo: pagamentos | Público: Profissional
+R: 1) Valide método de pagamento e dados de cobrança. 2) Tente novamente no fluxo indicado em /dashboard/pagamentos. 3) Se persistir, abra ticket em /dashboard/suporte.
+
+31. Título: Assinatura expirada: como reativar
+Módulo: pagamentos | Público: Profissional
+R: 1) Abra Pagamentos no Dashboard. 2) Confirme o status da assinatura e escolha renovação mensal ou anual. 3) Regularize a cobrança para recuperar continuidade de uso e visibilidade do perfil.
+
+
+REEMBOLSO E ESTORNO
+-------------------
+
+32. Título: Pagamentos: como solicitar reembolso do pagamento
+Módulo: pagamentos | Público: Profissional
+R: 1) Abra /dashboard/pagamentos e localize a cobrança. 2) Inicie o fluxo de cancelamento/reembolso dentro da janela elegível (até 7 dias após pagamento confirmado). 3) Registre motivo objetivo para acelerar análise. 4) Acompanhe o status até conclusão.
+
+33. Título: Pagamentos: evidências para análise de reembolso
+Módulo: pagamentos | Público: Profissional
+R: 1) Tenha em mãos horário da tentativa, valor e identificador da cobrança. 2) Inclua print da mensagem exibida quando houver erro. 3) Se abrir ticket, descreva o passo a passo executado em /dashboard/pagamentos. 4) Isso reduz retrabalho e acelera retorno.
+
+34. Título: Pagamentos: acompanhar status de estorno e reembolso
+Módulo: pagamentos | Público: Profissional
+R: 1) Consulte o histórico em /dashboard/pagamentos. 2) Status comuns: estorno pendente (em processamento) e estornado (concluído). 3) Se ficar sem atualização por período prolongado, abra ticket em /dashboard/suporte com os dados da cobrança.
+
+35. Título: Pagamentos: reembolso aprovado e valor ainda não visível
+Módulo: pagamentos | Público: Profissional
+R: 1) Confirmado como estornado na plataforma, o prazo de exibição pode variar pelo emissor do cartão. 2) Aguarde o fechamento/atualização da fatura conforme operadora. 3) Persistindo divergência, abra chamado com comprovante e dados da transação para conferência.
+
+
+ACADEMY (CURSOS E CERTIFICADOS)
+-------------------------------
+
+36. Título: Como fazer cursos na Academy e emitir certificado
+Módulo: academy | Público: Profissional
+R: 1) Acesse /dashboard/cursos. 2) Escolha o curso e conclua os módulos. 3) Acompanhe progresso. 4) Ao finalizar, consulte o certificado quando disponível.
+
+37. Título: Fluxo Academy: iniciar e concluir cursos
+Módulo: academy | Público: Profissional
+R: 1) Entre em /dashboard/cursos. 2) Escolha curso alinhado ao seu objetivo. 3) Avance pelos módulos até conclusão. 4) Revise aprendizado para aplicar no perfil e na prática.
+
+38. Título: Fluxo Academy: progresso e retomada de estudo
+Módulo: academy | Público: Profissional
+R: 1) Consulte progresso em /dashboard/cursos. 2) Retome módulo pendente. 3) Conclua etapas restantes para liberar avanços e certificados quando aplicável.
+
+39. Título: Como validar certificado pela página pública
+Módulo: certificados | Público: Todos
+R: 1) Entre em /validar. 2) Informe os dados solicitados no certificado. 3) Confira o resultado de autenticidade exibido pela plataforma.
+
+40. Título: Certificado: compartilhar e validar autenticidade
+Módulo: certificados | Público: Todos
+R: 1) Depois de concluir o curso, abra seu certificado na área de cursos. 2) Compartilhe o link de validação quando precisar comprovar autenticidade. 3) A validação confirma emissão legítima pela plataforma.
+
+41. Título: Cursos: diferença entre catálogo público e área do aluno
+Módulo: cursos | Público: Profissional
+R: 1) A página pública de cursos apresenta o catálogo e detalhes de cada conteúdo. 2) A área do aluno no Dashboard concentra progresso, acesso liberado e histórico. 3) Use o Dashboard para continuar exatamente de onde parou.
+
+42. Título: Cursos pagos: checkout e liberação de acesso
+Módulo: cursos | Público: Profissional
+R: 1) Escolha o curso e avance para checkout. 2) Conclua pagamento pelos métodos disponíveis no fluxo. 3) Com confirmação, o curso é liberado no Dashboard. 4) Se houver atraso de liberação, abra suporte com comprovante.
+
+
+PROGRAMA DE INDICAÇÕES (EMBAIXADOR)
+-----------------------------------
+
+43. Título: Como operar o programa de indicações
+Módulo: indicações | Público: Profissional
+R: 1) Abra /dashboard/indicações. 2) Compartilhe seu link conforme regras vigentes. 3) Acompanhe evolução dos indicados e resultados da campanha.
+
+44. Título: Indicações: como funciona o link de convite
+Módulo: indicações | Público: Profissional
+R: 1) Gere e copie seu link de indicação no painel de Indicações. 2) Compartilhe com colegas aderentes ao perfil da plataforma. 3) Quem entra pelo link segue para cadastro e fica vinculado ao seu acompanhamento de indicações.
+
+45. Título: Fluxo de indicações para profissional
+Módulo: indicações | Público: Profissional
+R: 1) Abra /dashboard/indicações. 2) Compartilhe o link de forma qualificada. 3) Monitore evolução dos indicados e indicadores do programa.
+
+46. Título: Fluxo de acompanhamento de desempenho das indicações
+Módulo: indicações | Público: Profissional
+R: 1) Consulte painel de indicações periodicamente. 2) Identifique gargalos no funil de indicados. 3) Ajuste abordagem para aumentar aderência e conversão.
+
+
+SUPORTE E COMUNICAÇÃO
+----------------------
+
+47. Título: Como abrir e acompanhar chamado de suporte
+Módulo: suporte | Público: Todos
+R: 1) Acesse /dashboard/suporte. 2) Clique em novo chamado e descreva o problema com contexto, passos e resultado esperado. 3) Envie anexos quando necessário. 4) Monitore respostas no mesmo ticket para manter histórico único.
+
+48. Título: Fluxo de suporte por ticket fim a fim
+Módulo: suporte | Público: Todos
+R: 1) Abra ticket em /dashboard/suporte. 2) Escreva descrição objetiva com passos e evidências. 3) Acompanhe respostas no mesmo chamado. 4) Confirme resolução antes de encerrar.
+
+49. Título: Fluxo de triagem: chatbot, FAQ ou chamado
+Módulo: suporte | Público: Todos
+R: 1) Comece pelo chatbot para dúvidas operacionais rápidas. 2) Consulte /suporte para base FAQ. 3) Se houver erro, bloqueio ou caso específico, abra ticket em /dashboard/suporte.
+
+50. Título: Quando abrir chamado em vez de usar apenas o chatbot
+Módulo: suporte | Público: Todos
+R: 1) Use chatbot para dúvidas de uso e fluxo. 2) Abra chamado quando houver erro técnico, bloqueio de conta, pagamento com falha persistente ou divergência de dados. 3) Informe passos, horário e evidências para acelerar a análise.
+
+51. Título: Fluxo para acompanhar avisos e comunicados
+Módulo: avisos | Público: Todos
+R: 1) Acesse /dashboard/avisos. 2) Leia atualizações operacionais e novidades. 3) Aplique mudanças relevantes nos seus fluxos de uso para evitar retrabalho.
+
+52. Título: Fluxo de notificações em tempo real
+Módulo: notificações | Público: Todos
+R: 1) Mantenha sessões ativas no painel. 2) Monitore alertas de interações e eventos. 3) Priorize respostas mais urgentes para acelerar decisões.
+
+53. Título: Fluxo de sugestões de melhoria da plataforma
+Módulo: sugestões | Público: Todos
+R: 1) Use o canal de sugestões no produto. 2) Escreva problema, impacto e proposta de melhoria. 3) Acompanhe retorno quando houver atualização da equipe.
+
+
+OUTROS FLUXOS
+-------------
+
+54. Título: Fluxo para instalar o app no celular (PWA)
+Módulo: app | Público: Todos
+R: 1) Abra o site no navegador mobile. 2) Aceite instalar/adicionar na tela inicial. 3) Use o atalho para abrir a plataforma como app e agilizar acessos recorrentes.
+
+55. Título: Fluxo de cadastro e gestão de pacientes para empresa
+Módulo: pacientes | Público: Empresa
+R: 1) Acesse /dashboard/pacientes. 2) Cadastre pacientes com dados essenciais do caso. 3) Mantenha registros atualizados para apoiar recrutamento e acompanhamento.
+
+56. Título: Fluxo de uso do blog para apoio operacional
+Módulo: blog | Público: Todos
+R: 1) Acesse /blog e filtre por categoria/tag. 2) Use os artigos como referência para decisões operacionais. 3) Aplique boas práticas ao seu contexto no produto.
+
+57. Título: Fluxo de operação diária no dashboard
+Módulo: rotina | Público: Todos
+R: 1) Verifique avisos/notificações. 2) Execute tarefas prioritárias do seu perfil (contatos, perfil, pacientes, cursos, pagamentos). 3) Resolva pendências de suporte. 4) Feche o dia com backlog atualizado.
+
+58. Título: Diferença entre visitante e logado
+Módulo: conta | Público: Todos
+R: 1) Visitante pode navegar em páginas públicas e FAQ. 2) Para usar recursos pessoais, Dashboard, contatos e suporte, é necessário estar logado. 3) Se não tiver conta, conclua o cadastro primeiro.

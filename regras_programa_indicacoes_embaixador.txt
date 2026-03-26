@@ -1,0 +1,54 @@
+REGRAS E RECOMPENSAS DO PROGRAMA DE INDICAÇÕES (EMBAIXADOR)
+=========================================================
+
+O Programa de Embaixadores da Home Care Match recompensa profissionais que ajudam a crescer a nossa comunidade de especialistas em saúde.
+
+
+1. COMO PARTICIPAR
+-------------------
+1. Acesse seu painel em /dashboard/indicacoes.
+2. Copie seu link exclusivo de indicação.
+3. Compartilhe com colegas de profissão (Enfermeiros, Técnicos, Cuidadores, etc.).
+4. Acompanhe em tempo real quem se cadastrou e os prêmios acumulados.
+
+
+2. RECOMPENSAS FINANCEIRAS (COMISSÕES)
+--------------------------------------
+O sistema oferece duas formas de ganho financeiro direto para o embaixador:
+
+A) COMISSÃO RECORRENTE (10%):
+   * Você recebe 10% do valor de cada mensalidade ou anuidade paga pelo seu colega indicado.
+   * Enquanto o seu indicado mantiver o plano ativo, você continua recebendo a comissão.
+   * Exemplo: Se o colega assina o plano mensal de R$ 49,90, você recebe R$ 4,99 todos os meses.
+
+B) BÔNUS DE MARCO (MILESTONE - R$ 50,00):
+   * A cada grupo de 10 colegas indicados que efetivarem a assinatura de um plano pago, você recebe um bônus extra fixo de R$ 50,00.
+   * Este bônus é cumulativo (10 indicados = R$ 50; 20 indicados = +R$ 50, e assim por diante).
+
+
+3. RECOMPENSAS DE VISIBILIDADE (RANKING)
+----------------------------------------
+Além do dinheiro, indicar colegas ajuda você a conseguir mais trabalho:
+
+* BÔNUS DE RANKING: Cada colega que se cadastra e valida o perfil através do seu link adiciona 100 pontos ao seu score de busca.
+* BENEFÍCIO: Quanto maior seu score, mais alto seu perfil aparece para empresas e famílias que estão contratando na sua região.
+
+
+4. REGRAS DE PAGAMENTO E RESGATE
+--------------------------------
+* Saldo Mínimo: O resgate pode ser solicitado sempre que você atingir o valor mínimo de R$ 100,00 acumulados.
+* Método de Resgate: Pagamento via PIX (cadastre sua chave no painel de indicações).
+* Ciclo de Pagamento: Os pagamentos são processados mensalmente pela equipe administrativa.
+* Status do Saldo:
+    - Pendente (Shadow): Valor registrado, aguardando confirmação do pagamento do indicado.
+    - Disponível: Valor liberado para compor o pedido de resgate.
+
+
+5. CRITÉRIOS DE VALIDAÇÃO E RESTRIÇÕES
+--------------------------------------
+Para garantir a integridade do programa, aplicamos as seguintes regras:
+
+* Assinatura Efetiva: As comissões financeiras só são geradas quando o indicado realiza o primeiro pagamento (após o período de 7 dias grátis).
+* Proibição de Auto-Indicação: Não é permitido criar contas secundárias para indicar a si mesmo. O sistema bloqueia automaticamente atribuições com o mesmo CPF, e-mail ou dados de pagamento.
+* Status da Conta: Você deve manter sua conta em situação regular para solicitar resgates.
+* Indicações Externas: O programa é aberto tanto para profissionais da plataforma quanto para parceiros externos autorizados.

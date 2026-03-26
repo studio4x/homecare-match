@@ -21,6 +21,7 @@ import {
   Mail,
   Bell,
   Users,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -38,6 +39,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import PwaInstallPrompt from "../PwaInstallPrompt";
 import SupportChatWidget from "../SupportChatWidget";
 import { trackShortLinkSignupConversion } from "@/lib/short-link-attribution";
+import AccessRestricted from "@/components/AccessRestricted";
 
 const isTransientNetworkError = (error: unknown) => {
   const message = String((error as any)?.message || "").toLowerCase();
@@ -78,7 +80,7 @@ const UserLayout = () => {
       const fallbackName =
         String(user.user_metadata?.full_name || "").trim() ||
         String(user.email || "").split("@")[0] ||
-        "Usuario";
+        "Usuário";
 
       const payload: Record<string, unknown> = {
         id: user.id,
@@ -146,7 +148,7 @@ const UserLayout = () => {
         }
 
         if (!data) {
-          console.warn("[UserLayout] Perfil nao encontrado apos tentativa de bootstrap. Forcando logout...");
+          console.warn("[UserLayout] Perfil não encontrado após tentativa de bootstrap. Forçando logout...");
           await signOut();
           navigate("/login", { replace: true });
           return;
@@ -190,6 +192,17 @@ const UserLayout = () => {
       navigate("/dashboard/afiliados", { replace: true });
     }
   }, [role, location.pathname, navigate]);
+
+  useEffect(() => {
+    if (!profile) return;
+    const status = String(profile.account_status || "active");
+    const isRestricted = status === "under_review" || status === "suspended";
+    const isSupportPath = location.pathname.startsWith("/dashboard/suporte");
+
+    if (isRestricted && !isSupportPath) {
+      navigate("/dashboard/suporte", { replace: true });
+    }
+  }, [location.pathname, navigate, profile]);
 
   if (!authLoading && !user) {
     return <Navigate to="/login" replace />;
@@ -245,6 +258,18 @@ const UserLayout = () => {
 
   navItems.push({ href: "/dashboard/suporte", label: "Suporte", icon: LifeBuoy, end: false });
 
+  const accountStatus = String(profile?.account_status || "active");
+  const isAccountRestricted = accountStatus === "under_review" || accountStatus === "suspended";
+  const restrictionReason =
+    String(profile?.account_status_reason || "").trim() ||
+    (accountStatus === "suspended"
+      ? "Sua conta está temporariamente suspensa enquanto o caso é analisado."
+      : "Sua conta está em revisão cautelar enquanto nossa equipe conclui a triagem.");
+  const isSupportRoute = location.pathname.startsWith("/dashboard/suporte");
+  const visibleNavItems = isAccountRestricted
+    ? navItems.filter((item) => item.href === "/dashboard/suporte")
+    : navItems;
+
   const initials =
     profile?.full_name
       ?.split(" ")
@@ -258,7 +283,7 @@ const UserLayout = () => {
     return location.pathname === href || location.pathname.startsWith(`${href}/`);
   };
 
-  const currentPageTitle = navItems.find((item) => isPathActive(item.href, item.end))?.label || "Meu Painel";
+  const currentPageTitle = visibleNavItems.find((item) => isPathActive(item.href, item.end))?.label || "Meu Painel";
 
   const mobileQuickItems = isProfessional
     ? [
@@ -287,6 +312,9 @@ const UserLayout = () => {
         { href: "/dashboard/contatos", label: "Contatos", icon: MessageSquare },
         { href: "/dashboard/perfil", label: "Perfil", icon: User },
       ];
+  const visibleMobileQuickItems = isAccountRestricted
+    ? [{ href: "/dashboard/suporte", label: "Suporte", icon: LifeBuoy, end: false }]
+    : mobileQuickItems;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -331,7 +359,7 @@ const UserLayout = () => {
                   <AvatarFallback className="bg-primary/10 font-bold text-primary">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{profile?.full_name || "Usuario"}</p>
+                  <p className="truncate text-sm font-semibold">{profile?.full_name || "Usuário"}</p>
                   <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     {role === "professional" ? "Profissional" : role === "company" ? "Empresa" : role === "affiliate" ? "Afiliado" : "Familia"}
                   </p>
@@ -344,7 +372,7 @@ const UserLayout = () => {
             </div>
 
             <div className="flex-1 space-y-1 overflow-y-auto p-4">
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <NavLink
                   key={item.href}
                   to={item.href}
@@ -401,7 +429,30 @@ const UserLayout = () => {
               isMobile ? "pb-28" : "pb-8"
             )}
           >
-            <Outlet />
+            {isAccountRestricted && (
+              <div className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                <div>
+                  <p className="font-semibold">
+                    {accountStatus === "suspended" ? "Conta suspensa cautelarmente" : "Conta em revisão cautelar"}
+                  </p>
+                  <p className="mt-1">
+                    O uso normal do painel foi temporariamente bloqueado. O suporte permanece disponível para acompanhamento do caso.
+                  </p>
+                  <p className="mt-1 text-amber-800/80">{restrictionReason}</p>
+                </div>
+              </div>
+            )}
+
+            {isAccountRestricted && !isSupportRoute ? (
+              <AccessRestricted
+                title={accountStatus === "suspended" ? "Conta suspensa" : "Conta em revisão"}
+                description={`${restrictionReason} Durante esse período, utilize o suporte para falar com a equipe.`}
+                primaryAction={{ label: "Ir para suporte", to: "/dashboard/suporte" }}
+              />
+            ) : (
+              <Outlet />
+            )}
           </div>
         </main>
       </div>
@@ -412,7 +463,7 @@ const UserLayout = () => {
           style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
         >
           <nav className="pointer-events-auto mx-auto flex max-w-md items-center justify-between rounded-2xl border border-border/80 bg-card/95 p-1.5 shadow-xl backdrop-blur-xl">
-            {mobileQuickItems.map((item) => {
+            {visibleMobileQuickItems.map((item) => {
               const active = isPathActive(item.href, item.end);
               return (
                 <Link

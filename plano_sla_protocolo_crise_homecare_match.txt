@@ -1,0 +1,220 @@
+PLANO DE SLA E PROTOCOLO DE CRISE
+HOMECARE MATCH
+
+1. OBJETIVO DESTE PLANO
+
+Este plano existe para deixar claro como a HomeCare Match organiza o atendimento do suporte e como age internamente quando recebe uma denúncia grave ou uma situação sensível.
+
+O foco é dar mais previsibilidade para quem usa a plataforma, proteger as pessoas envolvidas e garantir que a equipe interna saiba como agir com rapidez, responsabilidade e registro adequado.
+
+
+2. O QUE É O SLA DE SUPORTE
+
+SLA é o prazo prometido para a primeira resposta do suporte.
+
+Isso significa o tempo estimado para a equipe responder o chamado pela primeira vez.
+Não significa, necessariamente, o prazo final para resolver completamente o problema.
+
+Na prática, o SLA ajuda o usuário a entender quanto tempo deve esperar até receber retorno humano da equipe.
+
+
+3. PRAZOS DE PRIMEIRA RESPOSTA
+
+Os prazos definidos para a HomeCare Match são:
+
+- Assuntos de pagamento: até 2 horas úteis
+- Problemas técnicos: até 24 horas úteis
+- Conta e acesso: até 24 horas úteis
+- Dúvidas gerais: até 24 horas úteis
+
+Esses prazos são contados dentro do horário útil configurado pela plataforma.
+
+
+4. HORÁRIO DE ATENDIMENTO
+
+O atendimento considera horário útil.
+
+O padrão atual é:
+
+- Segunda a sexta-feira
+- Das 08:00 às 18:00
+- Fuso horário de São Paulo
+
+Se um chamado for aberto fora desse período, a contagem começa no próximo horário útil.
+
+
+5. O QUE O USUÁRIO VÊ NA PRÁTICA
+
+O usuário consegue visualizar de forma clara:
+
+- A categoria do chamado
+- O prazo esperado para a primeira resposta
+- O andamento do ticket
+- Se o prazo está dentro do esperado, em risco, atrasado ou já respondido
+
+Isso reduz incerteza e melhora a transparência do suporte.
+
+
+6. COMO FUNCIONA A ABERTURA DE CHAMADOS
+
+Ao abrir um chamado, o usuário informa a categoria do assunto.
+
+Essa categoria é importante porque define o prazo aplicável.
+
+Também existe um campo de prioridade, mas esse campo serve apenas para a triagem interna da equipe.
+Ele não altera a promessa pública de prazo.
+
+
+7. DIFERENÇA ENTRE CHAMADO E DENÚNCIA
+
+Chamado de suporte e denúncia não são a mesma coisa.
+
+O chamado serve para pedir ajuda, relatar problemas de uso, pagamento, acesso ou questões operacionais.
+
+A denúncia serve para comunicar comportamentos inadequados, suspeitas de fraude, risco à segurança ou situações que exigem análise mais sensível.
+
+Em casos graves, a orientação é usar os dois recursos:
+
+- abrir o chamado de suporte
+- registrar a denúncia
+
+Isso acelera a triagem e organiza melhor a resposta da plataforma.
+
+
+8. CASOS GRAVES E TRIAGEM PRIORITÁRIA
+
+Sempre que houver indício de risco relevante, a denúncia entra em triagem prioritária.
+
+Exemplos:
+
+- suspeita de crime
+- fraude
+- ameaça à integridade física
+- abuso
+- violência
+- situação com potencial repercussão pública
+
+Nesses casos, a equipe interna deve agir com prioridade, sem prometer conclusão imediata antes de entender os fatos.
+
+
+9. O QUE É O PROTOCOLO DE CRISE
+
+O protocolo de crise é um manual interno de conduta.
+
+Ele orienta a equipe sobre como agir quando a plataforma recebe um relato grave, sensível ou com potencial impacto operacional, jurídico ou reputacional.
+
+Esse protocolo não é público.
+Ele existe para organizar a atuação da equipe da HomeCare Match.
+
+
+10. ETAPAS DO PROTOCOLO DE CRISE
+
+Quando um caso grave chega ao suporte ou ao canal de denúncia, a equipe deve seguir uma linha de ação organizada:
+
+- registrar o caso com data, hora, perfis envolvidos e canal de entrada
+- classificar a gravidade inicial
+- preservar evidências disponíveis
+- definir se o caso precisa de escalonamento
+- decidir se cabe medida cautelar
+- manter comunicação objetiva com quem denunciou
+- alinhar eventual posicionamento institucional, se necessário
+
+
+11. PRESERVAÇÃO DE EVIDÊNCIAS
+
+Em situações graves, a plataforma deve preservar os registros relacionados ao caso.
+
+Isso inclui, por exemplo:
+
+- chamados
+- mensagens
+- anexos
+- denúncias
+- registros administrativos
+
+O objetivo é evitar perda de contexto e permitir uma análise mais segura e responsável.
+
+
+12. ESCALONAMENTO INTERNO
+
+Nem todo caso precisa do mesmo nível de resposta.
+
+O protocolo ajuda a identificar quando o caso deve ser escalado para níveis mais sensíveis, como:
+
+- operação
+- jurídico e compliance
+- responsável por comunicação institucional
+
+Esse escalonamento é importante quando há risco humano, risco legal, exposição pública ou necessidade de resposta coordenada.
+
+
+13. SUSPENSÃO CAUTELAR
+
+A suspensão cautelar é uma medida preventiva.
+
+Ela pode ser aplicada quando a equipe entende que existe risco atual para usuários ou para a plataforma.
+
+Essa medida:
+
+- não é automática
+- depende de decisão humana
+- exige motivo registrado
+- deve deixar histórico de quem aplicou e quando aplicou
+
+Isso evita bloqueios precipitados e garante rastreabilidade.
+
+
+14. STATUS DE CONTA DURANTE A TRIAGEM
+
+Uma conta pode ficar em três situações:
+
+- ativa
+- em revisão
+- suspensa
+
+Se a conta estiver em revisão ou suspensa, o acesso normal ao painel pode ser restringido.
+Mesmo assim, o canal de suporte continua disponível para acompanhamento do caso.
+
+
+15. IMPACTO PARA PERFIS PÚBLICOS
+
+Perfis com restrição cautelar deixam de aparecer normalmente nas áreas públicas de descoberta da plataforma.
+
+Essa medida reduz risco durante a apuração e protege o ambiente até que a triagem seja concluída.
+
+
+16. O PAPEL DO ADMINISTRATIVO
+
+O painel administrativo passa a ter papel mais forte na gestão desses fluxos.
+
+A equipe consegue:
+
+- acompanhar chamados por categoria
+- ver quais estão próximos do prazo ou atrasados
+- classificar denúncias por severidade
+- registrar notas internas
+- vincular denúncia a ticket relacionado
+- aplicar ou remover revisão e suspensão cautelar
+- manter um protocolo interno de crise atualizado
+
+
+17. BENEFÍCIOS DESTE MODELO
+
+Esse plano traz ganhos importantes para a operação da HomeCare Match:
+
+- mais transparência para usuários
+- mais previsibilidade no suporte
+- melhor organização interna
+- resposta mais rápida em casos graves
+- redução de improviso em situações críticas
+- histórico claro das decisões tomadas
+
+
+18. MENSAGEM CENTRAL DO PLANO
+
+O plano de SLA e protocolo de crise não existe apenas para organizar atendimento.
+
+Ele existe para demonstrar que a HomeCare Match trata suporte, segurança e denúncias com seriedade, método e responsabilidade.
+
+Na ponta do usuário, isso significa comunicação mais clara.
+Na operação interna, significa decisões mais consistentes e melhor capacidade de resposta.

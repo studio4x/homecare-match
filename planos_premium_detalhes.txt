@@ -1,0 +1,63 @@
+VALORES E CUSTOS DOS PLANOS PREMIUM - HOMECARE MATCH
+===================================================
+
+Este documento detalha os níveis de assinatura, preços, benefícios e critérios de relevância da plataforma para profissionais de saúde.
+
+
+1. PLANO GRATUITO (TESTE DO SISTEMA)
+------------------------------------
+* Valor: R$ 0,00
+* Período: 7 dias (aplicado automaticamente no cadastro)
+* Ideal para: Conhecer a interface e configurar o perfil inicial.
+* Benefícios:
+    - Criação de Perfil Básico.
+    - Visibilidade limitada nos resultados de busca.
+    - Suporte padrão por e-mail.
+    - Acesso básico à Academy (cursos gratuitos).
+* Observação: Ao término dos 7 dias, o perfil perde visibilidade até que um plano pago seja selecionado.
+
+
+2. PLANO MENSAL (CONECTIVIDADE TOTAL)
+--------------------------------------
+* Valor: R$ 49,90 por mês
+* Ciclo de cobrança: Mensal (renovação automática)
+* Ideal para: Profissionais que desejam flexibilidade e visibilidade constante.
+* Benefícios:
+    - Perfil Profissional Completo (Currículo, Bio, Fotos, Experiências).
+    - Visibilidade total para empresas de Home Care e Famílias.
+    - Contato Direto via WhatsApp (sem intermediários ou taxas de agenciamento).
+    - Suporte via Ticket no Painel.
+    - Acesso à Home Care Match Academy (cursos de capacitação).
+    - Recebimento de alertas de oportunidades em tempo real.
+
+
+3. PLANO ANUAL (DESTAQUE PREMIUM) - MELHOR CUSTO-BENEFÍCIO
+---------------------------------------------------------
+* Valor: R$ 39,90 por mês (cobrança anual recorrente)
+* Valor Total: R$ 478,80 por ano
+* Condições de Pagamento: Parcelamento em até 12x sem juros (via Asaas).
+* Economia: R$ 120,00 por ano em comparação ao Plano Mensal.
+* Ideal para: Profissionais que buscam o máximo de visibilidade e economia.
+* Benefícios:
+    - Todos os benefícios do Plano Mensal.
+    - DESTAQUE PREMIUM: Relevância máxima no ranking de buscas (prioridade de exibição no topo da lista).
+    - Selo Premium no Perfil: Indicador visual de destaque para recrutadores.
+    - Maior pontuação no algoritmo (Bônus de 10.000 pontos no script de busca).
+    - Melhor custo unitário por mês.
+
+
+4. CRITÉRIOS DE RELEVÂNCIA E RANKING (ALGORITMO)
+------------------------------------------------
+A relevância de um profissional nos resultados de busca dos contratantes é definida por uma pontuação automática calculada pelo sistema:
+
+1. Tipo de Plano (Peso Máximo): Assinantes do Plano Anual recebem um bônus de 10.000 pontos no score de ranking.
+2. Programa de Indicações: Cada indicação bem-sucedida de um colega adiciona 100 pontos ao perfil do embaixador.
+3. Proximidade Geográfica: O sistema penaliza em 2 pontos o score para cada km de distância entre o profissional e o contratante (quando a geolocalização está ativa).
+4. Verificação de Perfil: Perfis verificados manualmente pela equipe (Selo de Verificação) possuem maior taxa de conversão em contatos reais.
+
+
+5. GESTÃO E CANCELAMENTO
+-------------------------
+* Transparência: O cancelamento pode ser feito a qualquer momento pelo painel /dashboard/pagamentos.
+* Reembolso: Solicitação de estorno permitida em até 7 dias após a confirmação do pagamento (conforme CDC e regras da plataforma).
+* Métodos de Pagamento: Cartão de Crédito e Pix (via checkout seguro Asaas).

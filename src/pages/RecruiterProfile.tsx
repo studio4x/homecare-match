@@ -47,13 +47,15 @@ const RecruiterProfile = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, avatar_url, city, state, bio, role, ans_registration, specialty, patient_specialties")
+        .select("id, full_name, avatar_url, city, state, bio, role, ans_registration, specialty, patient_specialties, account_status")
         .eq("id", id)
         .single();
 
       if (error) {
         console.error(error);
         toast.error("Perfil do recrutador não encontrado.");
+      } else if (data.account_status && data.account_status !== "active") {
+        setProfile(null);
       } else {
         setProfile(data);
       }

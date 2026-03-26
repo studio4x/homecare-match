@@ -16,6 +16,12 @@ These instructions apply to any AI agent working in this repository.
 
 Both commands already include the build-version bump step and must not bypass it.
 
+## Mandatory Deploy Rule
+- After every completed code/content change that should go live, the agent must perform a deploy in the same turn instead of stopping at local edits.
+- Default target is production deploy for the linked Vercel project, unless the user explicitly asks for another environment.
+- Minimum flow: validate the change, run the appropriate build, then deploy.
+- If deploy cannot be completed because of missing credentials, missing CLI, remote outage, or another external blocker, the agent must state exactly what blocked the deploy and what command/step remains pending.
+
 ## Edge Function 401 Playbook (Admin Sync Actions)
 - If an admin-triggered Edge Function returns `401` from `functions/v1/...`, do this first:
   1. Treat browser-extension logs (e.g., Kaspersky `inspector.js`) as noise unless they reference your own domain/function.

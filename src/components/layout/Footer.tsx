@@ -163,6 +163,9 @@ const Footer = () => {
             © {new Date().getFullYear()} HomeCare Match | CNPJ 10.682.236/0001-09. Todos os direitos reservados.
           </p>
           <div className="flex items-center gap-6">
+            <Link to="/termos-de-uso" className="text-[10px] uppercase tracking-widest text-muted-foreground/60 transition-colors hover:text-primary">
+              Termos
+            </Link>
             <Link to="/politica-de-privacidade" className="text-[10px] uppercase tracking-widest text-muted-foreground/60 transition-colors hover:text-primary">
               Privacidade
             </Link>

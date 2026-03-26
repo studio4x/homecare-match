@@ -1,18 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -21,19 +14,35 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useSiteConfig } from "@/hooks/use-site-config";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  computeLiveSupportSlaStatus,
+  formatSupportDueDate,
+  formatSupportSlaPromise,
+  getSupportCategoryConfig,
+  getSupportSlaStatusMeta,
+  normalizeSupportSlaConfig,
+} from "@/lib/support-sla";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  AlertCircle,
+  Eye,
+  Filter,
   Loader2,
   MessageSquare,
-  Eye,
   Search,
-  Filter,
-  AlertCircle,
-  Trash2,
   ShieldAlert,
+  Trash2,
 } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,16 +55,20 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type TicketPriority = "low" | "medium" | "high" | "urgent";
+type TicketStatus = "open" | "in_progress" | "closed";
 
 type TicketItem = {
   id: string;
   user_id: string;
   subject: string;
   description: string;
-  status: "open" | "in_progress" | "closed";
+  status: TicketStatus;
   priority: TicketPriority;
+  category: string | null;
   created_at: string;
   updated_at: string;
+  first_response_due_at?: string | null;
+  first_response_at?: string | null;
   user?: {
     full_name?: string;
     email?: string;
@@ -103,19 +116,57 @@ const getPriorityMeta = (priority: string) => {
   }
 };
 
+const getTicketStatusLabel = (status: string) => {
+  switch (status) {
+    case "open":
+      return "Aberto";
+    case "in_progress":
+      return "Em atendimento";
+    case "closed":
+      return "Fechado";
+    default:
+      return status;
+  }
+};
+
+const compareTicketsBySla = (a: TicketItem, b: TicketItem) => {
+  const aAnswered = Boolean(a.first_response_at);
+  const bAnswered = Boolean(b.first_response_at);
+
+  if (aAnswered !== bAnswered) {
+    return aAnswered ? 1 : -1;
+  }
+
+  const aDue = a.first_response_due_at ? new Date(a.first_response_due_at).getTime() : Number.MAX_SAFE_INTEGER;
+  const bDue = b.first_response_due_at ? new Date(b.first_response_due_at).getTime() : Number.MAX_SAFE_INTEGER;
+
+  if (aDue !== bDue) {
+    return aDue - bDue;
+  }
+
+  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+};
+
 const SupportAdminPage = () => {
+  const { data: siteConfig } = useSiteConfig();
   const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
-  const [sortBy, setSortBy] = useState<"priority" | "date">("priority");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [sortBy, setSortBy] = useState<"sla" | "priority" | "date">("sla");
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
-
   const [ticketToDelete, setTicketToDelete] = useState<TicketItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const supportSlaConfig = useMemo(
+    () => normalizeSupportSlaConfig(siteConfig?.support_sla_config),
+    [siteConfig?.support_sla_config],
+  );
+  const categoryOptions = supportSlaConfig.categories;
+
   useEffect(() => {
-    fetchTickets();
+    void fetchTickets();
   }, []);
 
   const fetchTickets = async () => {
@@ -135,9 +186,9 @@ const SupportAdminPage = () => {
       }
 
       setTickets((data || []) as TicketItem[]);
-    } catch (err: any) {
-      console.error("[SupportAdmin] Erro inesperado:", err);
-      setError(err.message || "Erro ao carregar dados.");
+    } catch (error: any) {
+      console.error("[SupportAdmin] Erro inesperado:", error);
+      setError(error.message || "Erro ao carregar dados.");
     } finally {
       setLoading(false);
     }
@@ -145,18 +196,17 @@ const SupportAdminPage = () => {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from("support_tickets")
         .update({ status, updated_at: new Date().toISOString() })
         .eq("id", id);
 
-      if (updateError) {
-        throw updateError;
-      }
+      if (error) throw error;
 
-      toast.success("Status atualizado!");
-      fetchTickets();
-    } catch {
+      toast.success("Status atualizado.");
+      void fetchTickets();
+    } catch (error) {
+      console.error("[SupportAdmin] Erro ao atualizar status:", error);
       toast.error("Erro ao atualizar status.");
     }
   };
@@ -165,21 +215,16 @@ const SupportAdminPage = () => {
     if (!ticketToDelete) return;
 
     setIsDeleting(true);
+
     try {
-      const { error: deleteError } = await supabase
-        .from("support_tickets")
-        .delete()
-        .eq("id", ticketToDelete.id);
+      const { error } = await supabase.from("support_tickets").delete().eq("id", ticketToDelete.id);
+      if (error) throw error;
 
-      if (deleteError) {
-        throw deleteError;
-      }
-
-      toast.success("Ticket excluído com sucesso!");
-      setTickets((prev) => prev.filter((ticket) => ticket.id !== ticketToDelete.id));
+      toast.success("Ticket excluido com sucesso.");
+      setTickets((current) => current.filter((ticket) => ticket.id !== ticketToDelete.id));
       setTicketToDelete(null);
-    } catch (err: any) {
-      console.error("[SupportAdmin] Erro ao excluir ticket:", err);
+    } catch (error) {
+      console.error("[SupportAdmin] Erro ao excluir ticket:", error);
       toast.error("Erro ao excluir ticket.");
     } finally {
       setIsDeleting(false);
@@ -190,58 +235,93 @@ const SupportAdminPage = () => {
     return tickets
       .filter((ticket) => {
         const matchesStatus = filterStatus === "all" || ticket.status === filterStatus;
+        const matchesCategory = filterCategory === "all" || (ticket.category || "general") === filterCategory;
+        const normalizedSearch = searchTerm.trim().toLowerCase();
         const matchesSearch =
-          ticket.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (ticket.user?.full_name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (ticket.user?.email || "").toLowerCase().includes(searchTerm.toLowerCase());
+          normalizedSearch.length === 0 ||
+          ticket.subject.toLowerCase().includes(normalizedSearch) ||
+          (ticket.user?.full_name || "").toLowerCase().includes(normalizedSearch) ||
+          (ticket.user?.email || "").toLowerCase().includes(normalizedSearch);
 
-        return matchesStatus && matchesSearch;
+        return matchesStatus && matchesCategory && matchesSearch;
       })
       .sort((a, b) => {
-        const priorityDiff =
-          getPriorityMeta(b.priority).weight - getPriorityMeta(a.priority).weight;
-        const dateA = new Date(a.created_at).getTime();
-        const dateB = new Date(b.created_at).getTime();
-        const dateDiff = dateB - dateA;
-
         if (sortBy === "date") {
-          if (dateDiff !== 0) return dateDiff;
-          return priorityDiff;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         }
 
-        if (priorityDiff !== 0) return priorityDiff;
-        return dateDiff;
+        if (sortBy === "priority") {
+          const priorityDiff = getPriorityMeta(b.priority).weight - getPriorityMeta(a.priority).weight;
+          if (priorityDiff !== 0) return priorityDiff;
+          return compareTicketsBySla(a, b);
+        }
+
+        const slaDiff = compareTicketsBySla(a, b);
+        if (slaDiff !== 0) return slaDiff;
+
+        return getPriorityMeta(b.priority).weight - getPriorityMeta(a.priority).weight;
       });
-  }, [tickets, filterStatus, searchTerm, sortBy]);
+  }, [tickets, filterCategory, filterStatus, searchTerm, sortBy]);
+
+  const overdueCount = filteredTickets.filter((ticket) => {
+    const status = computeLiveSupportSlaStatus({
+      createdAt: ticket.created_at,
+      dueAt: ticket.first_response_due_at,
+      firstResponseAt: ticket.first_response_at,
+    });
+    return status === "overdue";
+  }).length;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Central de Atendimento</h1>
-          <p className="text-muted-foreground">Gerencie os chamados de suporte de todos os usuários.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Central de atendimento</h1>
+          <p className="text-muted-foreground">
+            Gerencie chamados por categoria e acompanhe o SLA da primeira resposta.
+          </p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchTickets} disabled={loading}>
-          Atualizar Lista
+          Atualizar lista
         </Button>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-primary/10 bg-primary/5">
+          <CardContent className="p-5">
+            <p className="text-sm font-semibold text-foreground">SLA público</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Pagamentos em até 2 horas úteis. Demais categorias em até 24 horas úteis.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm font-semibold text-foreground">Chamados filtrados</p>
+            <p className="mt-1 text-2xl font-bold">{filteredTickets.length}</p>
+          </CardContent>
+        </Card>
+        <Card className={cn(overdueCount > 0 && "border-rose-200 bg-rose-50/80")}>
+          <CardContent className="p-5">
+            <p className="text-sm font-semibold text-foreground">SLA atrasado</p>
+            <p className="mt-1 text-2xl font-bold">{overdueCount}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-center gap-3 text-destructive">
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-destructive">
           <AlertCircle className="h-5 w-5" />
           <div className="text-sm">
             <p className="font-bold">Erro ao carregar chamados</p>
             <p>{error}</p>
-            <p className="mt-2 text-xs opacity-80">
-              Dica: certifique-se de clicar em "Sincronizar Central de Suporte" nas Configurações.
-            </p>
           </div>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col gap-4 xl:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Buscar por assunto, nome ou e-mail..."
             className="pl-10"
@@ -249,24 +329,38 @@ const SupportAdminPage = () => {
             onChange={(event) => setSearchTerm(event.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Select value={filterStatus} onValueChange={setFilterStatus}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos os Status</SelectItem>
+              <SelectItem value="all">Todos os status</SelectItem>
               <SelectItem value="open">Abertos</SelectItem>
-              <SelectItem value="in_progress">Em Atendimento</SelectItem>
+              <SelectItem value="in_progress">Em atendimento</SelectItem>
               <SelectItem value="closed">Fechados</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as "priority" | "date")}>
-            <SelectTrigger className="w-[210px]">
-              <SelectValue placeholder="Ordenacao" />
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Categoria" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              {categoryOptions.map((category) => (
+                <SelectItem key={category.key} value={category.key}>
+                  {category.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={(value) => setSortBy(value as "sla" | "priority" | "date")}>
+            <SelectTrigger className="w-[210px]">
+              <SelectValue placeholder="Ordenação" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sla">Ordenar por SLA</SelectItem>
               <SelectItem value="priority">Ordenar por prioridade</SelectItem>
               <SelectItem value="date">Ordenar por data</SelectItem>
             </SelectContent>
@@ -286,73 +380,102 @@ const SupportAdminPage = () => {
                 <TableRow>
                   <TableHead>Usuário</TableHead>
                   <TableHead>Assunto</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead>SLA</TableHead>
                   <TableHead>Prioridade</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Prazo</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTickets.map((ticket) => (
-                  <TableRow
-                    key={ticket.id}
-                    className={cn("transition-colors", getPriorityMeta(ticket.priority).rowClass)}
-                  >
-                    <TableCell>
-                      <div className="font-medium text-sm">{ticket.user?.full_name || "Usuário desconhecido"}</div>
-                      <div className="text-[10px] text-muted-foreground">{ticket.user?.email || "N/A"}</div>
-                    </TableCell>
-                    <TableCell className="max-w-[280px] truncate font-medium">{ticket.subject}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={cn("font-semibold", getPriorityMeta(ticket.priority).badgeClass)}
-                      >
-                        {getPriorityMeta(ticket.priority).label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={ticket.status}
-                        onValueChange={(value) => handleUpdateStatus(ticket.id, value)}
-                      >
-                        <SelectTrigger className="h-8 text-xs w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="open">Aberto</SelectItem>
-                          <SelectItem value="in_progress">Em Atendimento</SelectItem>
-                          <SelectItem value="closed">Fechado</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(ticket.created_at).toLocaleString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" asChild className="gap-2">
-                          <Link to={`/admin/suporte/${ticket.id}`}>
-                            <Eye className="h-4 w-4" /> Responder
-                          </Link>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:bg-destructive/10"
-                          onClick={() => setTicketToDelete(ticket)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredTickets.map((ticket) => {
+                  const priorityMeta = getPriorityMeta(ticket.priority);
+                  const categoryMeta = getSupportCategoryConfig(ticket.category, supportSlaConfig);
+                  const slaStatus = computeLiveSupportSlaStatus({
+                    createdAt: ticket.created_at,
+                    dueAt: ticket.first_response_due_at,
+                    firstResponseAt: ticket.first_response_at,
+                  });
+                  const slaMeta = getSupportSlaStatusMeta(slaStatus);
+
+                  return (
+                    <TableRow key={ticket.id} className={cn("transition-colors", priorityMeta.rowClass)}>
+                      <TableCell>
+                        <div className="text-sm font-medium">
+                          {ticket.user?.full_name || "Usuário desconhecido"}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {ticket.user?.email || "N/A"}
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[260px]">
+                        <div className="truncate font-medium">{ticket.subject}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {new Date(ticket.created_at).toLocaleString("pt-BR")}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Badge variant="outline">{categoryMeta.label}</Badge>
+                          <p className="max-w-[180px] text-[10px] text-muted-foreground">
+                            {formatSupportSlaPromise(ticket.category, supportSlaConfig)}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={slaMeta.className}>
+                          {slaMeta.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn("font-semibold", priorityMeta.badgeClass)}>
+                          {priorityMeta.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Select value={ticket.status} onValueChange={(value) => handleUpdateStatus(ticket.id, value)}>
+                          <SelectTrigger className="h-8 w-[150px] text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Aberto</SelectItem>
+                            <SelectItem value="in_progress">Em atendimento</SelectItem>
+                            <SelectItem value="closed">Fechado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {ticket.first_response_at
+                          ? `Respondido em ${formatSupportDueDate(ticket.first_response_at)}`
+                          : formatSupportDueDate(ticket.first_response_due_at)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" asChild className="gap-2">
+                            <Link to={`/admin/suporte/${ticket.id}`}>
+                              <Eye className="h-4 w-4" />
+                              Responder
+                            </Link>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => setTicketToDelete(ticket)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+            <div className="py-12 text-center text-muted-foreground">
+              <MessageSquare className="mx-auto mb-4 h-12 w-12 opacity-20" />
               <p>Nenhum chamado encontrado.</p>
             </div>
           )}
@@ -373,7 +496,7 @@ const SupportAdminPage = () => {
             </AlertDialogTitle>
             <AlertDialogDescription>
               Você tem certeza que deseja excluir o ticket <strong>"{ticketToDelete?.subject}"</strong>?
-              Esta ação é irreversível e apagará todo o histórico de mensagens para você e para o usuário.
+              Esta ação é irreversível e apagará todo o histórico do chamado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -382,11 +505,11 @@ const SupportAdminPage = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={(event) => {
                 event.preventDefault();
-                handleDeleteTicket();
+                void handleDeleteTicket();
               }}
               disabled={isDeleting}
             >
-              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Confirmar exclusão
             </AlertDialogAction>
           </AlertDialogFooter>

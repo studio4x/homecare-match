@@ -1,37 +1,44 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import Layout from "@/components/layout/Layout";
-import { supabase } from "@/integrations/supabase/client";
-import { useSiteConfig } from "@/hooks/use-site-config";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { resolveLandingVideoAssets } from "@/lib/landing-video";
-import { resolveVideoOrientation } from "@/lib/video-utils";
-import LandingVideoPlayer from "@/components/LandingVideoPlayer";
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  LifeBuoy, 
-  Search, 
-  MessageSquare, 
-  Loader2, 
-  Plus,
-  ChevronRight,
-  HelpCircle
-} from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { Link } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import LandingVideoPlayer from "@/components/LandingVideoPlayer";
 import SupportTicketModal from "@/components/SupportTicketModal";
+import Layout from "@/components/layout/Layout";
+import { useSiteConfig } from "@/hooks/use-site-config";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { supabase } from "@/integrations/supabase/client";
+import { resolveLandingVideoAssets } from "@/lib/landing-video";
+import {
+  formatSupportBusinessHoursSummary,
+  formatSupportHoursLabel,
+  normalizeSupportBusinessHoursConfig,
+  normalizeSupportSlaConfig,
+} from "@/lib/support-sla";
+import { cn } from "@/lib/utils";
+import { resolveVideoOrientation } from "@/lib/video-utils";
+import {
+  ChevronRight,
+  HelpCircle,
+  LifeBuoy,
+  Loader2,
+  MessageSquare,
+  Plus,
+  Search,
+  ShieldAlert,
+} from "lucide-react";
 
 const Support = () => {
   const { data: siteConfig } = useSiteConfig();
@@ -42,6 +49,19 @@ const Support = () => {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const supportSlaConfig = useMemo(
+    () => normalizeSupportSlaConfig(siteConfig?.support_sla_config),
+    [siteConfig?.support_sla_config],
+  );
+  const supportBusinessHours = useMemo(
+    () => normalizeSupportBusinessHoursConfig(siteConfig?.support_business_hours_config),
+    [siteConfig?.support_business_hours_config],
+  );
+  const businessHoursLabel = useMemo(
+    () => formatSupportBusinessHoursSummary(supportBusinessHours),
+    [supportBusinessHours],
+  );
 
   const registrationTutorials = useMemo(() => {
     const entries = [
@@ -63,7 +83,7 @@ const Support = () => {
       },
       {
         key: "family",
-        title: "Tutorial de Cadastro: Familias",
+        title: "Tutorial de Cadastro: Famílias",
         desktopUrl: String(siteConfig?.video_url_how_it_works_families || "").trim(),
         mobileUrl: String(siteConfig?.video_url_how_it_works_families_mobile || "").trim(),
         storagePath: siteConfig?.video_storage_path_how_it_works_families,
@@ -96,12 +116,12 @@ const Support = () => {
       id: "faq-cadastro-validacao-email",
       question: registrationFaqQuestion,
       answer:
-        "Confira o tutorial correspondente ao seu perfil para concluir cadastro e validacao de e-mail.",
+        "Confira o tutorial correspondente ao seu perfil para concluir cadastro e validação de e-mail.",
       category: "Cadastro e Acesso",
       customContent: (
         <div className="space-y-6">
           <p>
-            Escolha o tutorial do seu perfil e siga o passo a passo de cadastro e validacao de e-mail:
+            Escolha o tutorial do seu perfil e siga o passo a passo de cadastro e validação de e-mail:
           </p>
           <div className="space-y-6">
             {registrationTutorials.map((video) => (
@@ -122,7 +142,7 @@ const Support = () => {
                   </div>
                 ) : (
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Video ainda nao configurado para este perfil.
+                    Vídeo ainda não configurado para este perfil.
                   </p>
                 )}
               </div>
@@ -156,7 +176,7 @@ const Support = () => {
   }, [faqs, registrationFaq, registrationFaqQuestion]);
 
   useEffect(() => {
-    fetchFaqs();
+    void fetchFaqs();
   }, []);
 
   const fetchFaqs = async () => {
@@ -166,12 +186,12 @@ const Support = () => {
         .select("*")
         .eq("is_published", true)
         .order("position", { ascending: true });
+
       if (error) throw error;
       setFaqs(data || []);
-      
+
       if (data && data.length > 0) {
-        const firstCat = data[0].category || "Geral";
-        setActiveCategory(firstCat);
+        setActiveCategory(data[0].category || "Geral");
       }
     } catch (err) {
       console.error(err);
@@ -181,162 +201,249 @@ const Support = () => {
   };
 
   const categories = useMemo(() => {
-    const set = new Set(faqItems.map((f) => f.category || "Geral"));
+    const set = new Set(faqItems.map((faq) => faq.category || "Geral"));
     return Array.from(set).sort();
   }, [faqItems]);
 
   const filteredFaqs = useMemo(() => {
-    const source = faqItems;
     const normalizedSearch = search.toLowerCase();
 
     if (search.trim()) {
-      return source.filter((f) => 
-        String(f.question || "").toLowerCase().includes(normalizedSearch) || 
-        String(f.answer || "").toLowerCase().includes(normalizedSearch)
+      return faqItems.filter(
+        (faq) =>
+          String(faq.question || "").toLowerCase().includes(normalizedSearch) ||
+          String(faq.answer || "").toLowerCase().includes(normalizedSearch),
       );
     }
-    return source.filter((f) => (f.category || "Geral") === activeCategory);
+
+    return faqItems.filter((faq) => (faq.category || "Geral") === activeCategory);
   }, [faqItems, search, activeCategory]);
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="text-center mb-12">
+      <div className="container mx-auto max-w-6xl px-4 py-8">
+        <div className="mb-12 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <LifeBuoy className="h-10 w-10 text-primary" />
           </div>
           <h1 className="text-4xl font-bold text-foreground">Como podemos ajudar?</h1>
-          <p className="mt-4 text-muted-foreground text-lg">
-            Encontre respostas rápidas ou entre em contato com nossa equipe.
+          <p className="mt-4 text-lg text-muted-foreground">
+            Encontre respostas rápidas ou fale com nossa equipe de suporte.
           </p>
-          
-          <div className="mt-8 max-w-2xl mx-auto relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
-            <Input 
-              placeholder="Pesquise por dúvidas, termos ou problemas..." 
-              className="pl-12 h-14 text-lg shadow-sm border-primary/20 focus:border-primary"
+
+          <div className="relative mx-auto mt-8 max-w-2xl">
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Pesquise por dúvidas, termos ou problemas..."
+              className="h-14 border-primary/20 pl-12 text-lg shadow-sm focus:border-primary"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(event) => setSearch(event.target.value)}
             />
           </div>
         </div>
 
+        <section className="mb-8 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+          <Card className="border-primary/10 bg-primary/5">
+            <CardContent className="space-y-5 p-6">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-primary/10 p-3">
+                  <MessageSquare className="h-5 w-5 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold">SLA de primeira resposta</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Os prazos abaixo valem para a primeira resposta humana do suporte, não para a resolução completa do caso.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                {supportSlaConfig.categories.map((category) => (
+                  <div
+                    key={category.key}
+                    className="rounded-2xl border border-primary/10 bg-background/80 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold text-foreground">{category.label}</p>
+                      <Badge variant="secondary">
+                        até {formatSupportHoursLabel(category.first_response_hours)}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">{category.description}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-2xl border border-dashed border-primary/20 bg-background/70 p-4 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">Horário de atendimento</p>
+                <p className="mt-1">{businessHoursLabel}</p>
+                <p className="mt-3">{supportSlaConfig.public_note}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-amber-200 bg-amber-50/80">
+            <CardContent className="space-y-4 p-6">
+              <div className="flex items-start gap-3">
+                <div className="rounded-xl bg-amber-100 p-3">
+                  <ShieldAlert className="h-5 w-5 text-amber-700" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-amber-950">Casos graves</h2>
+                  <p className="mt-1 text-sm text-amber-900/80">
+                    Situações de segurança, suspeita de crime, fraude ou risco imediato devem ser registradas por denúncia e por chamado de suporte.
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-amber-900/80">
+                Isso agiliza a triagem interna, preserva os registros e permite acionar o protocolo de crise quando necessário.
+              </p>
+              <Button className="w-full gap-2" onClick={() => setIsModalOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Abrir chamado
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+
         <div className="grid gap-8 lg:grid-cols-12">
-          <div className="lg:col-span-3 space-y-4">
-            {/* Desktop Sidebar Categories */}
-            <div className="hidden lg:block space-y-1">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 px-3">Categorias</h3>
-              {categories.map(cat => (
+          <div className="space-y-4 lg:col-span-3">
+            <div className="hidden space-y-1 lg:block">
+              <h3 className="mb-4 px-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Categorias
+              </h3>
+              {categories.map((category) => (
                 <button
-                  key={cat}
-                  onClick={() => { setActiveCategory(cat); setSearch(""); }}
+                  key={category}
+                  onClick={() => {
+                    setActiveCategory(category);
+                    setSearch("");
+                  }}
                   className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                    activeCategory === cat && !search
-                      ? "bg-primary text-primary-foreground shadow-md translate-x-1"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    "flex w-full items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-all",
+                    activeCategory === category && !search
+                      ? "translate-x-1 bg-primary text-primary-foreground shadow-md"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
                   )}
                 >
-                  <span className="truncate">{cat}</span>
-                  <ChevronRight className={cn("h-4 w-4 opacity-50", activeCategory === cat && !search ? "opacity-100" : "")} />
+                  <span className="truncate">{category}</span>
+                  <ChevronRight
+                    className={cn(
+                      "h-4 w-4 opacity-50",
+                      activeCategory === category && !search ? "opacity-100" : "",
+                    )}
+                  />
                 </button>
               ))}
             </div>
 
-            {/* Mobile Category Selector */}
-            <div className="lg:hidden space-y-2">
-              <Label className="text-sm font-semibold text-muted-foreground px-1">
+            <div className="space-y-2 lg:hidden">
+              <Label className="px-1 text-sm font-semibold text-muted-foreground">
                 Selecione a categoria que deseja visualizar:
               </Label>
-              <select 
-                value={activeCategory || ""} 
-                onChange={(e) => { setActiveCategory(e.target.value); setSearch(""); }}
-                className="w-full h-12 rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              <select
+                value={activeCategory || ""}
+                onChange={(event) => {
+                  setActiveCategory(event.target.value);
+                  setSearch("");
+                }}
+                className="h-12 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               >
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div className="lg:col-span-9 space-y-8">
+          <div className="space-y-8 lg:col-span-9">
             <section className="animate-fade-in">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
+              <div className="mb-6 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-2xl font-bold">
                   {search ? (
-                    <><Search className="h-6 w-6 text-primary" /> Resultados da busca</>
+                    <>
+                      <Search className="h-6 w-6 text-primary" />
+                      Resultados da busca
+                    </>
                   ) : (
-                    <><HelpCircle className="h-6 w-6 text-primary" /> {activeCategory}</>
+                    <>
+                      <HelpCircle className="h-6 w-6 text-primary" />
+                      {activeCategory}
+                    </>
                   )}
                 </h2>
-                {search && (
-                  <Badge variant="secondary">{filteredFaqs.length} encontrados</Badge>
-                )}
+                {search && <Badge variant="secondary">{filteredFaqs.length} encontrados</Badge>}
               </div>
-              
+
               {loading ? (
-                <div className="flex justify-center py-12"><Loader2 className="animate-spin text-primary" /></div>
+                <div className="flex justify-center py-12">
+                  <Loader2 className="animate-spin text-primary" />
+                </div>
               ) : filteredFaqs.length > 0 ? (
                 <Accordion type="single" collapsible className="w-full space-y-4">
                   {filteredFaqs.map((faq) => (
-                    <AccordionItem 
-                      key={faq.id} 
-                      value={faq.id} 
-                      className="border rounded-2xl px-6 bg-card shadow-sm hover:shadow-md transition-all border-primary/5"
+                    <AccordionItem
+                      key={faq.id}
+                      value={faq.id}
+                      className="rounded-2xl border border-primary/5 bg-card px-6 shadow-sm transition-all hover:shadow-md"
                     >
-                      <AccordionTrigger className="text-left font-bold hover:no-underline py-5 text-foreground/90 leading-tight">
+                      <AccordionTrigger className="py-5 text-left font-bold leading-tight text-foreground/90 hover:no-underline">
                         {faq.question}
                       </AccordionTrigger>
-                      <AccordionContent className="text-muted-foreground pb-6 leading-relaxed text-base">
+                      <AccordionContent className="pb-6 text-base leading-relaxed text-muted-foreground">
                         {faq.customContent ? (
                           faq.customContent
                         ) : (
-                          <div className="prose prose-slate max-w-none">
-                            {faq.answer}
-                          </div>
+                          <div className="prose prose-slate max-w-none">{faq.answer}</div>
                         )}
                       </AccordionContent>
                     </AccordionItem>
                   ))}
                 </Accordion>
               ) : (
-                <div className="text-center py-20 bg-secondary/20 rounded-3xl border border-dashed">
-                  <Search className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                <div className="rounded-3xl border border-dashed py-20 text-center">
+                  <Search className="mx-auto mb-4 h-12 w-12 opacity-20" />
                   <p className="text-muted-foreground">Nenhuma resposta encontrada para sua busca.</p>
-                  <Button variant="link" onClick={() => setSearch("")}>Limpar filtros</Button>
+                  <Button variant="link" onClick={() => setSearch("")}>
+                    Limpar filtros
+                  </Button>
                 </div>
               )}
             </section>
 
-            {/* Bottom CTA - Visible on all screens, but essential for mobile flow */}
-            <div className="mt-12 pt-8 border-t border-dashed">
-              <Card className="bg-primary/5 border-primary/10 overflow-hidden relative">
-                <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
-                <CardContent className="pt-8 pb-8 px-6 sm:px-10">
-                  <div className="flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
-                    <div className="flex flex-col md:flex-row items-center gap-6">
-                      <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 rotate-3">
+            <div className="mt-12 border-t border-dashed pt-8">
+              <Card className="relative overflow-hidden border-primary/10 bg-primary/5">
+                <div className="absolute left-0 top-0 h-full w-1 bg-primary" />
+                <CardContent className="px-6 pb-8 pt-8 sm:px-10">
+                  <div className="flex flex-col items-center justify-between gap-8 text-center md:flex-row md:text-left">
+                    <div className="flex flex-col items-center gap-6 md:flex-row">
+                      <div className="flex h-16 w-16 shrink-0 rotate-3 items-center justify-center rounded-2xl bg-primary/10">
                         <MessageSquare className="h-8 w-8 text-primary" />
                       </div>
                       <div className="space-y-2">
                         <h3 className="text-xl font-bold">Não encontrou o que precisava?</h3>
-                        <p className="text-muted-foreground max-w-md">
-                          Se sua dúvida persiste, abra um chamado direto com nosso suporte técnico. Respondemos em até 24h úteis.
+                        <p className="max-w-md text-muted-foreground">
+                          Abra um chamado com a categoria correta. Pagamentos recebem primeira resposta em até 2 horas úteis e os demais assuntos em até 24 horas úteis.
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-3 w-full md:w-auto">
-                      <Button 
-                        variant="default" 
+                    <div className="flex w-full flex-col gap-3 md:w-auto">
+                      <Button
+                        variant="default"
                         size="lg"
-                        className="gap-2 shadow-lg h-14 px-8 text-lg" 
+                        className="h-14 gap-2 px-8 text-lg shadow-lg"
                         onClick={() => setIsModalOpen(true)}
                       >
-                        <Plus className="h-5 w-5" /> Abrir um Chamado
+                        <Plus className="h-5 w-5" />
+                        Abrir um chamado
                       </Button>
                       {session && (
-                        <Link to="/dashboard/suporte" className="text-sm text-primary font-medium hover:underline">
+                        <Link
+                          to="/dashboard/suporte"
+                          className="text-sm font-medium text-primary hover:underline"
+                        >
                           Ver histórico de chamados
                         </Link>
                       )}
@@ -349,11 +456,7 @@ const Support = () => {
         </div>
       </div>
 
-      <SupportTicketModal 
-        open={isModalOpen} 
-        onOpenChange={setIsModalOpen} 
-        initialStep="form"
-      />
+      <SupportTicketModal open={isModalOpen} onOpenChange={setIsModalOpen} initialStep="form" />
     </Layout>
   );
 };

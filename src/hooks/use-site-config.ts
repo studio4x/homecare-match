@@ -1,5 +1,10 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type {
+  CrisisProtocolConfig,
+  SupportBusinessHoursConfig,
+  SupportSlaConfig,
+} from "@/lib/support-sla";
 
 export interface SiteConfig {
   id: number;
@@ -31,6 +36,9 @@ export interface SiteConfig {
   chatbot_max_requests_auth_per_day?: number | null;
   chatbot_history_window?: number | null;
   chatbot_retention_days?: number | null;
+  support_sla_config?: SupportSlaConfig | null;
+  support_business_hours_config?: SupportBusinessHoursConfig | null;
+  crisis_protocol_config?: CrisisProtocolConfig | null;
   push_layout_json?: {
     bgColor: string;
     titleColor: string;
@@ -168,11 +176,56 @@ export const useSiteConfig = () => {
           chatbot_show_mode_badge: false,
           chatbot_welcome_message: "Ola! Sou o assistente da plataforma. Posso ajudar com funcionalidades e como usar cada recurso.",
           chatbot_out_of_scope_message: "Posso responder apenas sobre funcionalidades da plataforma e como usa-las. Se precisar, posso te direcionar para o suporte.",
-          chatbot_error_message: "Nao consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.",
+          chatbot_error_message: "Não consegui responder agora. Tente novamente em instantes ou abra um chamado no suporte.",
           chatbot_max_requests_anon_per_day: 20,
           chatbot_max_requests_auth_per_day: 80,
           chatbot_history_window: 12,
           chatbot_retention_days: 30,
+          support_sla_config: {
+            categories: [
+              { key: "payment", label: "Pagamentos", first_response_hours: 2, position: 1, description: "Primeira resposta em até 2 horas úteis." },
+              { key: "technical", label: "Problema técnico", first_response_hours: 24, position: 2, description: "Primeira resposta em até 24 horas úteis." },
+              { key: "account", label: "Conta e acesso", first_response_hours: 24, position: 3, description: "Primeira resposta em até 24 horas úteis." },
+              { key: "general", label: "Dúvida geral", first_response_hours: 24, position: 4, description: "Primeira resposta em até 24 horas úteis." },
+            ],
+            public_note: "Os prazos acima se referem ao tempo da primeira resposta humana da equipe. Não representam prazo de resolução final.",
+          },
+          support_business_hours_config: {
+            timezone: "America/Sao_Paulo",
+            days_of_week: [1, 2, 3, 4, 5],
+            start_hour: 8,
+            end_hour: 18,
+          },
+          crisis_protocol_config: {
+            triage_checklist: [
+              "Receber o relato e registrar data, hora, IDs envolvidos e canal de entrada.",
+              "Classificar a severidade inicial com base em risco à vida, indícios de crime, fraude ou repercussão pública.",
+              "Preservar evidências disponíveis antes de qualquer contato externo.",
+            ],
+            escalation_criteria: [
+              "Elevar imediatamente para nível crítico quando houver risco à integridade física, abuso, violência, fraude relevante ou indício criminal.",
+              "Escalar para jurídico/compliance quando houver pedido formal, ameaça de litígio, imprensa ou autoridade pública.",
+            ],
+            evidence_preservation: [
+              "Preservar tickets, mensagens, anexos, denúncias, logs administrativos e notificações relacionadas.",
+              "Evitar exclusão ou alteração de registros até a conclusão da triagem.",
+            ],
+            safety_hold_flow: [
+              "Aplicar suspensão cautelar manual quando a triagem indicar risco atual para usuários ou para a plataforma.",
+              "Registrar motivo, responsável e data da medida no perfil e na denúncia.",
+            ],
+            complainant_communication: [
+              "Confirmar recebimento do relato com linguagem objetiva e sem prometer conclusão antecipada.",
+              "Informar que a plataforma pode solicitar evidências adicionais e que medidas internas poderão ser adotadas.",
+            ],
+            media_holding_statement:
+              "Estamos apurando os fatos com prioridade, preservando os registros relevantes e colaborando com as autoridades competentes quando aplicável.",
+            contacts: [
+              { role: "Operacao", name: "", email: "", phone: "" },
+              { role: "Juridico/Compliance", name: "", email: "", phone: "" },
+              { role: "Porta-voz", name: "", email: "", phone: "" },
+            ],
+          },
           pwa_app_name: "HomeCare Match",
           pwa_short_name: "HomeCare",
           pwa_description: "Conectando profissionais de saude as melhores oportunidades em Home Care.",

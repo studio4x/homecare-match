@@ -166,6 +166,7 @@ const AdminLayout = () => {
     { href: "/admin/seguranca", label: "Monitoramento Seguranca", icon: ShieldAlert },
     { href: "/admin/denuncias", label: "Denúncias", icon: AlertTriangle },
     { href: "/admin/suporte", label: "Tickets", icon: LifeBuoy },
+    { href: "/admin/protocolo-crise", label: "Protocolo de Crise", icon: ShieldAlert },
     { href: "/admin/faq", label: "FAQ / Ajuda", icon: HelpCircle },
     { href: "/admin/sugestoes", label: "Sugestões", icon: MessageSquare },
     { href: "/admin/auditoria", label: "Auditoria", icon: Activity },

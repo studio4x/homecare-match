@@ -42,6 +42,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import AdminCommunicationsTab from "@/components/admin/AdminCommunicationsTab";
 import WhatsappTemplateSettingsTab from "@/components/admin/WhatsappTemplateSettingsTab";
 import WhatsappGroupsAdminTab from "@/components/admin/WhatsappGroupsAdminTab";
 
@@ -445,6 +446,7 @@ const NotificationDeliveriesPage = () => {
         </div>
         <TabsList>
           <TabsTrigger value="deliveries">Entregas</TabsTrigger>
+          <TabsTrigger value="communications">Notificação em Massa</TabsTrigger>
           <TabsTrigger value="whatsapp_templates">Templates WhatsApp</TabsTrigger>
           {whatsappGroupsEnabled ? <TabsTrigger value="whatsapp_groups">Grupos WhatsApp</TabsTrigger> : null}
         </TabsList>
@@ -690,6 +692,10 @@ const NotificationDeliveriesPage = () => {
         </CardContent>
       </Card>
 
+      </TabsContent>
+
+      <TabsContent value="communications">
+        <AdminCommunicationsTab />
       </TabsContent>
 
       <TabsContent value="whatsapp_templates">

@@ -314,10 +314,24 @@ const AdminCommunicationsTab = () => {
 
     setSendingPreview(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token || "";
-      const { error } = await supabase.functions.invoke("process-admin-communications", {
-        body: {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente.");
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/process-admin-communications`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
           access_token: accessToken,
           preview: true,
           channels: selectedChannels,
@@ -326,9 +340,13 @@ const AdminCommunicationsTab = () => {
           email_text: form.sendEmail ? form.emailText.trim() || null : null,
           whatsapp_message: form.sendWhatsapp ? form.whatsappMessage.trim() || null : null,
           whatsapp_cta_path: form.sendWhatsapp ? form.whatsappCtaPath.trim() || "/dashboard" : null,
-        },
+        }),
       });
-      if (error) throw error;
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : "Falha ao enviar previa.");
+      }
 
       toast.success("Previa enviada para contato@homecarematch.com.br.");
     } catch (error) {

@@ -180,7 +180,7 @@ serve(async (req) => {
         : {};
     const channel = String(body?.channel || "email").trim().toLowerCase();
 
-    if (!prompt) {
+    if (!prompt && channel !== "whatsapp") {
       return new Response(JSON.stringify({ error: "Informe o briefing da notificacao." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -216,7 +216,7 @@ Campos atuais do painel:
 ${existingContentContext || "(nenhum campo adicional preenchido)"}
 
 Briefing do admin:
-${prompt}
+${prompt || "Use os campos preenchidos no painel como base principal para montar a mensagem de WhatsApp."}
 
 Regras:
 - responder em portugues do Brasil

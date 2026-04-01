@@ -433,10 +433,6 @@ const AdminCommunicationsTab = () => {
 
   const handleGenerateWhatsappCopy = async () => {
     const prompt = aiPrompt.trim();
-    if (!prompt) {
-      toast.error("Descreva para a IA o que deve ser escrito.");
-      return;
-    }
 
     setGeneratingWhatsappAiCopy(true);
     try {

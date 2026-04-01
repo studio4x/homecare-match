@@ -5,6 +5,7 @@ import { sendEmail } from "../_shared/email-provider.ts";
 import { enqueueUserWhatsappNotification } from "../_shared/whatsapp.ts";
 import { logNotificationDelivery } from "../_shared/notification-log.ts";
 import { timingSafeEqual } from "../_shared/timing-safe.ts";
+import { SITE_URL, wrapLayout } from "../_shared/onboarding-helpers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -153,6 +154,12 @@ const processRecipient = async (supabaseAdmin: any, job: any, recipient: any, op
     const subject = String(job?.email_subject || "").trim();
     const html = String(job?.email_html || "").trim();
     const text = String(job?.email_text || "").trim();
+    const wrappedHtml = wrapLayout(
+      html || text,
+      SITE_URL,
+      "Acessar plataforma",
+      SITE_URL,
+    );
 
     if (!subject || (!html && !text)) {
       await logNotificationDelivery({
@@ -174,7 +181,7 @@ const processRecipient = async (supabaseAdmin: any, job: any, recipient: any, op
     const emailResult = await sendEmail({
       to: recipientEmail,
       subject,
-      html: html || `<p>${text || ""}</p>`,
+      html: wrappedHtml,
       text: text || undefined,
     });
 

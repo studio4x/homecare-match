@@ -97,6 +97,24 @@ const formatAudienceContext = (context: Record<string, unknown>) => {
     : "Envio segmentado sem filtros adicionais alem do que esta definido no painel.";
 };
 
+const formatExistingContentContext = (context: Record<string, unknown>) => {
+  const emailSubject = String(context?.email_subject || "").trim();
+  const emailText = String(context?.email_text || "").trim();
+  const emailHtml = String(context?.email_html || "").trim();
+  const whatsappMessage = String(context?.whatsapp_message || "").trim();
+  const whatsappCtaPath = String(context?.whatsapp_cta_path || "").trim();
+
+  return [
+    emailSubject ? `assunto de email atual: ${emailSubject}` : "",
+    emailText ? `texto alternativo atual do email: ${emailText}` : "",
+    emailHtml ? `html atual do email informado no painel: ${emailHtml}` : "",
+    whatsappMessage ? `mensagem atual de WhatsApp: ${whatsappMessage}` : "",
+    whatsappCtaPath ? `cta/path de WhatsApp: ${whatsappCtaPath}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -160,6 +178,7 @@ serve(async (req) => {
       body?.context && typeof body.context === "object" && !Array.isArray(body.context)
         ? (body.context as Record<string, unknown>)
         : {};
+    const channel = String(body?.channel || "email").trim().toLowerCase();
 
     if (!prompt) {
       return new Response(JSON.stringify({ error: "Informe o briefing da notificacao." }), {
@@ -178,6 +197,59 @@ serve(async (req) => {
     const audienceContext = formatAudienceContext(context);
     const internalName = String(context?.name || "").trim();
     const internalDescription = String(context?.description || "").trim();
+    const existingContentContext = formatExistingContentContext(context);
+
+    if (channel === "whatsapp") {
+      const generationPrompt = `
+Voce escreve notificacoes de WhatsApp em portugues do Brasil para a plataforma HomeCare Match.
+
+Objetivo:
+- gerar apenas a mensagem principal de WhatsApp para uma notificacao em massa no admin
+- considerar todos os demais campos ja preenchidos no painel como contexto
+
+Contexto do job:
+- nome interno: ${internalName || "(nao informado)"}
+- descricao interna: ${internalDescription || "(nao informada)"}
+- audiencia: ${audienceContext}
+
+Campos atuais do painel:
+${existingContentContext || "(nenhum campo adicional preenchido)"}
+
+Briefing do admin:
+${prompt}
+
+Regras:
+- responder em portugues do Brasil
+- gerar somente o texto da mensagem principal, sem saudacao com variaveis dinamicas
+- nao incluir o link final, porque o CTA/path ja sera tratado separadamente no fluxo
+- nao usar markdown, aspas desnecessarias, emojis ou placeholders como {{nome}}
+- manter tom claro, humano e objetivo
+- a mensagem deve funcionar bem no template generico aprovado de WhatsApp
+- priorizar algo curto a medio, normalmente entre 220 e 500 caracteres
+- aproveitar o que ja existir nos outros campos para manter consistencia entre email e WhatsApp
+
+Retorne apenas JSON valido:
+{
+  "whatsapp_message": "string"
+}
+`.trim();
+
+      const generated = await callGeminiJson({
+        apiKey: GEMINI_API_KEY,
+        modelName,
+        prompt: generationPrompt,
+      });
+
+      const whatsappMessage = String(generated?.whatsapp_message || "").trim();
+      if (!whatsappMessage) {
+        throw new Error("A IA nao retornou a mensagem de WhatsApp.");
+      }
+
+      return new Response(JSON.stringify({ whatsapp_message: whatsappMessage }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const generationPrompt = `
 Voce escreve notificacoes em portugues do Brasil para a plataforma HomeCare Match.
@@ -190,6 +262,9 @@ Contexto do job:
 - nome interno: ${internalName || "(nao informado)"}
 - descricao interna: ${internalDescription || "(nao informada)"}
 - audiencia: ${audienceContext}
+
+Campos atuais do painel:
+${existingContentContext || "(nenhum campo adicional preenchido)"}
 
 Briefing do admin:
 ${prompt}

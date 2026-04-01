@@ -94,6 +94,7 @@ const AdminCommunicationsTab = () => {
   const [userSuggestions, setUserSuggestions] = useState<UserSuggestion[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [generatingAiCopy, setGeneratingAiCopy] = useState(false);
+  const [generatingWhatsappAiCopy, setGeneratingWhatsappAiCopy] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -430,6 +431,80 @@ const AdminCommunicationsTab = () => {
     }
   };
 
+  const handleGenerateWhatsappCopy = async () => {
+    const prompt = aiPrompt.trim();
+    if (!prompt) {
+      toast.error("Descreva para a IA o que deve ser escrito.");
+      return;
+    }
+
+    setGeneratingWhatsappAiCopy(true);
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente.");
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-admin-communication-copy`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          access_token: accessToken,
+          channel: "whatsapp",
+          prompt,
+          context: {
+            name: form.name,
+            description: form.description,
+            mode: form.mode,
+            role: form.role,
+            subscription_tier: form.subscription_tier,
+            email_confirmed: form.email_confirmed,
+            whatsapp_opt_in: form.whatsapp_opt_in,
+            is_verified: form.is_verified,
+            is_hidden: form.is_hidden,
+            email_subject: form.emailSubject,
+            email_html: form.emailHtml,
+            email_text: form.emailText,
+            whatsapp_message: form.whatsappMessage,
+            whatsapp_cta_path: form.whatsappCtaPath,
+          },
+        }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(String(payload?.error || `HTTP ${response.status}`));
+      }
+
+      const whatsappMessage = String(payload?.whatsapp_message || "").trim();
+      if (!whatsappMessage) {
+        throw new Error("A IA nao retornou a mensagem de WhatsApp.");
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        sendWhatsapp: true,
+        whatsappMessage,
+      }));
+      toast.success("Mensagem de WhatsApp preenchida com IA.");
+    } catch (error) {
+      console.error("[AdminCommunicationsTab] erro ao gerar mensagem WhatsApp com IA:", error);
+      const message = error instanceof Error ? error.message : "Falha ao gerar conteudo com IA.";
+      toast.error(message);
+    } finally {
+      setGeneratingWhatsappAiCopy(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -637,6 +712,34 @@ const AdminCommunicationsTab = () => {
 
             {form.sendWhatsapp ? (
               <div className="space-y-3 rounded-lg border p-4">
+                <div className="space-y-3 rounded-lg border border-dashed bg-muted/30 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        Criar mensagem com IA
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        A IA usa o briefing e os demais campos preenchidos para montar a mensagem principal do WhatsApp.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleGenerateWhatsappCopy}
+                      disabled={generatingWhatsappAiCopy}
+                    >
+                      {generatingWhatsappAiCopy ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4" />
+                      )}
+                      Criar com IA
+                    </Button>
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <Label>Mensagem WhatsApp</Label>
                   <Textarea value={form.whatsappMessage} onChange={(e) => setForm((prev) => ({ ...prev, whatsappMessage: e.target.value }))} rows={4} />

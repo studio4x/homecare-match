@@ -410,6 +410,7 @@ serve(async (req) => {
       }
 
       const PREVIEW_ADMIN_EMAIL = "contato@homecarematch.com.br";
+      const PREVIEW_ADMIN_WHATSAPP = "+5511970800109";
 
       const previewRecipientBase = {
         user_id: authData.user.id,
@@ -426,7 +427,7 @@ serve(async (req) => {
             recipient_contact:
               channel === "email"
                 ? PREVIEW_ADMIN_EMAIL
-                : adminProfile?.phone || null,
+                : PREVIEW_ADMIN_WHATSAPP,
           },
           { preview: true },
         );

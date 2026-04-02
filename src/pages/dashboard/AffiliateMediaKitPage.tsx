@@ -1,9 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Copy, Download, Link as LinkIcon, Megaphone, MessageSquare } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 
@@ -21,9 +24,22 @@ type MediaKitImage = {
 };
 
 const AffiliateMediaKitPage = () => {
+  const { user } = useAuth();
   const { data: siteConfig } = useSiteConfig();
+  const { data: affiliateDashboardData } = useQuery({
+    queryKey: ["affiliate-dashboard-media-kit", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("affiliate-dashboard-stats");
+      if (error) throw error;
+      return data as { links?: Array<{ short_url?: string | null }> };
+    },
+  });
 
-  const affiliateLink = useMemo(() => `${window.location.origin}/convite`, []);
+  const affiliateLink = useMemo(() => {
+    const officialLink = affiliateDashboardData?.links?.find((link) => link?.short_url)?.short_url;
+    return officialLink || `${window.location.origin}/convite`;
+  }, [affiliateDashboardData?.links]);
   const companyLandingPage = useMemo(() => `${window.location.origin}/empresas`, []);
   const mediaKitConfig = siteConfig?.affiliate_media_kit_config;
 

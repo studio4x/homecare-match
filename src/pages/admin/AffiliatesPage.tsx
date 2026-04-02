@@ -39,8 +39,8 @@ type MediaKitPrompt = {
 
 type MediaKitImage = {
   url: string;
-  alt: string;
   title: string;
+  caption: string;
 };
 
 type MediaKitConfig = {
@@ -118,7 +118,7 @@ const createDefaultMediaKitConfig = (): MediaKitConfig => ({
         "Profissionais e empresas de Home Care em um so lugar. Conheca a HomeCare Match pelo meu link oficial: {{affiliate_link}}",
     },
   ],
-  images: [{ url: "", alt: "", title: "" }, { url: "", alt: "", title: "" }, { url: "", alt: "", title: "" }],
+  images: [{ url: "", title: "", caption: "" }, { url: "", title: "", caption: "" }, { url: "", title: "", caption: "" }],
 });
 
 const normalizeMediaKitConfig = (raw: any): MediaKitConfig => {
@@ -137,8 +137,8 @@ const normalizeMediaKitConfig = (raw: any): MediaKitConfig => {
     })),
     images: Array.from({ length: 3 }).map((_, index) => ({
       url: String(images[index]?.url || ""),
-      alt: String(images[index]?.alt || ""),
       title: String(images[index]?.title || ""),
+      caption: String(images[index]?.caption || images[index]?.alt || ""),
     })),
   };
 };
@@ -352,7 +352,7 @@ const AffiliatesAdminPage = () => {
                 ...item,
                 url: publicUrl,
                 title: item.title || `Arte ${index + 1}`,
-                alt: item.alt || `Arte do kit de midia ${index + 1}`,
+                caption: item.caption || "",
               }
             : item,
         ),
@@ -370,7 +370,7 @@ const AffiliatesAdminPage = () => {
   const handleRemoveMediaImage = (index: number) => {
     setMediaKitConfig((prev) => ({
       ...prev,
-      images: prev.images.map((item, itemIndex) => (itemIndex === index ? { url: "", alt: "", title: "" } : item)),
+      images: prev.images.map((item, itemIndex) => (itemIndex === index ? { url: "", title: "", caption: "" } : item)),
     }));
   };
 
@@ -678,11 +678,11 @@ const AffiliatesAdminPage = () => {
                   {image.url ? (
                     <img
                       src={image.url}
-                      alt={image.alt || image.title || `Imagem ${index + 1}`}
-                      className="mb-4 aspect-square w-full rounded-lg object-cover"
+                      alt={image.title || `Imagem ${index + 1}`}
+                      className="mb-4 aspect-[3/4] w-full rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="mb-4 flex aspect-square items-center justify-center rounded-lg border border-dashed bg-muted/20 text-xs text-muted-foreground">
+                    <div className="mb-4 flex aspect-[3/4] items-center justify-center rounded-lg border border-dashed bg-muted/20 text-xs text-muted-foreground">
                       Nenhuma imagem enviada
                     </div>
                   )}
@@ -695,10 +695,10 @@ const AffiliatesAdminPage = () => {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Texto alternativo</Label>
+                      <Label>Legenda sugerida</Label>
                       <Input
-                        value={image.alt}
-                        onChange={(e) => handleMediaImageFieldChange(index, "alt", e.target.value)}
+                        value={image.caption}
+                        onChange={(e) => handleMediaImageFieldChange(index, "caption", e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">

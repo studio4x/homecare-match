@@ -16,8 +16,8 @@ type MediaKitPrompt = {
 
 type MediaKitImage = {
   url?: string;
-  alt?: string;
   title?: string;
+  caption?: string;
 };
 
 const AffiliateMediaKitPage = () => {
@@ -161,11 +161,12 @@ const AffiliateMediaKitPage = () => {
                   <div key={`${image.url}-${index}`} className="overflow-hidden rounded-xl border bg-card">
                     <img
                       src={image.url}
-                      alt={image.alt || image.title || `Arte ${index + 1}`}
-                      className="aspect-square w-full object-cover"
+                      alt={image.title || `Arte ${index + 1}`}
+                      className="aspect-[3/4] w-full object-cover"
                     />
                     <div className="space-y-2 p-3">
                       <p className="text-sm font-medium">{image.title || `Arte ${index + 1}`}</p>
+                      {image.caption ? <p className="text-xs text-muted-foreground">{image.caption}</p> : null}
                       <Button
                         size="sm"
                         variant="outline"

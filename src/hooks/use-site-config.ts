@@ -138,8 +138,8 @@ export interface SiteConfig {
     }>;
     images?: Array<{
       url?: string;
-      alt?: string;
       title?: string;
+      caption?: string;
     }>;
   } | null;
 }

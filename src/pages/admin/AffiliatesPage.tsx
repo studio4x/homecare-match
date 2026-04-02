@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, ImagePlus, Loader2, RefreshCw, Save, ShieldCheck, Trash2, Wallet } from "lucide-react";
+import { Eye, ImagePlus, Loader2, Plus, RefreshCw, Save, ShieldCheck, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { useSiteConfig } from "@/hooks/use-site-config";
 import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
@@ -129,12 +129,15 @@ const normalizeMediaKitConfig = (raw: any): MediaKitConfig => {
   return {
     title: String(raw?.title || fallback.title),
     description: String(raw?.description || fallback.description),
-    prompts: Array.from({ length: 3 }).map((_, index) => ({
-      title: String(prompts[index]?.title || fallback.prompts[index]?.title || `Prompt ${index + 1}`),
-      description: String(prompts[index]?.description || fallback.prompts[index]?.description || ""),
-      copy_label: String(prompts[index]?.copy_label || fallback.prompts[index]?.copy_label || "Copiar texto"),
-      content: String(prompts[index]?.content || fallback.prompts[index]?.content || ""),
-    })),
+    prompts:
+      prompts.length > 0
+        ? prompts.map((prompt: any, index: number) => ({
+            title: String(prompt?.title || fallback.prompts[index]?.title || `Prompt ${index + 1}`),
+            description: String(prompt?.description || fallback.prompts[index]?.description || ""),
+            copy_label: String(prompt?.copy_label || fallback.prompts[index]?.copy_label || "Copiar texto"),
+            content: String(prompt?.content || fallback.prompts[index]?.content || ""),
+          }))
+        : fallback.prompts,
     images: Array.from({ length: 3 }).map((_, index) => ({
       url: String(images[index]?.url || ""),
       title: String(images[index]?.title || ""),
@@ -316,6 +319,35 @@ const AffiliatesAdminPage = () => {
       ...prev,
       prompts: prev.prompts.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
     }));
+  };
+
+  const handleAddMediaPrompt = () => {
+    setMediaKitConfig((prev) => ({
+      ...prev,
+      prompts: [
+        ...prev.prompts,
+        {
+          title: `Novo bloco ${prev.prompts.length + 1}`,
+          description: "",
+          copy_label: "Copiar texto",
+          content: "",
+        },
+      ],
+    }));
+  };
+
+  const handleRemoveMediaPrompt = (index: number) => {
+    setMediaKitConfig((prev) => {
+      if (prev.prompts.length <= 1) {
+        toast.error("O kit precisa manter pelo menos um bloco de texto.");
+        return prev;
+      }
+
+      return {
+        ...prev,
+        prompts: prev.prompts.filter((_, itemIndex) => itemIndex !== index),
+      };
+    });
   };
 
   const handleMediaImageFieldChange = (index: number, field: keyof MediaKitImage, value: string) => {
@@ -622,15 +654,33 @@ const AffiliatesAdminPage = () => {
           </div>
 
           <div className="space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold">Prompts e textos prontos</h3>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold">Prompts e textos prontos</h3>
                 <p className="text-xs text-muted-foreground">
                   Use os placeholders <code>{"{{affiliate_link}}"}</code> e <code>{"{{company_page_link}}"}</code>.
                 </p>
+              </div>
+              <Button type="button" variant="outline" onClick={handleAddMediaPrompt} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Adicionar bloco
+              </Button>
             </div>
             <div className="grid gap-4">
               {mediaKitConfig.prompts.map((prompt, index) => (
                 <div key={`prompt-${index}`} className="rounded-xl border p-4">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium">Bloco {index + 1}</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveMediaPrompt(index)}
+                      aria-label={`Excluir bloco ${index + 1}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Titulo</Label>

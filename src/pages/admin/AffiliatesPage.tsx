@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
@@ -562,6 +563,14 @@ const AffiliatesAdminPage = () => {
         <Badge variant="outline">Lotes: {batches.length}</Badge>
       </div>
 
+      <Tabs defaultValue="program" className="space-y-6">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="program">Programa</TabsTrigger>
+          <TabsTrigger value="media-kit">Kit de midia</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="program" className="space-y-6">
+
       <Card>
         <CardHeader>
           <CardTitle>Configurações do programa</CardTitle>
@@ -629,6 +638,10 @@ const AffiliatesAdminPage = () => {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        <TabsContent value="media-kit" className="space-y-6">
+
       <Card>
         <CardHeader>
           <CardTitle>Kit de midia do afiliado</CardTitle>
@@ -668,7 +681,7 @@ const AffiliatesAdminPage = () => {
             </div>
             <div className="grid gap-4">
               {mediaKitConfig.prompts.map((prompt, index) => (
-                <div key={`prompt-${index}`} className="rounded-xl border p-4">
+                <div key={`prompt-media-only-${index}`} className="rounded-xl border p-4">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <p className="text-sm font-medium">Bloco {index + 1}</p>
                     <Button
@@ -724,7 +737,7 @@ const AffiliatesAdminPage = () => {
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {mediaKitConfig.images.map((image, index) => (
-                <div key={`media-image-${index}`} className="rounded-xl border p-4">
+                <div key={`media-image-only-${index}`} className="rounded-xl border p-4">
                   {image.url ? (
                     <img
                       src={image.url}
@@ -754,7 +767,7 @@ const AffiliatesAdminPage = () => {
                     <div className="space-y-2">
                       <Label>Upload</Label>
                       <Input
-                        id={`affiliate-media-upload-${index}`}
+                        id={`affiliate-media-upload-tab-${index}`}
                         type="file"
                         accept="image/*"
                         onChange={(e) => handleMediaImageUpload(index, e)}
@@ -767,7 +780,7 @@ const AffiliatesAdminPage = () => {
                         variant="outline"
                         className="flex-1 gap-2"
                         disabled={uploadingImageIndex === index}
-                        onClick={() => document.getElementById(`affiliate-media-upload-${index}`)?.click()}
+                        onClick={() => document.getElementById(`affiliate-media-upload-tab-${index}`)?.click()}
                       >
                         {uploadingImageIndex === index ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
                         {uploadingImageIndex === index ? "Enviando..." : "Selecionar imagem"}
@@ -792,6 +805,10 @@ const AffiliatesAdminPage = () => {
           </div>
         </CardContent>
       </Card>
+
+        </TabsContent>
+
+        <TabsContent value="program" className="space-y-6">
 
       <Card>
         <CardHeader>
@@ -1099,6 +1116,9 @@ const AffiliatesAdminPage = () => {
           )}
         </CardContent>
       </Card>
+
+        </TabsContent>
+      </Tabs>
 
       <div className="flex justify-end">
         <Button variant="outline" onClick={() => refetch()} disabled={isRefetching} className="gap-2">

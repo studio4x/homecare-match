@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase } from "@/integrations/supabase/client";
 import UsersTab from "@/components/admin/UsersTab";
 import { Loader2 } from "lucide-react";
 
@@ -33,7 +33,46 @@ const UsersPage = () => {
         user_onboarding_flows: onboardingMap[u.id] || []
       }));
 
-      setAllUsers(usersWithOnboarding);
+      let usersWithSignupDate = usersWithOnboarding;
+
+      try {
+        const { data: currentSession } = await supabase.auth.getSession();
+        const { data: refreshedSession } = await supabase.auth.refreshSession();
+        const accessToken = refreshedSession?.session?.access_token || currentSession?.session?.access_token || "";
+
+        if (accessToken && usersWithOnboarding.length > 0) {
+          const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-user-signup-dates`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              access_token: accessToken,
+              user_ids: usersWithOnboarding.map((user) => user.id),
+            }),
+          });
+
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error(payload?.error || `Falha ao carregar datas de cadastro (HTTP ${response.status})`);
+          }
+
+          const signupDates = payload?.signup_dates && typeof payload.signup_dates === "object"
+            ? payload.signup_dates
+            : {};
+
+          usersWithSignupDate = usersWithOnboarding.map((user) => ({
+            ...user,
+            signup_created_at: signupDates[user.id] || null,
+          }));
+        }
+      } catch (error) {
+        console.warn("[UsersPage] Nao foi possivel carregar datas de cadastro do auth.users:", error);
+      }
+
+      setAllUsers(usersWithSignupDate);
       setPlans(plansRes.data || []);
     } finally {
       setLoading(false);

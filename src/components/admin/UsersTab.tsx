@@ -764,6 +764,10 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const getInitials = (name: string) =>
     name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
 
+  const getSignupCreatedAt = (profile: any) => {
+    return profile?.signup_created_at || profile?.created_at || null;
+  };
+
   return (
     <>
       <div className="space-y-4">
@@ -1271,8 +1275,8 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                   <p className="mt-1 text-xs text-muted-foreground">
                     Cadastro na plataforma:{" "}
                     <span className="font-medium text-foreground">
-                      {selectedProfileForView.created_at
-                        ? new Date(selectedProfileForView.created_at).toLocaleString("pt-BR")
+                      {getSignupCreatedAt(selectedProfileForView)
+                        ? new Date(getSignupCreatedAt(selectedProfileForView)).toLocaleString("pt-BR")
                         : "Data não disponível"}
                     </span>
                   </p>
@@ -1321,8 +1325,8 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                   <div className="space-y-1">
                     <span className="text-[10px] font-bold text-primary uppercase">Data de Cadastro</span>
                     <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
-                      {selectedProfileForView.created_at
-                        ? new Date(selectedProfileForView.created_at).toLocaleString("pt-BR")
+                      {getSignupCreatedAt(selectedProfileForView)
+                        ? new Date(getSignupCreatedAt(selectedProfileForView)).toLocaleString("pt-BR")
                         : "-"}
                     </p>
                   </div>

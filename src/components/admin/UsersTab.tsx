@@ -89,6 +89,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [isUpdatingEmailConfirmed, setIsUpdatingEmailConfirmed] = useState<string | null>(null);
   const [isImpersonating, setIsImpersonating] = useState<string | null>(null);
   const [isAddingToOnboarding, setIsAddingToOnboarding] = useState<string | null>(null);
+  const [isRunningTrialAutomation, setIsRunningTrialAutomation] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState("all");
   const [planStatusFilter, setPlanStatusFilter] = useState("all");
   const [docsVerifiedFilter, setDocsVerifiedFilter] = useState("all");
@@ -210,6 +211,56 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       console.error(err);
     } finally {
       setIsUpdatingPlan(null);
+    }
+  };
+
+  const canRunTrialAutomation = (u: any) => {
+    if (String(u?.role || "").toLowerCase() !== "professional") return false;
+    if (normalizeTier(u?.subscription_tier) !== "free_trial") return false;
+    return hasExpiredPlan(u);
+  };
+
+  const handleRunTrialAutomation = async (u: any) => {
+    setIsRunningTrialAutomation(u.id);
+    try {
+      const { data: currentSession } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession.session?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente.");
+      }
+
+      const { data, error } = await supabase.functions.invoke("process-subscription-expiry-alerts", {
+        body: {
+          access_token: accessToken,
+          target_user_id: u.id,
+          force: true,
+        },
+      });
+
+      if (error) throw error;
+
+      const typedData = (data && typeof data === "object") ? (data as Record<string, unknown>) : {};
+      const trialBonusUpgrades = Number(typedData.trial_bonus_upgrades || 0);
+      const trialBonusEmailed = Number(typedData.trial_bonus_emailed || 0);
+
+      if (trialBonusUpgrades > 0) {
+        toast.success("Automacao executada com sucesso!", {
+          description: `Plano alterado para mensal com +30 dias gratis.${trialBonusEmailed > 0 ? " E-mail enviado." : ""}`,
+        });
+      } else {
+        toast.message("Nenhuma alteracao aplicada para este usuario.", {
+          description: "Verifique se o teste gratis realmente esta expirado e se a automacao esta habilitada.",
+        });
+      }
+
+      await refetchData();
+    } catch (err: any) {
+      console.error("[UsersTab] Erro ao rodar automacao de trial:", err);
+      toast.error(err?.message || "Erro ao executar automacao de trial.");
+    } finally {
+      setIsRunningTrialAutomation(null);
     }
   };
 
@@ -974,6 +1025,22 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10" onClick={() => { setSelectedUserForMessage(u); setMessageModalOpen(true); }}>
                             <MessageSquare className="h-4 w-4" />
                           </Button>
+                          {canRunTrialAutomation(u) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+                              title="Rodar automacao de troca para mensal + 30 dias"
+                              onClick={() => handleRunTrialAutomation(u)}
+                              disabled={isRunningTrialAutomation === u.id}
+                            >
+                              {isRunningTrialAutomation === u.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Send className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                           {u.id !== user?.id && u.email !== MASTER_ADMIN_EMAIL && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => { setUserToDelete(u); setDeleteModalOpen(true); }}>
                               <Trash2 className="h-4 w-4" />

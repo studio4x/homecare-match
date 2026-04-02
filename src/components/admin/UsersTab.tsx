@@ -1311,6 +1311,14 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                     </p>
                   </div>
                   <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-primary uppercase">Data de Cadastro</span>
+                    <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
+                      {selectedProfileForView.created_at
+                        ? new Date(selectedProfileForView.created_at).toLocaleString("pt-BR")
+                        : "-"}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
                     <span className="text-[10px] font-bold text-primary uppercase">WhatsApp</span>
                     <p className="text-sm border-l-2 border-primary/20 pl-3 py-1 bg-muted/20 rounded-r-md min-h-[2.5rem] flex items-center">
                       {selectedProfileForView.phone || "-"}

@@ -703,12 +703,24 @@ const AffiliatesAdminPage = () => {
                     </div>
                     <div className="space-y-2">
                       <Label>Upload</Label>
-                      <Input type="file" accept="image/*" onChange={(e) => handleMediaImageUpload(index, e)} />
+                      <Input
+                        id={`affiliate-media-upload-${index}`}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleMediaImageUpload(index, e)}
+                        className="hidden"
+                      />
                     </div>
                     <div className="flex gap-2">
-                      <Button type="button" variant="outline" className="flex-1 gap-2" disabled={uploadingImageIndex === index}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1 gap-2"
+                        disabled={uploadingImageIndex === index}
+                        onClick={() => document.getElementById(`affiliate-media-upload-${index}`)?.click()}
+                      >
                         {uploadingImageIndex === index ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-                        {uploadingImageIndex === index ? "Enviando..." : "Upload pronto"}
+                        {uploadingImageIndex === index ? "Enviando..." : "Selecionar imagem"}
                       </Button>
                       {image.url ? (
                         <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveMediaImage(index)}>
@@ -1049,3 +1061,4 @@ const AffiliatesAdminPage = () => {
 };
 
 export default AffiliatesAdminPage;
+

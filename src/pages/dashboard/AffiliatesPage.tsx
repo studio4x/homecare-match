@@ -12,6 +12,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { useSiteConfig } from "@/hooks/use-site-config";
+
+type MediaKitPrompt = {
+  title?: string;
+  description?: string;
+  copy_label?: string;
+  content?: string;
+};
+
+type MediaKitImage = {
+  url?: string;
+  alt?: string;
+  title?: string;
+};
 
 const currency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
@@ -59,6 +73,7 @@ const normalizePixKeyType = (value: unknown) => {
 
 const AffiliatesPage = () => {
   const { user } = useAuth();
+  const { data: siteConfig } = useSiteConfig();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSavingPix, setIsSavingPix] = useState(false);
   const [pixKey, setPixKey] = useState("");
@@ -112,37 +127,53 @@ const AffiliatesPage = () => {
 
   const companyLandingPage = useMemo(() => `${window.location.origin}/empresas`, []);
 
-  const mediaKitItems = useMemo(
-    () => [
+  const mediaKitConfig = siteConfig?.affiliate_media_kit_config;
+
+  const mediaKitItems = useMemo(() => {
+    const promptIcons = [MessageSquare, Megaphone, LinkIcon];
+    const prompts = Array.isArray(mediaKitConfig?.prompts) ? mediaKitConfig.prompts : [];
+
+    const fallbackPrompts: MediaKitPrompt[] = [
       {
         title: "Mensagem para WhatsApp",
         description: "Texto pronto para compartilhar com contatos e grupos qualificados.",
-        icon: MessageSquare,
-        copyLabel: "Copiar mensagem",
+        copy_label: "Copiar mensagem",
         content:
-          `Estou divulgando a HomeCare Match, uma plataforma que aproxima profissionais e oportunidades no setor de cuidados. ` +
-          `Se fizer sentido para voce, esse e meu link oficial: ${affiliateLink}`,
+          "Estou divulgando a HomeCare Match, uma plataforma que aproxima profissionais e oportunidades no setor de cuidados. Se fizer sentido para voce, esse e meu link oficial: {{affiliate_link}}",
       },
       {
         title: "Pitch para empresas",
         description: "Convite rapido para empresas conhecerem a pagina institucional.",
-        icon: Megaphone,
-        copyLabel: "Copiar pitch",
+        copy_label: "Copiar pitch",
         content:
-          `Quero te apresentar a HomeCare Match. A plataforma ajuda empresas a encontrar profissionais com mais agilidade. ` +
-          `Conheca a pagina para empresas: ${companyLandingPage}`,
+          "Quero te apresentar a HomeCare Match. A plataforma ajuda empresas a encontrar profissionais com mais agilidade. Conheca a pagina para empresas: {{company_page_link}}",
       },
       {
         title: "Legenda para redes sociais",
         description: "CTA curto para post, story ou bio com link.",
-        icon: LinkIcon,
-        copyLabel: "Copiar legenda",
+        copy_label: "Copiar legenda",
         content:
-          `Profissionais e empresas de Home Care em um so lugar. Conheca a HomeCare Match pelo meu link oficial: ${affiliateLink}`,
+          "Profissionais e empresas de Home Care em um so lugar. Conheca a HomeCare Match pelo meu link oficial: {{affiliate_link}}",
       },
-    ],
-    [affiliateLink, companyLandingPage],
-  );
+    ];
+
+    const source = prompts.length > 0 ? prompts : fallbackPrompts;
+
+    return source.map((item, index) => ({
+      title: item.title || `Prompt ${index + 1}`,
+      description: item.description || "Texto configurado no painel admin.",
+      copyLabel: item.copy_label || "Copiar texto",
+      icon: promptIcons[index] || Megaphone,
+      content: String(item.content || "")
+        .replaceAll("{{affiliate_link}}", affiliateLink)
+        .replaceAll("{{company_page_link}}", companyLandingPage),
+    }));
+  }, [affiliateLink, companyLandingPage, mediaKitConfig?.prompts]);
+
+  const mediaKitImages = useMemo(() => {
+    const images = Array.isArray(mediaKitConfig?.images) ? mediaKitConfig.images : [];
+    return images.filter((item: MediaKitImage) => item?.url);
+  }, [mediaKitConfig?.images]);
 
   const handleCopy = async (value: string, message: string) => {
     try {
@@ -340,10 +371,11 @@ const AffiliatesPage = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Megaphone className="h-4 w-4" />
-            Kit de midia
+            {mediaKitConfig?.title || "Kit de midia"}
           </CardTitle>
           <CardDescription>
-            Materiais prontos para divulgar seu link de afiliado e apresentar a plataforma para empresas.
+            {mediaKitConfig?.description ||
+              "Materiais prontos para divulgar seu link de afiliado e apresentar a plataforma para empresas."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -402,6 +434,38 @@ const AffiliatesPage = () => {
               );
             })}
           </div>
+
+          {mediaKitImages.length > 0 ? (
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold">Artes prontas</h3>
+                <p className="text-xs text-muted-foreground">Use estas imagens como apoio nas suas divulgações.</p>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                {mediaKitImages.map((image: MediaKitImage, index: number) => (
+                  <div key={`${image.url}-${index}`} className="overflow-hidden rounded-xl border bg-card">
+                    <img
+                      src={image.url}
+                      alt={image.alt || image.title || `Arte ${index + 1}`}
+                      className="aspect-square w-full object-cover"
+                    />
+                    <div className="space-y-2 p-3">
+                      <p className="text-sm font-medium">{image.title || `Arte ${index + 1}`}</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopy(image.url || "", "Link da imagem copiado.")}
+                        className="gap-1"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        Copiar link da imagem
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

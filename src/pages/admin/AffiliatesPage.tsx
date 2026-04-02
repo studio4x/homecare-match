@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -24,8 +25,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Eye, Loader2, RefreshCw, Save, ShieldCheck, Wallet } from "lucide-react";
+import { Eye, ImagePlus, Loader2, RefreshCw, Save, ShieldCheck, Trash2, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { useSiteConfig } from "@/hooks/use-site-config";
+import { sanitizeStorageFileName, sanitizeStoragePath } from "@/lib/storage-path";
+
+type MediaKitPrompt = {
+  title: string;
+  description: string;
+  copy_label: string;
+  content: string;
+};
+
+type MediaKitImage = {
+  url: string;
+  alt: string;
+  title: string;
+};
+
+type MediaKitConfig = {
+  title: string;
+  description: string;
+  prompts: MediaKitPrompt[];
+  images: MediaKitImage[];
+};
 
 const currency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
@@ -69,14 +92,69 @@ const formatMonth = () => {
   return `${now.getFullYear()}-${month}`;
 };
 
+const createDefaultMediaKitConfig = (): MediaKitConfig => ({
+  title: "Kit de midia",
+  description: "Materiais prontos para divulgar seu link de afiliado e apresentar a plataforma para empresas.",
+  prompts: [
+    {
+      title: "Mensagem para WhatsApp",
+      description: "Texto pronto para compartilhar com contatos e grupos qualificados.",
+      copy_label: "Copiar mensagem",
+      content:
+        "Estou divulgando a HomeCare Match, uma plataforma que aproxima profissionais e oportunidades no setor de cuidados. Se fizer sentido para voce, esse e meu link oficial: {{affiliate_link}}",
+    },
+    {
+      title: "Pitch para empresas",
+      description: "Convite rapido para empresas conhecerem a pagina institucional.",
+      copy_label: "Copiar pitch",
+      content:
+        "Quero te apresentar a HomeCare Match. A plataforma ajuda empresas a encontrar profissionais com mais agilidade. Conheca a pagina para empresas: {{company_page_link}}",
+    },
+    {
+      title: "Legenda para redes sociais",
+      description: "CTA curto para post, story ou bio com link.",
+      copy_label: "Copiar legenda",
+      content:
+        "Profissionais e empresas de Home Care em um so lugar. Conheca a HomeCare Match pelo meu link oficial: {{affiliate_link}}",
+    },
+  ],
+  images: [{ url: "", alt: "", title: "" }, { url: "", alt: "", title: "" }, { url: "", alt: "", title: "" }],
+});
+
+const normalizeMediaKitConfig = (raw: any): MediaKitConfig => {
+  const fallback = createDefaultMediaKitConfig();
+  const prompts = Array.isArray(raw?.prompts) ? raw.prompts : fallback.prompts;
+  const images = Array.isArray(raw?.images) ? raw.images : fallback.images;
+
+  return {
+    title: String(raw?.title || fallback.title),
+    description: String(raw?.description || fallback.description),
+    prompts: Array.from({ length: 3 }).map((_, index) => ({
+      title: String(prompts[index]?.title || fallback.prompts[index]?.title || `Prompt ${index + 1}`),
+      description: String(prompts[index]?.description || fallback.prompts[index]?.description || ""),
+      copy_label: String(prompts[index]?.copy_label || fallback.prompts[index]?.copy_label || "Copiar texto"),
+      content: String(prompts[index]?.content || fallback.prompts[index]?.content || ""),
+    })),
+    images: Array.from({ length: 3 }).map((_, index) => ({
+      url: String(images[index]?.url || ""),
+      alt: String(images[index]?.alt || ""),
+      title: String(images[index]?.title || ""),
+    })),
+  };
+};
+
 const AffiliatesAdminPage = () => {
+  const queryClient = useQueryClient();
+  const { data: siteConfig } = useSiteConfig();
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [isSavingMediaKit, setIsSavingMediaKit] = useState(false);
   const [isApprovingBatch, setIsApprovingBatch] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
   const [isClearingRejected, setIsClearingRejected] = useState(false);
   const [payingBatchId, setPayingBatchId] = useState<string | null>(null);
   const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
   const [selectedApplication, setSelectedApplication] = useState<any | null>(null);
+  const [uploadingImageIndex, setUploadingImageIndex] = useState<number | null>(null);
 
   const [enabled, setEnabled] = useState(false);
   const [shadowMode, setShadowMode] = useState(true);
@@ -85,6 +163,7 @@ const AffiliatesAdminPage = () => {
   const [minimumAmount, setMinimumAmount] = useState("100");
   const [monthlyMax, setMonthlyMax] = useState("24");
   const [annualMax, setAnnualMax] = useState("2");
+  const [mediaKitConfig, setMediaKitConfig] = useState<MediaKitConfig>(createDefaultMediaKitConfig());
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["admin-affiliates"],
@@ -127,6 +206,10 @@ const AffiliatesAdminPage = () => {
     config?.annual_commission_max_payments,
   ]);
 
+  useEffect(() => {
+    setMediaKitConfig(normalizeMediaKitConfig(siteConfig?.affiliate_media_kit_config));
+  }, [siteConfig?.affiliate_media_kit_config]);
+
   const hasConfigChanges = useMemo(() => {
     const currentSignup = Number(config?.signup_commission_amount ?? 50);
     const currentRecurring = Number(config?.recurring_commission_percent ?? 10);
@@ -159,6 +242,11 @@ const AffiliatesAdminPage = () => {
     config?.monthly_commission_max_payments,
     config?.annual_commission_max_payments,
   ]);
+
+  const hasMediaKitChanges = useMemo(() => {
+    const current = normalizeMediaKitConfig(siteConfig?.affiliate_media_kit_config);
+    return JSON.stringify(current) !== JSON.stringify(mediaKitConfig);
+  }, [mediaKitConfig, siteConfig?.affiliate_media_kit_config]);
 
   const handleSaveConfig = async () => {
     setIsSavingConfig(true);
@@ -200,6 +288,90 @@ const AffiliatesAdminPage = () => {
     } finally {
       setIsSavingConfig(false);
     }
+  };
+
+  const handleSaveMediaKit = async () => {
+    setIsSavingMediaKit(true);
+    try {
+      const { error } = await supabase
+        .from("site_config")
+        .update({
+          affiliate_media_kit_config: mediaKitConfig,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", 1);
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ["site-config"] });
+      toast.success("Kit de midia salvo com sucesso.");
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao salvar kit de midia.");
+    } finally {
+      setIsSavingMediaKit(false);
+    }
+  };
+
+  const handleMediaPromptChange = (index: number, field: keyof MediaKitPrompt, value: string) => {
+    setMediaKitConfig((prev) => ({
+      ...prev,
+      prompts: prev.prompts.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
+    }));
+  };
+
+  const handleMediaImageFieldChange = (index: number, field: keyof MediaKitImage, value: string) => {
+    setMediaKitConfig((prev) => ({
+      ...prev,
+      images: prev.images.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
+    }));
+  };
+
+  const handleMediaImageUpload = async (index: number, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImageIndex(index);
+    const safeName = sanitizeStorageFileName(file.name, "affiliate-media");
+    const fileName = `affiliate_media_${index + 1}_${Date.now()}_${safeName}`;
+    const filePath = sanitizeStoragePath(`site-assets/${fileName}`);
+
+    try {
+      const { error: uploadError } = await supabase.storage.from("uploads").upload(filePath, file, {
+        cacheControl: "31536000",
+      });
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("uploads").getPublicUrl(filePath);
+
+      setMediaKitConfig((prev) => ({
+        ...prev,
+        images: prev.images.map((item, itemIndex) =>
+          itemIndex === index
+            ? {
+                ...item,
+                url: publicUrl,
+                title: item.title || `Arte ${index + 1}`,
+                alt: item.alt || `Arte do kit de midia ${index + 1}`,
+              }
+            : item,
+        ),
+      }));
+
+      toast.success("Imagem enviada com sucesso.");
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao enviar imagem.");
+    } finally {
+      setUploadingImageIndex(null);
+      event.target.value = "";
+    }
+  };
+
+  const handleRemoveMediaImage = (index: number) => {
+    setMediaKitConfig((prev) => ({
+      ...prev,
+      images: prev.images.map((item, itemIndex) => (itemIndex === index ? { url: "", alt: "", title: "" } : item)),
+    }));
   };
 
   const handleApproveBatch = async () => {
@@ -420,6 +592,140 @@ const AffiliatesAdminPage = () => {
             <Button onClick={handleSaveConfig} disabled={isSavingConfig || !hasConfigChanges} className="gap-2">
               {isSavingConfig ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               Salvar configurações
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Kit de midia do afiliado</CardTitle>
+          <CardDescription>Configure textos, prompts e um grid com 3 imagens para o painel do afiliado.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Titulo da secao</Label>
+              <Input
+                value={mediaKitConfig.title}
+                onChange={(e) => setMediaKitConfig((prev) => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Descricao da secao</Label>
+              <Textarea
+                value={mediaKitConfig.description}
+                onChange={(e) => setMediaKitConfig((prev) => ({ ...prev, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">Prompts e textos prontos</h3>
+                <p className="text-xs text-muted-foreground">
+                  Use os placeholders <code>{"{{affiliate_link}}"}</code> e <code>{"{{company_page_link}}"}</code>.
+                </p>
+            </div>
+            <div className="grid gap-4">
+              {mediaKitConfig.prompts.map((prompt, index) => (
+                <div key={`prompt-${index}`} className="rounded-xl border p-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Titulo</Label>
+                      <Input
+                        value={prompt.title}
+                        onChange={(e) => handleMediaPromptChange(index, "title", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Botao de copia</Label>
+                      <Input
+                        value={prompt.copy_label}
+                        onChange={(e) => handleMediaPromptChange(index, "copy_label", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <Label>Descricao</Label>
+                    <Input
+                      value={prompt.description}
+                      onChange={(e) => handleMediaPromptChange(index, "description", e.target.value)}
+                    />
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <Label>Conteudo</Label>
+                    <Textarea
+                      value={prompt.content}
+                      onChange={(e) => handleMediaPromptChange(index, "content", e.target.value)}
+                      rows={5}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold">Grid de imagens</h3>
+              <p className="text-xs text-muted-foreground">As 3 imagens abaixo serao exibidas em colunas no painel do afiliado.</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {mediaKitConfig.images.map((image, index) => (
+                <div key={`media-image-${index}`} className="rounded-xl border p-4">
+                  {image.url ? (
+                    <img
+                      src={image.url}
+                      alt={image.alt || image.title || `Imagem ${index + 1}`}
+                      className="mb-4 aspect-square w-full rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="mb-4 flex aspect-square items-center justify-center rounded-lg border border-dashed bg-muted/20 text-xs text-muted-foreground">
+                      Nenhuma imagem enviada
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Titulo da imagem</Label>
+                      <Input
+                        value={image.title}
+                        onChange={(e) => handleMediaImageFieldChange(index, "title", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Texto alternativo</Label>
+                      <Input
+                        value={image.alt}
+                        onChange={(e) => handleMediaImageFieldChange(index, "alt", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Upload</Label>
+                      <Input type="file" accept="image/*" onChange={(e) => handleMediaImageUpload(index, e)} />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" className="flex-1 gap-2" disabled={uploadingImageIndex === index}>
+                        {uploadingImageIndex === index ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                        {uploadingImageIndex === index ? "Enviando..." : "Upload pronto"}
+                      </Button>
+                      {image.url ? (
+                        <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveMediaImage(index)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={handleSaveMediaKit} disabled={isSavingMediaKit || !hasMediaKitChanges} className="gap-2">
+              {isSavingMediaKit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Salvar kit de midia
             </Button>
           </div>
         </CardContent>

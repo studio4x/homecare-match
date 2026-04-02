@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 interface ReferralStats {
@@ -310,152 +311,167 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
             </div>
           </div>
 
-          <div className="space-y-3 border-t pt-4">
-            <h4 className="text-sm font-semibold">1. Compartilhe seu Link</h4>
-            <div className="break-words rounded-lg border bg-secondary/20 p-3 text-xs">{referralLink}</div>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={copyLink} className="h-9 gap-2">
-                <Copy className="h-4 w-4" />
-                Copiar Link
-              </Button>
-              <Button variant="outline" onClick={shareLink} className="h-9 gap-2">
-                <Share2 className="h-4 w-4" />
-                Compartilhar
-              </Button>
-              <Button variant="outline" onClick={handleWhatsAppShare} className="h-9 gap-2 bg-green-600 text-white hover:bg-green-700">
-                <MessageSquare className="h-4 w-4" />
-                WhatsApp
-              </Button>
-              <Button variant="outline" onClick={() => setTiersOpen(true)} className="h-9">
-                Ver Niveis
-              </Button>
-            </div>
-          </div>
+          <Tabs defaultValue="professionals" className="border-t pt-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="professionals">Profissionais</TabsTrigger>
+              <TabsTrigger value="companies">Empresas</TabsTrigger>
+            </TabsList>
 
-          <div className="space-y-3 border-t pt-4">
-            <h4 className="text-sm font-semibold">2. Indique Diretamente</h4>
-            <p className="text-xs text-muted-foreground">Prefere que nossa equipe entre em contato? Insira os dados abaixo.</p>
-            <form onSubmit={handleReferralSubmit} className="space-y-3">
-              <div className="grid gap-2">
-                <Label htmlFor="referral-name" className="text-xs">
-                  Nome do Profissional (Opcional)
-                </Label>
-                <Input
-                  id="referral-name"
-                  placeholder="Ex: Maria da Silva"
-                  value={referralName}
-                  onChange={(e) => setReferralName(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="referral-phone" className="text-xs">
-                  WhatsApp (com DDD) *
-                </Label>
-                <Input
-                  id="referral-phone"
-                  placeholder="Ex: (11) 99999-9999"
-                  value={referralPhone}
-                  onChange={(e) => setReferralPhone(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Enviar Indicacao
-              </Button>
-            </form>
-          </div>
-
-          <div className="space-y-3 border-t pt-4">
-            <h4 className="flex items-center gap-2 text-sm font-semibold">
-              <Building2 className="h-4 w-4" />
-              3. Indique uma Empresa
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              Se voce conhece uma empresa de Home Care, cooperativa ou operadora que possa contratar pela plataforma,
-              envie os dados abaixo para nossa equipe abordar esse lead.
-            </p>
-            <div className="rounded-lg border bg-secondary/20 p-3">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCompanyWhatsAppShare}
-                  className="h-9 gap-2 bg-green-600 text-white hover:bg-green-700"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Compartilhar no WhatsApp
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => window.open(companyReferralLink, "_blank", "noopener,noreferrer")}
-                  className="h-9 gap-2"
-                >
-                  <BriefcaseBusiness className="h-4 w-4" />
-                  Abrir pagina para empresas
-                </Button>
-              </div>
-              <p className="mt-2 break-all text-[11px] text-muted-foreground">{companyReferralLink}</p>
-            </div>
-            <form onSubmit={handleCompanyReferralSubmit} className="space-y-3">
-              <div className="grid gap-2">
-                <Label htmlFor="company-name" className="text-xs">
-                  Nome da Empresa *
-                </Label>
-                <Input
-                  id="company-name"
-                  placeholder="Ex: Home Care Sao Paulo"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-              <div className="grid gap-2 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="company-contact-name" className="text-xs">
-                    Nome do Contato
-                  </Label>
-                  <Input
-                    id="company-contact-name"
-                    placeholder="Ex: Ana Paula"
-                    value={companyContactName}
-                    onChange={(e) => setCompanyContactName(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="company-city" className="text-xs">
-                    Cidade
-                  </Label>
-                  <Input
-                    id="company-city"
-                    placeholder="Ex: Campinas - SP"
-                    value={companyCity}
-                    onChange={(e) => setCompanyCity(e.target.value)}
-                    disabled={isSubmitting}
-                  />
+            <TabsContent value="professionals" className="space-y-4">
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">Compartilhe seu Link</h4>
+                <div className="break-words rounded-lg border bg-secondary/20 p-3 text-xs">{referralLink}</div>
+                <div className="flex flex-wrap gap-2">
+                  <Button onClick={copyLink} className="h-9 gap-2">
+                    <Copy className="h-4 w-4" />
+                    Copiar Link
+                  </Button>
+                  <Button variant="outline" onClick={shareLink} className="h-9 gap-2">
+                    <Share2 className="h-4 w-4" />
+                    Compartilhar
+                  </Button>
+                  <Button variant="outline" onClick={handleWhatsAppShare} className="h-9 gap-2 bg-green-600 text-white hover:bg-green-700">
+                    <MessageSquare className="h-4 w-4" />
+                    WhatsApp
+                  </Button>
+                  <Button variant="outline" onClick={() => setTiersOpen(true)} className="h-9">
+                    Ver Niveis
+                  </Button>
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="company-phone" className="text-xs">
-                  WhatsApp da Empresa (com DDD) *
-                </Label>
-                <Input
-                  id="company-phone"
-                  placeholder="Ex: (11) 99999-9999"
-                  value={companyPhone}
-                  onChange={(e) => setCompanyPhone(e.target.value)}
-                  disabled={isSubmitting}
-                />
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <h4 className="text-sm font-semibold">Indique Diretamente</h4>
+                <p className="text-xs text-muted-foreground">Prefere que nossa equipe entre em contato? Insira os dados abaixo.</p>
+                <form onSubmit={handleReferralSubmit} className="space-y-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="referral-name" className="text-xs">
+                      Nome do Profissional (Opcional)
+                    </Label>
+                    <Input
+                      id="referral-name"
+                      placeholder="Ex: Maria da Silva"
+                      value={referralName}
+                      onChange={(e) => setReferralName(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="referral-phone" className="text-xs">
+                      WhatsApp (com DDD) *
+                    </Label>
+                    <Input
+                      id="referral-phone"
+                      placeholder="Ex: (11) 99999-9999"
+                      value={referralPhone}
+                      onChange={(e) => setReferralPhone(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Enviar Indicacao
+                  </Button>
+                </form>
               </div>
-              <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Enviar Empresa Indicada
-              </Button>
-            </form>
-          </div>
+            </TabsContent>
+
+            <TabsContent value="companies" className="space-y-4">
+              <div className="space-y-3">
+                <h4 className="flex items-center gap-2 text-sm font-semibold">
+                  <Building2 className="h-4 w-4" />
+                  Indique uma Empresa
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Se voce conhece uma empresa de Home Care, cooperativa ou operadora que possa contratar pela plataforma,
+                  envie os dados abaixo para nossa equipe abordar esse lead.
+                </p>
+                <div className="rounded-lg border bg-secondary/20 p-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCompanyWhatsAppShare}
+                      className="h-9 gap-2 bg-green-600 text-white hover:bg-green-700"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Compartilhar no WhatsApp
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.open(companyReferralLink, "_blank", "noopener,noreferrer")}
+                      className="h-9 gap-2"
+                    >
+                      <BriefcaseBusiness className="h-4 w-4" />
+                      Abrir pagina para empresas
+                    </Button>
+                  </div>
+                  <p className="mt-2 break-all text-[11px] text-muted-foreground">{companyReferralLink}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <h4 className="text-sm font-semibold">Dados da Empresa</h4>
+                <form onSubmit={handleCompanyReferralSubmit} className="space-y-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="company-name" className="text-xs">
+                      Nome da Empresa *
+                    </Label>
+                    <Input
+                      id="company-name"
+                      placeholder="Ex: Home Care Sao Paulo"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="company-contact-name" className="text-xs">
+                        Nome do Contato
+                      </Label>
+                      <Input
+                        id="company-contact-name"
+                        placeholder="Ex: Ana Paula"
+                        value={companyContactName}
+                        onChange={(e) => setCompanyContactName(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="company-city" className="text-xs">
+                        Cidade
+                      </Label>
+                      <Input
+                        id="company-city"
+                        placeholder="Ex: Campinas - SP"
+                        value={companyCity}
+                        onChange={(e) => setCompanyCity(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="company-phone" className="text-xs">
+                      WhatsApp da Empresa (com DDD) *
+                    </Label>
+                    <Input
+                      id="company-phone"
+                      placeholder="Ex: (11) 99999-9999"
+                      value={companyPhone}
+                      onChange={(e) => setCompanyPhone(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Enviar Empresa Indicada
+                  </Button>
+                </form>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

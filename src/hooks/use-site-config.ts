@@ -127,6 +127,21 @@ export interface SiteConfig {
     label?: string;
     form_factor?: "narrow" | "wide";
   }> | null;
+  affiliate_media_kit_config?: {
+    title?: string;
+    description?: string;
+    prompts?: Array<{
+      title?: string;
+      description?: string;
+      copy_label?: string;
+      content?: string;
+    }>;
+    images?: Array<{
+      url?: string;
+      alt?: string;
+      title?: string;
+    }>;
+  } | null;
 }
 
 const isTransientNetworkError = (error: unknown) => {
@@ -236,7 +251,35 @@ export const useSiteConfig = () => {
           pwa_install_title: "Instale o app HomeCare Match",
           pwa_install_description: "Acesse mais rapido pelo seu celular, direto da tela inicial.",
           pwa_assets_json: {},
-          pwa_screenshots_json: []
+          pwa_screenshots_json: [],
+          affiliate_media_kit_config: {
+            title: "Kit de midia",
+            description: "Materiais prontos para divulgar seu link de afiliado e apresentar a plataforma para empresas.",
+            prompts: [
+              {
+                title: "Mensagem para WhatsApp",
+                description: "Texto pronto para compartilhar com contatos e grupos qualificados.",
+                copy_label: "Copiar mensagem",
+                content:
+                  "Estou divulgando a HomeCare Match, uma plataforma que aproxima profissionais e oportunidades no setor de cuidados. Se fizer sentido para voce, esse e meu link oficial: {{affiliate_link}}",
+              },
+              {
+                title: "Pitch para empresas",
+                description: "Convite rapido para empresas conhecerem a pagina institucional.",
+                copy_label: "Copiar pitch",
+                content:
+                  "Quero te apresentar a HomeCare Match. A plataforma ajuda empresas a encontrar profissionais com mais agilidade. Conheca a pagina para empresas: {{company_page_link}}",
+              },
+              {
+                title: "Legenda para redes sociais",
+                description: "CTA curto para post, story ou bio com link.",
+                copy_label: "Copiar legenda",
+                content:
+                  "Profissionais e empresas de Home Care em um so lugar. Conheca a HomeCare Match pelo meu link oficial: {{affiliate_link}}",
+              },
+            ],
+            images: [],
+          },
         };
       }
 

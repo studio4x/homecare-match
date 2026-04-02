@@ -1268,6 +1268,14 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                 <div className="text-center">
                   <h2 className="text-2xl font-bold text-gray-900">{selectedProfileForView.full_name}</h2>
                   <p className="text-sm text-muted-foreground">{selectedProfileForView.email}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Cadastro na plataforma:{" "}
+                    <span className="font-medium text-foreground">
+                      {selectedProfileForView.created_at
+                        ? new Date(selectedProfileForView.created_at).toLocaleString("pt-BR")
+                        : "Data não disponível"}
+                    </span>
+                  </p>
                 </div>
               </div>
 

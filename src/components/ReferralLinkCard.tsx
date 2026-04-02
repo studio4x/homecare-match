@@ -4,7 +4,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Copy, Share2, CheckCircle, Circle, MessageSquare, Loader2, AlertTriangle } from "lucide-react";
+import {
+  AlertTriangle,
+  BriefcaseBusiness,
+  Building2,
+  CheckCircle,
+  Circle,
+  Copy,
+  Loader2,
+  MessageSquare,
+  Share2,
+} from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,8 +49,8 @@ const DEFAULT_TIERS = [
   { name: "Promotor", threshold: 3, badge_label: "Promotor" },
   { name: "Colaborador", threshold: 5, badge_label: "Colaborador" },
   { name: "Embaixador", threshold: 10, badge_label: "Embaixador" },
-  { name: "Referência", threshold: 20, badge_label: "Referência" },
-  { name: "Sênior", threshold: 35, badge_label: "Sênior" },
+  { name: "Referencia", threshold: 20, badge_label: "Referencia" },
+  { name: "Senior", threshold: 35, badge_label: "Senior" },
   { name: "Elite", threshold: 50, badge_label: "Elite" },
 ];
 
@@ -50,11 +60,16 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
   const [tiersOpen, setTiersOpen] = useState(false);
   const [referralName, setReferralName] = useState("");
   const [referralPhone, setReferralPhone] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [companyContactName, setCompanyContactName] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
+  const [companyCity, setCompanyCity] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!user) return null;
 
   const referralLink = `${window.location.origin}/convite?ref=${user.id}`;
+  const companyReferralLink = `${window.location.origin}/empresas`;
 
   useEffect(() => {
     const fetchTiers = async () => {
@@ -87,7 +102,7 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(referralLink);
-    toast.success("Link de indicação copiado!");
+    toast.success("Link de indicacao copiado!");
   };
 
   const shareLink = async () => {
@@ -105,16 +120,34 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
   const handleWhatsAppShare = () => {
     const fullName = user.user_metadata.full_name || "um profissional";
     const message = encodeURIComponent(
-      `Olá! Sou ${fullName} e estou te indicando para a HomeCare Match, a plataforma que conecta profissionais de saúde a famílias e empresas. Cadastre-se pelo meu link para começar: ${referralLink}`,
+      `Ola! Sou ${fullName} e estou te indicando para a HomeCare Match, a plataforma que conecta profissionais de saude a familias e empresas. Cadastre-se pelo meu link para comecar: ${referralLink}`,
     );
-    const whatsappUrl = `https://wa.me/?text=${message}`;
-    window.open(whatsappUrl, "_blank");
+    window.open(`https://wa.me/?text=${message}`, "_blank");
   };
+
+  const handleCompanyWhatsAppShare = () => {
+    const fullName = user.user_metadata.full_name || "um profissional da plataforma";
+    const message = encodeURIComponent(
+      `Ola! Sou ${fullName} e quero indicar a HomeCare Match para sua empresa. ` +
+        `A plataforma ajuda empresas de Home Care a encontrar profissionais com mais agilidade. ` +
+        `Conheca aqui: ${companyReferralLink}`,
+    );
+    window.open(`https://wa.me/?text=${message}`, "_blank");
+  };
+
+  const buildCompanyReferralName = () =>
+    [
+      companyName.trim() ? `Empresa: ${companyName.trim()}` : "",
+      companyContactName.trim() ? `Contato: ${companyContactName.trim()}` : "",
+      companyCity.trim() ? `Cidade: ${companyCity.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
 
   const handleReferralSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!referralPhone) {
-      toast.error("O número de WhatsApp é obrigatório.");
+      toast.error("O numero de WhatsApp e obrigatorio.");
       return;
     }
 
@@ -122,7 +155,7 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
 
     const cleanPhone = referralPhone.replace(/\D/g, "");
     if (cleanPhone.length < 10) {
-      toast.error("Número de WhatsApp inválido. Inclua DDD.");
+      toast.error("Numero de WhatsApp invalido. Inclua DDD.");
       setIsSubmitting(false);
       return;
     }
@@ -138,19 +171,75 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
       if (error) throw error;
 
       await supabase.from("admin_notifications").insert({
-        title: "Nova Indicação Manual",
-        content: `${user.user_metadata.full_name || "Um usuário"} indicou o profissional: ${referralName || cleanPhone}`,
+        title: "Nova indicacao manual",
+        content: `${user.user_metadata.full_name || "Um usuario"} indicou o profissional: ${referralName || cleanPhone}`,
         link: "/admin/indicacoes",
         type: "info",
       });
 
-      toast.success("Indicação enviada com sucesso! Nossa equipe entrará em contato.");
+      toast.success("Indicacao enviada com sucesso! Nossa equipe entrara em contato.");
       setReferralName("");
       setReferralPhone("");
       await onRefreshStats?.();
     } catch (error) {
-      console.error("Erro ao enviar indicação:", error);
-      toast.error("Erro ao enviar indicação. Tente novamente.");
+      console.error("Erro ao enviar indicacao:", error);
+      toast.error("Erro ao enviar indicacao. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCompanyReferralSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!companyName.trim()) {
+      toast.error("O nome da empresa e obrigatorio.");
+      return;
+    }
+
+    if (!companyPhone) {
+      toast.error("O WhatsApp da empresa e obrigatorio.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const cleanPhone = companyPhone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      toast.error("Numero de WhatsApp invalido. Inclua DDD.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const referredName = buildCompanyReferralName();
+      const { error } = await supabase.from("referrals").insert({
+        referrer_id: user.id,
+        referred_name: referredName || companyName.trim(),
+        referred_phone: cleanPhone,
+        status: "company_pending",
+      });
+
+      if (error) throw error;
+
+      await supabase.from("admin_notifications").insert({
+        title: "Nova empresa indicada",
+        content:
+          `${user.user_metadata.full_name || "Um profissional"} indicou a empresa ${companyName.trim()}` +
+          `${companyContactName.trim() ? ` (contato: ${companyContactName.trim()})` : ""}.`,
+        link: "/admin/indicacoes",
+        type: "info",
+      });
+
+      toast.success("Empresa indicada com sucesso! Nossa equipe podera entrar em contato.");
+      setCompanyName("");
+      setCompanyContactName("");
+      setCompanyPhone("");
+      setCompanyCity("");
+      await onRefreshStats?.();
+    } catch (error) {
+      console.error("Erro ao enviar indicacao de empresa:", error);
+      toast.error("Erro ao enviar indicacao de empresa. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -162,16 +251,17 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
         <CardContent className="space-y-6 pt-6">
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Indique profissionais e ganhe destaque no ranking. A cada {rewardMilestone} indicações válidas você
-              recebe {rewardDays} dias de crédito no plano mensal via cupom.
+              Indique profissionais e empresas interessadas na plataforma. As indicacoes validas de profissionais
+              continuam somando para seu ranking e, a cada {rewardMilestone} indicacoes validas, voce recebe {rewardDays} dias
+              de credito no plano mensal via cupom.
             </p>
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
               <div className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-600" />
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold text-amber-800">Regra de validação da indicação</p>
+                  <p className="text-xs font-semibold text-amber-800">Regra de validacao da indicacao</p>
                   <p className="text-xs text-amber-700">
-                    A indicação só conta como válida quando o indicado chega na etapa final: <strong>Validou documentos</strong>.
+                    A indicacao so conta como valida quando o indicado chega na etapa final: <strong>Validou documentos</strong>.
                   </p>
                 </div>
               </div>
@@ -185,28 +275,28 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
                     safeStats.currentTier ? "bg-primary/10 text-primary" : "bg-muted-foreground/10 text-muted-foreground",
                   )}
                 >
-                  {safeStats.currentTier?.badge_label || "Nível Inicial"}
+                  {safeStats.currentTier?.badge_label || "Nivel Inicial"}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-4 text-center text-xs">
                 <div className="space-y-1">
                   <p className="text-xl font-semibold text-foreground">{loadingStats ? "..." : safeStats.count}</p>
-                  <p className="text-muted-foreground">Indicações Válidas</p>
+                  <p className="text-muted-foreground">Indicacoes Validas</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xl font-semibold text-foreground">
                     {loadingStats ? "..." : safeStats.nextTier ? remainingToNext : "-"}
                   </p>
-                  <p className="text-muted-foreground">Faltam para o próximo selo</p>
+                  <p className="text-muted-foreground">Faltam para o proximo selo</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
-              <p className="text-xs font-semibold text-primary">Benefício econômico por marco</p>
+              <p className="text-xs font-semibold text-primary">Beneficio economico por marco</p>
               <p className="text-xs text-muted-foreground">
-                Faltam <strong>{loadingStats ? "..." : missingToReward}</strong> indicações válidas para liberar
-                novo cupom de {rewardDays} dias.
+                Faltam <strong>{loadingStats ? "..." : missingToReward}</strong> indicacoes validas para liberar novo cupom de{" "}
+                {rewardDays} dias.
               </p>
               {rewardCoupons.length > 0 && (
                 <div className="space-y-1">
@@ -237,7 +327,7 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
                 WhatsApp
               </Button>
               <Button variant="outline" onClick={() => setTiersOpen(true)} className="h-9">
-                Ver Níveis
+                Ver Niveis
               </Button>
             </div>
           </div>
@@ -272,7 +362,97 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
               </div>
               <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Enviar Indicação
+                Enviar Indicacao
+              </Button>
+            </form>
+          </div>
+
+          <div className="space-y-3 border-t pt-4">
+            <h4 className="flex items-center gap-2 text-sm font-semibold">
+              <Building2 className="h-4 w-4" />
+              3. Indique uma Empresa
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Se voce conhece uma empresa de Home Care, cooperativa ou operadora que possa contratar pela plataforma,
+              envie os dados abaixo para nossa equipe abordar esse lead.
+            </p>
+            <div className="rounded-lg border bg-secondary/20 p-3">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCompanyWhatsAppShare}
+                  className="h-9 gap-2 bg-green-600 text-white hover:bg-green-700"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Compartilhar no WhatsApp
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => window.open(companyReferralLink, "_blank", "noopener,noreferrer")}
+                  className="h-9 gap-2"
+                >
+                  <BriefcaseBusiness className="h-4 w-4" />
+                  Abrir pagina para empresas
+                </Button>
+              </div>
+              <p className="mt-2 break-all text-[11px] text-muted-foreground">{companyReferralLink}</p>
+            </div>
+            <form onSubmit={handleCompanyReferralSubmit} className="space-y-3">
+              <div className="grid gap-2">
+                <Label htmlFor="company-name" className="text-xs">
+                  Nome da Empresa *
+                </Label>
+                <Input
+                  id="company-name"
+                  placeholder="Ex: Home Care Sao Paulo"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="company-contact-name" className="text-xs">
+                    Nome do Contato
+                  </Label>
+                  <Input
+                    id="company-contact-name"
+                    placeholder="Ex: Ana Paula"
+                    value={companyContactName}
+                    onChange={(e) => setCompanyContactName(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="company-city" className="text-xs">
+                    Cidade
+                  </Label>
+                  <Input
+                    id="company-city"
+                    placeholder="Ex: Campinas - SP"
+                    value={companyCity}
+                    onChange={(e) => setCompanyCity(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="company-phone" className="text-xs">
+                  WhatsApp da Empresa (com DDD) *
+                </Label>
+                <Input
+                  id="company-phone"
+                  placeholder="Ex: (11) 99999-9999"
+                  value={companyPhone}
+                  onChange={(e) => setCompanyPhone(e.target.value)}
+                  disabled={isSubmitting}
+                />
+              </div>
+              <Button type="submit" className="w-full gap-2" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Enviar Empresa Indicada
               </Button>
             </form>
           </div>
@@ -282,12 +462,12 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
       <Dialog open={tiersOpen} onOpenChange={setTiersOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Níveis de Indicação</DialogTitle>
+            <DialogTitle>Niveis de Indicacao</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {safeStats.nextTier && (
               <div className="rounded-lg border bg-secondary/20 p-3 text-xs">
-                Faltam {remainingToNext} indicações para alcançar o selo {safeStats.nextTier.badge_label}.
+                Faltam {remainingToNext} indicacoes para alcancar o selo {safeStats.nextTier.badge_label}.
               </div>
             )}
             <div className="space-y-2">
@@ -306,11 +486,11 @@ const ReferralLinkCard = ({ stats, loadingStats, onRefreshStats }: ReferralLinkC
                         )}
                         <div className="text-sm">
                           <div className="font-medium">{tier.badge_label || tier.name}</div>
-                          <div className="text-xs text-muted-foreground">Necessário: {tier.threshold} indicações</div>
+                          <div className="text-xs text-muted-foreground">Necessario: {tier.threshold} indicacoes</div>
                         </div>
                       </div>
                       <div className={`text-xs ${achieved ? "text-success" : "text-muted-foreground"}`}>
-                        {achieved ? "Alcançado" : `Faltam ${Math.max(0, (tier.threshold ?? 0) - (safeStats.count ?? 0))}`}
+                        {achieved ? "Alcancado" : `Faltam ${Math.max(0, (tier.threshold ?? 0) - (safeStats.count ?? 0))}`}
                       </div>
                     </div>
                   );

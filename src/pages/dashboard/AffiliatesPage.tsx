@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Copy, Link as LinkIcon, Loader2, RefreshCw, Save, Ticket, Wallet } from "lucide-react";
+import { Copy, Link as LinkIcon, Loader2, Megaphone, MessageSquare, RefreshCw, Save, Ticket, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,6 +104,45 @@ const AffiliatesPage = () => {
     const partnerPixType = String(partner?.pix_key_type || "random");
     return pixKey !== partnerPix || pixKeyType !== partnerPixType;
   }, [partner?.pix_key, partner?.pix_key_type, pixKey, pixKeyType]);
+
+  const affiliateLink = useMemo(() => {
+    if (links[0]?.short_url) return String(links[0].short_url);
+    return `${window.location.origin}/convite`;
+  }, [links]);
+
+  const companyLandingPage = useMemo(() => `${window.location.origin}/empresas`, []);
+
+  const mediaKitItems = useMemo(
+    () => [
+      {
+        title: "Mensagem para WhatsApp",
+        description: "Texto pronto para compartilhar com contatos e grupos qualificados.",
+        icon: MessageSquare,
+        copyLabel: "Copiar mensagem",
+        content:
+          `Estou divulgando a HomeCare Match, uma plataforma que aproxima profissionais e oportunidades no setor de cuidados. ` +
+          `Se fizer sentido para voce, esse e meu link oficial: ${affiliateLink}`,
+      },
+      {
+        title: "Pitch para empresas",
+        description: "Convite rapido para empresas conhecerem a pagina institucional.",
+        icon: Megaphone,
+        copyLabel: "Copiar pitch",
+        content:
+          `Quero te apresentar a HomeCare Match. A plataforma ajuda empresas a encontrar profissionais com mais agilidade. ` +
+          `Conheca a pagina para empresas: ${companyLandingPage}`,
+      },
+      {
+        title: "Legenda para redes sociais",
+        description: "CTA curto para post, story ou bio com link.",
+        icon: LinkIcon,
+        copyLabel: "Copiar legenda",
+        content:
+          `Profissionais e empresas de Home Care em um so lugar. Conheca a HomeCare Match pelo meu link oficial: ${affiliateLink}`,
+      },
+    ],
+    [affiliateLink, companyLandingPage],
+  );
 
   const handleCopy = async (value: string, message: string) => {
     try {
@@ -296,6 +335,75 @@ const AffiliatesPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Megaphone className="h-4 w-4" />
+            Kit de midia
+          </CardTitle>
+          <CardDescription>
+            Materiais prontos para divulgar seu link de afiliado e apresentar a plataforma para empresas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg border p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Link oficial do afiliado</p>
+              <p className="mt-2 break-all text-sm font-medium">{affiliateLink}</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleCopy(affiliateLink, "Link do afiliado copiado.")}
+                className="mt-3 gap-1"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copiar link
+              </Button>
+            </div>
+            <div className="rounded-lg border p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pagina para empresas</p>
+              <p className="mt-2 break-all text-sm font-medium">{companyLandingPage}</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleCopy(companyLandingPage, "Link para empresas copiado.")}
+                className="mt-3 gap-1"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                Copiar pagina
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-3">
+            {mediaKitItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.title} className="rounded-xl border bg-card p-4">
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold">{item.title}</h3>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">{item.description}</p>
+                  <div className="mt-3 rounded-lg bg-secondary/50 p-3 text-sm leading-6">
+                    {item.content}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCopy(item.content, `${item.title} copiado.`)}
+                    className="mt-3 gap-1"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    {item.copyLabel}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

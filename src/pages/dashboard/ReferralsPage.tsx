@@ -148,7 +148,9 @@ const ReferralsPage = () => {
           <Award className="h-6 w-6 text-primary" />
           Programa de Indicações
         </h1>
-        <p className="text-muted-foreground">Indique colegas e ganhe destaque no topo das buscas.</p>
+        <p className="text-muted-foreground">
+          Indique colegas e empresas parceiras para ampliar sua rede e ganhar destaque no topo das buscas.
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">

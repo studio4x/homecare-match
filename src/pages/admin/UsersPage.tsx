@@ -10,6 +10,16 @@ const UsersPage = () => {
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const getSortTimestamp = (user: any) => {
+    const signupTimestamp = Date.parse(String(user?.signup_created_at || ""));
+    if (Number.isFinite(signupTimestamp)) return signupTimestamp;
+
+    const updatedTimestamp = Date.parse(String(user?.updated_at || ""));
+    if (Number.isFinite(updatedTimestamp)) return updatedTimestamp;
+
+    return 0;
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -72,7 +82,9 @@ const UsersPage = () => {
         console.warn("[UsersPage] Nao foi possivel carregar datas de cadastro do auth.users:", error);
       }
 
-      setAllUsers(usersWithSignupDate);
+      const sortedUsers = [...usersWithSignupDate].sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a));
+
+      setAllUsers(sortedUsers);
       setPlans(plansRes.data || []);
     } finally {
       setLoading(false);

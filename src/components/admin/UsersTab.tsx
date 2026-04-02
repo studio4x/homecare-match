@@ -76,8 +76,9 @@ interface UsersTabProps {
   refetchData: () => void;
 }
 
+const USER_PAGE_SIZE_OPTIONS = [12, 24, 48, 96];
+
 const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
-  const USERS_PER_PAGE = 12;
   const { user } = useAuth();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
@@ -96,6 +97,11 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [emailVerifiedFilter, setEmailVerifiedFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage, setUsersPerPage] = useState<number>(() => {
+    if (typeof window === "undefined") return USER_PAGE_SIZE_OPTIONS[0];
+    const savedValue = Number(window.localStorage.getItem("admin-users-per-page"));
+    return USER_PAGE_SIZE_OPTIONS.includes(savedValue) ? savedValue : USER_PAGE_SIZE_OPTIONS[0];
+  });
   const [messageModalOpen, setMessageModalOpen] = useState(false);
   const [selectedUserForMessage, setSelectedUserForMessage] = useState<any>(null);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
@@ -719,20 +725,25 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     return true;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("admin-users-per-page", String(usersPerPage));
+  }, [usersPerPage]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [roleFilter, planStatusFilter, docsVerifiedFilter, emailVerifiedFilter, searchTerm]);
+  }, [roleFilter, planStatusFilter, docsVerifiedFilter, emailVerifiedFilter, searchTerm, usersPerPage]);
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages);
   }, [currentPage, totalPages]);
 
-  const paginatedUsers = filteredUsers.slice((currentPage - 1) * USERS_PER_PAGE, currentPage * USERS_PER_PAGE);
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * usersPerPage, currentPage * usersPerPage);
 
-  const startItem = filteredUsers.length === 0 ? 0 : (currentPage - 1) * USERS_PER_PAGE + 1;
-  const endItem = Math.min(currentPage * USERS_PER_PAGE, filteredUsers.length);
+  const startItem = filteredUsers.length === 0 ? 0 : (currentPage - 1) * usersPerPage + 1;
+  const endItem = Math.min(currentPage * usersPerPage, filteredUsers.length);
 
   const clearFilters = () => {
     setRoleFilter("all");
@@ -824,14 +835,31 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
             <p className="text-xs text-muted-foreground">
               Exibindo {startItem}-{endItem} de {filteredUsers.length} usuário(s)
             </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              disabled={!hasActiveFilters}
-            >
-              Limpar filtros
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Usuários por página</span>
+                <Select value={String(usersPerPage)} onValueChange={(value) => setUsersPerPage(Number(value))}>
+                  <SelectTrigger className="h-8 w-[92px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {USER_PAGE_SIZE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={String(option)}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                disabled={!hasActiveFilters}
+              >
+                Limpar filtros
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -1102,7 +1130,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
           </Table>
         </div>
 
-        {filteredUsers.length > USERS_PER_PAGE && (
+        {filteredUsers.length > usersPerPage && (
           <div className="rounded-xl border bg-card px-4 py-3 shadow-sm">
             <Pagination>
               <PaginationContent>

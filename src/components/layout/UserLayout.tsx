@@ -22,6 +22,7 @@ import {
   Bell,
   Users,
   ShieldAlert,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -185,6 +186,7 @@ const UserLayout = () => {
     const isAllowedAffiliatePath =
       path === "/dashboard" ||
       path === "/dashboard/afiliados" ||
+      path === "/dashboard/afiliados/kit-midia" ||
       path === "/dashboard/perfil" ||
       path.startsWith("/dashboard/suporte");
 
@@ -245,6 +247,7 @@ const UserLayout = () => {
   } else if (isAffiliate) {
     navItems.push(
       { href: "/dashboard/afiliados", label: "Afiliados", icon: Award, end: false },
+      { href: "/dashboard/afiliados/kit-midia", label: "Kit de Midia", icon: Megaphone, end: false },
       { href: "/dashboard/perfil", label: "Meus Dados", icon: User, end: false }
     );
   } else {
@@ -296,8 +299,8 @@ const UserLayout = () => {
     ? [
         { href: "/dashboard", label: "Inicio", icon: LayoutDashboard, end: true },
         { href: "/dashboard/afiliados", label: "Afiliados", icon: Award },
+        { href: "/dashboard/afiliados/kit-midia", label: "Midia", icon: Megaphone },
         { href: "/dashboard/suporte", label: "Suporte", icon: LifeBuoy },
-        { href: "/dashboard/perfil", label: "Perfil", icon: User },
       ]
     : isCompany
     ? [

@@ -54,6 +54,7 @@ import PaymentsPage from "./pages/dashboard/PaymentsPage";
 import NoticesPage from "./pages/dashboard/NoticesPage";
 import CompanyPatientsPage from "./pages/dashboard/CompanyPatientsPage";
 import AffiliatesDashboardPage from "./pages/dashboard/AffiliatesPage";
+import AffiliateMediaKitPage from "./pages/dashboard/AffiliateMediaKitPage";
 
 // Admin Layout & Pages
 import AdminLayout from "./components/layout/AdminLayout";
@@ -144,6 +145,7 @@ const App = () => (
                 <Route path="pagamentos" element={<PaymentsPage />} />
                 <Route path="avisos" element={<NoticesPage />} />
                 <Route path="afiliados" element={<AffiliatesDashboardPage />} />
+                <Route path="afiliados/kit-midia" element={<AffiliateMediaKitPage />} />
                 <Route path="suporte" element={<SupportTicketsPage />} />
                 <Route path="suporte/:id" element={<TicketDetailPage />} />
                 <Route path="pacientes" element={<CompanyPatientsPage />} />

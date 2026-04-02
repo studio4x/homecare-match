@@ -47,6 +47,27 @@ type UserSuggestion = {
   email: string | null;
 };
 
+type EmailProviderStatus = {
+  provider: string;
+  configured: boolean;
+  has_api_key: boolean;
+  has_from_email: boolean;
+  has_reply_to: boolean;
+};
+
+type CommunicationRecipient = {
+  id: string;
+  job_id: string;
+  channel: "email" | "whatsapp";
+  recipient_name?: string | null;
+  recipient_contact?: string | null;
+  status: string;
+  last_error?: string | null;
+  provider_message_id?: string | null;
+  sent_at?: string | null;
+  created_at?: string | null;
+};
+
 const EMPTY_FORM = {
   id: "",
   name: "",
@@ -85,9 +106,27 @@ const dateTimeLocalFromIso = (value?: string | null) => {
   return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}T${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
 };
 
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return parsed.toLocaleString("pt-BR");
+};
+
+const getRecipientStatusBadge = (status: string) => {
+  if (status === "sent") return <Badge className="bg-emerald-600">Enviado</Badge>;
+  if (status === "queued") return <Badge className="bg-sky-600">Na fila</Badge>;
+  if (status === "failed") return <Badge variant="destructive">Falhou</Badge>;
+  if (status === "skipped") return <Badge variant="secondary">Ignorado</Badge>;
+  if (status === "pending") return <Badge variant="outline">Pendente</Badge>;
+  return <Badge variant="outline">{status}</Badge>;
+};
+
 const AdminCommunicationsTab = () => {
   const [jobs, setJobs] = useState<CommunicationJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingProviderStatus, setLoadingProviderStatus] = useState(true);
+  const [emailProviderStatus, setEmailProviderStatus] = useState<EmailProviderStatus | null>(null);
   const [saving, setSaving] = useState(false);
   const [sendingPreview, setSendingPreview] = useState(false);
   const [userSearch, setUserSearch] = useState("");
@@ -95,6 +134,9 @@ const AdminCommunicationsTab = () => {
   const [searchingUsers, setSearchingUsers] = useState(false);
   const [generatingAiCopy, setGeneratingAiCopy] = useState(false);
   const [generatingWhatsappAiCopy, setGeneratingWhatsappAiCopy] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<CommunicationJob | null>(null);
+  const [selectedJobRecipients, setSelectedJobRecipients] = useState<CommunicationRecipient[]>([]);
+  const [loadingJobRecipients, setLoadingJobRecipients] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
 
@@ -120,6 +162,68 @@ const AdminCommunicationsTab = () => {
   useEffect(() => {
     fetchJobs();
   }, []);
+
+  const fetchEmailProviderStatus = async () => {
+    setLoadingProviderStatus(true);
+    try {
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const accessToken = refreshed.session?.access_token || currentSession?.access_token || "";
+
+      if (!accessToken) {
+        throw new Error("Sessao expirada. Faca login novamente.");
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/admin-email-provider-status`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ access_token: accessToken }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof payload?.error === "string" ? payload.error : "Falha ao carregar status do provedor.");
+      }
+
+      setEmailProviderStatus(payload as EmailProviderStatus);
+    } catch (error) {
+      console.error("[AdminCommunicationsTab] erro ao carregar provider de e-mail:", error);
+      setEmailProviderStatus(null);
+    } finally {
+      setLoadingProviderStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEmailProviderStatus();
+  }, []);
+
+  const fetchJobRecipients = async (jobId: string) => {
+    setLoadingJobRecipients(true);
+    try {
+      const { data, error } = await supabase
+        .from("admin_communication_recipients")
+        .select("id,job_id,channel,recipient_name,recipient_contact,status,last_error,provider_message_id,sent_at,created_at")
+        .eq("job_id", jobId)
+        .order("created_at", { ascending: true })
+        .limit(300);
+
+      if (error) throw error;
+      setSelectedJobRecipients((data || []) as CommunicationRecipient[]);
+    } catch (error) {
+      console.error("[AdminCommunicationsTab] erro ao carregar destinatarios:", error);
+      setSelectedJobRecipients([]);
+      toast.error("Falha ao carregar os detalhes do job.");
+    } finally {
+      setLoadingJobRecipients(false);
+    }
+  };
 
   useEffect(() => {
     if (form.mode !== "individual") {
@@ -197,6 +301,8 @@ const AdminCommunicationsTab = () => {
     });
     setUserSearch("");
     setAiPrompt("");
+    setSelectedJob(job);
+    fetchJobRecipients(job.id);
   };
 
   const resetForm = () => {
@@ -501,6 +607,21 @@ const AdminCommunicationsTab = () => {
     }
   };
 
+  const recipientSummary = useMemo(() => {
+    return selectedJobRecipients.reduce(
+      (acc, recipient) => {
+        const status = String(recipient.status || "pending");
+        if (status === "sent") acc.sent += 1;
+        else if (status === "queued") acc.queued += 1;
+        else if (status === "failed") acc.failed += 1;
+        else if (status === "skipped") acc.skipped += 1;
+        else acc.pending += 1;
+        return acc;
+      },
+      { sent: 0, queued: 0, failed: 0, skipped: 0, pending: 0 },
+    );
+  }, [selectedJobRecipients]);
+
   return (
     <div className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -512,6 +633,29 @@ const AdminCommunicationsTab = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-3">
+              <span className="text-xs font-medium text-muted-foreground">Provedor de e-mail ativo:</span>
+              {loadingProviderStatus ? (
+                <Badge variant="outline" className="gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Carregando
+                </Badge>
+              ) : emailProviderStatus ? (
+                <>
+                  <Badge className={emailProviderStatus.configured ? "bg-emerald-600" : "bg-amber-500"}>
+                    {String(emailProviderStatus.provider || "desconhecido").toUpperCase()}
+                  </Badge>
+                  <span className="text-[11px] text-muted-foreground">
+                    {emailProviderStatus.configured
+                      ? "Disparo configurado para envios reais."
+                      : "Provider sem chave ativa; envios podem cair em mock/falha."}
+                  </span>
+                </>
+              ) : (
+                <Badge variant="secondary">Indisponível</Badge>
+              )}
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Nome interno</Label>
@@ -798,7 +942,9 @@ const AdminCommunicationsTab = () => {
                   key={job.id}
                   type="button"
                   onClick={() => hydrateForm(job)}
-                  className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-secondary/40"
+                  className={`w-full rounded-lg border p-3 text-left transition-colors hover:bg-secondary/40 ${
+                    selectedJob?.id === job.id ? "border-primary bg-primary/5" : ""
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
@@ -816,6 +962,70 @@ const AdminCommunicationsTab = () => {
                 </button>
               ))
             )}
+
+            {selectedJob ? (
+              <div className="rounded-lg border bg-muted/20 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Detalhes do job selecionado</p>
+                    <p className="text-xs text-muted-foreground">{selectedJob.name}</p>
+                  </div>
+                  {getStatusBadge(selectedJob.status)}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge variant="outline">Enviados: {recipientSummary.sent}</Badge>
+                  <Badge variant="outline">Fila: {recipientSummary.queued}</Badge>
+                  <Badge variant="outline">Falhas: {recipientSummary.failed}</Badge>
+                  <Badge variant="outline">Ignorados: {recipientSummary.skipped}</Badge>
+                  <Badge variant="outline">Pendentes: {recipientSummary.pending}</Badge>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  {loadingJobRecipients ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Carregando destinatários...
+                    </div>
+                  ) : selectedJobRecipients.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                      Nenhum destinatário registrado para este job ainda.
+                    </div>
+                  ) : (
+                    selectedJobRecipients.map((recipient) => (
+                      <div key={recipient.id} className="rounded-md border bg-background p-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">
+                              {recipient.recipient_name || "Destinatário"}{" "}
+                              <span className="text-xs font-normal text-muted-foreground">
+                                ({recipient.channel === "email" ? "E-mail" : "WhatsApp"})
+                              </span>
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {recipient.recipient_contact || "Contato não disponível"}
+                            </p>
+                          </div>
+                          {getRecipientStatusBadge(recipient.status)}
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                          <span>Criado: {formatDateTime(recipient.created_at)}</span>
+                          <span>Enviado/Fila: {formatDateTime(recipient.sent_at)}</span>
+                          {recipient.provider_message_id ? <span>ID provedor: {recipient.provider_message_id}</span> : null}
+                        </div>
+
+                        {recipient.last_error ? (
+                          <div className="mt-2 rounded-md border border-destructive/20 bg-destructive/5 px-2 py-1 text-[11px] text-destructive">
+                            Erro: {recipient.last_error}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>

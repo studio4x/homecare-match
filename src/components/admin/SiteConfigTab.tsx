@@ -960,30 +960,6 @@ const SiteConfigTab = () => {
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Ticket className="h-5 w-5 text-primary" />
-            Automacao de Trial
-          </CardTitle>
-          <CardDescription>Controla a conversao automatica do teste gratis para mais 30 dias no plano mensal.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="space-y-1">
-              <Label>Ativar bonus automatico de 30 dias</Label>
-              <p className="text-[11px] text-muted-foreground">
-                Quando o teste gratis do profissional terminar, o sistema ativa automaticamente o plano mensal por mais 30 dias gratuitos e envia notificacao individual.
-              </p>
-            </div>
-            <Switch
-              checked={!!formData.free_trial_monthly_upgrade_enabled}
-              onCheckedChange={(checked) => setFormData({ ...formData, free_trial_monthly_upgrade_enabled: checked })}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
             Notificações Push (VAPID)
           </CardTitle>
@@ -1378,5 +1354,4 @@ const SiteConfigTab = () => {
 };
 
 export default SiteConfigTab;
-
 

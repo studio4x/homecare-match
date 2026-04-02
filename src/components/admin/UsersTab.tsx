@@ -221,9 +221,11 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   };
 
   const canRunTrialAutomation = (u: any) => {
-    if (String(u?.role || "").toLowerCase() !== "professional") return false;
-    if (normalizeTier(u?.subscription_tier) !== "free_trial") return false;
-    return hasExpiredPlan(u);
+    const tier = normalizeTier(u?.subscription_tier);
+    const isExpired = hasExpiredPlan(u);
+    const isExpiredFreeTrial = String(u?.role || "").toLowerCase() === "professional" && tier === "free_trial" && isExpired;
+    const isExpiredMonthlyCoupon = tier === "monthly" && Number(u?.coupon_days || 0) > 0 && !!u?.cancel_at_period_end && isExpired;
+    return isExpiredFreeTrial || isExpiredMonthlyCoupon;
   };
 
   const handleRunTrialAutomation = async (u: any) => {
@@ -249,15 +251,28 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
 
       const typedData = (data && typeof data === "object") ? (data as Record<string, unknown>) : {};
       const trialBonusUpgrades = Number(typedData.trial_bonus_upgrades || 0);
-      const trialBonusEmailed = Number(typedData.trial_bonus_emailed || 0);
+      const couponMonthlyBonusUpgrades = Number(typedData.coupon_monthly_bonus_upgrades || 0);
+      const bonusUpgradesTotal = Number(typedData.bonus_upgrades_total || (trialBonusUpgrades + couponMonthlyBonusUpgrades));
+      const bonusEmailedTotal = Number(
+        typedData.bonus_emailed_total ||
+          Number(typedData.trial_bonus_emailed || 0) +
+            Number(typedData.coupon_monthly_bonus_emailed || 0),
+      );
 
-      if (trialBonusUpgrades > 0) {
+      if (bonusUpgradesTotal > 0) {
+        const description =
+          trialBonusUpgrades > 0 && couponMonthlyBonusUpgrades === 0
+            ? `Plano alterado para mensal com +30 dias gratis.${bonusEmailedTotal > 0 ? " E-mail enviado." : ""}`
+            : couponMonthlyBonusUpgrades > 0 && trialBonusUpgrades === 0
+              ? `Plano mensal bonificado por cupom recebeu mais 30 dias gratis.${bonusEmailedTotal > 0 ? " E-mail enviado." : ""}`
+              : `Bonus de 30 dias aplicado com sucesso.${bonusEmailedTotal > 0 ? " E-mail enviado." : ""}`;
+
         toast.success("Automacao executada com sucesso!", {
-          description: `Plano alterado para mensal com +30 dias gratis.${trialBonusEmailed > 0 ? " E-mail enviado." : ""}`,
+          description,
         });
       } else {
         toast.message("Nenhuma alteracao aplicada para este usuario.", {
-          description: "Verifique se o teste gratis realmente esta expirado e se a automacao esta habilitada.",
+          description: "Verifique se o periodo gratuito realmente expirou e se a automacao esta habilitada.",
         });
       }
 
@@ -1062,7 +1077,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-amber-600 hover:bg-amber-50"
-                              title="Rodar automacao de troca para mensal + 30 dias"
+                              title="Rodar automacao de bonus de 30 dias"
                               onClick={() => handleRunTrialAutomation(u)}
                               disabled={isRunningTrialAutomation === u.id}
                             >

@@ -1,13 +1,16 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useSiteConfig } from "@/hooks/use-site-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -23,7 +26,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, Edit2, Plus, Info, Settings2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Edit2, Plus, Info, Settings2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface PlansTabProps {
@@ -31,10 +42,23 @@ interface PlansTabProps {
   refetchData: () => void;
 }
 
+type AutomationTarget = "free_trial" | "monthly_coupon" | "both";
+
+const normalizeAutomationTarget = (value: unknown): AutomationTarget => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "monthly_coupon" || normalized === "both") return normalized;
+  return "free_trial";
+};
+
 const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
+  const queryClient = useQueryClient();
+  const { data: siteConfig } = useSiteConfig();
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [isSavingAutomation, setIsSavingAutomation] = useState(false);
+  const [automationEnabled, setAutomationEnabled] = useState(true);
+  const [automationTarget, setAutomationTarget] = useState<AutomationTarget>("free_trial");
 
   const dbFreeTrial = plans.find((p) => p.id === "free_trial");
 
@@ -57,6 +81,15 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
         return tier;
     }
   };
+
+  useEffect(() => {
+    setAutomationEnabled(siteConfig?.free_trial_monthly_upgrade_enabled !== false);
+    setAutomationTarget(normalizeAutomationTarget(siteConfig?.free_trial_monthly_upgrade_target));
+  }, [siteConfig?.free_trial_monthly_upgrade_enabled, siteConfig?.free_trial_monthly_upgrade_target]);
+
+  const hasAutomationChanges =
+    automationEnabled !== (siteConfig?.free_trial_monthly_upgrade_enabled !== false) ||
+    automationTarget !== normalizeAutomationTarget(siteConfig?.free_trial_monthly_upgrade_target);
 
   const handleEditFreeTrial = () => {
     if (dbFreeTrial) {
@@ -127,95 +160,178 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
     }
   };
 
+  const handleSaveAutomation = async () => {
+    setIsSavingAutomation(true);
+    try {
+      const { error } = await supabase
+        .from("site_config")
+        .update({
+          free_trial_monthly_upgrade_enabled: automationEnabled,
+          free_trial_monthly_upgrade_target: automationTarget,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", 1);
+
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ["site-config"] });
+      toast.success("Configuração da automação salva.");
+    } catch (error: any) {
+      console.error("[PlansTab] Erro ao salvar automação:", error);
+      toast.error(error?.message || "Erro ao salvar configuração da automação.");
+    } finally {
+      setIsSavingAutomation(false);
+    }
+  };
+
   return (
     <>
-      <div className="mb-4 flex justify-end">
-        <Button
-          onClick={() => {
-            setSelectedPlan({
-              id: "",
-              name: "",
-              price: "",
-              period: "mes",
-              features: "",
-              asaas_installment_max: 1,
-            });
-            setPlanModalOpen(true);
-          }}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" /> Novo Plano
-        </Button>
-      </div>
+      <Tabs defaultValue="plans" className="space-y-4">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="plans">Planos</TabsTrigger>
+          <TabsTrigger value="automation">Automação 30 dias</TabsTrigger>
+        </TabsList>
 
-      <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Preço</TableHead>
-              <TableHead>Parcelamento</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow className="bg-muted/30">
-              <TableCell>
-                <div className="font-medium">{dbFreeTrial?.name || "Teste Grátis (Sistema)"}</div>
-                <div className="text-xs text-muted-foreground text-primary">
-                  {dbFreeTrial?.description || "Plano padrão de cadastro"}
-                </div>
-              </TableCell>
-              <TableCell>
-                {dbFreeTrial?.price || "R$ 0,00"}/{dbFreeTrial?.period || "7 dias"}
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline" className="gap-1">
-                  <Settings2 className="h-3 w-3" /> Automático
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                <Button variant="ghost" size="sm" onClick={handleEditFreeTrial} title="Editar plano de sistema">
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-              </TableCell>
-            </TableRow>
+        <TabsContent value="plans" className="space-y-4">
+          <div className="mb-4 flex justify-end">
+            <Button
+              onClick={() => {
+                setSelectedPlan({
+                  id: "",
+                  name: "",
+                  price: "",
+                  period: "mes",
+                  features: "",
+                  asaas_installment_max: 1,
+                });
+                setPlanModalOpen(true);
+              }}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" /> Novo Plano
+            </Button>
+          </div>
 
-            {plans
-              .filter((p) => p.id !== "free_trial")
-              .map((p) => (
-                <TableRow key={p.id}>
+          <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Preço</TableHead>
+                  <TableHead>Parcelamento</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow className="bg-muted/30">
                   <TableCell>
-                    <div className="font-medium">{getTierLabel(p.name)}</div>
-                    <div className="text-xs text-muted-foreground">{p.id}</div>
+                    <div className="font-medium">{dbFreeTrial?.name || "Teste Grátis (Sistema)"}</div>
+                    <div className="text-xs text-muted-foreground text-primary">
+                      {dbFreeTrial?.description || "Plano padrão de cadastro"}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    {p.price}/{p.period}
+                    {dbFreeTrial?.price || "R$ 0,00"}/{dbFreeTrial?.period || "7 dias"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">Até {Number(p.asaas_installment_max || 1)}x</Badge>
+                    <Badge variant="outline" className="gap-1">
+                      <Settings2 className="h-3 w-3" /> Automático
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setSelectedPlan({
-                          ...p,
-                          features: Array.isArray(p.features) ? p.features.join("\n") : "",
-                          asaas_installment_max: p.asaas_installment_max ?? 1,
-                        });
-                        setPlanModalOpen(true);
-                      }}
-                    >
+                    <Button variant="ghost" size="sm" onClick={handleEditFreeTrial} title="Editar plano de sistema">
                       <Edit2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
-          </TableBody>
-        </Table>
-      </div>
+
+                {plans
+                  .filter((p) => p.id !== "free_trial")
+                  .map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell>
+                        <div className="font-medium">{getTierLabel(p.name)}</div>
+                        <div className="text-xs text-muted-foreground">{p.id}</div>
+                      </TableCell>
+                      <TableCell>
+                        {p.price}/{p.period}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">Até {Number(p.asaas_installment_max || 1)}x</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedPlan({
+                              ...p,
+                              features: Array.isArray(p.features) ? p.features.join("\n") : "",
+                              asaas_installment_max: p.asaas_installment_max ?? 1,
+                            });
+                            setPlanModalOpen(true);
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="automation" className="space-y-4">
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Bônus automático de 30 dias
+              </CardTitle>
+              <CardDescription>
+                Controla a concessão automática de mais 30 dias gratuitos no Plano Mensal quando um período gratuito expira.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-1">
+                  <Label>Ativar automação</Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Quando habilitada, o sistema aplica o bônus automaticamente para os públicos escolhidos abaixo e envia notificação individual.
+                  </p>
+                </div>
+                <Switch checked={automationEnabled} onCheckedChange={setAutomationEnabled} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Aplicar automaticamente para</Label>
+                <Select value={automationTarget} onValueChange={(value) => setAutomationTarget(normalizeAutomationTarget(value))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free_trial">Somente teste grátis expirado</SelectItem>
+                    <SelectItem value="monthly_coupon">Somente mensal gratuito via cupom expirado</SelectItem>
+                    <SelectItem value="both">Teste grátis e mensal via cupom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="rounded-lg border bg-secondary/20 p-4 text-xs text-muted-foreground">
+                O fluxo automático mantém o usuário no plano mensal, adiciona mais 30 dias gratuitos, evita cobrança automática nesse bônus e tenta enviar e-mail, WhatsApp e notificação interna.
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={handleSaveAutomation} disabled={isSavingAutomation || !hasAutomationChanges} className="gap-2">
+                  {isSavingAutomation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  Salvar automação
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={planModalOpen} onOpenChange={setPlanModalOpen}>
         <DialogContent className="max-w-2xl">
@@ -224,8 +340,8 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
               {selectedPlan?.id === "free_trial"
                 ? "Editar Plano de Sistema"
                 : selectedPlan?.created_at
-                ? "Editar Plano"
-                : "Novo Plano"}
+                  ? "Editar Plano"
+                  : "Novo Plano"}
             </DialogTitle>
           </DialogHeader>
 

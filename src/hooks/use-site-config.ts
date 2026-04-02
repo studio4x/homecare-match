@@ -23,6 +23,7 @@ export interface SiteConfig {
   asaas_default_installment_max?: number | null;
   asaas_checkout_expiration_minutes?: number | null;
   free_trial_monthly_upgrade_enabled?: boolean;
+  free_trial_monthly_upgrade_target?: "free_trial" | "monthly_coupon" | "both" | null;
   google_maps_api_key?: string | null;
   vapid_public_key?: string | null;
   gemini_model?: string | null;
@@ -183,6 +184,7 @@ export const useSiteConfig = () => {
           asaas_default_installment_max: 12,
           asaas_checkout_expiration_minutes: 60,
           free_trial_monthly_upgrade_enabled: true,
+          free_trial_monthly_upgrade_target: "free_trial",
           ga_enabled: false,
           gtm_enabled: false,
           fb_pixel_enabled: false,

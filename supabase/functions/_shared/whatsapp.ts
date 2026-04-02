@@ -56,6 +56,7 @@ const USER_EVENT_TEMPLATE_DEFAULTS: Record<string, string> = {
   affiliate_application_approved_user: "hcm_user_notification_v2",
   affiliate_application_rejected_user: "hcm_user_notification_v2",
   subscription_renewal_reminder_user: "hcm_user_subscription_reminder",
+  free_trial_bonus_upgrade_user: "hcm_user_notification_v2",
 };
 
 const USER_EVENT_TEMPLATE_ENV_KEYS: Record<string, string> = {
@@ -68,6 +69,7 @@ const USER_EVENT_TEMPLATE_ENV_KEYS: Record<string, string> = {
   affiliate_application_approved_user: "WHATSAPP_TEMPLATE_USER_AFFILIATE_APPROVED",
   affiliate_application_rejected_user: "WHATSAPP_TEMPLATE_USER_AFFILIATE_REJECTED",
   subscription_renewal_reminder_user: "WHATSAPP_TEMPLATE_USER_SUBSCRIPTION_REMINDER",
+  free_trial_bonus_upgrade_user: "WHATSAPP_TEMPLATE_USER",
 };
 
 const readTemplateFromEnv = (envKey: string) => String(Deno.env.get(envKey) || "").trim();

@@ -22,6 +22,7 @@ export interface SiteConfig {
   asaas_allow_pix?: boolean | null;
   asaas_default_installment_max?: number | null;
   asaas_checkout_expiration_minutes?: number | null;
+  free_trial_monthly_upgrade_enabled?: boolean;
   google_maps_api_key?: string | null;
   vapid_public_key?: string | null;
   gemini_model?: string | null;
@@ -166,6 +167,7 @@ export const useSiteConfig = () => {
           asaas_allow_pix: false,
           asaas_default_installment_max: 12,
           asaas_checkout_expiration_minutes: 60,
+          free_trial_monthly_upgrade_enabled: true,
           ga_enabled: false,
           gtm_enabled: false,
           fb_pixel_enabled: false,
@@ -244,4 +246,3 @@ export const useSiteConfig = () => {
     staleTime: 1000 * 30,
   });
 };
-

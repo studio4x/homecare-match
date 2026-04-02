@@ -164,6 +164,22 @@ const DEFAULT_TEMPLATE_CONFIGS: TemplateConfigRow[] = [
     is_active: true,
   },
   {
+    event_type: "free_trial_bonus_upgrade_user",
+    target_kind: "user",
+    label: "Teste gratis: bonus de 30 dias no mensal (usuario)",
+    template_name: "hcm_user_notification_v2",
+    sample_message:
+      "Atualizacao do seu plano HomeCare Match.\n\n{{1}}, {{2}}.\n\nAcesse: https://www.homecarematch.com.br{{3}}",
+    var1_default: "Usuario",
+    var2_default: "voce ganhou mais 30 dias gratis no Plano Mensal",
+    var3_default: "/dashboard/pagamentos?trialBonus=extended",
+    variations: {
+      status_text: "voce ganhou mais 30 dias gratis no Plano Mensal",
+      details_path: "/dashboard/pagamentos?trialBonus=extended",
+    },
+    is_active: true,
+  },
+  {
     event_type: "affiliate_application_approved_user",
     target_kind: "user",
     label: "Afiliado: candidatura aprovada (usuario)",
@@ -323,6 +339,10 @@ const VARIATION_FIELDS: Record<string, VariationField[]> = {
       label: "Padrao de caminho",
       placeholder: "/dashboard/pagamentos?renewalReminder={reminder_key}",
     },
+  ],
+  free_trial_bonus_upgrade_user: [
+    { key: "status_text", label: "Texto de status", placeholder: "voce ganhou mais 30 dias gratis no Plano Mensal" },
+    { key: "details_path", label: "Detalhes/caminho", placeholder: "/dashboard/pagamentos?trialBonus=extended" },
   ],
   affiliate_application_approved_user: [
     { key: "status_text", label: "Texto de status", placeholder: "sua candidatura foi aprovada" },

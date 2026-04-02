@@ -62,6 +62,7 @@ const SiteConfigTab = () => {
     asaas_allow_pix: false,
     asaas_default_installment_max: 12,
     asaas_checkout_expiration_minutes: 60,
+    free_trial_monthly_upgrade_enabled: true,
     google_maps_api_key: "",
     vapid_public_key: "",
     gemini_model: "gemini-2.0-flash",
@@ -122,6 +123,7 @@ const SiteConfigTab = () => {
         asaas_allow_pix: config.asaas_allow_pix ?? false,
         asaas_default_installment_max: config.asaas_default_installment_max ?? 12,
         asaas_checkout_expiration_minutes: config.asaas_checkout_expiration_minutes ?? 60,
+        free_trial_monthly_upgrade_enabled: config.free_trial_monthly_upgrade_enabled ?? true,
         google_maps_api_key: config.google_maps_api_key || "",
         vapid_public_key: config.vapid_public_key || "",
         gemini_model: config.gemini_model || "gemini-2.0-flash",
@@ -683,6 +685,7 @@ const SiteConfigTab = () => {
         asaas_allow_pix: false,
         asaas_default_installment_max: Number(formData.asaas_default_installment_max || 12),
         asaas_checkout_expiration_minutes: Number(formData.asaas_checkout_expiration_minutes || 60),
+        free_trial_monthly_upgrade_enabled: !!formData.free_trial_monthly_upgrade_enabled,
         google_maps_api_key: formData.google_maps_api_key,
         vapid_public_key: formData.vapid_public_key,
         gemini_model: formData.gemini_model,
@@ -949,6 +952,30 @@ const SiteConfigTab = () => {
               rows={3}
               value={formData.chatbot_error_message}
               onChange={(e) => setFormData({ ...formData, chatbot_error_message: e.target.value })}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Ticket className="h-5 w-5 text-primary" />
+            Automacao de Trial
+          </CardTitle>
+          <CardDescription>Controla a conversao automatica do teste gratis para mais 30 dias no plano mensal.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-1">
+              <Label>Ativar bonus automatico de 30 dias</Label>
+              <p className="text-[11px] text-muted-foreground">
+                Quando o teste gratis do profissional terminar, o sistema ativa automaticamente o plano mensal por mais 30 dias gratuitos e envia notificacao individual.
+              </p>
+            </div>
+            <Switch
+              checked={!!formData.free_trial_monthly_upgrade_enabled}
+              onCheckedChange={(checked) => setFormData({ ...formData, free_trial_monthly_upgrade_enabled: checked })}
             />
           </div>
         </CardContent>
@@ -1351,6 +1378,5 @@ const SiteConfigTab = () => {
 };
 
 export default SiteConfigTab;
-
 
 

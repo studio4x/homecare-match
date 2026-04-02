@@ -18,6 +18,7 @@ const corsHeaders = {
 
 const REMINDER_STEPS = [7, 3, 1, 0];
 const DAY_MS = 24 * 60 * 60 * 1000;
+const FREE_TRIAL_EXTENSION_DAYS = 30;
 
 const toDateOnlyUtc = (value: Date) => {
   const d = new Date(value);
@@ -46,6 +47,20 @@ const formatDatePt = (iso: string) => {
 };
 
 const formatDaysLabel = (days: number) => (days === 1 ? "1 dia" : `${days} dias`);
+
+const getDaysFromPeriod = (periodValue: string | null | undefined, fallbackDays: number) => {
+  const period = String(periodValue || "").toLowerCase();
+  if (!period) return fallbackDays;
+
+  const numberMatch = period.match(/\d+/);
+  const amount = numberMatch ? Number(numberMatch[0]) : 1;
+  const safeAmount = Number.isFinite(amount) && amount > 0 ? amount : 1;
+
+  if (period.includes("dia")) return safeAmount;
+  if (period.includes("ano")) return safeAmount * 365;
+  if (period.includes("mes") || period.includes("mês")) return safeAmount * 30;
+  return fallbackDays;
+};
 
 const buildReminderContent = (tier: string, daysRemaining: number, endAt: string) => {
   const planLabel = getPlanName(tier);
@@ -80,6 +95,17 @@ const buildReminderContent = (tier: string, daysRemaining: number, endAt: string
     title: "Plano anual perto do vencimento",
     subject: `${planLabel}: renovação manual em ${daysLabel}`,
     body: `Seu ${planLabel} vence em ${daysRemaining} dia(s), na data ${dueDateLabel}. A renovação é manual e pode ser feita com parcelamento em até 12x na página de pagamentos.`,
+  };
+};
+
+const buildTrialBonusContent = (endAt: string) => {
+  const dueDateLabel = formatDatePt(endAt);
+  return {
+    title: "Voce ganhou mais 30 dias gratis",
+    subject: "Voce ganhou mais 30 dias gratis no Plano Mensal",
+    body:
+      `Seu periodo de teste terminou e seu perfil foi movido automaticamente para o Plano Mensal, ` +
+      `com mais 30 dias gratuitos ate ${dueDateLabel}. Nao houve cobranca automatica nesse bonus.`,
   };
 };
 
@@ -194,6 +220,23 @@ serve(async (req) => {
     const maxDate = new Date(now.getTime() + 8 * DAY_MS);
     const nowIso = now.toISOString();
 
+    const [{ data: siteConfig }, { data: freeTrialPlan }] = await Promise.all([
+      supabaseAdmin
+        .from("site_config")
+        .select("free_trial_monthly_upgrade_enabled")
+        .eq("id", 1)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("plans")
+        .select("period")
+        .eq("id", "free_trial")
+        .maybeSingle(),
+    ]);
+
+    const freeTrialDurationDays = getDaysFromPeriod(freeTrialPlan?.period, 7);
+    const freeTrialMonthlyUpgradeEnabled = siteConfig?.free_trial_monthly_upgrade_enabled !== false;
+    const shouldProcessFreeTrialBonus = freeTrialMonthlyUpgradeEnabled || (force && !!targetUserId);
+
     const resetExpiredCouponsQuery = supabaseAdmin
       .from("profiles")
       .update({
@@ -218,45 +261,71 @@ serve(async (req) => {
     const couponExpiredResets = Array.isArray(resetExpiredCouponsRows) ? resetExpiredCouponsRows.length : 0;
 
     let candidates: any[] = [];
+    let freeTrialCandidates: any[] = [];
 
     if (targetUserId) {
       const { data, error } = await supabaseAdmin
         .from("profiles")
-        .select("id,email,full_name,subscription_tier,subscription_end_at,cancel_at_period_end")
+        .select("id,email,full_name,role,subscription_tier,trial_started_at,subscription_end_at,cancel_at_period_end")
         .eq("id", targetUserId)
         .limit(1);
 
       if (error) throw error;
-      candidates = data || [];
+      const targetProfiles = data || [];
+      candidates = targetProfiles;
+      freeTrialCandidates = targetProfiles;
     } else {
-      const { data, error } = await supabaseAdmin
-        .from("profiles")
-        .select("id,email,full_name,subscription_tier,subscription_end_at,cancel_at_period_end")
-        .in("subscription_tier", ["monthly", "yearly"])
-        .not("subscription_end_at", "is", null)
-        .gte("subscription_end_at", new Date(now.getTime() - DAY_MS).toISOString())
-        .lte("subscription_end_at", maxDate.toISOString())
-        .limit(2000);
+      const [paidQuery, freeTrialQuery] = await Promise.all([
+        supabaseAdmin
+          .from("profiles")
+          .select("id,email,full_name,role,subscription_tier,trial_started_at,subscription_end_at,cancel_at_period_end")
+          .in("subscription_tier", ["monthly", "yearly"])
+          .not("subscription_end_at", "is", null)
+          .gte("subscription_end_at", new Date(now.getTime() - DAY_MS).toISOString())
+          .lte("subscription_end_at", maxDate.toISOString())
+          .limit(2000),
+        shouldProcessFreeTrialBonus
+          ? supabaseAdmin
+              .from("profiles")
+              .select("id,email,full_name,role,subscription_tier,trial_started_at,subscription_end_at,cancel_at_period_end")
+              .eq("role", "professional")
+              .eq("subscription_tier", "free_trial")
+              .limit(2000)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
 
-      if (error) throw error;
-      candidates = data || [];
+      if (paidQuery.error) throw paidQuery.error;
+      if (freeTrialQuery.error) throw freeTrialQuery.error;
+      candidates = paidQuery.data || [];
+      freeTrialCandidates = freeTrialQuery.data || [];
     }
 
-    if (candidates.length === 0) {
+    const checkedProfilesCount = new Set(
+      [...candidates, ...freeTrialCandidates].map((profile) => String(profile?.id || "")).filter(Boolean),
+    ).size;
+
+    if (candidates.length === 0 && freeTrialCandidates.length === 0) {
       return new Response(
         JSON.stringify({
           success: true,
           checked: 0,
           notified: 0,
           emailed: 0,
+          trial_bonus_upgrades: 0,
+          trial_bonus_emailed: 0,
           coupon_expired_resets: couponExpiredResets,
           mode: authMode,
           target_user_id: targetUserId || null,
+          free_trial_monthly_upgrade_enabled: freeTrialMonthlyUpgradeEnabled,
           message: targetUserId
             ? couponExpiredResets > 0
               ? "Usuario alvo processado: assinatura via cupom expirada e resetada para sem plano."
-              : "Usuario alvo sem assinatura elegivel na janela de alerta."
-            : "Nenhuma assinatura em janela de alerta.",
+              : shouldProcessFreeTrialBonus
+                ? "Usuario alvo sem assinatura elegivel na janela de alerta e sem trial expirado para conversao."
+                : "Usuario alvo sem assinatura elegivel na janela de alerta."
+            : shouldProcessFreeTrialBonus
+              ? "Nenhuma assinatura em janela de alerta ou trial expirado para conversao."
+              : "Nenhuma assinatura em janela de alerta.",
         }),
         {
           status: 200,
@@ -282,20 +351,241 @@ serve(async (req) => {
 
     let notified = 0;
     let emailed = 0;
+    let trialBonusUpgrades = 0;
+    let trialBonusEmailed = 0;
     const errors: Array<{ user_id: string; message: string }> = [];
+    const freeTrialWaConfig = await getWhatsappTemplateConfig(
+      supabaseAdmin,
+      "free_trial_bonus_upgrade_user",
+      "user",
+    );
     const subscriptionWaConfig = await getWhatsappTemplateConfig(
       supabaseAdmin,
       "subscription_renewal_reminder_user",
       "user",
     );
 
+    for (const profile of freeTrialCandidates) {
+      try {
+        const tier = String(profile.subscription_tier || "").toLowerCase();
+        if (tier !== "free_trial" || String(profile.role || "").toLowerCase() !== "professional") {
+          continue;
+        }
+
+        const effectiveTrialEndAt =
+          profile.subscription_end_at ||
+          (profile.trial_started_at
+            ? new Date(new Date(profile.trial_started_at).getTime() + freeTrialDurationDays * DAY_MS).toISOString()
+            : null);
+
+        if (!effectiveTrialEndAt) {
+          continue;
+        }
+
+        const isExpired = new Date(effectiveTrialEndAt).getTime() <= now.getTime();
+        if (!force && !isExpired) continue;
+
+        const bonusEndAt = new Date(now.getTime() + FREE_TRIAL_EXTENSION_DAYS * DAY_MS).toISOString();
+        const content = buildTrialBonusContent(bonusEndAt);
+        const detailsPath = getWhatsappTemplateVariation(
+          freeTrialWaConfig,
+          "details_path",
+          String(freeTrialWaConfig?.var3Default || "/dashboard/pagamentos?trialBonus=extended"),
+        );
+
+        const { error: updateProfileError } = await supabaseAdmin
+          .from("profiles")
+          .update({
+            subscription_tier: "monthly",
+            subscription_end_at: bonusEndAt,
+            cancel_at_period_end: true,
+            trial_started_at: null,
+            coupon_days: null,
+            updated_at: nowIso,
+          })
+          .eq("id", profile.id)
+          .eq("subscription_tier", "free_trial");
+
+        if (updateProfileError) throw updateProfileError;
+
+        const { error: widgetError } = await supabaseAdmin.from("notifications").insert({
+          user_id: profile.id,
+          title: content.title,
+          content: content.body,
+          link: detailsPath,
+          type: "trial_bonus_upgrade",
+        });
+
+        await logNotificationDelivery({
+          supabaseAdmin,
+          eventType: "free_trial_bonus_upgrade_user",
+          channel: "widget",
+          status: widgetError ? "failed" : "sent",
+          recipientKind: "user",
+          recipientUserId: profile.id,
+          recipientContact: profile.email || null,
+          title: content.title,
+          content: content.body,
+          errorMessage: widgetError?.message || null,
+          metadata: {
+            previous_tier: "free_trial",
+            new_tier: "monthly",
+            previous_trial_end_at: effectiveTrialEndAt,
+            subscription_end_at: bonusEndAt,
+            bonus_days: FREE_TRIAL_EXTENSION_DAYS,
+            forced: force,
+          },
+        });
+
+        if (widgetError) throw widgetError;
+
+        trialBonusUpgrades += 1;
+
+        try {
+          await enqueueUserWhatsappNotification({
+            supabaseAdmin,
+            userId: profile.id,
+            eventType: "free_trial_bonus_upgrade_user",
+            templateParams: [
+              String(profile.full_name || freeTrialWaConfig?.var1Default || "Usuario"),
+              String(
+                getWhatsappTemplateVariation(
+                  freeTrialWaConfig,
+                  "status_text",
+                  freeTrialWaConfig?.var2Default || "voce ganhou mais 30 dias gratis no Plano Mensal",
+                ),
+              ),
+              detailsPath,
+            ],
+            payload: {
+              previous_tier: "free_trial",
+              new_tier: "monthly",
+              previous_trial_end_at: effectiveTrialEndAt,
+              subscription_end_at: bonusEndAt,
+              bonus_days: FREE_TRIAL_EXTENSION_DAYS,
+              forced: force,
+            },
+          });
+        } catch (waError) {
+          console.warn("[process-subscription-expiry-alerts] falha ao enfileirar WhatsApp do bonus trial:", waError?.message || waError);
+        }
+
+        if (transporter && profile.email) {
+          try {
+            await transporter.sendMail({
+              from: `"HomeCare Match" <${smtpUser}>`,
+              to: profile.email,
+              subject: content.subject,
+              html: `
+                <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:20px;">
+                  <h2 style="margin-bottom:12px;color:#0f172a;">${content.title}</h2>
+                  <p style="line-height:1.6;color:#334155;">Ola, ${profile.full_name || "usuario"}.</p>
+                  <p style="line-height:1.6;color:#334155;">${content.body}</p>
+                  <p style="line-height:1.6;color:#334155;">
+                    Seu acesso segue ativo no Plano Mensal ate <strong>${formatDatePt(bonusEndAt)}</strong>.
+                    Se quiser continuar depois desse periodo, basta renovar pela pagina de pagamentos.
+                  </p>
+                  <a href="https://www.homecarematch.com.br/dashboard/pagamentos"
+                     style="display:inline-block;margin-top:10px;background:#1677ff;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;">
+                    Abrir pagina de pagamentos
+                  </a>
+                </div>
+              `,
+            });
+
+            await logNotificationDelivery({
+              supabaseAdmin,
+              eventType: "free_trial_bonus_upgrade_user",
+              channel: "email",
+              status: "sent",
+              recipientKind: "user",
+              recipientUserId: profile.id,
+              recipientContact: profile.email || null,
+              title: content.subject,
+              metadata: {
+                previous_tier: "free_trial",
+                new_tier: "monthly",
+                previous_trial_end_at: effectiveTrialEndAt,
+                subscription_end_at: bonusEndAt,
+                bonus_days: FREE_TRIAL_EXTENSION_DAYS,
+                forced: force,
+              },
+            });
+
+            trialBonusEmailed += 1;
+          } catch (emailError) {
+            await logNotificationDelivery({
+              supabaseAdmin,
+              eventType: "free_trial_bonus_upgrade_user",
+              channel: "email",
+              status: "failed",
+              recipientKind: "user",
+              recipientUserId: profile.id,
+              recipientContact: profile.email || null,
+              title: content.subject,
+              errorMessage: emailError?.message || String(emailError),
+              metadata: {
+                previous_tier: "free_trial",
+                new_tier: "monthly",
+                previous_trial_end_at: effectiveTrialEndAt,
+                subscription_end_at: bonusEndAt,
+                bonus_days: FREE_TRIAL_EXTENSION_DAYS,
+                forced: force,
+              },
+            });
+          }
+        } else if (!profile.email) {
+          await logNotificationDelivery({
+            supabaseAdmin,
+            eventType: "free_trial_bonus_upgrade_user",
+            channel: "email",
+            status: "skipped",
+            recipientKind: "user",
+            recipientUserId: profile.id,
+            title: content.subject,
+            errorMessage: "missing_user_email",
+            metadata: {
+              previous_tier: "free_trial",
+              new_tier: "monthly",
+              previous_trial_end_at: effectiveTrialEndAt,
+              subscription_end_at: bonusEndAt,
+              bonus_days: FREE_TRIAL_EXTENSION_DAYS,
+              forced: force,
+            },
+          });
+        } else {
+          await logNotificationDelivery({
+            supabaseAdmin,
+            eventType: "free_trial_bonus_upgrade_user",
+            channel: "email",
+            status: "skipped",
+            recipientKind: "user",
+            recipientUserId: profile.id,
+            recipientContact: profile.email || null,
+            title: content.subject,
+            errorMessage: "smtp_not_configured",
+            metadata: {
+              previous_tier: "free_trial",
+              new_tier: "monthly",
+              previous_trial_end_at: effectiveTrialEndAt,
+              subscription_end_at: bonusEndAt,
+              bonus_days: FREE_TRIAL_EXTENSION_DAYS,
+              forced: force,
+            },
+          });
+        }
+      } catch (userError) {
+        errors.push({
+          user_id: profile.id,
+          message: userError instanceof Error ? userError.message : "Falha ao processar bonus de trial.",
+        });
+      }
+    }
+
     for (const profile of candidates) {
       try {
         const tier = String(profile.subscription_tier || "").toLowerCase();
         if (!["monthly", "yearly"].includes(tier)) {
-          if (targetUserId) {
-            throw new Error("Usuario alvo sem subscription_tier elegivel (monthly/yearly).");
-          }
           continue;
         }
 
@@ -513,14 +803,17 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        checked: candidates.length,
+        checked: checkedProfilesCount,
         notified,
         emailed,
+        trial_bonus_upgrades: trialBonusUpgrades,
+        trial_bonus_emailed: trialBonusEmailed,
         coupon_expired_resets: couponExpiredResets,
         mode: authMode,
         target_user_id: targetUserId || null,
         forced: force,
         force_days_remaining: forceDaysRemaining,
+        free_trial_monthly_upgrade_enabled: freeTrialMonthlyUpgradeEnabled,
         errors: errors.slice(0, 20),
       }),
       {

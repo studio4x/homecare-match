@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Copy, Link as LinkIcon, Megaphone, MessageSquare } from "lucide-react";
+import { Copy, Download, Link as LinkIcon, Megaphone, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -82,6 +82,38 @@ const AffiliateMediaKitPage = () => {
     }
   };
 
+  const handleDownloadImage = async (url: string, title: string, index: number) => {
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("download_failed");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const extension = blob.type.split("/")[1]?.split(";")[0] || "jpg";
+      const sanitizedTitle =
+        title
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "") || `arte-${index + 1}`;
+
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `${sanitizedTitle}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(objectUrl);
+      toast.success("Download da imagem iniciado.");
+    } catch {
+      toast.error("Nao foi possivel baixar a imagem.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -94,35 +126,6 @@ const AffiliateMediaKitPage = () => {
 
       <Card>
         <CardContent className="space-y-4 pt-6">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-lg border p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Link oficial do afiliado</p>
-              <p className="mt-2 break-all text-sm font-medium">{affiliateLink}</p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleCopy(affiliateLink, "Link do afiliado copiado.")}
-                className="mt-3 gap-1"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copiar link
-              </Button>
-            </div>
-            <div className="rounded-lg border p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pagina para empresas</p>
-              <p className="mt-2 break-all text-sm font-medium">{companyLandingPage}</p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleCopy(companyLandingPage, "Link para empresas copiado.")}
-                className="mt-3 gap-1"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                Copiar pagina
-              </Button>
-            </div>
-          </div>
-
           <div className="grid gap-4 lg:grid-cols-3">
             {mediaKitItems.map((item) => {
               const Icon = item.icon;
@@ -170,11 +173,17 @@ const AffiliateMediaKitPage = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleCopy(image.url || "", "Link da imagem copiado.")}
+                        onClick={() =>
+                          handleDownloadImage(
+                            image.url || "",
+                            image.title || `Arte ${index + 1}`,
+                            index,
+                          )
+                        }
                         className="gap-1"
                       >
-                        <Copy className="h-3.5 w-3.5" />
-                        Copiar link da imagem
+                        <Download className="h-3.5 w-3.5" />
+                        Baixar imagem
                       </Button>
                     </div>
                   </div>

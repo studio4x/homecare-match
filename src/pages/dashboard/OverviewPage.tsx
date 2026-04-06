@@ -51,6 +51,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch"; 
 import { Label } from "@/components/ui/label";
 import { navigateSafely } from "@/lib/safe-navigation";
+import { getProfileCompleteness as calculateProfileCompleteness } from "@/lib/profile-completeness";
 
 const PLAN_DISPLAY_ORDER = ["free_trial", "monthly", "yearly", "annual"];
 const getPlanDisplayPriority = (planId: string) => {
@@ -447,7 +448,7 @@ const OverviewPage = () => {
     };
   };
 
-  const completeness = getProfileCompleteness();
+  const completeness = calculateProfileCompleteness(profile);
   const trial = getTrialInfo();
   const isProfessional = profile?.role === 'professional';
   const isCompany = profile?.role === 'company';

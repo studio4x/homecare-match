@@ -75,6 +75,7 @@ import {
   getCompanyFamilyContactBlockMessage,
   getCompanyFamilyContactEligibility,
 } from "@/lib/contact-eligibility";
+import { getProfileCompleteness } from "@/lib/profile-completeness";
 import { Link } from "react-router-dom";
 import { BRAZIL_STATES, fetchCitiesByState } from "@/lib/brazil-locations";
 import { sanitizeStoragePath } from "@/lib/storage-path";
@@ -856,6 +857,13 @@ const ProfilePage = () => {
     console.log("[handleRequestVerification] Iniciando solicitação de verificação para user:", user?.id);
     const isFamily = profile?.role === 'family';
     const isCompany = profile?.role === 'company';
+    const profileCompleteness = getProfileCompleteness(profile);
+
+    if (!profileCompleteness.isComplete) {
+      toast.error(`Complete seu perfil antes de solicitar a análise. Pendências: ${profileCompleteness.missingFields.join(", ")}.`);
+      console.log("[handleRequestVerification] Erro: perfil incompleto.", profileCompleteness.missingFields);
+      return;
+    }
 
     if (isFamily && (!profile?.id_document_url || !profile?.patient_document_url || !profile?.patient_address_proof_url)) {
       toast.error("Envie RG/CNH do responsável, RG/CNH do paciente e comprovante de endereço do paciente.");
@@ -950,6 +958,8 @@ const ProfilePage = () => {
   const isProfessional = profile.role === 'professional';
   const isCompany = profile.role === 'company';
   const isFamily = profile.role === 'family';
+  const profileCompleteness = getProfileCompleteness(profile);
+  const isVerificationBlockedByIncompleteProfile = !profileCompleteness.isComplete;
   const initials = profile.full_name?.split(" ").map((n: any) => n[0]).join("").slice(0, 2).toUpperCase() || "??";
 
   const doc1Label = isCompany ? "Cartão CNPJ" : isFamily ? "RG ou CNH do Responsável" : "RG ou CNH";
@@ -1010,6 +1020,11 @@ const ProfilePage = () => {
         ) : (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">Envie seus documentos para ganhar o selo de verificado.</p>
+            {isVerificationBlockedByIncompleteProfile && (
+              <div className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Complete seu perfil antes de solicitar análise. Pendências: {profileCompleteness.missingFields.join(", ")}.
+              </div>
+            )}
             <div className="space-y-1">
               <Label className="text-[10px] uppercase">{doc1Label}</Label>
               <div className="flex items-center gap-2">
@@ -1076,7 +1091,7 @@ const ProfilePage = () => {
                 </div>
               </>
             )}
-            <Button className="w-full" disabled={(!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && (!profile.id_document_url || !profile.patient_document_url || !profile.patient_address_proof_url)) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
+            <Button className="w-full" disabled={isVerificationBlockedByIncompleteProfile || (!isFamily && (!profile.id_document_url || !profile.prof_registration_url)) || (isFamily && (!profile.id_document_url || !profile.patient_document_url || !profile.patient_address_proof_url)) || isSaving} onClick={handleRequestVerification}>{isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null} Solicitar Análise</Button>
           </div>
         )}
       </CardContent>
@@ -1597,5 +1612,3 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
-
-

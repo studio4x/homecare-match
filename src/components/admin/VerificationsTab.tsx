@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { sanitizeStoragePath } from "@/lib/storage-path";
+import { getProfileCompleteness } from "@/lib/profile-completeness";
 import ImageCropper from "@/components/profile/ImageCropper";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Camera } from "lucide-react";
@@ -49,23 +50,36 @@ type RejectionPreset = {
   reason: string;
 };
 
-const getRejectionPresets = (role?: string): RejectionPreset[] => {
+const buildFriendlyReason = (message: string) =>
+  `Olá! No momento não conseguimos aprovar sua verificação. ${message} Assim que ajustar isso, você poderá reenviar a solicitação para uma nova análise.`;
+
+const getRejectionPresets = (profile?: any): RejectionPreset[] => {
+  const role = profile?.role;
+  const completeness = getProfileCompleteness(profile);
+  const incompleteProfileReason = completeness.missingFields.length > 0
+    ? buildFriendlyReason(`Seu perfil ainda está incompleto. Para continuar, preencha os seguintes campos: ${completeness.missingFields.join(", ")}. `)
+    : buildFriendlyReason("Seu perfil ainda está incompleto e precisa ser revisado antes da aprovação documental. ");
+
   const commonPresets: RejectionPreset[] = [
     {
+      label: "Perfil incompleto",
+      reason: incompleteProfileReason,
+    },
+    {
       label: "Documento ilegivel",
-      reason: "Os documentos enviados estao ilegiveis ou com baixa qualidade. Reenvie fotos ou arquivos nitidos, com todas as informacoes visiveis.",
+      reason: buildFriendlyReason("Os documentos enviados estão ilegíveis ou com baixa qualidade. Reenvie fotos ou arquivos nítidos, com todas as informações visíveis. "),
     },
     {
       label: "Documento incompleto",
-      reason: "Os documentos enviados estao incompletos ou faltando paginas ou lados. Reenvie a documentacao completa para nova analise.",
+      reason: buildFriendlyReason("Os documentos enviados estão incompletos ou faltando páginas ou lados. Reenvie a documentação completa para nova análise. "),
     },
     {
       label: "Dados divergentes",
-      reason: "Os dados dos documentos nao conferem com as informacoes cadastradas no perfil. Revise o perfil e reenvie a documentacao correta.",
+      reason: buildFriendlyReason("Os dados dos documentos não conferem com as informações cadastradas no perfil. Revise o perfil e reenvie a documentação correta. "),
     },
     {
       label: "Documento invalido",
-      reason: "A documentacao enviada esta invalida, vencida ou nao pode ser aceita para verificacao. Envie um documento valido e atualizado.",
+      reason: buildFriendlyReason("A documentação enviada está inválida, vencida ou não pode ser aceita para verificação. Envie um documento válido e atualizado. "),
     },
   ];
 
@@ -74,7 +88,7 @@ const getRejectionPresets = (role?: string): RejectionPreset[] => {
       ...commonPresets,
       {
         label: "Registro profissional",
-        reason: "O registro profissional enviado esta ausente, ilegivel ou nao confere com os dados informados. Revise e reenvie o documento correto.",
+        reason: buildFriendlyReason("O registro profissional enviado está ausente, ilegível ou não confere com os dados informados. Revise e reenvie o documento correto. "),
       },
     ];
   }
@@ -84,7 +98,7 @@ const getRejectionPresets = (role?: string): RejectionPreset[] => {
       ...commonPresets,
       {
         label: "CNPJ ou responsavel",
-        reason: "O cartao CNPJ ou o documento do responsavel esta ausente, ilegivel ou nao confere com os dados do perfil. Revise e reenvie a documentacao correta.",
+        reason: buildFriendlyReason("O cartão CNPJ ou o documento do responsável está ausente, ilegível ou não confere com os dados do perfil. Revise e reenvie a documentação correta. "),
       },
     ];
   }
@@ -94,7 +108,7 @@ const getRejectionPresets = (role?: string): RejectionPreset[] => {
       ...commonPresets,
       {
         label: "Docs do paciente",
-        reason: "A documentacao do paciente ou o comprovante de endereco esta ausente, ilegivel ou divergente. Revise e reenvie os arquivos corretos.",
+        reason: buildFriendlyReason("A documentação do paciente ou o comprovante de endereço está ausente, ilegível ou divergente. Revise e reenvie os arquivos corretos. "),
       },
     ];
   }
@@ -294,7 +308,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
     }
   };
 
-  const rejectionPresets = getRejectionPresets(selectedProfile?.role);
+  const rejectionPresets = getRejectionPresets(selectedProfile);
 
   return (
     <>

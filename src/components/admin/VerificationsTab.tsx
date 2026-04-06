@@ -380,14 +380,14 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
                   variant="outline"
                   size="sm"
                   disabled={isProcessingVerification}
-                  onClick={() => handleReject(preset.reason)}
+                  onClick={() => setRejectionReason(preset.reason)}
                 >
                   {preset.label}
                 </Button>
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Clique em um motivo padrao para reprovar e enviar imediatamente.
+              Clique em um motivo padrao para preencher o campo abaixo antes de enviar.
             </p>
           </div>
           <DialogHeader><DialogTitle>Reprovar Verificação</DialogTitle><DialogDescription>Informe o motivo para {selectedProfile?.full_name}.</DialogDescription></DialogHeader>

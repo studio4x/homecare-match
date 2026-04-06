@@ -44,6 +44,64 @@ interface VerificationsTabProps {
   refetchData: () => void;
 }
 
+type RejectionPreset = {
+  label: string;
+  reason: string;
+};
+
+const getRejectionPresets = (role?: string): RejectionPreset[] => {
+  const commonPresets: RejectionPreset[] = [
+    {
+      label: "Documento ilegivel",
+      reason: "Os documentos enviados estao ilegiveis ou com baixa qualidade. Reenvie fotos ou arquivos nitidos, com todas as informacoes visiveis.",
+    },
+    {
+      label: "Documento incompleto",
+      reason: "Os documentos enviados estao incompletos ou faltando paginas ou lados. Reenvie a documentacao completa para nova analise.",
+    },
+    {
+      label: "Dados divergentes",
+      reason: "Os dados dos documentos nao conferem com as informacoes cadastradas no perfil. Revise o perfil e reenvie a documentacao correta.",
+    },
+    {
+      label: "Documento invalido",
+      reason: "A documentacao enviada esta invalida, vencida ou nao pode ser aceita para verificacao. Envie um documento valido e atualizado.",
+    },
+  ];
+
+  if (role === "professional") {
+    return [
+      ...commonPresets,
+      {
+        label: "Registro profissional",
+        reason: "O registro profissional enviado esta ausente, ilegivel ou nao confere com os dados informados. Revise e reenvie o documento correto.",
+      },
+    ];
+  }
+
+  if (role === "company") {
+    return [
+      ...commonPresets,
+      {
+        label: "CNPJ ou responsavel",
+        reason: "O cartao CNPJ ou o documento do responsavel esta ausente, ilegivel ou nao confere com os dados do perfil. Revise e reenvie a documentacao correta.",
+      },
+    ];
+  }
+
+  if (role === "family") {
+    return [
+      ...commonPresets,
+      {
+        label: "Docs do paciente",
+        reason: "A documentacao do paciente ou o comprovante de endereco esta ausente, ilegivel ou divergente. Revise e reenvie os arquivos corretos.",
+      },
+    ];
+  }
+
+  return commonPresets;
+};
+
 const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProps) => {
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -127,13 +185,14 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
     }
   };
 
-  const handleReject = async () => {
-    if (!rejectionReason || !selectedProfile) return;
+  const handleReject = async (reasonOverride?: string) => {
+    const resolvedReason = String(reasonOverride ?? rejectionReason).trim();
+    if (!resolvedReason || !selectedProfile) return;
     setIsProcessingVerification(true);
     try {
       const { error } = await supabase.from("profiles").update({ 
         verification_sent: false,
-        rejection_reason: rejectionReason 
+        rejection_reason: resolvedReason 
       }).eq("id", selectedProfile.id);
       
       if (error) throw error;
@@ -143,7 +202,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
       const { error: verificationNotifyError } = await supabase.functions.invoke('verification-result', {
         body: {
           status: 'rejected',
-          reason: rejectionReason,
+          reason: resolvedReason,
           userName: selectedProfile.full_name,
           userEmail: selectedProfile.email,
           userId: selectedProfile.id, // Pass userId for notification
@@ -235,6 +294,8 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
     }
   };
 
+  const rejectionPresets = getRejectionPresets(selectedProfile?.role);
+
   return (
     <>
       <div className="rounded-xl border bg-card overflow-x-auto shadow-sm">
@@ -277,7 +338,7 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     <Button variant="ghost" size="sm" onClick={() => { setSelectedProfileForView(p); setProfileModalOpen(true); }}><User className="h-4 w-4 mr-1" />Ver Perfil</Button>
-                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setSelectedProfile(p); setRejectionReason(""); setRejectionModalOpen(true); }}><ThumbsDown className="h-4 w-4 mr-1" />Reprovar</Button>
                     <Button variant="ghost" size="sm" className="text-success" onClick={() => { setSelectedProfile(p); setApproveModalOpen(true); }}><ThumbsUp className="h-4 w-4 mr-1" />Aprovar</Button>
                   </TableCell>
                 </TableRow>
@@ -295,10 +356,30 @@ const VerificationsTab = ({ pendingProfiles, refetchData }: VerificationsTabProp
 
       <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
         <DialogContent>
+          <div className="pt-4 space-y-2">
+            <Label>Motivos padrao</Label>
+            <div className="flex flex-wrap gap-2">
+              {rejectionPresets.map((preset) => (
+                <Button
+                  key={preset.label}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isProcessingVerification}
+                  onClick={() => handleReject(preset.reason)}
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Clique em um motivo padrao para reprovar e enviar imediatamente.
+            </p>
+          </div>
           <DialogHeader><DialogTitle>Reprovar Verificação</DialogTitle><DialogDescription>Informe o motivo para {selectedProfile?.full_name}.</DialogDescription></DialogHeader>
           <div className="py-4"><Label>Motivo</Label><Textarea value={rejectionReason} onChange={e => setRejectionReason(e.target.value)} placeholder="Ex: Documento ilegível." /></div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setRejectionModalOpen(false)}>Cancelar</Button>
+            <Button variant="ghost" onClick={() => { setRejectionModalOpen(false); setRejectionReason(""); }}>Cancelar</Button>
             <Button variant="destructive" onClick={handleReject} disabled={isProcessingVerification || !rejectionReason}>Confirmar</Button>
           </DialogFooter>
         </DialogContent>

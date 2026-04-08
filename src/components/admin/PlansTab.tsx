@@ -290,7 +290,7 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                 Bônus automático de 30 dias
               </CardTitle>
               <CardDescription>
-                Controla a concessão automática de mais 30 dias gratuitos no Plano Mensal quando um período gratuito expira.
+                Controla a concessão automática de mais 30 dias gratuitos no Plano Mensal quando um período gratuito expira, incluindo o plano gratuito de 7 dias.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -311,9 +311,9 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="free_trial">Somente teste grátis expirado</SelectItem>
+                    <SelectItem value="free_trial">Somente plano gratuito de 7 dias expirado</SelectItem>
                     <SelectItem value="monthly_coupon">Somente mensal gratuito via cupom expirado</SelectItem>
-                    <SelectItem value="both">Teste grátis e mensal via cupom</SelectItem>
+                    <SelectItem value="both">Plano gratuito de 7 dias e mensal via cupom</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

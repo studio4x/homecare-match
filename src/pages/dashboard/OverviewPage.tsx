@@ -311,7 +311,7 @@ const OverviewPage = () => {
     const rawDaysRemaining = differenceInDays(endDate, new Date());
     const daysRemaining = Math.max(0, rawDaysRemaining);
     const progress = Math.min(100, Math.max(0, ((freeTrialDurationDays - daysRemaining) / freeTrialDurationDays) * 100));
-    return { daysRemaining, progress, isExpired: daysRemaining <= 0, endDate };
+    return { daysRemaining, progress, isExpired: endDate.getTime() <= Date.now(), endDate };
   };
 
   const handleRetryVerification = async () => {
@@ -426,8 +426,10 @@ const OverviewPage = () => {
     const endDate = parseISO(profile.subscription_end_at);
     if (!isValid(endDate)) return null;
 
-    const daysRemaining = differenceInDays(endDate, new Date());
-    if (daysRemaining < 0 || daysRemaining > 7) return null;
+    const now = new Date();
+    const isExpired = endDate.getTime() <= now.getTime();
+    const daysRemaining = differenceInDays(endDate, now);
+    if (isExpired || daysRemaining > 7) return null;
 
     if (profile.subscription_tier === "monthly") {
       return {
@@ -470,7 +472,8 @@ const OverviewPage = () => {
   };
 
   const subscriptionEndDate = profile?.subscription_end_at ? parseISO(profile.subscription_end_at) : null;
-  const isExpiredSubscriptionEnd = !!subscriptionEndDate && isValid(subscriptionEndDate) && subscriptionEndDate < new Date();
+  const isExpiredSubscriptionEnd =
+    !!subscriptionEndDate && isValid(subscriptionEndDate) && subscriptionEndDate.getTime() <= Date.now();
   const showNoPlanLabel =
     !!profile?.cancel_at_period_end &&
     isExpiredSubscriptionEnd &&

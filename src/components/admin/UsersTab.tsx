@@ -668,6 +668,28 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
     return null;
   };
 
+  const getEffectiveEndAt = (u: any) => {
+    if (u.subscription_tier === "free_trial" && u.trial_started_at) {
+      const startDate = parseISO(u.trial_started_at);
+      if (isValid(startDate)) {
+        const trialDays = getPlanDurationDays("free_trial");
+        return addDays(startDate, trialDays);
+      }
+    }
+
+    if (u.subscription_end_at) {
+      const endDate = parseISO(u.subscription_end_at);
+      if (isValid(endDate)) return endDate;
+    }
+
+    return null;
+  };
+
+  const isPlanExpiredNow = (u: any) => {
+    const effectiveEndAt = getEffectiveEndAt(u);
+    return !!effectiveEndAt && effectiveEndAt.getTime() <= Date.now();
+  };
+
   const checkVisibility = (u: any) => {
     if (u.role !== 'professional') return false;
     if (!u.full_name) return false;
@@ -701,14 +723,13 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const hasActivePlan = (u: any) => {
     const tier = normalizeTier(u.subscription_tier);
     if (!["monthly", "yearly", "free_trial"].includes(tier)) return false;
-    const daysLeft = getDaysRemaining(u);
-    if (daysLeft === null) return tier === "monthly" || tier === "yearly";
-    return daysLeft > 0;
+    const effectiveEndAt = getEffectiveEndAt(u);
+    if (!effectiveEndAt) return tier === "monthly" || tier === "yearly";
+    return effectiveEndAt.getTime() > Date.now();
   };
 
   const hasExpiredPlan = (u: any) => {
-    const daysLeft = getDaysRemaining(u);
-    return daysLeft !== null && daysLeft <= 0;
+    return isPlanExpiredNow(u);
   };
 
   const filteredUsers = allUsers.filter((u) => {
@@ -987,9 +1008,9 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                             </Select>
                           )}
                           {daysLeft !== null && (
-                            <div className={`text-[9px] font-medium flex items-center gap-1 ${daysLeft <= 0 ? 'text-destructive' : 'text-primary'}`}>
+                            <div className={`text-[9px] font-medium flex items-center gap-1 ${hasExpiredPlan(u) ? 'text-destructive' : 'text-primary'}`}>
                               <Clock className="h-3 w-3" />
-                              {daysLeft <= 0 ? 'Expirado' : `${daysLeft}d restantes`}
+                              {hasExpiredPlan(u) ? 'Expirado' : daysLeft === 0 ? 'Vence hoje' : `${daysLeft}d restantes`}
                             </div>
                           )}
                           {u.coupon_days && (

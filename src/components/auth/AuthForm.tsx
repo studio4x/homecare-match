@@ -33,6 +33,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { translateAuthError } from "@/lib/error-utils";
+import { logAuthEmailEvent } from "@/lib/auth-email-logging";
 import { trackAccountCreated } from "@/lib/tracking";
 import { trackShortLinkSignupConversion } from "@/lib/short-link-attribution";
 import { useNavigate } from "react-router-dom";
@@ -141,8 +142,19 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
       });
 
       if (error) throw error;
+      await logAuthEmailEvent({
+        eventType: "auth_signup_confirmation_email_resent",
+        status: "sent",
+        email: normalizedEmail,
+      });
       toast.success("E-mail de confirmação reenviado com sucesso.", { id: toastId });
     } catch (error: any) {
+      await logAuthEmailEvent({
+        eventType: "auth_signup_confirmation_email_resent",
+        status: "failed",
+        email: normalizedEmail,
+        errorMessage: String(error?.message || "Erro ao reenviar confirmacao."),
+      });
       toast.error(translateAuthError(error.message), { id: toastId });
     }
   };
@@ -239,6 +251,13 @@ const AuthForm = ({ mode: initialMode, onSuccess, allowRegister = true }: AuthFo
           setShowEmailExistsModal(true);
           return;
         }
+
+        await logAuthEmailEvent({
+          eventType: "auth_signup_confirmation_email_requested",
+          status: "sent",
+          email: signUpData?.user?.email || data.email,
+          userId: signUpData?.user?.id || null,
+        });
 
         const referrerId = new URLSearchParams(window.location.search).get("ref");
         if (referrerId && signUpData?.user?.id) {

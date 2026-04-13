@@ -10,7 +10,6 @@ const corsHeaders = {
 const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL") || "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") || "").replace(/\/+$/, "");
-
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -56,8 +55,20 @@ serve(async (req) => {
       });
     }
 
+    const { data: onboardingCronSetting } = await supabaseAdmin
+      .from("onboarding_system_settings")
+      .select("setting_value")
+      .eq("setting_key", "cron_secret")
+      .maybeSingle();
+
+    const onboardingCronSecret = String((onboardingCronSetting?.setting_value as any)?.secret || "").trim();
+    if (!onboardingCronSecret) {
+      throw new Error("onboarding_system_settings.cron_secret ausente.");
+    }
+
     const escapedServiceRole = SERVICE_ROLE_KEY.replace(/'/g, "''");
     const escapedSupabaseUrl = SUPABASE_URL.replace(/'/g, "''");
+    const escapedOnboardingCronSecret = onboardingCronSecret.replace(/'/g, "''");
 
     console.log("[setup-cron-job] Iniciando ativacao de automacao...");
 
@@ -139,8 +150,8 @@ serve(async (req) => {
         '*/15 * * * *',
         $$
         SELECT net.http_post(
-          url := '${escapedSupabaseUrl}/functions/v1/process-onboarding-emails',
-          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedServiceRole}"}'::jsonb,
+          url := '${escapedSupabaseUrl}/functions/v1/process-onboarding-emails-scheduled',
+          headers := jsonb_build_object('Content-Type', 'application/json'),
           body := '{}'::jsonb
         );
         $$

@@ -33,6 +33,7 @@ import {
 import Layout from "@/components/layout/Layout";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { translateAuthError } from "@/lib/error-utils";
+import { logAuthEmailEvent } from "@/lib/auth-email-logging";
 import { trackAccountCreated } from "@/lib/tracking";
 import { trackShortLinkSignupConversion } from "@/lib/short-link-attribution";
 
@@ -90,6 +91,13 @@ const CadastroEmpresaFamilia = () => {
         },
       });
       if (error) throw error;
+
+      await logAuthEmailEvent({
+        eventType: "auth_signup_confirmation_email_requested",
+        status: "sent",
+        email: signUpData?.user?.email || data.email,
+        userId: signUpData?.user?.id || null,
+      });
 
       trackAccountCreated(data.role, {
         dedupeKey: signUpData?.user?.id,

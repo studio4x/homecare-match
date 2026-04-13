@@ -66,6 +66,7 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { getSupabaseAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
 import { sanitizeStoragePath } from "@/lib/storage-path";
+import { logAuthEmailEvent } from "@/lib/auth-email-logging";
 import ImageCropper from "@/components/profile/ImageCropper";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Camera } from "lucide-react";
@@ -88,6 +89,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
   const [isUpdatingVerified, setIsUpdatingVerified] = useState<string | null>(null);
   const [isUpdatingHidden, setIsUpdatingHidden] = useState<string | null>(null);
   const [isUpdatingEmailConfirmed, setIsUpdatingEmailConfirmed] = useState<string | null>(null);
+  const [isResendingConfirmationEmail, setIsResendingConfirmationEmail] = useState<string | null>(null);
   const [isImpersonating, setIsImpersonating] = useState<string | null>(null);
   const [isAddingToOnboarding, setIsAddingToOnboarding] = useState<string | null>(null);
   const [isRunningTrialAutomation, setIsRunningTrialAutomation] = useState<string | null>(null);
@@ -348,6 +350,49 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
       toast.error("Erro ao atualizar confirmação de e-mail.");
     } finally {
       setIsUpdatingEmailConfirmed(null);
+    }
+  };
+
+  const handleResendConfirmationEmail = async (targetUser: any) => {
+    const normalizedEmail = String(targetUser?.email || "").trim().toLowerCase();
+    if (!normalizedEmail) {
+      toast.error("Usuario sem e-mail valido para reenvio.");
+      return;
+    }
+
+    setIsResendingConfirmationEmail(targetUser.id);
+    try {
+      const dashboardRedirectUrl = `${window.location.origin}/dashboard`;
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: dashboardRedirectUrl,
+        },
+      });
+
+      if (error) throw error;
+
+      await logAuthEmailEvent({
+        eventType: "auth_signup_confirmation_email_resent",
+        status: "sent",
+        email: normalizedEmail,
+        userId: targetUser.id,
+      });
+
+      toast.success("E-mail de confirmacao reenviado com sucesso.");
+    } catch (error: any) {
+      await logAuthEmailEvent({
+        eventType: "auth_signup_confirmation_email_resent",
+        status: "failed",
+        email: normalizedEmail,
+        userId: targetUser.id,
+        errorMessage: String(error?.message || "Erro ao reenviar confirmacao."),
+      });
+
+      toast.error(error?.message || "Erro ao reenviar e-mail de confirmacao.");
+    } finally {
+      setIsResendingConfirmationEmail(null);
     }
   };
 
@@ -1035,7 +1080,7 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-center">
+                        <div className="flex items-center justify-center gap-1">
                           {isUpdatingEmailConfirmed === u.id ? (
                             <Loader2 className="h-4 w-4 animate-spin text-primary" />
                           ) : (
@@ -1045,6 +1090,23 @@ const UsersTab = ({ allUsers, plans, refetchData }: UsersTabProps) => {
                               className="data-[state=checked]:bg-success"
                             />
                           )}
+                          {!u.email_confirmed ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                              title="Reenviar e-mail de confirmacao"
+                              onClick={() => handleResendConfirmationEmail(u)}
+                              disabled={isResendingConfirmationEmail === u.id || !u.email}
+                            >
+                              {isResendingConfirmationEmail === u.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Mail className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                          ) : null}
                         </div>
                       </TableCell>
                       <TableCell>

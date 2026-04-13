@@ -18,6 +18,13 @@ import { Button } from "@/components/ui/button";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { Edit2, Search, UserPlus, Mail } from "lucide-react";
 
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return parsed.toLocaleString("pt-BR");
+};
+
 export const OnboardingAdmin = () => {
   const queryClient = useQueryClient();
   const [selectedTemplate, setSelectedTemplate] = React.useState<any>(null);
@@ -167,6 +174,102 @@ export const OnboardingAdmin = () => {
       return data.map((r: any) => ({ ...r, profiles: profileMap[r.user_id] || null }));
     },
   });
+
+  const { data: automationHealth, isLoading: isLoadingAutomationHealth } = useQuery({
+    queryKey: ["onboarding_automation_health"],
+    queryFn: async () => {
+      const nowIso = new Date().toISOString();
+      const lastTwoHoursIso = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const lastTwentyFourHoursIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+      const [
+        lastRunResult,
+        recentRuns24hResult,
+        recentRuns2hResult,
+        activeInstancesResult,
+        dueNowInstancesResult,
+        nextRunResult,
+      ] = await Promise.all([
+        supabase
+          .from("user_onboarding_step_runs")
+          .select("processed_at")
+          .not("processed_at", "is", null)
+          .order("processed_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("user_onboarding_step_runs")
+          .select("id", { count: "exact", head: true })
+          .gte("processed_at", lastTwentyFourHoursIso),
+        supabase
+          .from("user_onboarding_step_runs")
+          .select("id", { count: "exact", head: true })
+          .gte("processed_at", lastTwoHoursIso),
+        supabase
+          .from("user_onboarding_flows")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "active"),
+        supabase
+          .from("user_onboarding_flows")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "active")
+          .not("next_run_at", "is", null)
+          .lte("next_run_at", nowIso),
+        supabase
+          .from("user_onboarding_flows")
+          .select("next_run_at")
+          .eq("status", "active")
+          .not("next_run_at", "is", null)
+          .order("next_run_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      if (lastRunResult.error) throw lastRunResult.error;
+      if (recentRuns24hResult.error) throw recentRuns24hResult.error;
+      if (recentRuns2hResult.error) throw recentRuns2hResult.error;
+      if (activeInstancesResult.error) throw activeInstancesResult.error;
+      if (dueNowInstancesResult.error) throw dueNowInstancesResult.error;
+      if (nextRunResult.error) throw nextRunResult.error;
+
+      return {
+        lastProcessedAt: lastRunResult.data?.processed_at || null,
+        processedLast24Hours: recentRuns24hResult.count || 0,
+        processedLast2Hours: recentRuns2hResult.count || 0,
+        activeInstances: activeInstancesResult.count || 0,
+        dueNowInstances: dueNowInstancesResult.count || 0,
+        nextRunAt: nextRunResult.data?.next_run_at || null,
+      };
+    },
+    refetchInterval: 60000,
+  });
+
+  const automationStatus = React.useMemo(() => {
+    if (!isSystemActive) {
+      return {
+        label: "Desativada",
+        description: "O sistema global está desligado e nenhum envio automático será processado.",
+        badgeVariant: "destructive" as const,
+        panelClassName: "bg-red-50/70 border-red-100",
+      };
+    }
+
+    if ((automationHealth?.dueNowInstances || 0) > 0) {
+      return {
+        label: "Com fila vencida",
+        description: "Existem usuários com envio já vencido aguardando o próximo processamento automático.",
+        badgeVariant: "secondary" as const,
+        panelClassName: "bg-amber-50/70 border-amber-100",
+      };
+    }
+
+    return {
+      label: "Operando",
+      description: "A automação está habilitada e sem fila vencida no momento.",
+      badgeVariant: "default" as const,
+      panelClassName: "bg-green-50/70 border-green-100",
+    };
+  }, [automationHealth?.dueNowInstances, isSystemActive]);
 
   const updateTemplateMutation = useMutation({
     mutationFn: async (vars: any) => {
@@ -320,7 +423,55 @@ export const OnboardingAdmin = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 mb-8">
+        <Card className={`xl:col-span-2 border ${automationStatus.panelClassName}`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Status da Automação</CardTitle>
+                <CardDescription>{automationStatus.description}</CardDescription>
+              </div>
+              <Badge variant={automationStatus.badgeVariant}>{automationStatus.label}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingAutomationHealth ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando status operacional...
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="rounded-lg border bg-background/80 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Último processamento</p>
+                  <p className="mt-1 font-semibold text-foreground">{formatDateTime(automationHealth?.lastProcessedAt)}</p>
+                </div>
+                <div className="rounded-lg border bg-background/80 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Próxima execução prevista</p>
+                  <p className="mt-1 font-semibold text-foreground">{formatDateTime(automationHealth?.nextRunAt)}</p>
+                </div>
+                <div className="rounded-lg border bg-background/80 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Execuções recentes</p>
+                  <p className="mt-1 font-semibold text-foreground">
+                    {automationHealth?.processedLast2Hours || 0} nas últimas 2h
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {automationHealth?.processedLast24Hours || 0} nas últimas 24h
+                  </p>
+                </div>
+                <div className="rounded-lg border bg-background/80 p-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Fila atual</p>
+                  <p className="mt-1 font-semibold text-foreground">
+                    {automationHealth?.dueNowInstances || 0} envio(s) vencido(s)
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {automationHealth?.activeInstances || 0} fluxo(s) ativo(s) aguardando agenda
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle>Fluxos Ativos</CardTitle>

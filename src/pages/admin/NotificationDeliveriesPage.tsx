@@ -152,6 +152,18 @@ const getChannelBadge = (channel: DeliveryItem["channel"]) => {
   );
 };
 
+const getEventLabel = (eventType: string) => {
+  if (eventType === "auth_signup_confirmation_email_requested") {
+    return "Confirmação de conta solicitada";
+  }
+
+  if (eventType === "auth_signup_confirmation_email_resent") {
+    return "Confirmação de conta reenviada";
+  }
+
+  return eventType;
+};
+
 const NotificationDeliveriesPage = () => {
   const whatsappGroupsEnabled = String(import.meta.env.VITE_WHATSAPP_GROUPS_ENABLED || "")
     .trim()
@@ -667,7 +679,7 @@ const NotificationDeliveriesPage = () => {
                     </TableCell>
                     <TableCell>{getChannelBadge(item.channel)}</TableCell>
                     <TableCell>{getStatusBadge(item.status)}</TableCell>
-                    <TableCell className="text-xs font-medium">{item.eventType}</TableCell>
+                    <TableCell className="text-xs font-medium">{getEventLabel(item.eventType)}</TableCell>
                     <TableCell className="max-w-[220px]">
                       <p className="truncate text-xs">{item.recipientContact || "-"}</p>
                       <p className="text-[10px] text-muted-foreground">{item.recipientKind}</p>

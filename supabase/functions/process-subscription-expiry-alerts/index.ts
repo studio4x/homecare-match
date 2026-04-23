@@ -154,15 +154,18 @@ serve(async (req) => {
 
   const supabaseAdmin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceRoleKey);
   const payload = await parseRequestBody(req);
+  const scheduledJobSecret = Deno.env.get("SCHEDULED_JOB_SECRET") || "";
 
   const authHeaderToken = req.headers.get("authorization")?.replace("Bearer ", "").trim() || "";
   const bodyToken = typeof payload?.access_token === "string" ? payload.access_token.trim() : "";
   const authToken = authHeaderToken || bodyToken;
 
-  let authMode: "service_role" | "admin" | null = null;
+  let authMode: "service_role" | "scheduled_job" | "admin" | null = null;
 
   if (authToken && timingSafeEqual(authToken, serviceRoleKey)) {
     authMode = "service_role";
+  } else if (scheduledJobSecret && authToken && timingSafeEqual(authToken, scheduledJobSecret)) {
+    authMode = "scheduled_job";
   } else if (authToken) {
     const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(authToken);
     if (authError || !authData?.user) {

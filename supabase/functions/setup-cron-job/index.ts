@@ -9,6 +9,7 @@ const corsHeaders = {
 
 const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL") || "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+const SCHEDULED_JOB_SECRET = Deno.env.get("SCHEDULED_JOB_SECRET") || "";
 const SUPABASE_URL = (Deno.env.get("SUPABASE_URL") || "").replace(/\/+$/, "");
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -17,6 +18,7 @@ serve(async (req) => {
   try {
     if (!SUPABASE_DB_URL) throw new Error("SUPABASE_DB_URL ausente.");
     if (!SERVICE_ROLE_KEY) throw new Error("SUPABASE_SERVICE_ROLE_KEY ausente.");
+    if (!SCHEDULED_JOB_SECRET) throw new Error("SCHEDULED_JOB_SECRET ausente.");
     if (!SUPABASE_URL) throw new Error("SUPABASE_URL ausente.");
 
     const authHeader = req.headers.get("authorization");
@@ -67,6 +69,7 @@ serve(async (req) => {
     }
 
     const escapedServiceRole = SERVICE_ROLE_KEY.replace(/'/g, "''");
+    const escapedScheduledJobSecret = SCHEDULED_JOB_SECRET.replace(/'/g, "''");
     const escapedSupabaseUrl = SUPABASE_URL.replace(/'/g, "''");
     const escapedOnboardingCronSecret = onboardingCronSecret.replace(/'/g, "''");
 
@@ -124,8 +127,9 @@ serve(async (req) => {
         $$
         SELECT net.http_post(
           url := '${escapedSupabaseUrl}/functions/v1/process-subscription-expiry-alerts',
-          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedServiceRole}"}'::jsonb,
-          body := '{}'::jsonb
+          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedScheduledJobSecret}"}'::jsonb,
+          body := '{}'::jsonb,
+          timeout_milliseconds := 30000
         );
         $$
       );

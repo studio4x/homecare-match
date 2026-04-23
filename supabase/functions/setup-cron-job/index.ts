@@ -97,6 +97,9 @@ serve(async (req) => {
       SELECT cron.unschedule('reconciliar-afiliados')
       WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'reconciliar-afiliados');
 
+      SELECT cron.unschedule('monitorar-automacao-assinaturas')
+      WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'monitorar-automacao-assinaturas');
+
       SELECT cron.schedule(
         'processar-notificacoes-push',
         '* * * * *',
@@ -129,6 +132,19 @@ serve(async (req) => {
           url := '${escapedSupabaseUrl}/functions/v1/process-subscription-expiry-alerts',
           headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedScheduledJobSecret}"}'::jsonb,
           body := '{}'::jsonb,
+          timeout_milliseconds := 30000
+        );
+        $$
+      );
+
+      SELECT cron.schedule(
+        'monitorar-automacao-assinaturas',
+        '20 * * * *',
+        $$
+        SELECT net.http_post(
+          url := '${escapedSupabaseUrl}/functions/v1/process-subscription-expiry-alerts',
+          headers := '{"Content-Type": "application/json", "Authorization": "Bearer ${escapedScheduledJobSecret}"}'::jsonb,
+          body := '{"action": "health_check"}'::jsonb,
           timeout_milliseconds := 30000
         );
         $$

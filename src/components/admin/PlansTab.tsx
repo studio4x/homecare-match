@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Edit2, Plus, Info, Settings2, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Loader2, Edit2, Plus, Info, RefreshCw, Settings2, Sparkles, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface PlansTabProps {
@@ -43,6 +43,20 @@ interface PlansTabProps {
 }
 
 type AutomationTarget = "free_trial" | "monthly_coupon" | "both";
+
+interface AutomationRun {
+  id: string;
+  action: string;
+  trigger_source: string;
+  status: "running" | "success" | "failed" | "warning";
+  started_at: string;
+  finished_at: string | null;
+  checked_count: number;
+  notified_count: number;
+  bonus_upgrades_count: number;
+  error_message: string | null;
+  metadata?: Record<string, any> | null;
+}
 
 const normalizeAutomationTarget = (value: unknown): AutomationTarget => {
   const normalized = String(value || "").trim().toLowerCase();
@@ -57,6 +71,8 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
   const [isSavingAutomation, setIsSavingAutomation] = useState(false);
+  const [isLoadingAutomationHealth, setIsLoadingAutomationHealth] = useState(false);
+  const [automationRuns, setAutomationRuns] = useState<AutomationRun[]>([]);
   const [automationEnabled, setAutomationEnabled] = useState(true);
   const [automationTarget, setAutomationTarget] = useState<AutomationTarget>("free_trial");
 
@@ -90,6 +106,100 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
   const hasAutomationChanges =
     automationEnabled !== (siteConfig?.free_trial_monthly_upgrade_enabled !== false) ||
     automationTarget !== normalizeAutomationTarget(siteConfig?.free_trial_monthly_upgrade_target);
+
+  const loadAutomationHealth = async () => {
+    setIsLoadingAutomationHealth(true);
+    try {
+      const { data, error } = await supabase
+        .from("subscription_automation_runs")
+        .select("id,action,trigger_source,status,started_at,finished_at,checked_count,notified_count,bonus_upgrades_count,error_message,metadata")
+        .eq("automation_key", "subscription_expiry_alerts")
+        .order("started_at", { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setAutomationRuns((data || []) as AutomationRun[]);
+    } catch (error) {
+      console.error("[PlansTab] Erro ao carregar saude da automacao:", error);
+      setAutomationRuns([]);
+    } finally {
+      setIsLoadingAutomationHealth(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadAutomationHealth();
+  }, []);
+
+  const formatDateTime = (value?: string | null) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleString("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  };
+
+  const getHealthSummary = () => {
+    const lastProcessSuccess = automationRuns.find((run) => run.action === "process" && run.status === "success");
+    const lastRun = automationRuns[0] || null;
+    const lastSuccessAt = lastProcessSuccess?.finished_at || lastProcessSuccess?.started_at || null;
+    const hoursSinceLastSuccess = lastSuccessAt
+      ? (Date.now() - new Date(lastSuccessAt).getTime()) / (1000 * 60 * 60)
+      : null;
+    const stale = !lastSuccessAt || (hoursSinceLastSuccess !== null && hoursSinceLastSuccess > 24);
+
+    if (!automationEnabled) {
+      return {
+        icon: <Clock className="h-5 w-5 text-muted-foreground" />,
+        label: "Automação desativada",
+        badge: <Badge variant="outline">Desativada</Badge>,
+        description: "A renovação automática por bônus está desligada na configuração atual.",
+        lastRun,
+        lastSuccessAt,
+        stale: false,
+      };
+    }
+
+    if (stale) {
+      return {
+        icon: <AlertTriangle className="h-5 w-5 text-destructive" />,
+        label: "Sem sucesso recente",
+        badge: <Badge variant="destructive">Atenção</Badge>,
+        description: lastSuccessAt
+          ? `Última execução bem-sucedida em ${formatDateTime(lastSuccessAt)}.`
+          : "Nenhuma execução bem-sucedida registrada ainda.",
+        lastRun,
+        lastSuccessAt,
+        stale: true,
+      };
+    }
+
+    if (lastRun?.status === "failed") {
+      return {
+        icon: <XCircle className="h-5 w-5 text-destructive" />,
+        label: "Última execução falhou",
+        badge: <Badge variant="destructive">Falha</Badge>,
+        description: lastRun.error_message || "A última execução registrou falha.",
+        lastRun,
+        lastSuccessAt,
+        stale: false,
+      };
+    }
+
+    return {
+      icon: <CheckCircle2 className="h-5 w-5 text-success" />,
+      label: "Operacional",
+      badge: <Badge className="bg-success text-success-foreground">Saudável</Badge>,
+      description: `Última execução bem-sucedida em ${formatDateTime(lastSuccessAt)}.`,
+      lastRun,
+      lastSuccessAt,
+      stale: false,
+    };
+  };
+
+  const healthSummary = getHealthSummary();
 
   const handleEditFreeTrial = () => {
     if (dbFreeTrial) {
@@ -294,6 +404,84 @@ const PlansTab = ({ plans, refetchData }: PlansTabProps) => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="rounded-lg border p-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div className="flex gap-3">
+                    <div className="mt-0.5">{healthSummary.icon}</div>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold">{healthSummary.label}</p>
+                        {healthSummary.badge}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{healthSummary.description}</p>
+                      {healthSummary.lastRun?.error_message ? (
+                        <p className="text-xs text-destructive">{healthSummary.lastRun.error_message}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={loadAutomationHealth} disabled={isLoadingAutomationHealth} className="gap-2">
+                    <RefreshCw className={`h-4 w-4 ${isLoadingAutomationHealth ? "animate-spin" : ""}`} />
+                    Atualizar status
+                  </Button>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <div className="rounded-md bg-secondary/40 p-3">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground">Último sucesso</p>
+                    <p className="text-sm">{formatDateTime(healthSummary.lastSuccessAt)}</p>
+                  </div>
+                  <div className="rounded-md bg-secondary/40 p-3">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground">Última execução</p>
+                    <p className="text-sm">{formatDateTime(healthSummary.lastRun?.started_at)}</p>
+                  </div>
+                  <div className="rounded-md bg-secondary/40 p-3">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground">Bônus no último run</p>
+                    <p className="text-sm">{healthSummary.lastRun?.bonus_upgrades_count ?? 0}</p>
+                  </div>
+                  <div className="rounded-md bg-secondary/40 p-3">
+                    <p className="text-[10px] font-semibold uppercase text-muted-foreground">Notificações</p>
+                    <p className="text-sm">{healthSummary.lastRun?.notified_count ?? 0}</p>
+                  </div>
+                </div>
+
+                {automationRuns.length > 0 ? (
+                  <div className="mt-4 overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Quando</TableHead>
+                          <TableHead>Ação</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Checados</TableHead>
+                          <TableHead className="text-right">Bônus</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {automationRuns.slice(0, 5).map((run) => (
+                          <TableRow key={run.id}>
+                            <TableCell className="whitespace-nowrap text-xs">{formatDateTime(run.started_at)}</TableCell>
+                            <TableCell className="text-xs">{run.action === "health_check" ? "Monitoramento" : "Processamento"}</TableCell>
+                            <TableCell>
+                              <Badge variant={run.status === "success" ? "outline" : run.status === "running" ? "secondary" : "destructive"}>
+                                {run.status === "success"
+                                  ? "Sucesso"
+                                  : run.status === "running"
+                                    ? "Rodando"
+                                    : run.status === "warning"
+                                      ? "Atenção"
+                                      : "Falha"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right text-xs">{run.checked_count}</TableCell>
+                            <TableCell className="text-right text-xs">{run.bonus_upgrades_count}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : null}
+              </div>
+
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div className="space-y-1">
                   <Label>Ativar automação</Label>

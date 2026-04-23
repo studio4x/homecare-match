@@ -20,6 +20,8 @@ const REMINDER_STEPS = [7, 3, 1, 0];
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FREE_TRIAL_EXTENSION_DAYS = 30;
 const BONUS_AUTOMATION_TARGETS = ["free_trial", "monthly_coupon", "both"] as const;
+const AUTOMATION_KEY = "subscription_expiry_alerts";
+const AUTOMATION_HEALTH_STALE_HOURS = 24;
 
 const toDateOnlyUtc = (value: Date) => {
   const d = new Date(value);
@@ -141,6 +143,111 @@ const applyReminderPathPattern = (pattern: string, reminderKey: string) => {
   return `${raw}${joiner}renewalReminder=${encodeURIComponent(reminderKey)}`;
 };
 
+const createAutomationRun = async (
+  supabaseAdmin: any,
+  triggerSource: string,
+  action: string,
+  metadata: Record<string, unknown> = {},
+) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("subscription_automation_runs")
+      .insert({
+        automation_key: AUTOMATION_KEY,
+        action,
+        trigger_source: triggerSource,
+        status: "running",
+        metadata,
+      })
+      .select("id")
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.id || null;
+  } catch (error) {
+    console.warn("[process-subscription-expiry-alerts] falha ao registrar inicio:", error?.message || error);
+    return null;
+  }
+};
+
+const finishAutomationRun = async (
+  supabaseAdmin: any,
+  runId: string | null,
+  status: "success" | "failed" | "warning",
+  details: Record<string, unknown> = {},
+) => {
+  if (!runId) return;
+
+  try {
+    await supabaseAdmin
+      .from("subscription_automation_runs")
+      .update({
+        status,
+        finished_at: new Date().toISOString(),
+        checked_count: Number(details.checked_count || 0),
+        notified_count: Number(details.notified_count || 0),
+        bonus_upgrades_count: Number(details.bonus_upgrades_count || 0),
+        error_message: typeof details.error_message === "string" ? details.error_message : null,
+        metadata: details.metadata || {},
+      })
+      .eq("id", runId);
+  } catch (error) {
+    console.warn("[process-subscription-expiry-alerts] falha ao finalizar log:", error?.message || error);
+  }
+};
+
+const getLastSuccessfulAutomationRun = async (supabaseAdmin: any) => {
+  const { data } = await supabaseAdmin
+    .from("subscription_automation_runs")
+    .select("id,finished_at,started_at,checked_count,bonus_upgrades_count,metadata")
+    .eq("automation_key", AUTOMATION_KEY)
+    .eq("action", "process")
+    .eq("status", "success")
+    .order("finished_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+
+  return data || null;
+};
+
+const notifyStaleAutomationIfNeeded = async (supabaseAdmin: any) => {
+  const lastSuccess = await getLastSuccessfulAutomationRun(supabaseAdmin);
+  const lastSuccessAt = lastSuccess?.finished_at || lastSuccess?.started_at || null;
+  const stale =
+    !lastSuccessAt ||
+    Date.now() - new Date(lastSuccessAt).getTime() > AUTOMATION_HEALTH_STALE_HOURS * 60 * 60 * 1000;
+
+  if (!stale) {
+    await supabaseAdmin
+      .from("admin_notifications")
+      .update({ is_completed: true, is_read: true })
+      .eq("type", "subscription_automation_health")
+      .eq("is_completed", false);
+
+    return { stale: false, last_success_at: lastSuccessAt };
+  }
+
+  const { data: existing } = await supabaseAdmin
+    .from("admin_notifications")
+    .select("id")
+    .eq("type", "subscription_automation_health")
+    .eq("is_completed", false)
+    .maybeSingle();
+
+  if (!existing?.id) {
+    await supabaseAdmin.from("admin_notifications").insert({
+      title: "Automacao de planos sem execucao recente",
+      content: lastSuccessAt
+        ? `A automacao de renovacao/bonus de planos nao tem execucao bem-sucedida desde ${formatDatePt(lastSuccessAt)}. Verifique a aba Planos > Automacao 30 dias.`
+        : "A automacao de renovacao/bonus de planos ainda nao registrou execucao bem-sucedida. Verifique a aba Planos > Automacao 30 dias.",
+      link: "/admin/planos",
+      type: "subscription_automation_health",
+    });
+  }
+
+  return { stale: true, last_success_at: lastSuccessAt };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
 
@@ -199,7 +306,10 @@ serve(async (req) => {
     });
   }
 
+  let automationRunId: string | null = null;
+
   try {
+    const action = String(payload?.action || "process").trim().toLowerCase();
     const targetUserIdRaw = typeof payload?.target_user_id === "string" ? payload.target_user_id.trim() : "";
     const targetUserEmailRaw = typeof payload?.target_user_email === "string" ? payload.target_user_email.trim().toLowerCase() : "";
     const force = payload?.force === true || String(payload?.force || "").toLowerCase() === "true";
@@ -233,6 +343,37 @@ serve(async (req) => {
     const now = new Date();
     const maxDate = new Date(now.getTime() + 8 * DAY_MS);
     const nowIso = now.toISOString();
+
+    automationRunId = await createAutomationRun(supabaseAdmin, authMode, action, {
+      target_user_id: targetUserId || null,
+      target_user_email: targetUserEmailRaw || null,
+      forced: force,
+    });
+
+    if (action === "health_check") {
+      const health = await notifyStaleAutomationIfNeeded(supabaseAdmin);
+      await finishAutomationRun(supabaseAdmin, automationRunId, health.stale ? "warning" : "success", {
+        metadata: {
+          action,
+          stale: health.stale,
+          last_success_at: health.last_success_at,
+        },
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          action,
+          stale: health.stale,
+          last_success_at: health.last_success_at,
+          mode: authMode,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     const [{ data: siteConfig }, { data: freeTrialPlan }] = await Promise.all([
       supabaseAdmin
@@ -322,6 +463,19 @@ serve(async (req) => {
     ).size;
 
     if (candidates.length === 0 && freeTrialCandidates.length === 0 && couponMonthlyCandidates.length === 0) {
+      await finishAutomationRun(supabaseAdmin, automationRunId, "success", {
+        checked_count: 0,
+        notified_count: 0,
+        bonus_upgrades_count: 0,
+        metadata: {
+          action,
+          target_user_id: targetUserId || null,
+          free_trial_monthly_upgrade_enabled: freeTrialMonthlyUpgradeEnabled,
+          free_trial_monthly_upgrade_target: freeTrialMonthlyUpgradeTarget,
+        },
+      });
+      await notifyStaleAutomationIfNeeded(supabaseAdmin);
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -1078,6 +1232,23 @@ serve(async (req) => {
       }
     }
 
+    await finishAutomationRun(supabaseAdmin, automationRunId, errors.length > 0 ? "warning" : "success", {
+      checked_count: checkedProfilesCount,
+      notified_count: notified,
+      bonus_upgrades_count: trialBonusUpgrades + couponMonthlyBonusUpgrades,
+      error_message: errors.length > 0 ? errors[0]?.message || "Execucao concluida com erros." : null,
+      metadata: {
+        action,
+        target_user_id: targetUserId || null,
+        forced: force,
+        trial_bonus_upgrades: trialBonusUpgrades,
+        coupon_monthly_bonus_upgrades: couponMonthlyBonusUpgrades,
+        coupon_expired_resets: couponExpiredResets,
+        errors: errors.slice(0, 20),
+      },
+    });
+    await notifyStaleAutomationIfNeeded(supabaseAdmin);
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -1106,6 +1277,33 @@ serve(async (req) => {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    await finishAutomationRun(supabaseAdmin, automationRunId, "failed", {
+      error_message: message,
+      metadata: {
+        action: String(payload?.action || "process"),
+      },
+    });
+
+    try {
+      const { data: existing } = await supabaseAdmin
+        .from("admin_notifications")
+        .select("id")
+        .eq("type", "subscription_automation_health")
+        .eq("is_completed", false)
+        .maybeSingle();
+
+      if (!existing?.id) {
+        await supabaseAdmin.from("admin_notifications").insert({
+          title: "Falha na automacao de planos",
+          content: `A automacao de renovacao/bonus de planos falhou: ${message}`,
+          link: "/admin/planos",
+          type: "subscription_automation_health",
+        });
+      }
+    } catch {
+      // ignore notification failure
+    }
+
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

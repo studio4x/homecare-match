@@ -1,33 +1,61 @@
 import { supabase } from "@/integrations/supabase/client";
 
 const parseInvokeError = async (error: any, fallback: string) => {
+  let status: number | undefined;
   const context = error?.context as Response | undefined;
   if (context) {
+    status = context.status;
+
     try {
       const body = await context.clone().json();
-      if (typeof body?.error === "string" && body.error.trim()) return body.error;
+      if (typeof body?.error === "string" && body.error.trim()) {
+        return { message: body.error, status };
+      }
     } catch {
       // fallback below
     }
   }
 
-  return typeof error?.message === "string" && error.message.trim() ? error.message : fallback;
+  return {
+    message: typeof error?.message === "string" && error.message.trim() ? error.message : fallback,
+    status,
+  };
+};
+
+const invokeLmsFunction = async <T>(functionName: string, body: Record<string, unknown>, fallback: string) => {
+  const invoke = () => supabase.functions.invoke(functionName, { body });
+
+  let { data, error } = await invoke();
+  if (!error) return data as T;
+
+  let parsedError = await parseInvokeError(error, fallback);
+  const shouldRefreshSession =
+    parsedError.status === 401 || /invalid jwt|jwt expired|unauthorized/i.test(parsedError.message || "");
+
+  if (shouldRefreshSession) {
+    const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+
+    if (!refreshError && refreshed?.session) {
+      ({ data, error } = await invoke());
+      if (!error) return data as T;
+      parsedError = await parseInvokeError(error, fallback);
+    }
+  }
+
+  throw new Error(parsedError.message || fallback);
 };
 
 export const enrollFreeCourse = async (courseSlug: string) => {
-  const { error } = await supabase.functions.invoke("enroll-free-course", {
-    body: { courseSlug },
-  });
-
-  if (error) throw new Error(await parseInvokeError(error, "Falha ao inscrever no curso."));
+  await invokeLmsFunction("enroll-free-course", { courseSlug }, "Falha ao inscrever no curso.");
 };
 
 export const createLmsCourseAccessUrl = async (courseSlug: string) => {
-  const { data, error } = await supabase.functions.invoke("access-lms-course", {
-    body: { courseSlug },
-  });
+  const data = await invokeLmsFunction<{ url?: string }>(
+    "access-lms-course",
+    { courseSlug },
+    "Falha ao gerar acesso ao LMS.",
+  );
 
-  if (error) throw new Error(await parseInvokeError(error, "Falha ao gerar acesso ao LMS."));
   if (!data?.url) throw new Error("URL de acesso ao LMS nao retornada.");
   return String(data.url);
 };

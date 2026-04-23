@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { createCheckoutSession } from "@/lib/checkout";
+import { enrollFreeCourse } from "@/lib/lms";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import CourseAIDisclaimer from "@/components/CourseAIDisclaimer";
@@ -348,10 +349,7 @@ const Courses = () => {
     // Se for gratuito ou admin, inscreve direto
     try {
       setLoadingEnroll(true);
-      const { error } = await supabase
-        .from("academy_enrollments")
-        .upsert({ user_id: user.id, course_slug: course.slug }, { onConflict: "user_id,course_slug" });
-      if (error) throw error;
+      await enrollFreeCourse(course.slug);
       setEnrollments((prev) => ({
         enrolledSlugs: Array.from(new Set([...(prev.enrolledSlugs || []), course.slug])),
         progress: prev.progress || {},

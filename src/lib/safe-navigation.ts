@@ -8,6 +8,10 @@ const DEFAULT_CHECKOUT_HOSTS = [
   "api-sandbox.asaas.com",
 ];
 
+const DEFAULT_LMS_HOSTS = [
+  "cursos.homecarematch.com.br",
+];
+
 type NavigateSafelyOptions = {
   allowExternal?: boolean;
   allowedHosts?: string[];
@@ -62,6 +66,11 @@ const getEnvList = (envValue: string | null | undefined) =>
 export const getCheckoutAllowedHosts = () => {
   const envHosts = getEnvList(import.meta.env.VITE_CHECKOUT_ALLOWED_HOSTS);
   return Array.from(new Set([...DEFAULT_CHECKOUT_HOSTS, ...envHosts]));
+};
+
+export const getLmsAllowedHosts = () => {
+  const envHosts = getEnvList(import.meta.env.VITE_LMS_ALLOWED_HOSTS);
+  return Array.from(new Set([...DEFAULT_LMS_HOSTS, ...envHosts]));
 };
 
 export const getSupabaseAllowedHosts = () => {

@@ -103,6 +103,7 @@ interface Course {
   is_active?: boolean;
   hero_asset_url?: string;
   content_url?: string;
+  external_course_id?: string;
   created_at?: string;
   price?: number;
   video_source?: string;
@@ -226,6 +227,7 @@ const CoursesTab = () => {
       is_active: true,
       hero_asset_url: "",
       content_url: "",
+      external_course_id: "",
       price: 0,
       video_source: "url",
       video_url: "",
@@ -243,6 +245,7 @@ const CoursesTab = () => {
       video_url: c.video_url || "",
       video_storage_path: c.video_storage_path || "",
       video_mime: c.video_mime || "",
+      external_course_id: c.external_course_id || c.slug,
       asaas_installment_max: c.asaas_installment_max || 1
     });
     setOpenDialog(true);
@@ -274,6 +277,7 @@ const CoursesTab = () => {
         title: fixMojibake(selectedCourse.title),
         description: fixNullableMojibake(selectedCourse.description),
         content_url: fixNullableMojibake(selectedCourse.content_url),
+        external_course_id: selectedCourse.external_course_id || selectedCourse.slug,
         created_at: selectedCourse.created_at || new Date().toISOString(),
       });
       if (error) throw error;
@@ -671,7 +675,17 @@ const CoursesTab = () => {
               </div>
 
               <div className="space-y-2">
-                <Label className="flex items-center gap-2"><Eye size={14} /> URL da Plataforma Externa (Opcional)</Label>
+                <Label>ID do Curso na HomeCare Match no LMS</Label>
+                <Input
+                  placeholder="Mesmo valor cadastrado no LMS"
+                  value={selectedCourse.external_course_id || ""}
+                  onChange={e => setSelectedCourse({...selectedCourse, external_course_id: e.target.value})}
+                />
+                <p className="text-[10px] text-muted-foreground">Obrigatório para liberar acesso e receber eventos do LMS.</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Eye size={14} /> URL da Plataforma Externa (Legado/Opcional)</Label>
                 <Input
                   placeholder="https://my.coursebox.ai/courses/..."
                   value={selectedCourse.content_url || ""}

@@ -43,11 +43,12 @@ import { COURSE_LEVEL_LABELS } from "@/components/admin/CoursesTab";
 import { getYouTubeEmbedUrl } from "@/lib/video-utils"; // Import the new utility
 import LandingVideoPlayer from "@/components/LandingVideoPlayer"; // Import LandingVideoPlayer
 import { createCheckoutSession } from "@/lib/checkout";
+import { createLmsCourseAccessUrl, enrollFreeCourse } from "@/lib/lms";
 import { fixMojibake, fixNullableMojibake } from "@/lib/encoding";
 import SubscriptionCouponModal from "@/components/SubscriptionCouponModal";
 import CourseAIDisclaimer from "@/components/CourseAIDisclaimer";
 import { sanitizeStoragePath } from "@/lib/storage-path";
-import { getCheckoutAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
+import { getCheckoutAllowedHosts, getLmsAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
 
 const PRIVATE_BUCKET = "academy-private";
 
@@ -397,14 +398,32 @@ const CourseDetail = () => {
     // Se for gratuito ou admin, inscreve direto
     try {
       setEnrollmentLoading(true);
-      const { error } = await supabase.from("academy_enrollments").upsert({ user_id: user?.id, course_slug: slug }, { onConflict: "user_id,course_slug" });
-      if (error) throw error;
+      await enrollFreeCourse(slug || "");
       setIsEnrolled(true);
       toast.success("Inscrição realizada! Bons estudos.");
       fetchCourseData();
     } catch (e) {
       console.error("[Courses] Enroll error:", e);
       toast.error("Falha ao inscrever.");
+    } finally {
+      setEnrollmentLoading(false);
+    }
+  };
+
+  const handleAccessLmsCourse = async () => {
+    if (!slug) return;
+    setEnrollmentLoading(true);
+    const toastId = toast.loading("Gerando acesso ao curso...");
+    try {
+      const url = await createLmsCourseAccessUrl(slug);
+      const redirected = navigateSafely(url, {
+        allowExternal: true,
+        allowedHosts: getLmsAllowedHosts(),
+      });
+      if (!redirected) throw new Error("URL de acesso ao LMS invalida.");
+    } catch (err: any) {
+      toast.error(err.message || "Falha ao acessar o curso.");
+      toast.dismiss(toastId);
     } finally {
       setEnrollmentLoading(false);
     }
@@ -629,6 +648,11 @@ const CourseDetail = () => {
                       <Check size={14} /> 
                       {stats.pct === 100 ? "Você concluiu este curso!" : "Você está matriculado."}
                     </div>
+
+                    <Button className="w-full gap-2" onClick={handleAccessLmsCourse} disabled={enrollmentLoading}>
+                      {enrollmentLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                      Acessar curso no LMS
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -944,4 +968,3 @@ const CourseDetail = () => {
 };
 
 export default CourseDetail;
-

@@ -6,6 +6,9 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Loader2, Award } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import { createLmsCourseAccessUrl } from "@/lib/lms";
+import { getLmsAllowedHosts, navigateSafely } from "@/lib/safe-navigation";
 
 export interface CourseSummary {
   slug: string;
@@ -33,6 +36,21 @@ const CourseSummaryList: React.FC<CourseSummaryListProps> = ({ title, items, per
 
   const nextPage = () => setPage((p) => Math.min(totalPages, p + 1));
   const prevPage = () => setPage((p) => Math.max(1, p - 1));
+
+  const openLmsCourse = async (courseSlug: string) => {
+    const toastId = toast.loading("Gerando acesso ao curso...");
+    try {
+      const url = await createLmsCourseAccessUrl(courseSlug);
+      const redirected = navigateSafely(url, {
+        allowExternal: true,
+        allowedHosts: getLmsAllowedHosts(),
+      });
+      if (!redirected) throw new Error("URL de acesso ao LMS invalida.");
+    } catch (error: any) {
+      toast.error(error.message || "Falha ao acessar o curso.");
+      toast.dismiss(toastId);
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -78,8 +96,8 @@ const CourseSummaryList: React.FC<CourseSummaryListProps> = ({ title, items, per
                       <Link to={`/certificado/${c.certificateId}`} target="_blank"><Award className="h-3 w-3 mr-1" /> Ver Selo</Link>
                     </Button>
                   )}
-                  <Button asChild size="sm" className="h-8 text-xs">
-                    <Link to={`/cursos/${c.slug}`}>{c.progressPct === 100 ? "Rever" : "Abrir"}</Link>
+                  <Button size="sm" className="h-8 text-xs" onClick={() => openLmsCourse(c.slug)}>
+                    {c.progressPct === 100 ? "Rever" : "Abrir"}
                   </Button>
                 </div>
               </CardContent>

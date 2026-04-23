@@ -1,6 +1,7 @@
 ﻿// @ts-nocheck
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireMappedExternalCourseId, revokeLmsRelease, syncLmsRelease } from "../_shared/lms-integration.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,12 @@ const INACTIVE_STATUSES = new Set([
   "CHARGEBACK_REQUESTED",
   "CHARGEBACK_DISPUTE",
 ]);
+
+const mapAsaasInactiveReason = (status: string) => {
+  if (status.includes("REFUND")) return "refunded";
+  if (status.includes("CANCEL")) return "cancelled";
+  return "revoked_by_hcm";
+};
 
 const asaasEnvFromConfig = (config: any) => {
   if (config?.asaas_environment === "production") return "production";
@@ -553,8 +560,54 @@ serve(async (req) => {
           .upsert({
             user_id: userId,
             course_slug: courseSlug,
+            access_status: "active",
+            release_source: "purchase",
+            external_reference_id: paymentId || checkoutId || `course:${courseSlug}:${userId}`,
             created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           }, { onConflict: "user_id,course_slug" });
+
+        try {
+          const [{ data: course }, { data: profile }] = await Promise.all([
+            supabaseAdmin
+              .from("academy_courses")
+              .select("slug,title,external_course_id")
+              .eq("slug", courseSlug)
+              .maybeSingle(),
+            supabaseAdmin
+              .from("profiles")
+              .select("id,email,full_name")
+              .eq("id", userId)
+              .maybeSingle(),
+          ]);
+
+          const externalCourseId = requireMappedExternalCourseId(course);
+          await syncLmsRelease(supabaseAdmin, {
+            request_id: `purchase:${paymentId || checkoutId || crypto.randomUUID()}`,
+            source_system: "homecare_match",
+            release_source: "purchase",
+            external_reference_id: paymentId || checkoutId || `course:${courseSlug}:${userId}`,
+            user: {
+              external_user_id: userId,
+              email: profile?.email || "",
+              full_name: profile?.full_name || profile?.email || "Aluno HomeCare Match",
+            },
+            course: { external_course_id: externalCourseId },
+            access: {
+              status: "active",
+              starts_at: new Date().toISOString(),
+              ends_at: null,
+              revoked_reason: null,
+            },
+          });
+        } catch (lmsError) {
+          console.error("[asaas-webhook] Falha ao sincronizar liberacao LMS:", {
+            request_id: `purchase:${paymentId || checkoutId || ""}`,
+            courseSlug,
+            userId,
+            error: lmsError?.message || lmsError,
+          });
+        }
 
         try {
           const { data: course } = await supabaseAdmin
@@ -584,6 +637,45 @@ serve(async (req) => {
         } catch {
           // not critical
         }
+      }
+    }
+
+    const incomingInactive = event ? INACTIVE_STATUSES.has(event) : false;
+    const statusInactive = paymentStatus ? INACTIVE_STATUSES.has(paymentStatus) : false;
+
+    if ((incomingInactive || statusInactive) && courseSlug && userId) {
+      const inactiveStatus = normalizeStatus(paymentStatus || event || "REVOKED") || "REVOKED";
+      await supabaseAdmin
+        .from("academy_enrollments")
+        .update({
+          access_status: "revoked",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId)
+        .eq("course_slug", courseSlug);
+
+      try {
+        const { data: course } = await supabaseAdmin
+          .from("academy_courses")
+          .select("slug,external_course_id")
+          .eq("slug", courseSlug)
+          .maybeSingle();
+
+        await revokeLmsRelease(supabaseAdmin, {
+          request_id: `revoke:${paymentId || checkoutId || crypto.randomUUID()}`,
+          source_system: "homecare_match",
+          external_reference_id: paymentId || checkoutId || `course:${courseSlug}:${userId}`,
+          user: { external_user_id: userId },
+          course: { external_course_id: requireMappedExternalCourseId(course) },
+          reason: mapAsaasInactiveReason(inactiveStatus),
+        });
+      } catch (lmsError) {
+        console.error("[asaas-webhook] Falha ao revogar liberacao LMS:", {
+          request_id: `revoke:${paymentId || checkoutId || ""}`,
+          courseSlug,
+          userId,
+          error: lmsError?.message || lmsError,
+        });
       }
     }
 
